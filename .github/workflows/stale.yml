@@ -1,0 +1,63 @@
+# Copyright (c) 2026 whizBANG Developers LLC. All rights reserved.
+# Proprietary and confidential. Do not distribute.
+# Stale Issues Management
+# CREATED IN: Dev repo, Public repo
+# USED BY: Issue/PR maintenance automation
+# TRIGGERS: Daily schedule, manual
+
+name: Stale Issues
+
+on:
+  schedule:
+    # Run daily at midnight UTC
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+
+jobs:
+  stale:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+
+    steps:
+      - name: Mark stale issues and PRs
+        uses: actions/stale@b5d41d4e1d5dceea10e7104786b73624c18a190f  # v10
+        with:
+          # Issue settings
+          days-before-stale: 60
+          days-before-close: 14
+          stale-issue-label: 'stale'
+          stale-issue-message: |
+            This issue has been automatically marked as stale because it has not had recent activity.
+            It will be closed in 14 days if no further activity occurs.
+
+            If this issue is still relevant:
+            - Comment to keep it open
+            - Add the `pinned` label to prevent auto-closing
+
+            Thank you for your contributions!
+          close-issue-message: |
+            This issue has been automatically closed due to inactivity.
+            If you believe this is still relevant, please open a new issue with updated information.
+
+          # PR settings
+          stale-pr-label: 'stale'
+          stale-pr-message: |
+            This pull request has been automatically marked as stale because it has not had recent activity.
+            It will be closed in 14 days if no further activity occurs.
+
+            Please update the PR or comment to keep it open.
+          close-pr-message: |
+            This pull request has been automatically closed due to inactivity.
+            Feel free to reopen if you'd like to continue working on it.
+
+          # Exempt labels - issues with these labels won't be marked stale
+          exempt-issue-labels: 'pinned,security,blocked,in-progress'
+          exempt-pr-labels: 'pinned,security,blocked,in-progress'
+
+          # Don't close issues/PRs with these labels
+          exempt-all-assignees: true
+
+          # Operations per run (to avoid rate limiting)
+          operations-per-run: 100

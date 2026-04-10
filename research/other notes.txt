@@ -1,0 +1,142 @@
+Let me think through this systematically across several categories.
+
+Red Team: MASTER-PLAN Issues
+1. Decision Numbering Conflict — #57 appears twice
+Decision #57 is used for two separate decisions:
+
+Line 652: idle workload status model
+Line 655: "workload" as canonical unified term
+One of these is mislabeled. This is in the canonical decision log, so any reference to "#57" is ambiguous.
+
+2. Agent table not updated after Decision #74
+Decision #74 restructured:
+
+v1.5.0 → Integrated Secrets Management
+v1.6.0 → Config Export/Import + Format Parsers (combined migration tooling)
+But the Agent Definitions section still shows:
+
+config-export-import at v1.5.0
+format-parsers at v1.6.0
+The agent version targets are wrong. When Forge picks these up, it'll build against the old version slots.
+
+3. Wave numbering is broken in Execution Order
+The Execution Order section has:
+
+Wave 1: v1.0
+Wave 2: v1.1–1.3
+Wave 3: v1.4–1.5 (Import/Export Arc) — but Decision #74 retired this — v1.4 is now cross-resource AI agent, v1.5 is secrets management, v1.6 is migration tooling
+Wave 4: v2.4–2.6 Backup
+Wave 5: v2.3 Fabrick Clustering — out of chronological order (Wave 5 = v2.3, Wave 4 = v2.4–2.6)
+The wave labels are stale and the ordering contradicts the version numbers.
+
+4. v1.0 launches with the wrong demo
+"Two-demo strategy (public + private)" is listed as Planned — post v1.0 release. This means v1.0 ships with a single demo that may not be optimized for either audience. The public demo is a GTM asset — shipping post-launch means the launch moment is weaker than it could be.
+
+5. No revenue at v1.0 — but launch costs are real
+v1.0 is pure free tier. Stripe activation is blocked on EIN (still awaiting IRS). The payment gate is on v1.1 — an external dependency. If EIN processing is slow (IRS backlogs run 4–16 weeks), v1.1 is blocked regardless of engineering readiness. The plan has no contingency for this.
+
+6. Proxmox moat-breaker is 7 versions away
+The plan calls v2.3 (Fabrick Basic Clustering) the "Proxmox moat-breaker." That's after v1.0, v1.1, v1.2, v1.3, v1.4/v1.5, v1.6, v2.0, v2.1, v2.2, then v2.3 — roughly 10 releases. Proxmox 8.x is actively developing. The competitive window for the moat-breaker claim should be stress-tested: what does Proxmox's roadmap look like at v2.3 ship time?
+
+7. Team → Fabrick pricing cliff
+Weaver Team: 4 users × $99/yr = $396/yr. Fabrick: $1,500/yr first node. That's a ~4× jump with no intermediate rung. A 5-person team hits the wall and has a very large upgrade cliff. This is the most likely churn/stall point in the funnel.
+
+8. gRPC protocol rewrite mid-flight
+Decision #5: REST+WS for Weaver/Free, gRPC for Fabrick at v3.0. But fleet discovery (v2.3, Decisions #97–102) builds on port 50051 with mTLS — that infrastructure exists before gRPC ships. The v2.3 → v3.0 transition requires rewriting the agent transport protocol while the fleet is live. Migration path for existing v2.3 registered agents is not documented.
+
+9. Observer host SSL/mTLS CA complexity is underdocumented
+Decisions #97–#101 require:
+
+A Fabrick CA issuing per-host certificates
+x509v3 extensions (weaverRole=observer|managed)
+Certificate rotation for observer minimum-version enforcement
+Pairing token flow at registration
+None of the plans document: who operates the CA, how certificates rotate, what happens on hub migration, or how compromised agent certs are revoked. This is an entire PKI system embedded in v2.3 scope with no design doc.
+
+10. "Insurance principle" is a marketing liability
+Decision #30: "Free = zero security features, zero liability." In practice this means Free users get no MFA (Decision #96 retired TOTP-from-Free), no firewall, no hardening. A tech journalist or competitor can accurately write: "Weaver leaves free users with no security features whatsoever." The principle is legally sound but the messaging risk isn't addressed anywhere in the GTM or PR plans.
+
+11. Mobile app at v1.3 has an undocumented prerequisite gate
+The memory file has a project memory: do Quasar Capacitor on Qepton project first before starting v1.3 mobile code. The MASTER-PLAN has no mention of this dependency. Anyone reading the plan assumes v1.3 can start after v1.2 ships — it can't. This is a hidden schedule dependency that could silently slip v1.3.
+
+12. v2.x arc is 7 versions with no revenue inflection until v2.2+
+Weaver Team ($99/user/yr) doesn't ship until v2.2. The v2.x arc covers storage (v2.0–2.1), peer federation (v2.2), clustering (v2.3), backups (v2.4–2.6). That's a long stretch of development before the second revenue tier unlocks. Meanwhile, Fabrick at $1,500/yr is v3.0 — even further out. The cashflow model needs to be stress-tested against this timeline.
+
+13. Forge dependency is an unacknowledged single point of failure
+The execution model assumes Forge (dark factory) is operational and allocating agents reliably. But Forge is a separate private repo with its own development arc. If Forge agent execution is unreliable, the entire versioned agent pipeline (agents/v1.1.0/, v1.2.0/, etc.) stalls. The MASTER-PLAN treats Forge as a given, not as a dependency with its own risk profile.
+
+14. Fabrick hub SPOF — no HA story documented
+If the Fabrick hub goes down, what happens to managed fleet hosts? The plan is silent on hub redundancy. This will be the first question from any enterprise evaluator. "HA" is listed for v3.0 but it's scoped to VM workloads (live migration), not the Fabrick control plane itself. A downed hub that takes the compliance audit trail with it is a deal-killer for the healthcare/defense verticals.
+
+15. Decision #33 (Fabrick pricing) references a "pending founder meeting" — never resolved
+Decision #33 includes: "C-premium direction: $799/yr first node, $399/yr additional, $299/yr at 10+. Pending founder meeting." Decision #63 superseded it with $1,500/yr. But Decision #33 still exists in the log with that "pending" language. The log should note it's been superseded, but more importantly: the $399/additional-node pricing in #33 has no corresponding update in #63, which specifies $750/yr additional. The additional-node pricing changed by 2× but #33's tail is still in the log.
+
+Priority Summary
+Severity	Issue
+Critical (breaks execution)	#57 duplicate, agent version mismatch (#74), gRPC protocol rewrite gap, mobile prerequisite gate
+High (blocks revenue/GTM)	Stripe/EIN external dependency, Team→Fabrick pricing cliff, two-demo timing
+Medium (strategic risk)	Proxmox window, Fabrick hub SPOF, Observer PKI complexity, Wave numbering
+Low (cleanup)	Decision #33 stale language, insurance principle messaging
+Want me to propose fixes for any of these?
+
+memory/project_mobile_prerequisite.md
+
+
+ig survey complete. Here's the prioritized breakdown:
+
+Gaps: Business Docs vs. Master Plan
+Critical — Missing entirely from MASTER-PLAN
+Compliance Export Extension (COMPLIANCE-EXPORT-EXTENSION.md)
+No decision number exists. This is a standalone extension (requirePlugin('compliance-export')) at $4,000/yr flat (FM $2,800, closes v2.2). Ships in 3 phases: v2.2 (HIPAA/SOC 2/PCI/NIST/CMMC), v2.4 (CMMC Level 2 full), v3.0 (scheduled delivery, ConMon, 21 CFR/EU Annex 11). This is apparently a significant revenue line and vertical sales asset — not mentioned anywhere in MASTER-PLAN.
+
+Fabrick Cloud — v4 product (FABRICK-CLOUD.md)
+The MASTER-PLAN mentions v4 as "Platform + Verticals (horizon)." The actual product is defined: WBD-hosted Fabrick hub, on-prem nodes connect outbound, $150/yr/node FM (founding, locked forever, closes at v4.0 GA), $200–250/yr/node standard. Critical gate: ≥20 Founding Members by v3.0 GA = Path A (Platform SaaS); <20 = Path B (AI vertical or K-12). This pre-sell decision gate is completely absent from MASTER-PLAN.
+
+Version-stepped pricing evolution (PRICING-POWER-ANALYSIS.md)
+MASTER-PLAN has static pricing. The actual model is stepped:
+
+Weaver Solo: $149 (v1.0–v1.1) → $249 (v1.2+) → $299 (v3.0+)
+Weaver Team: $99/user FM → $149/user standard (post-v2.2)
+Fabrick: stepped at v2.2 ($2,000) and v3.0 ($3,500 first node)
+Current pricing captures only 1.9% (Solo) to 20.5% (Fabrick v3.0) of delivered TCO value. Industry norm is 20–35%. Eight specific undercharges identified with remediation plan. None of this is in MASTER-PLAN.
+
+V4 funding gap (V4-FUNDING-GAP-ANALYSIS.md)
+v4 costs $500–770K/yr additional (2 engineers + cloud + devrel + security audit + GTM). Month 36 base-case ARR ($600–800K) is insufficient without pricing changes. Six specific pricing levers needed — quantified, sequenced, and mapped to versions — to close the $400–600K gap. Not in MASTER-PLAN.
+
+High — Decisions exist but details missing
+Channel Partner economics (CHANNEL-PARTNER-PITCH.md)
+Decision #38 references channel partners. The actual terms: $30K/yr partner fee, 3% locked commission on Fabrick deals (FM only, 5 slots total), 18-month attribution window for pipeline registration, $240/deal/year locked forever. MASTER-PLAN has none of this; it just says "Channel referrals > direct sales pre-scale."
+
+Technology Alliances pipeline (TECHNOLOGY-ALLIANCES.md)
+Decision #42 is vague. The actual outreach pipeline is version-gated:
+
+Hetzner + DigitalOcean: v2.3.0 outreach (not v2.4 as in Decision #80's context)
+NVIDIA: v2.0.0 outreach
+Backblaze B2: v2.3.0 outreach
+Anthropic/BAA: v3.0 outreach
+Tailscale: v1.3.0 outreach
+The 1Password partnership has a specific economic model (CJ Affiliate, $2 flat + 25% of first year) not documented in MASTER-PLAN.
+
+Weaver Team FM gate (FOUNDING-MEMBER-PROGRAM.md)
+Explicit instruction: "Do not offer Team FM at launch. Opens at v2.1." This is nowhere in MASTER-PLAN. Also missing: Fabrick FM expansion node rate ($1,400/yr within 12 months, then $1,750/yr after 12 months or v3.0 GA — whichever comes first). Design Partner obligation language (2 roadmap surveys/year, 1 testimonial/case study in 12 months, 30-min reference call/year).
+
+Migration helper roadmap (MIGRATION-GUIDE.md)
+Proxmox pool import, VMware resource group import, LDAP/AD modes, CSV workload import — all planned for v3.3.0 with specific open items. Referenced in Decision #89 but the migration tooling scope isn't in MASTER-PLAN as a planned feature.
+
+Medium — Strategic positioning not captured
+Sysop-as-champion acquisition model
+81% of self-hosters are professional tech workers. $149/yr home eval → enterprise champion → $8K/yr Fabrick contract = 53× ROI on acquisition cost. This is a core GTM thesis in the partner and pitch materials but has no Decision entry.
+
+Podman substitute positioning (podman-substitute.md)
+Decision #54 references this but the detail is richer: specific sales soundbites, pod-level grouping as topology nodes in v1.2 (Kubernetes semantics without Kubernetes), Strands visualization as unique NixOS advantage. This is v1.1 sales material that should be in the GTM plan.
+
+MSP, Education, Manufacturing IT/OT verticals
+Four complete vertical sales docs (msp.md, education.md, manufacturing.md, manufacturing-ot.md) with full regulatory mapping. MASTER-PLAN's vertical table only lists the docs that exist — it doesn't list MSP, Education, or Manufacturing as target verticals in the Planned section. These are complete documents, not stubs.
+
+What should go into memory now
+Three items are decision-quality and affect future sessions:
+
+Compliance Export Extension — new extension, version targets, pricing, frameworks
+Fabrick Cloud Path A/B gate — ≥20 Founding Members by v3.0 GA drives entire v4 direction
+Version-stepped pricing — pricing changes at v1.2, v2.2, v3.0 affect every revenue conversation
+Want me to write memory entries for those three, and/or draft the missing Decision entries for MASTER-PLAN?

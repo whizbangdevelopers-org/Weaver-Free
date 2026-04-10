@@ -1,0 +1,140 @@
+# Copyright (c) 2026 whizBANG Developers LLC. All rights reserved.
+# Proprietary and confidential. Do not distribute.
+# Create Post-Release Verification Issue
+# CREATED IN: Dev repo
+# USED BY: Release process - creates a verification checklist issue after release
+# TRIGGERS: Manual with version input
+#
+# Creates a structured verification issue with checklists for:
+#   - Build verification
+#   - Installation testing
+#   - Feature smoke tests
+#   - Demo deployment verification
+#   - NUR package verification
+
+name: Create Release Verification
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., v1.0.0)'
+        required: true
+        type: string
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  create-verification-issue:
+    name: Create Verification Issue
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+
+      - name: Create verification issue
+        id: create-issue
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b  # v7
+        with:
+          script: |
+            const version = '${{ github.event.inputs.version }}';
+            if (!/^v\d+\.\d+\.\d+(-[\w.]+)?$/.test(version)) {
+              core.setFailed(`Invalid version format: ${version}`);
+              return;
+            }
+            const repo = context.repo;
+
+            const body = `## Release Verification: ${version}
+
+            **Release date:** ${new Date().toISOString().split('T')[0]}
+            **Created by:** @${context.actor}
+            **Release URL:** https://github.com/${repo.owner}/${repo.repo}/releases/tag/${version}
+
+            ---
+
+            ### Build Verification
+            - [ ] GitHub release was created successfully
+            - [ ] Release notes are accurate and complete
+            - [ ] SPA build artifact is attached to the release
+            - [ ] Build artifact can be downloaded and extracted
+
+            ### Installation Testing
+            - [ ] Fresh install from release artifact works
+            - [ ] \`npm ci && npm run build\` succeeds from tagged source
+            - [ ] Backend builds successfully (\`cd backend && npm ci && npm run build\`)
+            - [ ] Docker compose setup works with release version
+
+            ### Feature Smoke Tests
+            - [ ] Application starts and loads dashboard
+            - [ ] MicroVM list displays correctly
+            - [ ] MicroVM creation workflow functions
+            - [ ] MicroVM start/stop/restart operations work
+            - [ ] Settings page is accessible and functional
+            - [ ] WebSocket real-time updates function
+            - [ ] PWA mode installs and works offline
+
+            ### Demo Deployment
+            - [ ] Demo site deployed successfully
+            - [ ] Demo site is accessible at expected URL
+            - [ ] Demo mode features work (read-only, sample data)
+            - [ ] hCaptcha integration functions on demo
+
+            ### Free (Public) Repo
+            - [ ] Release synced to free repo
+            - [ ] Free repo release was created
+            - [ ] Free repo code builds successfully
+            - [ ] Dev-only files are excluded (testing/, .claude/, etc.)
+
+            ### NUR Package
+            - [ ] NUR packages repo received dispatch event
+            - [ ] Package version updated in NUR
+            - [ ] Package hash is correct
+            - [ ] NixOS package builds from NUR
+
+            ### Documentation
+            - [ ] CHANGELOG.md is up to date
+            - [ ] README badges show correct version
+            - [ ] Any breaking changes are documented
+
+            ---
+
+            ### Verification Status
+            | Area | Status | Verified By | Date |
+            |------|--------|------------|------|
+            | Build | :hourglass: Pending | | |
+            | Installation | :hourglass: Pending | | |
+            | Features | :hourglass: Pending | | |
+            | Demo | :hourglass: Pending | | |
+            | Free Repo | :hourglass: Pending | | |
+            | NUR Package | :hourglass: Pending | | |
+            | Documentation | :hourglass: Pending | | |
+
+            ---
+            *This issue was created automatically by the release verification workflow.*
+            *Update status using the [release-verify-update](${ 'https://github.com/' + repo.owner + '/' + repo.repo + '/actions/workflows/release-verify-update.yml' }) workflow.*`;
+
+            const issue = await github.rest.issues.create({
+              owner: repo.owner,
+              repo: repo.repo,
+              title: `Release Verification: ${version}`,
+              body: body,
+              labels: ['release-verification', 'checklist'],
+              assignees: [context.actor]
+            });
+
+            console.log(`Created issue #${issue.data.number}: ${issue.data.html_url}`);
+            core.setOutput('issue_number', issue.data.number);
+            core.setOutput('issue_url', issue.data.html_url);
+
+      - name: Summary
+        run: |
+          echo "## Verification Issue Created" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- Version: ${{ github.event.inputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Issue: ${{ steps.create-issue.outputs.issue_url }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Issue #: ${{ steps.create-issue.outputs.issue_number }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Use the **release-verify-update** workflow to update verification status." >> $GITHUB_STEP_SUMMARY

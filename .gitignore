@@ -1,0 +1,17 @@
+# Personal / local-only
+notes/
+workspaces/
+logs/
+business/Announcements/
+
+# Build artifacts
+business/investor/deck/dist/
+
+# Runtime / temp
+test-infra/
+run.sh
+*.swp
+*.swo
+*~
+.~lock.*
+.DS_Store

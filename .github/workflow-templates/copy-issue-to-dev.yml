@@ -1,0 +1,61 @@
+# Copyright (c) 2026 whizBANG Developers LLC. All rights reserved.
+# Proprietary and confidential. Do not distribute.
+# Copy Confirmed Issues to Dev Repository
+# CREATED IN: Public repo (when "Private -> Public" production type chosen)
+# USED BY: Issue management - mirrors confirmed issues to private Dev repo
+# TRIGGERS: Issue labeled with 'confirmed'
+#
+# REQUIRED SECRETS:
+#   - DEV_REPO_TOKEN: PAT with repo scope for creating issues in Dev repo
+#
+# PLACEHOLDERS (replaced by setup-project.sh):
+#   - {{GITHUB_ORG}}: GitHub organization name
+#   - {{PROJECT_NAME}}: Project name (lowercase)
+
+name: Copy Issue to Dev
+
+on:
+  issues:
+    types: [labeled]
+
+env:
+  DEV_REPO: {{GITHUB_ORG}}/{{PROJECT_NAME}}-Dev
+
+jobs:
+  copy-issue:
+    if: github.event.label.name == 'confirmed'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Copy issue to Dev repo
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.DEV_REPO_TOKEN }}
+          script: |
+            const issue = context.payload.issue;
+            const [owner, repo] = process.env.DEV_REPO.split('/');
+
+            // Create issue in Dev repo
+            const newIssue = await github.rest.issues.create({
+              owner,
+              repo,
+              title: issue.title,
+              body: `> Mirrored from ${context.payload.repository.full_name}#${issue.number}\n>\n> Original: ${issue.html_url}\n\n---\n\n${issue.body || ''}`,
+              labels: ['from-public', ...issue.labels.map(l => l.name).filter(n => n !== 'confirmed')]
+            });
+
+            // Add comment to original issue
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.number,
+              body: `This issue has been confirmed and copied to our internal tracker for development.\n\nYou'll be notified here when a fix is available.`
+            });
+
+            console.log(`Created issue ${newIssue.data.html_url}`);
+
+      - name: Summary
+        run: |
+          echo "## Issue Copied to Dev" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- Original: ${{ github.event.issue.html_url }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Target repo: ${{ env.DEV_REPO }}" >> $GITHUB_STEP_SUMMARY

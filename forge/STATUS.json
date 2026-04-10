@@ -1,0 +1,184 @@
+{
+  "project": "weaver",
+  "repo": "whizbangdevelopers-org/Weaver-Dev",
+  "priority": 1,
+  "currentVersion": "1.0.0",
+  "phase": "pre-release",
+  "testSuite": {
+    "total": 1338,
+    "passing": 1338,
+    "breakdown": {
+      "unit": 269,
+      "backend": 582,
+      "tui": 183,
+      "e2e": 304
+    }
+  },
+  "blockers": [
+    "v1.0.0 release gates: NixOS fresh-install smoke test",
+    "v1.4.0 release gate: code protection — Weaver Solo sync workflow + sealed binary pipeline (bytenode + obfuscation + Nix closure) + artifact signing + AI Training Restriction ToS + license violation audit logging + BSL terms finalized",
+    "v1.1.0 release gate: legal/insurance review — container feature domain (Decision #31)",
+    "v1.2.0 release gate: legal/insurance review — firewall feature domain (Decision #31)",
+    "v2.0.0 release gate: legal/insurance review — backup/storage domain (Decision #31)"
+  ],
+  "recurring": [
+    {
+      "task": "nixos-release-compat",
+      "trigger": "pre-release",
+      "runner": "foundry",
+      "layers": ["nix-eval-N", "nix-eval-N-1", "nix-eval-unstable", "vm-integration-N", "vm-integration-N-1"],
+      "gate": true,
+      "plan": "plans/cross-version/NIXOS-RELEASE-TESTING-PLAN.md",
+      "cadence": "every-release + biannual-channel-bump"
+    },
+    {
+      "task": "e2e-test-writer",
+      "trigger": "pre-wave-gate",
+      "runner": "code-session",
+      "agent": "code/.claude/agents/e2e-test-writer.md",
+      "gate": true,
+      "description": "Audit E2E coverage gaps, write missing specs, iterate until suite is green. Runs before every version wave gate. Blocks merge if new coverage gaps exist.",
+      "cadence": "before-each-version-wave-gate"
+    }
+  ],
+  "queue": [
+    {
+      "version": "1.1.0",
+      "agent": "container-visibility",
+      "estimate": "8-9d",
+      "ready": false,
+      "blockedBy": "v1.0.0 release",
+      "branch": "feature/v1.1-container-visibility",
+      "parallel": false
+    },
+    {
+      "version": "1.2.0",
+      "agent": "sub-runtime-actions",
+      "estimate": "6d",
+      "ready": false,
+      "blockedBy": "v1.1.0",
+      "branch": "feature/v1.2-containers",
+      "parallel": false
+    },
+    {
+      "version": "1.2.0",
+      "agent": "sub-creation-frontend",
+      "estimate": "6d",
+      "ready": false,
+      "blockedBy": "sub-runtime-actions",
+      "branch": "feature/v1.2-containers",
+      "parallel": false
+    },
+    {
+      "version": "1.2.0",
+      "agent": "sub-governance-testing",
+      "estimate": "4d",
+      "ready": false,
+      "blockedBy": "sub-creation-frontend",
+      "branch": "feature/v1.2-containers",
+      "parallel": false
+    },
+    {
+      "version": "1.3.0",
+      "agent": "networking-wizards",
+      "estimate": "4-5d",
+      "ready": false,
+      "blockedBy": "v1.2.0",
+      "branch": "feature/v1.3-networking-wizards",
+      "parallel": false
+    },
+    {
+      "version": "1.3.0",
+      "agent": "mobile-app",
+      "estimate": "8-10d",
+      "ready": false,
+      "blockedBy": "networking-wizards",
+      "branch": "feature/v1.3-mobile-app",
+      "parallel": false
+    },
+    {
+      "version": "1.4.0",
+      "agent": "cross-resource-agent",
+      "estimate": "10-11d",
+      "ready": false,
+      "blockedBy": "v1.2.0",
+      "branch": "feature/v1.4-cross-resource-agent",
+      "parallel": true,
+      "parallelNote": "Parallel with v1.3.0 mobile arc — independent of networking/mobile. Also ships AI credential vault foundation (Decision #73) and bridge active routing (Decision #112)."
+    },
+    {
+      "version": "1.5.0",
+      "agent": "secrets-management",
+      "estimate": "6-8d",
+      "ready": false,
+      "blockedBy": "v1.4.0",
+      "branch": "feature/v1.5-secrets-management",
+      "parallel": false,
+      "note": "Expands v1.4.0 vault to general workload secrets — injection, per-workload assignment, credential audit trail (Decisions #73, #74). Spec stub only — full spec TBD."
+    },
+    {
+      "version": "1.6.0",
+      "agent": "config-export-import",
+      "estimate": "5-6d",
+      "ready": false,
+      "blockedBy": "v1.5.0",
+      "branch": "feature/v1.6-config-export-import",
+      "parallel": false
+    },
+    {
+      "version": "1.6.0",
+      "agent": "format-parsers",
+      "estimate": "6d",
+      "ready": false,
+      "blockedBy": "config-export-import",
+      "branch": "feature/v1.6-format-parsers",
+      "parallel": false
+    },
+    {
+      "version": "2.0.0",
+      "agent": "capacitor",
+      "estimate": "TBD",
+      "ready": false,
+      "blockedBy": "v1.0.0 release",
+      "branch": "feature/v2.0-capacitor",
+      "parallel": false
+    },
+    {
+      "version": "2.1.0",
+      "agent": "template-editor",
+      "estimate": "9-12d",
+      "ready": false,
+      "blockedBy": "v2.0.0",
+      "branch": "feature/v2.1-template-editor",
+      "parallel": true
+    },
+    {
+      "version": "2.1.0",
+      "agent": "maintenance-manager",
+      "estimate": "13-17d",
+      "ready": false,
+      "blockedBy": "v2.0.0",
+      "branch": "feature/v2.1-maintenance-manager",
+      "parallel": true
+    }
+  ],
+  "gtm": [
+    {
+      "agent": "content",
+      "ready": true,
+      "branch": "feature/gtm-content"
+    },
+    {
+      "agent": "demo",
+      "ready": true,
+      "branch": "feature/gtm-demo"
+    }
+  ],
+  "agentGaps": {
+    "tbd_estimates": ["v2.0.0/capacitor"],
+    "spec_stubs": ["v1.5.0/secrets-management"],
+    "missing_definitions": ["v2.2.0", "v2.4.0", "v2.5.0", "v2.6.0", "v3.0.0", "v3.1.0", "v3.2.0", "v3.3.0"]
+  },
+  "lastUpdated": "2026-03-29T12:00:00Z",
+  "generatedBy": "manual"
+}

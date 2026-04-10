@@ -1,0 +1,426 @@
+<!-- Copyright (c) 2026 whizBANG Developers LLC. All rights reserved. -->
+<!-- Proprietary and confidential. Do not distribute. -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MicroVM — Header Comparison: Original Amber vs Electric Arc</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+  @import url('https://cdn.jsdelivr.net/npm/@mdi/font@7.4.47/css/materialdesignicons.min.css');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: #08080C;
+    color: #E0E0E0;
+    padding: 60px 40px;
+  }
+
+  h1 {
+    font-size: 14px;
+    font-weight: 400;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    color: #555;
+    margin-bottom: 60px;
+  }
+
+  .section-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    margin-bottom: 20px;
+  }
+
+  .app-frame {
+    border-radius: 12px;
+    overflow: hidden;
+    max-width: 960px;
+    margin-bottom: 60px;
+    border: 1px solid #1A1A1A;
+  }
+
+  /* ---- Shared header structure ---- */
+  .app-toolbar {
+    display: flex;
+    align-items: center;
+    padding: 10px 20px;
+    gap: 12px;
+  }
+
+  .app-name {
+    font-family: 'Inter', sans-serif;
+    font-size: 18px;
+    user-select: none;
+  }
+
+  .spacer { flex: 1; }
+
+  .toolbar-meta {
+    display: flex;
+    gap: 14px;
+    align-items: center;
+    font-size: 12px;
+  }
+
+  .ws-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #21ba45;
+  }
+
+  .nav-bar {
+    display: flex;
+    padding: 6px 16px 8px;
+    gap: 2px;
+  }
+
+  .nav-item {
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 400;
+    cursor: default;
+  }
+
+  /* ---- Card grid below header ---- */
+  .content-area {
+    padding: 20px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+
+  .vm-card {
+    border-radius: 8px;
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .vm-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .vm-name {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    font-weight: 500;
+  }
+
+  .vm-status {
+    font-size: 10px;
+    font-weight: 500;
+    padding: 2px 8px;
+    border-radius: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .vm-meta {
+    font-size: 11px;
+    display: flex;
+    gap: 16px;
+  }
+
+  .vm-actions {
+    display: flex;
+    gap: 6px;
+    margin-top: 2px;
+  }
+
+  .vm-btn {
+    font-size: 11px;
+    padding: 3px 10px;
+    border-radius: 4px;
+    border: 1px solid;
+    cursor: default;
+  }
+</style>
+</head>
+<body>
+
+<h1>Header Comparison &mdash; Original Amber vs A: Electric Arc</h1>
+
+<!-- ============================================ -->
+<!-- ORIGINAL AMBER                               -->
+<!-- ============================================ -->
+<div class="section-label" style="color: #FF6B35;">Original &mdash; Amber Spark</div>
+
+<div class="app-frame" style="background: #121212; border-color: #222;">
+  <!-- Toolbar -->
+  <div class="app-toolbar" style="background: #1A1A1A; border-bottom: 1px solid #252525;">
+    <svg width="28" height="28" viewBox="0 0 120 120" fill="none">
+      <path d="M60 10 L72 40 L66 36 L78 72 L64 58 L68 86 L60 74 L52 86 L56 58 L42 72 L54 36 L48 40 Z" fill="#FF6B35"/>
+      <path d="M60 28 L67 50 L63 46 L68 66 L60 56 L52 66 L57 46 L53 50 Z" fill="#FFB088"/>
+      <circle cx="84" cy="28" r="2.5" fill="#FF6B35" opacity="0.6"/>
+      <circle cx="36" cy="28" r="2.5" fill="#FF6B35" opacity="0.6"/>
+    </svg>
+    <span class="app-name">
+      <span style="font-weight: 300; color: #888;">micro</span><span style="font-weight: 600; color: #E0E0E0;">vm</span>
+    </span>
+    <div class="spacer"></div>
+    <div class="toolbar-meta">
+      <div class="ws-dot"></div>
+      <span style="color: #666; font-family: 'JetBrains Mono', monospace;">5 VMs</span>
+      <span style="color: #333;">|</span>
+      <span style="color: #888;">admin</span>
+      <span class="mdi mdi-account-circle" style="font-size: 22px; color: #666;"></span>
+    </div>
+  </div>
+
+  <!-- Nav -->
+  <div class="nav-bar" style="background: #1A1A1A;">
+    <div class="nav-item" style="background: rgba(255,107,53,0.1); color: #FF6B35; font-weight: 500;">
+      <span class="mdi mdi-view-dashboard" style="margin-right: 6px;"></span>Dashboard
+    </div>
+    <div class="nav-item" style="color: #666;">
+      <span class="mdi mdi-lan" style="margin-right: 6px;"></span>Network
+    </div>
+    <div class="nav-item" style="color: #666;">
+      <span class="mdi mdi-account-group" style="margin-right: 6px;"></span>Users
+    </div>
+    <div class="nav-item" style="color: #666;">
+      <span class="mdi mdi-text-box-search" style="margin-right: 6px;"></span>Audit
+    </div>
+    <div class="nav-item" style="color: #666;">
+      <span class="mdi mdi-cog" style="margin-right: 6px;"></span>Settings
+    </div>
+    <div class="nav-item" style="color: #666;">
+      <span class="mdi mdi-help-circle" style="margin-right: 6px;"></span>Help
+    </div>
+  </div>
+
+  <!-- VM Cards -->
+  <div class="content-area" style="background: #121212;">
+    <!-- web-nginx: running -->
+    <div class="vm-card" style="background: #1A1A1A; border: 1px solid #252525;">
+      <div class="vm-card-header">
+        <span class="vm-name" style="color: #E0E0E0;">web-nginx</span>
+        <span class="vm-status" style="background: rgba(33,186,69,0.15); color: #21ba45;">running</span>
+      </div>
+      <div class="vm-meta" style="color: #666;">
+        <span>10.10.0.10</span><span>256 MB</span><span>1 vCPU</span>
+      </div>
+      <div class="vm-actions">
+        <span class="vm-btn" style="color: #c10015; border-color: #3a0006; background: rgba(193,0,21,0.06);">Stop</span>
+        <span class="vm-btn" style="color: #FF6B35; border-color: #4a2010; background: rgba(255,107,53,0.06);">Restart</span>
+      </div>
+    </div>
+
+    <!-- web-app: running -->
+    <div class="vm-card" style="background: #1A1A1A; border: 1px solid #252525;">
+      <div class="vm-card-header">
+        <span class="vm-name" style="color: #E0E0E0;">web-app</span>
+        <span class="vm-status" style="background: rgba(33,186,69,0.15); color: #21ba45;">running</span>
+      </div>
+      <div class="vm-meta" style="color: #666;">
+        <span>10.10.0.11</span><span>512 MB</span><span>1 vCPU</span>
+      </div>
+      <div class="vm-actions">
+        <span class="vm-btn" style="color: #c10015; border-color: #3a0006; background: rgba(193,0,21,0.06);">Stop</span>
+        <span class="vm-btn" style="color: #FF6B35; border-color: #4a2010; background: rgba(255,107,53,0.06);">Restart</span>
+      </div>
+    </div>
+
+    <!-- dev-node: stopped -->
+    <div class="vm-card" style="background: #1A1A1A; border: 1px solid #252525;">
+      <div class="vm-card-header">
+        <span class="vm-name" style="color: #E0E0E0;">dev-node</span>
+        <span class="vm-status" style="background: rgba(150,150,150,0.12); color: #888;">stopped</span>
+      </div>
+      <div class="vm-meta" style="color: #555;">
+        <span>10.10.0.20</span><span>512 MB</span><span>1 vCPU</span>
+      </div>
+      <div class="vm-actions">
+        <span class="vm-btn" style="color: #21ba45; border-color: #0a3a12; background: rgba(33,186,69,0.06);">Start</span>
+      </div>
+    </div>
+
+    <!-- dev-python: running -->
+    <div class="vm-card" style="background: #1A1A1A; border: 1px solid #252525;">
+      <div class="vm-card-header">
+        <span class="vm-name" style="color: #E0E0E0;">dev-python</span>
+        <span class="vm-status" style="background: rgba(33,186,69,0.15); color: #21ba45;">running</span>
+      </div>
+      <div class="vm-meta" style="color: #666;">
+        <span>10.10.0.21</span><span>512 MB</span><span>1 vCPU</span>
+      </div>
+      <div class="vm-actions">
+        <span class="vm-btn" style="color: #c10015; border-color: #3a0006; background: rgba(193,0,21,0.06);">Stop</span>
+        <span class="vm-btn" style="color: #FF6B35; border-color: #4a2010; background: rgba(255,107,53,0.06);">Restart</span>
+      </div>
+    </div>
+
+    <!-- svc-postgres: failed -->
+    <div class="vm-card" style="background: #1A1A1A; border: 1px solid #302020;">
+      <div class="vm-card-header">
+        <span class="vm-name" style="color: #E0E0E0;">svc-postgres</span>
+        <span class="vm-status" style="background: rgba(193,0,21,0.15); color: #c10015;">failed</span>
+      </div>
+      <div class="vm-meta" style="color: #555;">
+        <span>10.10.0.30</span><span>512 MB</span><span>1 vCPU</span>
+      </div>
+      <div class="vm-actions">
+        <span class="vm-btn" style="color: #21ba45; border-color: #0a3a12; background: rgba(33,186,69,0.06);">Start</span>
+        <span class="vm-btn" style="color: #FF6B35; border-color: #4a2010; background: rgba(255,107,53,0.06);">Restart</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================ -->
+<!-- A: ELECTRIC ARC                              -->
+<!-- ============================================ -->
+<div class="section-label" style="color: #6EA8FE;">A &mdash; Electric Arc</div>
+
+<div class="app-frame" style="background: #0E1117; border-color: #1A2030;">
+  <!-- Toolbar -->
+  <div class="app-toolbar" style="background: #141B24; border-bottom: 1px solid #1E2838;">
+    <svg width="28" height="28" viewBox="0 0 120 120" fill="none">
+      <defs>
+        <linearGradient id="hdrArcBody" x1="60" y1="10" x2="60" y2="86" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stop-color="#E8F0FF"/>
+          <stop offset="30%" stop-color="#6EA8FE"/>
+          <stop offset="70%" stop-color="#3B82F6"/>
+          <stop offset="100%" stop-color="#1D4ED8"/>
+        </linearGradient>
+        <linearGradient id="hdrArcCore" x1="60" y1="28" x2="60" y2="66" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stop-color="#FFFFFF"/>
+          <stop offset="50%" stop-color="#E0EAFF"/>
+          <stop offset="100%" stop-color="#93B8FE"/>
+        </linearGradient>
+        <filter id="hdrGlow" x="-40%" y="-40%" width="180%" height="180%">
+          <feGaussianBlur stdDeviation="2.5" result="blur"/>
+          <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+        </filter>
+      </defs>
+      <path d="M60 10 L72 40 L66 36 L78 72 L64 58 L68 86 L60 74 L52 86 L56 58 L42 72 L54 36 L48 40 Z"
+            fill="url(#hdrArcBody)" filter="url(#hdrGlow)"/>
+      <path d="M60 28 L67 50 L63 46 L68 66 L60 56 L52 66 L57 46 L53 50 Z" fill="url(#hdrArcCore)"/>
+      <circle cx="84" cy="28" r="2.5" fill="#6EA8FE" opacity="0.7"/>
+      <circle cx="36" cy="28" r="2.5" fill="#6EA8FE" opacity="0.7"/>
+    </svg>
+    <span class="app-name">
+      <span style="font-weight: 300; color: #7A9BBF;">micro</span><span style="font-weight: 600; color: #E0E8F0;">vm</span>
+    </span>
+    <div class="spacer"></div>
+    <div class="toolbar-meta">
+      <div class="ws-dot"></div>
+      <span style="color: #4A6A88; font-family: 'JetBrains Mono', monospace;">5 VMs</span>
+      <span style="color: #1A2838;">|</span>
+      <span style="color: #7A9BBF;">admin</span>
+      <span class="mdi mdi-account-circle" style="font-size: 22px; color: #4A6A88;"></span>
+    </div>
+  </div>
+
+  <!-- Nav -->
+  <div class="nav-bar" style="background: #141B24;">
+    <div class="nav-item" style="background: rgba(59,130,246,0.1); color: #6EA8FE; font-weight: 500;">
+      <span class="mdi mdi-view-dashboard" style="margin-right: 6px;"></span>Dashboard
+    </div>
+    <div class="nav-item" style="color: #4A6A88;">
+      <span class="mdi mdi-lan" style="margin-right: 6px;"></span>Network
+    </div>
+    <div class="nav-item" style="color: #4A6A88;">
+      <span class="mdi mdi-account-group" style="margin-right: 6px;"></span>Users
+    </div>
+    <div class="nav-item" style="color: #4A6A88;">
+      <span class="mdi mdi-text-box-search" style="margin-right: 6px;"></span>Audit
+    </div>
+    <div class="nav-item" style="color: #4A6A88;">
+      <span class="mdi mdi-cog" style="margin-right: 6px;"></span>Settings
+    </div>
+    <div class="nav-item" style="color: #4A6A88;">
+      <span class="mdi mdi-help-circle" style="margin-right: 6px;"></span>Help
+    </div>
+  </div>
+
+  <!-- VM Cards -->
+  <div class="content-area" style="background: #0E1117;">
+    <!-- web-nginx: running -->
+    <div class="vm-card" style="background: #141B24; border: 1px solid #1E2838;">
+      <div class="vm-card-header">
+        <span class="vm-name" style="color: #D0DCEA;">web-nginx</span>
+        <span class="vm-status" style="background: rgba(33,186,69,0.12); color: #21ba45;">running</span>
+      </div>
+      <div class="vm-meta" style="color: #4A6A88;">
+        <span>10.10.0.10</span><span>256 MB</span><span>1 vCPU</span>
+      </div>
+      <div class="vm-actions">
+        <span class="vm-btn" style="color: #c10015; border-color: #2a0810; background: rgba(193,0,21,0.06);">Stop</span>
+        <span class="vm-btn" style="color: #6EA8FE; border-color: #1A3050; background: rgba(110,168,254,0.06);">Restart</span>
+      </div>
+    </div>
+
+    <!-- web-app: running -->
+    <div class="vm-card" style="background: #141B24; border: 1px solid #1E2838;">
+      <div class="vm-card-header">
+        <span class="vm-name" style="color: #D0DCEA;">web-app</span>
+        <span class="vm-status" style="background: rgba(33,186,69,0.12); color: #21ba45;">running</span>
+      </div>
+      <div class="vm-meta" style="color: #4A6A88;">
+        <span>10.10.0.11</span><span>512 MB</span><span>1 vCPU</span>
+      </div>
+      <div class="vm-actions">
+        <span class="vm-btn" style="color: #c10015; border-color: #2a0810; background: rgba(193,0,21,0.06);">Stop</span>
+        <span class="vm-btn" style="color: #6EA8FE; border-color: #1A3050; background: rgba(110,168,254,0.06);">Restart</span>
+      </div>
+    </div>
+
+    <!-- dev-node: stopped -->
+    <div class="vm-card" style="background: #141B24; border: 1px solid #1E2838;">
+      <div class="vm-card-header">
+        <span class="vm-name" style="color: #D0DCEA;">dev-node</span>
+        <span class="vm-status" style="background: rgba(120,140,160,0.1); color: #6A8098;">stopped</span>
+      </div>
+      <div class="vm-meta" style="color: #3A5468;">
+        <span>10.10.0.20</span><span>512 MB</span><span>1 vCPU</span>
+      </div>
+      <div class="vm-actions">
+        <span class="vm-btn" style="color: #21ba45; border-color: #0a2a12; background: rgba(33,186,69,0.06);">Start</span>
+      </div>
+    </div>
+
+    <!-- dev-python: running -->
+    <div class="vm-card" style="background: #141B24; border: 1px solid #1E2838;">
+      <div class="vm-card-header">
+        <span class="vm-name" style="color: #D0DCEA;">dev-python</span>
+        <span class="vm-status" style="background: rgba(33,186,69,0.12); color: #21ba45;">running</span>
+      </div>
+      <div class="vm-meta" style="color: #4A6A88;">
+        <span>10.10.0.21</span><span>512 MB</span><span>1 vCPU</span>
+      </div>
+      <div class="vm-actions">
+        <span class="vm-btn" style="color: #c10015; border-color: #2a0810; background: rgba(193,0,21,0.06);">Stop</span>
+        <span class="vm-btn" style="color: #6EA8FE; border-color: #1A3050; background: rgba(110,168,254,0.06);">Restart</span>
+      </div>
+    </div>
+
+    <!-- svc-postgres: failed -->
+    <div class="vm-card" style="background: #141B24; border: 1px solid #281820;">
+      <div class="vm-card-header">
+        <span class="vm-name" style="color: #D0DCEA;">svc-postgres</span>
+        <span class="vm-status" style="background: rgba(193,0,21,0.12); color: #c10015;">failed</span>
+      </div>
+      <div class="vm-meta" style="color: #3A5468;">
+        <span>10.10.0.30</span><span>512 MB</span><span>1 vCPU</span>
+      </div>
+      <div class="vm-actions">
+        <span class="vm-btn" style="color: #21ba45; border-color: #0a2a12; background: rgba(33,186,69,0.06);">Start</span>
+        <span class="vm-btn" style="color: #6EA8FE; border-color: #1A3050; background: rgba(110,168,254,0.06);">Restart</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

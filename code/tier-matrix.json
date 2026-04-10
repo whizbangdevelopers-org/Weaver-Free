@@ -1,0 +1,325 @@
+{
+  "$comment": "Machine-readable tier feature matrix. Source of truth for scripts/verify-tier-parity.ts. See memory/tier-matrix.md for strategic rationale.",
+  "features": [
+    {
+      "id": "dashboard-core",
+      "name": "Dashboard, VM list, detail, WebSocket, help, settings",
+      "minimumTier": "free",
+      "implemented": true,
+      "backend": { "files": [], "gate": "none" },
+      "frontend": { "files": [], "guard": "none" }
+    },
+    {
+      "id": "network-topology-readonly",
+      "name": "Network topology (read-only) + auto-detected bridges",
+      "minimumTier": "free",
+      "implemented": true,
+      "backend": { "files": [], "gate": "none" },
+      "frontend": { "files": [], "guard": "none" }
+    },
+    {
+      "id": "vm-start-stop-restart",
+      "name": "Start / stop / restart VMs",
+      "minimumTier": "free",
+      "implemented": true,
+      "backend": { "files": [], "gate": "none" },
+      "frontend": { "files": [], "guard": "none" }
+    },
+    {
+      "id": "vm-scan-register",
+      "name": "Scan + register existing VMs",
+      "minimumTier": "free",
+      "implemented": true,
+      "backend": { "files": [], "gate": "none" },
+      "frontend": { "files": [], "guard": "none" }
+    },
+    {
+      "id": "vm-console-simulated",
+      "name": "VM console (simulated shell, free tier)",
+      "minimumTier": "free",
+      "implemented": true,
+      "backend": { "files": [], "gate": "none" },
+      "frontend": { "files": ["src/components/VmConsole.vue"], "guard": "none" }
+    },
+    {
+      "id": "serial-console-real",
+      "name": "Serial console (real WebSocket, weaver tier)",
+      "minimumTier": "weaver",
+      "implemented": true,
+      "backend": { "files": ["backend/src/routes/console.ts"], "gate": "requireTier" },
+      "frontend": { "files": ["src/pages/WorkloadDetailPage.vue"], "guard": "isWeaver" }
+    },
+    {
+      "id": "provisioning-logs",
+      "name": "Provisioning logs viewer",
+      "minimumTier": "free",
+      "implemented": true,
+      "backend": { "files": ["backend/src/routes/workloads.ts"], "gate": "none" },
+      "frontend": { "files": ["src/pages/WorkloadDetailPage.vue"], "guard": "none" }
+    },
+    {
+      "id": "tags-metadata",
+      "name": "Tags, AI tab, metadata",
+      "minimumTier": "free",
+      "implemented": true,
+      "backend": { "files": [], "gate": "none" },
+      "frontend": { "files": [], "guard": "none" }
+    },
+    {
+      "id": "notification-bell",
+      "name": "In-app notification bell + history",
+      "minimumTier": "free",
+      "implemented": true,
+      "backend": { "files": [], "gate": "none" },
+      "frontend": { "files": [], "guard": "none" }
+    },
+    {
+      "id": "config-export",
+      "name": "Config export (JSON via API)",
+      "minimumTier": "free",
+      "implemented": false,
+      "backend": { "files": [], "gate": "none" },
+      "frontend": { "files": [], "guard": "none" }
+    },
+    {
+      "id": "ai-agent-byok",
+      "name": "AI agent: mock + Anthropic BYOK",
+      "minimumTier": "free",
+      "implemented": true,
+      "backend": { "files": [], "gate": "none" },
+      "frontend": { "files": [], "guard": "none" }
+    },
+    {
+      "id": "ai-agent-server-key",
+      "name": "AI agent: server-provided key",
+      "minimumTier": "weaver",
+      "implemented": true,
+      "backend": { "files": ["backend/src/routes/agent.ts"], "gate": "requireTier" },
+      "frontend": { "files": ["src/pages/SettingsPage.vue"], "guard": "isWeaver" }
+    },
+    {
+      "id": "plugin-system",
+      "name": "Integrated Extensions registry, requirePlugin() middleware, extensions catalog page",
+      "minimumTier": "free",
+      "implemented": true,
+      "backend": { "files": ["backend/src/plugins.ts", "backend/src/routes/health.ts"], "gate": "none" },
+      "frontend": { "files": ["src/pages/PluginsPage.vue", "src/stores/app.ts"], "guard": "none" }
+    },
+    {
+      "id": "ai-provider-plugins",
+      "name": "AI provider extensions (OpenAI, Ollama, ZenCoder, Custom)",
+      "minimumTier": "weaver",
+      "implemented": false,
+      "backend": { "files": [], "gate": "requirePlugin" },
+      "frontend": { "files": [], "guard": "none" }
+    },
+    {
+      "id": "vm-create-delete",
+      "name": "Create / provision / delete VMs",
+      "minimumTier": "weaver",
+      "implemented": true,
+      "backend": { "files": ["backend/src/routes/workloads.ts"], "gate": "requireTier" },
+      "frontend": { "files": ["src/pages/WeaverPage.vue", "src/pages/WorkloadDetailPage.vue", "src/components/panels/VmDetailPanel.vue"], "guard": "isWeaver" }
+    },
+    {
+      "id": "distro-mutations",
+      "name": "Distro mutations (add/delete/refresh/URL mgmt)",
+      "minimumTier": "weaver",
+      "implemented": true,
+      "backend": { "files": ["backend/src/routes/distros.ts"], "gate": "requireTier" },
+      "frontend": { "files": ["src/pages/SettingsPage.vue"], "guard": "isWeaver" }
+    },
+    {
+      "id": "distro-smoke-testing",
+      "name": "Distro smoke testing (will-it-boot)",
+      "minimumTier": "weaver",
+      "implemented": true,
+      "backend": { "files": ["backend/src/routes/distros.ts"], "gate": "requireTier" },
+      "frontend": { "files": ["src/pages/SettingsPage.vue"], "guard": "isWeaver" }
+    },
+    {
+      "id": "network-bridges-ip-pools",
+      "name": "Create/delete managed bridges + IP pools",
+      "minimumTier": "weaver",
+      "implemented": true,
+      "backend": { "files": ["backend/src/routes/weaver/network-mgmt.ts"], "gate": "fileHook" },
+      "frontend": { "files": ["src/pages/NetworkMapPage.vue"], "guard": "isWeaver" }
+    },
+    {
+      "id": "push-notifications",
+      "name": "Push notification channels + resource alerts",
+      "minimumTier": "weaver",
+      "implemented": true,
+      "backend": { "files": ["backend/src/routes/weaver/notification-config.ts"], "gate": "requireTier" },
+      "frontend": { "files": [], "guard": "none" }
+    },
+    {
+      "id": "host-detail",
+      "name": "Detailed host info (CPU, disk, NixOS version)",
+      "minimumTier": "weaver",
+      "implemented": true,
+      "backend": { "files": ["backend/src/routes/host.ts"], "gate": "requireTier" },
+      "frontend": { "files": ["src/pages/SettingsPage.vue", "src/components/demo/TuiPreview.vue"], "guard": "isWeaver" }
+    },
+    {
+      "id": "single-session-enforcement",
+      "name": "Single-session login enforcement (new login revokes prior sessions)",
+      "minimumTier": "free",
+      "implemented": true,
+      "backend": { "files": ["backend/src/routes/auth.ts"], "gate": "none" },
+      "frontend": { "files": [], "guard": "none" }
+    },
+    {
+      "id": "multi-user",
+      "name": "Multi-user management (Premium Team: 4 paying + 1 viewer free)",
+      "minimumTier": "weaver",
+      "implemented": true,
+      "backend": { "files": [], "gate": "none" },
+      "frontend": { "files": ["src/pages/UsersPage.vue"], "guard": "isWeaver" }
+    },
+    {
+      "id": "per-vm-acl",
+      "name": "Per-VM access control",
+      "minimumTier": "fabrick",
+      "implemented": true,
+      "backend": { "files": ["backend/src/routes/vm-acl.ts"], "gate": "requireTier" },
+      "frontend": { "files": ["src/pages/UsersPage.vue", "src/pages/ProfilePage.vue"], "guard": "isFabrick" }
+    },
+    {
+      "id": "bulk-vm-operations",
+      "name": "Bulk VM operations",
+      "minimumTier": "fabrick",
+      "implemented": true,
+      "backend": { "files": [], "gate": "none" },
+      "frontend": { "files": ["src/pages/WeaverPage.vue", "src/components/BulkActionBar.vue"], "guard": "isFabrick" }
+    },
+    {
+      "id": "vm-resource-quotas",
+      "name": "VM resource quotas",
+      "minimumTier": "fabrick",
+      "implemented": true,
+      "backend": { "files": ["backend/src/routes/quotas.ts"], "gate": "requireTier" },
+      "frontend": { "files": ["src/pages/SettingsPage.vue", "src/components/CreateVmDialog.vue"], "guard": "isFabrick" }
+    },
+    {
+      "id": "audit-log",
+      "name": "Audit log",
+      "minimumTier": "fabrick",
+      "implemented": true,
+      "backend": { "files": ["backend/src/routes/audit.ts"], "gate": "requireTier" },
+      "frontend": { "files": ["src/pages/AuditPage.vue", "src/layouts/MainLayout.vue", "src/components/demo/TuiPreview.vue"], "guard": "isFabrick" }
+    },
+    {
+      "id": "container-visibility-docker-podman",
+      "name": "Container visibility — Docker + Podman (start/stop/logs)",
+      "minimumTier": "free",
+      "implemented": false,
+      "backend": { "files": [], "gate": "none" },
+      "frontend": { "files": [], "guard": "none" }
+    },
+    {
+      "id": "container-visibility-apptainer",
+      "name": "Container visibility — Apptainer (HPC/research runtime)",
+      "minimumTier": "weaver",
+      "implemented": false,
+      "backend": { "files": [], "gate": "requireTier" },
+      "frontend": { "files": ["src/components/panels/ContainerDetailPanel.vue", "src/components/demo/DemoContainerSection.vue", "src/components/demo/DemoContainerDetailDialog.vue"], "guard": "isWeaver" }
+    },
+    {
+      "id": "container-management-docker-podman",
+      "name": "Container management — Docker + Podman (create/delete, Compose stacks, oci-containers Live Provisioning)",
+      "minimumTier": "free",
+      "implemented": false,
+      "backend": { "files": [], "gate": "none" },
+      "frontend": { "files": [], "guard": "none" }
+    },
+    {
+      "id": "container-management-apptainer",
+      "name": "Container management — Apptainer (create/delete, SIF images)",
+      "minimumTier": "weaver",
+      "implemented": false,
+      "backend": { "files": [], "gate": "requireTier" },
+      "frontend": { "files": ["src/components/demo/DemoCreateContainerDialog.vue"], "guard": "isWeaver" }
+    },
+    {
+      "id": "container-registry-orchestration",
+      "name": "Container registry + multi-host orchestration",
+      "minimumTier": "fabrick",
+      "implemented": false,
+      "backend": { "files": [], "gate": "requireTier" },
+      "frontend": { "files": [], "guard": "isFabrick" }
+    },
+    {
+      "id": "ai-credential-vault",
+      "name": "AI credential vault — admin-managed frontier + application-specific AI credentials (SQLCipher, sops-nix master key, admin-only CRUD, v1.4.0)",
+      "minimumTier": "weaver",
+      "implemented": false,
+      "backend": { "files": [], "gate": "requireTier" },
+      "frontend": { "files": ["src/pages/SettingsPage.vue"], "guard": "isWeaver" }
+    },
+    {
+      "id": "secrets-management-full",
+      "name": "Integrated secrets management — general workload secrets, injection into workloads, per-workload assignment, credential audit trail (v1.5.0)",
+      "minimumTier": "fabrick",
+      "implemented": false,
+      "backend": { "files": [], "gate": "requireTier" },
+      "frontend": { "files": ["src/pages/SettingsPage.vue"], "guard": "isFabrick" }
+    },
+    {
+      "id": "per-workload-ai-assignment",
+      "name": "Per-workload AI provider assignment (admin-enforced vendor override per VM/container)",
+      "minimumTier": "fabrick",
+      "implemented": false,
+      "backend": { "files": [], "gate": "requireTier" },
+      "frontend": { "files": ["src/pages/SettingsPage.vue", "src/components/panels/VmDetailPanel.vue"], "guard": "isFabrick" }
+    },
+    {
+      "id": "cross-resource-ai",
+      "name": "Cross-resource AI — VM + container context, topology diagnostics, dependency mapping",
+      "minimumTier": "weaver",
+      "implemented": false,
+      "backend": { "files": [], "gate": "requireTier" },
+      "frontend": { "files": [], "guard": "isWeaver" }
+    },
+    {
+      "id": "format-parsers",
+      "name": "Format parsers — Proxmox .conf, libvirt XML, Dockerfile → Nix/Apptainer migration funnel",
+      "minimumTier": "weaver",
+      "implemented": false,
+      "backend": { "files": [], "gate": "requireTier" },
+      "frontend": { "files": [], "guard": "isWeaver" }
+    },
+    {
+      "id": "organization-identity",
+      "name": "Organization identity (name, logo, branding)",
+      "minimumTier": "weaver",
+      "implemented": true,
+      "backend": { "files": ["backend/src/routes/organization.ts"], "gate": "requireTier" },
+      "frontend": { "files": [], "guard": "none" }
+    },
+    {
+      "id": "fleet-multi-host",
+      "name": "Fleet — multi-host management (Fabrick, v3.0)",
+      "minimumTier": "fabrick",
+      "implemented": false,
+      "backend": { "files": [], "gate": "requireTier" },
+      "frontend": { "files": ["src/components/demo/DemoHostSelector.vue", "src/pages/LoomPage.vue", "src/components/WorkloadCard.vue"], "guard": "isFabrick" }
+    },
+    {
+      "id": "host-config-viewer",
+      "name": "Host Config viewer (read-only NixOS configuration.nix)",
+      "minimumTier": "free",
+      "implemented": true,
+      "backend": { "files": ["backend/src/routes/host-config.ts"], "gate": "none" },
+      "frontend": { "files": ["src/components/settings/HostConfigViewer.vue"], "guard": "none" }
+    },
+    {
+      "id": "shed-workload-creation",
+      "name": "Shed — unified workload creation hub (template catalog, custom MicroVM, container registration, migration helpers)",
+      "minimumTier": "weaver",
+      "implemented": false,
+      "backend": { "files": [], "gate": "requireTier" },
+      "frontend": { "files": ["src/pages/ShedPage.vue"], "guard": "isWeaver" }
+    }
+  ]
+}

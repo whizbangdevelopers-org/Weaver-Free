@@ -1,0 +1,495 @@
+<!-- Copyright (c) 2026 whizBANG Developers LLC. All rights reserved. -->
+<!-- Proprietary and confidential. Do not distribute. -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MicroVM Brand — Option 3: Spark</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: #0F0F0F;
+    color: #E0E0E0;
+    padding: 60px 40px;
+  }
+
+  h1 {
+    font-size: 14px;
+    font-weight: 400;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    color: #666;
+    margin-bottom: 60px;
+  }
+
+  .section {
+    margin-bottom: 80px;
+  }
+
+  .section-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: #FF6B35;
+    margin-bottom: 32px;
+  }
+
+  .row {
+    display: flex;
+    gap: 60px;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-bottom: 40px;
+  }
+
+  .variant {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .variant-label {
+    font-size: 11px;
+    color: #555;
+    letter-spacing: 1px;
+  }
+
+  .icon-box {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+
+  .icon-box.on-light {
+    background: #F5F5F5;
+    border-radius: 16px;
+    padding: 32px;
+  }
+
+  .lockup {
+    display: flex;
+    align-items: center;
+    gap: 40px;
+    padding: 40px;
+    border: 1px solid #1A1A1A;
+    border-radius: 16px;
+    margin-bottom: 24px;
+  }
+
+  .lockup.on-light {
+    background: #FAFAFA;
+    border-color: #E0E0E0;
+  }
+
+  .palette {
+    display: flex;
+    gap: 16px;
+    margin-top: 16px;
+  }
+
+  .swatch {
+    width: 64px;
+    height: 64px;
+    border-radius: 12px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    padding-bottom: 6px;
+    font-size: 9px;
+    font-family: 'JetBrains Mono', monospace;
+    color: #999;
+  }
+
+  .favicon-row {
+    display: flex;
+    gap: 24px;
+    align-items: end;
+  }
+
+  .favicon-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .favicon-frame {
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  .tui-art {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    line-height: 1.2;
+    color: #FF6B35;
+    background: #0F0F0F;
+    padding: 24px;
+    border: 1px solid #1A1A1A;
+    border-radius: 8px;
+    white-space: pre;
+  }
+</style>
+</head>
+<body>
+
+<h1>Weaver &mdash; Brand Option 3: Spark</h1>
+
+<!-- ============================================ -->
+<!-- ICON MARK                                    -->
+<!-- ============================================ -->
+<div class="section">
+  <div class="section-label">Icon Mark</div>
+  <div class="row">
+
+    <!-- Primary spark — geometric angular flame -->
+    <div class="variant">
+      <div class="icon-box">
+        <svg width="120" height="120" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <!-- Main upward flame body — angular, no curves -->
+          <path d="M60 8 L74 42 L68 38 L76 68 L66 58 L70 82 L60 70 L50 82 L54 58 L44 68 L52 38 L46 42 Z" fill="#FF6B35"/>
+          <!-- Inner bright core -->
+          <path d="M60 28 L67 50 L63 46 L68 66 L60 56 L52 66 L57 46 L53 50 Z" fill="#FFB088"/>
+          <!-- Small sparks radiating out -->
+          <path d="M82 32 L86 26 L84 34 Z" fill="#FF6B35" opacity="0.7"/>
+          <path d="M38 32 L34 26 L36 34 Z" fill="#FF6B35" opacity="0.7"/>
+          <path d="M88 52 L94 50 L89 55 Z" fill="#FF6B35" opacity="0.5"/>
+          <path d="M32 52 L26 50 L31 55 Z" fill="#FF6B35" opacity="0.5"/>
+          <!-- Base glow dot -->
+          <circle cx="60" cy="90" r="4" fill="#FF6B35" opacity="0.6"/>
+          <circle cx="60" cy="90" r="2" fill="#FFB088"/>
+          <!-- Subtle ground reflection -->
+          <line x1="48" y1="100" x2="72" y2="100" stroke="#FF6B35" stroke-width="1.5" opacity="0.2"/>
+        </svg>
+      </div>
+      <div class="variant-label">Primary — Dark</div>
+    </div>
+
+    <!-- Simplified single-path version -->
+    <div class="variant">
+      <div class="icon-box">
+        <svg width="120" height="120" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="
+            M60 10
+            L72 40
+            L66 36
+            L78 72
+            L64 58
+            L68 86
+            L60 74
+            L52 86
+            L56 58
+            L42 72
+            L54 36
+            L48 40
+            Z
+          " fill="#FF6B35"/>
+          <!-- Spark particles -->
+          <circle cx="84" cy="28" r="2.5" fill="#FF6B35" opacity="0.6"/>
+          <circle cx="36" cy="28" r="2.5" fill="#FF6B35" opacity="0.6"/>
+          <circle cx="90" cy="48" r="1.5" fill="#FF6B35" opacity="0.4"/>
+          <circle cx="30" cy="48" r="1.5" fill="#FF6B35" opacity="0.4"/>
+        </svg>
+      </div>
+      <div class="variant-label">Simplified — Dark</div>
+    </div>
+
+    <!-- Monochrome white -->
+    <div class="variant">
+      <div class="icon-box">
+        <svg width="120" height="120" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="
+            M60 10
+            L72 40
+            L66 36
+            L78 72
+            L64 58
+            L68 86
+            L60 74
+            L52 86
+            L56 58
+            L42 72
+            L54 36
+            L48 40
+            Z
+          " fill="white"/>
+          <circle cx="84" cy="28" r="2.5" fill="white" opacity="0.5"/>
+          <circle cx="36" cy="28" r="2.5" fill="white" opacity="0.5"/>
+          <circle cx="90" cy="48" r="1.5" fill="white" opacity="0.3"/>
+          <circle cx="30" cy="48" r="1.5" fill="white" opacity="0.3"/>
+        </svg>
+      </div>
+      <div class="variant-label">Mono White</div>
+    </div>
+
+    <!-- On light background -->
+    <div class="variant">
+      <div class="icon-box on-light">
+        <svg width="120" height="120" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="
+            M60 10
+            L72 40
+            L66 36
+            L78 72
+            L64 58
+            L68 86
+            L60 74
+            L52 86
+            L56 58
+            L42 72
+            L54 36
+            L48 40
+            Z
+          " fill="#E8520D"/>
+          <circle cx="84" cy="28" r="2.5" fill="#E8520D" opacity="0.6"/>
+          <circle cx="36" cy="28" r="2.5" fill="#E8520D" opacity="0.6"/>
+          <circle cx="90" cy="48" r="1.5" fill="#E8520D" opacity="0.4"/>
+          <circle cx="30" cy="48" r="1.5" fill="#E8520D" opacity="0.4"/>
+        </svg>
+      </div>
+      <div class="variant-label">On Light</div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================ -->
+<!-- WORDMARK                                     -->
+<!-- ============================================ -->
+<div class="section">
+  <div class="section-label">Wordmark</div>
+
+  <!-- Dark background lockup -->
+  <div class="lockup">
+    <svg width="80" height="80" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M60 10 L72 40 L66 36 L78 72 L64 58 L68 86 L60 74 L52 86 L56 58 L42 72 L54 36 L48 40 Z" fill="#FF6B35"/>
+      <circle cx="84" cy="28" r="2.5" fill="#FF6B35" opacity="0.6"/>
+      <circle cx="36" cy="28" r="2.5" fill="#FF6B35" opacity="0.6"/>
+      <circle cx="90" cy="48" r="1.5" fill="#FF6B35" opacity="0.4"/>
+      <circle cx="30" cy="48" r="1.5" fill="#FF6B35" opacity="0.4"/>
+    </svg>
+
+    <!-- Wordmark: spark replaces the i tittle -->
+    <svg width="440" height="72" viewBox="0 0 440 72" xmlns="http://www.w3.org/2000/svg">
+      <!-- "m" -->
+      <text x="0" y="52" font-family="Inter, sans-serif" font-weight="300" font-size="48" fill="#999">m</text>
+      <!-- spark as i-tittle -->
+      <text x="38" y="52" font-family="Inter, sans-serif" font-weight="300" font-size="48" fill="#999">i</text>
+      <!-- tiny spark over the i (replacing the dot) -->
+      <path d="M47 6 L50 14 L49 13 L52 19 L49 16 L50 22 L47 18 L44 22 L45 16 L42 19 L45 13 L44 14 Z" fill="#FF6B35"/>
+      <!-- "crovm" -->
+      <text x="52" y="52" font-family="Inter, sans-serif" font-weight="300" font-size="48" fill="#999">cro</text>
+      <text x="135" y="52" font-family="Inter, sans-serif" font-weight="700" font-size="48" fill="#E0E0E0">vm</text>
+
+      <!-- "Workbench" subtitle -->
+      <text x="210" y="52" font-family="Inter, sans-serif" font-weight="300" font-size="48" fill="#444">|</text>
+      <text x="228" y="52" font-family="Inter, sans-serif" font-weight="400" font-size="24" letter-spacing="2" fill="#666" dominant-baseline="auto" dy="12">Workbench</text>
+    </svg>
+  </div>
+
+  <!-- Alternative: stacked wordmark -->
+  <div class="lockup">
+    <svg width="80" height="80" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M60 10 L72 40 L66 36 L78 72 L64 58 L68 86 L60 74 L52 86 L56 58 L42 72 L54 36 L48 40 Z" fill="#FF6B35"/>
+      <circle cx="84" cy="28" r="2.5" fill="#FF6B35" opacity="0.6"/>
+      <circle cx="36" cy="28" r="2.5" fill="#FF6B35" opacity="0.6"/>
+    </svg>
+    <div>
+      <div style="font-family: 'Inter', sans-serif; font-size: 36px; letter-spacing: -1px;">
+        <span style="font-weight: 300; color: #999;">micro</span><span style="font-weight: 700; color: #E0E0E0;">vm</span>
+      </div>
+      <div style="font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 400; letter-spacing: 4px; text-transform: uppercase; color: #FF6B35; margin-top: 2px;">
+        Dashboard
+      </div>
+    </div>
+  </div>
+
+  <!-- Light background -->
+  <div class="lockup on-light">
+    <svg width="80" height="80" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M60 10 L72 40 L66 36 L78 72 L64 58 L68 86 L60 74 L52 86 L56 58 L42 72 L54 36 L48 40 Z" fill="#E8520D"/>
+      <circle cx="84" cy="28" r="2.5" fill="#E8520D" opacity="0.6"/>
+      <circle cx="36" cy="28" r="2.5" fill="#E8520D" opacity="0.6"/>
+    </svg>
+    <div>
+      <div style="font-family: 'Inter', sans-serif; font-size: 36px; letter-spacing: -1px;">
+        <span style="font-weight: 300; color: #666;">micro</span><span style="font-weight: 700; color: #1A1A1A;">vm</span>
+      </div>
+      <div style="font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 400; letter-spacing: 4px; text-transform: uppercase; color: #E8520D; margin-top: 2px;">
+        Dashboard
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================ -->
+<!-- FAVICONS / APP ICONS                         -->
+<!-- ============================================ -->
+<div class="section">
+  <div class="section-label">App Icons &amp; Favicons</div>
+  <div class="favicon-row">
+
+    <!-- 128px -->
+    <div class="favicon-box">
+      <div class="favicon-frame" style="width: 128px; height: 128px; background: linear-gradient(135deg, #1A1008 0%, #0F0F0F 100%);">
+        <svg width="80" height="80" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M60 10 L72 40 L66 36 L78 72 L64 58 L68 86 L60 74 L52 86 L56 58 L42 72 L54 36 L48 40 Z" fill="#FF6B35"/>
+          <path d="M60 28 L67 50 L63 46 L68 66 L60 56 L52 66 L57 46 L53 50 Z" fill="#FFB088"/>
+          <circle cx="84" cy="28" r="2.5" fill="#FF6B35" opacity="0.6"/>
+          <circle cx="36" cy="28" r="2.5" fill="#FF6B35" opacity="0.6"/>
+        </svg>
+      </div>
+      <div class="variant-label">128px</div>
+    </div>
+
+    <!-- 64px -->
+    <div class="favicon-box">
+      <div class="favicon-frame" style="width: 64px; height: 64px; background: #0F0F0F;">
+        <svg width="40" height="40" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M60 10 L72 40 L66 36 L78 72 L64 58 L68 86 L60 74 L52 86 L56 58 L42 72 L54 36 L48 40 Z" fill="#FF6B35"/>
+          <path d="M60 28 L67 50 L63 46 L68 66 L60 56 L52 66 L57 46 L53 50 Z" fill="#FFB088"/>
+        </svg>
+      </div>
+      <div class="variant-label">64px</div>
+    </div>
+
+    <!-- 32px -->
+    <div class="favicon-box">
+      <div class="favicon-frame" style="width: 32px; height: 32px; background: #0F0F0F;">
+        <svg width="22" height="22" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M60 10 L72 40 L66 36 L78 72 L64 58 L68 86 L60 74 L52 86 L56 58 L42 72 L54 36 L48 40 Z" fill="#FF6B35"/>
+        </svg>
+      </div>
+      <div class="variant-label">32px</div>
+    </div>
+
+    <!-- 16px -->
+    <div class="favicon-box">
+      <div class="favicon-frame" style="width: 16px; height: 16px; background: #0F0F0F;">
+        <svg width="12" height="12" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M60 10 L72 40 L66 36 L78 72 L64 58 L68 86 L60 74 L52 86 L56 58 L42 72 L54 36 L48 40 Z" fill="#FF6B35"/>
+        </svg>
+      </div>
+      <div class="variant-label">16px</div>
+    </div>
+
+    <!-- Rounded PWA -->
+    <div class="favicon-box">
+      <div class="favicon-frame" style="width: 128px; height: 128px; background: linear-gradient(145deg, #1A0E04 0%, #0F0F0F 100%); border-radius: 28px;">
+        <svg width="72" height="72" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M60 10 L72 40 L66 36 L78 72 L64 58 L68 86 L60 74 L52 86 L56 58 L42 72 L54 36 L48 40 Z" fill="#FF6B35"/>
+          <path d="M60 28 L67 50 L63 46 L68 66 L60 56 L52 66 L57 46 L53 50 Z" fill="#FFB088"/>
+          <circle cx="84" cy="28" r="2.5" fill="#FF6B35" opacity="0.6"/>
+          <circle cx="36" cy="28" r="2.5" fill="#FF6B35" opacity="0.6"/>
+        </svg>
+      </div>
+      <div class="variant-label">PWA (rounded)</div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ============================================ -->
+<!-- TUI ASCII ART                                -->
+<!-- ============================================ -->
+<div class="section">
+  <div class="section-label">TUI / ASCII Art</div>
+  <div class="row">
+    <div class="tui-art">    /\
+   /  \
+  / /\ \
+ / /  \ \    ___  _             __   ____  __
+/ / /\ \ \  |  \/  |           \ \ / /  \/  |
+\/  \ \/\/  | \  / | _ ___ _ __ \ V /| \  / |
+ \  / /\    | |\/| || / __| '__| > < | |\/| |
+  \/ / /    | |  | || \__ \ |   / . \| |  | |
+  / / /     |_|  |_||_|___/_|  /_/ \_\_|  |_|
+  \/\/
+   \/       D A S H B O A R D</div>
+
+    <div class="tui-art">
+  *       microvm dashboard
+ /|\
+/ | \     ────────────────────
+  |       the spark that lights
+ / \      your infrastructure
+*   *
+</div>
+  </div>
+</div>
+
+<!-- ============================================ -->
+<!-- COLOR PALETTE                                -->
+<!-- ============================================ -->
+<div class="section">
+  <div class="section-label">Color Palette</div>
+  <div class="palette">
+    <div class="swatch" style="background: #0F0F0F; border: 1px solid #222;">#0F0F0F</div>
+    <div class="swatch" style="background: #1A1A1A; border: 1px solid #333;">#1A1A1A</div>
+    <div class="swatch" style="background: #FF6B35;">#FF6B35</div>
+    <div class="swatch" style="background: #E8520D;">#E8520D</div>
+    <div class="swatch" style="background: #FFB088;">#FFB088</div>
+    <div class="swatch" style="background: #E0E0E0; color: #333;">#E0E0E0</div>
+    <div class="swatch" style="background: #666;">#666666</div>
+  </div>
+  <div style="margin-top: 16px; font-size: 12px; color: #555;">
+    <strong style="color: #FF6B35;">Primary:</strong> Warm amber #FF6B35 &nbsp;|&nbsp;
+    <strong style="color: #E8520D;">On-light:</strong> Darker #E8520D for contrast &nbsp;|&nbsp;
+    <strong style="color: #FFB088;">Highlight:</strong> Light peach #FFB088 for inner glow
+  </div>
+</div>
+
+<!-- ============================================ -->
+<!-- IN-CONTEXT MOCKUP                            -->
+<!-- ============================================ -->
+<div class="section">
+  <div class="section-label">In-Context — App Header Mockup</div>
+
+  <!-- Simulated Quasar toolbar -->
+  <div style="background: #1A1A1A; border-radius: 8px; overflow: hidden; max-width: 900px;">
+    <div style="display: flex; align-items: center; padding: 12px 20px; gap: 12px; border-bottom: 1px solid #252525;">
+      <!-- Spark icon -->
+      <svg width="28" height="28" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M60 10 L72 40 L66 36 L78 72 L64 58 L68 86 L60 74 L52 86 L56 58 L42 72 L54 36 L48 40 Z" fill="#FF6B35"/>
+        <circle cx="84" cy="28" r="2.5" fill="#FF6B35" opacity="0.6"/>
+        <circle cx="36" cy="28" r="2.5" fill="#FF6B35" opacity="0.6"/>
+      </svg>
+      <!-- App name -->
+      <span style="font-family: 'Inter', sans-serif; font-size: 18px;">
+        <span style="font-weight: 300; color: #888;">micro</span><span style="font-weight: 600; color: #E0E0E0;">vm</span>
+      </span>
+
+      <div style="flex: 1;"></div>
+
+      <!-- Simulated toolbar buttons -->
+      <div style="display: flex; gap: 16px; align-items: center;">
+        <div style="width: 8px; height: 8px; border-radius: 50%; background: #21ba45;"></div>
+        <span style="font-size: 12px; color: #666; font-family: 'JetBrains Mono', monospace;">5 VMs</span>
+        <span style="font-size: 12px; color: #555;">|</span>
+        <span style="font-size: 13px; color: #888;">admin</span>
+      </div>
+    </div>
+
+    <!-- Simulated nav items -->
+    <div style="display: flex; padding: 8px 16px; gap: 4px;">
+      <div style="padding: 8px 16px; border-radius: 6px; background: rgba(255,107,53,0.1); color: #FF6B35; font-size: 13px; font-weight: 500;">Workbench</div>
+      <div style="padding: 8px 16px; border-radius: 6px; color: #666; font-size: 13px;">Network</div>
+      <div style="padding: 8px 16px; border-radius: 6px; color: #666; font-size: 13px;">Users</div>
+      <div style="padding: 8px 16px; border-radius: 6px; color: #666; font-size: 13px;">Audit</div>
+      <div style="padding: 8px 16px; border-radius: 6px; color: #666; font-size: 13px;">Settings</div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

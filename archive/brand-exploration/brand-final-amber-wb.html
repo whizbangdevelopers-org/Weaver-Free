@@ -1,0 +1,758 @@
+<!-- Copyright (c) 2026 whizBANG Developers LLC. All rights reserved. -->
+<!-- Proprietary and confidential. Do not distribute. -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MicroVM — Final Brand: Amber Spark + whizBANG Green Frame</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+  @import url('https://cdn.jsdelivr.net/npm/@mdi/font@7.4.47/css/materialdesignicons.min.css');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: #08080C;
+    color: #E0E0E0;
+    padding: 60px 40px;
+  }
+
+  h1 {
+    font-size: 14px;
+    font-weight: 400;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    color: #555;
+    margin-bottom: 16px;
+  }
+
+  .subtitle {
+    font-size: 12px;
+    color: #444;
+    margin-bottom: 60px;
+    line-height: 1.8;
+    max-width: 720px;
+  }
+
+  .section-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    margin-bottom: 20px;
+  }
+
+  .app-frame {
+    border-radius: 12px;
+    overflow: hidden;
+    max-width: 960px;
+    margin-bottom: 16px;
+  }
+
+  .app-toolbar {
+    display: flex;
+    align-items: center;
+    padding: 10px 20px;
+    gap: 12px;
+  }
+
+  .app-name {
+    font-family: 'Inter', sans-serif;
+    font-size: 18px;
+    user-select: none;
+  }
+
+  .spacer { flex: 1; }
+
+  .toolbar-meta {
+    display: flex;
+    gap: 14px;
+    align-items: center;
+    font-size: 12px;
+  }
+
+  .ws-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+  }
+
+  .nav-bar {
+    display: flex;
+    padding: 6px 16px 8px;
+    gap: 2px;
+  }
+
+  .nav-item {
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 400;
+    cursor: default;
+  }
+
+  .content-area {
+    padding: 20px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+
+  .vm-card {
+    border-radius: 8px;
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .vm-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .vm-name {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    font-weight: 500;
+  }
+
+  .vm-status {
+    font-size: 10px;
+    font-weight: 500;
+    padding: 2px 8px;
+    border-radius: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .vm-meta {
+    font-size: 11px;
+    display: flex;
+    gap: 16px;
+  }
+
+  .vm-actions {
+    display: flex;
+    gap: 6px;
+    margin-top: 2px;
+  }
+
+  .vm-btn {
+    font-size: 11px;
+    padding: 3px 10px;
+    border-radius: 4px;
+    border: 1px solid;
+    cursor: default;
+  }
+
+  .app-footer {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px 20px;
+    font-size: 11px;
+  }
+
+  .divider {
+    border: none;
+    border-top: 1px solid #1A1A1A;
+    margin: 60px 0;
+  }
+
+  .palette-row {
+    display: flex;
+    gap: 12px;
+    margin-top: 12px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+
+  .swatch-group {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .swatch {
+    width: 56px;
+    height: 56px;
+    border-radius: 10px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    padding-bottom: 5px;
+    font-size: 8px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .role-label {
+    font-size: 9px;
+    color: #555;
+    text-align: center;
+    margin-top: 4px;
+    letter-spacing: 0.5px;
+  }
+
+  .caption {
+    font-size: 11px;
+    color: #444;
+    max-width: 960px;
+    margin-bottom: 60px;
+    line-height: 1.6;
+  }
+</style>
+</head>
+<body>
+
+<h1>Weaver &mdash; Final Brand Direction</h1>
+<div class="subtitle">
+  <span style="color: #FF6B35;">Amber spark</span> = MicroVM product identity. Header, nav, accents, status.<br>
+  <span style="color: #7AB800;">whizBANG green</span> = company frame. Card borders, copyright/footer, "a whizBANG Developers LLC product."<br>
+  Every whizBANG product gets the green frame. Each product owns its own color for everything else.
+</div>
+
+<!-- ============================================ -->
+<!-- DARK MODE                                    -->
+<!-- ============================================ -->
+<div class="section-label" style="color: #FF6B35;">Dark Mode</div>
+
+<div class="app-frame" style="background: #121212; border: 1px solid #252525;">
+
+  <!-- Toolbar -->
+  <div class="app-toolbar" style="background: #1A1A1A; border-bottom: 1px solid #252525;">
+    <!-- Amber spark -->
+    <svg width="28" height="28" viewBox="0 0 120 120" fill="none">
+      <defs>
+        <linearGradient id="dk1Body" x1="60" y1="10" x2="60" y2="86" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stop-color="#FFF0D0"/>
+          <stop offset="20%" stop-color="#FF6B35"/>
+          <stop offset="60%" stop-color="#E8520D"/>
+          <stop offset="100%" stop-color="#A83A08"/>
+        </linearGradient>
+        <linearGradient id="dk1Core" x1="60" y1="28" x2="60" y2="66" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stop-color="#FFFFFF"/>
+          <stop offset="40%" stop-color="#FFD8B8"/>
+          <stop offset="100%" stop-color="#FFB088"/>
+        </linearGradient>
+        <filter id="dk1Glow" x="-40%" y="-40%" width="180%" height="180%">
+          <feGaussianBlur stdDeviation="2" result="blur"/>
+          <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+        </filter>
+      </defs>
+      <path d="M60 10 L72 40 L66 36 L78 72 L64 58 L68 86 L60 74 L52 86 L56 58 L42 72 L54 36 L48 40 Z"
+            fill="url(#dk1Body)" filter="url(#dk1Glow)"/>
+      <path d="M60 28 L67 50 L63 46 L68 66 L60 56 L52 66 L57 46 L53 50 Z" fill="url(#dk1Core)"/>
+      <circle cx="84" cy="28" r="2.5" fill="#FF6B35" opacity="0.7"/>
+      <circle cx="36" cy="28" r="2.5" fill="#FF6B35" opacity="0.7"/>
+    </svg>
+
+    <span class="app-name">
+      <span style="font-weight: 300; color: #888;">micro</span><span style="font-weight: 600; color: #E0E0E0;">vm</span>
+    </span>
+
+    <div class="spacer"></div>
+
+    <div class="toolbar-meta">
+      <div class="ws-dot" style="background: #21ba45;"></div>
+      <span style="color: #666; font-family: 'JetBrains Mono', monospace;">5 VMs</span>
+      <span style="color: #333;">|</span>
+      <span style="color: #888;">admin</span>
+      <span class="mdi mdi-account-circle" style="font-size: 22px; color: #666;"></span>
+    </div>
+  </div>
+
+  <!-- Nav: amber active -->
+  <div class="nav-bar" style="background: #1A1A1A;">
+    <div class="nav-item" style="background: rgba(255,107,53,0.1); color: #FF6B35; font-weight: 500;">
+      <span class="mdi mdi-view-dashboard" style="margin-right: 6px;"></span>Dashboard
+    </div>
+    <div class="nav-item" style="color: #666;">
+      <span class="mdi mdi-lan" style="margin-right: 6px;"></span>Network
+    </div>
+    <div class="nav-item" style="color: #666;">
+      <span class="mdi mdi-account-group" style="margin-right: 6px;"></span>Users
+    </div>
+    <div class="nav-item" style="color: #666;">
+      <span class="mdi mdi-text-box-search" style="margin-right: 6px;"></span>Audit
+    </div>
+    <div class="nav-item" style="color: #666;">
+      <span class="mdi mdi-cog" style="margin-right: 6px;"></span>Settings
+    </div>
+    <div class="nav-item" style="color: #666;">
+      <span class="mdi mdi-help-circle" style="margin-right: 6px;"></span>Help
+    </div>
+  </div>
+
+  <!-- VM Cards: green borders (whizBANG frame) -->
+  <div class="content-area" style="background: #121212;">
+    <!-- web-nginx: running -->
+    <div class="vm-card" style="background: #1d1d1d; border: 1px solid #2A4A20;">
+      <div class="vm-card-header">
+        <span class="vm-name" style="color: #E0E0E0;">web-nginx</span>
+        <span class="vm-status" style="background: rgba(33,186,69,0.15); color: #21ba45;">running</span>
+      </div>
+      <div class="vm-meta" style="color: #888;">
+        <span>10.10.0.10</span><span>256 MB</span><span>1 vCPU</span>
+      </div>
+      <div class="vm-actions">
+        <span class="vm-btn" style="color: #c10015; border-color: #3a0006; background: rgba(193,0,21,0.06);">Stop</span>
+        <span class="vm-btn" style="color: #FF6B35; border-color: #4a2010; background: rgba(255,107,53,0.06);">Restart</span>
+      </div>
+    </div>
+
+    <!-- web-app: running -->
+    <div class="vm-card" style="background: #1d1d1d; border: 1px solid #2A4A20;">
+      <div class="vm-card-header">
+        <span class="vm-name" style="color: #E0E0E0;">web-app</span>
+        <span class="vm-status" style="background: rgba(33,186,69,0.15); color: #21ba45;">running</span>
+      </div>
+      <div class="vm-meta" style="color: #888;">
+        <span>10.10.0.11</span><span>512 MB</span><span>1 vCPU</span>
+      </div>
+      <div class="vm-actions">
+        <span class="vm-btn" style="color: #c10015; border-color: #3a0006; background: rgba(193,0,21,0.06);">Stop</span>
+        <span class="vm-btn" style="color: #FF6B35; border-color: #4a2010; background: rgba(255,107,53,0.06);">Restart</span>
+      </div>
+    </div>
+
+    <!-- dev-node: stopped — neutral border -->
+    <div class="vm-card" style="background: #1d1d1d; border: 1px solid #2A4A20;">
+      <div class="vm-card-header">
+        <span class="vm-name" style="color: #E0E0E0;">dev-node</span>
+        <span class="vm-status" style="background: rgba(150,150,150,0.12); color: #888;">stopped</span>
+      </div>
+      <div class="vm-meta" style="color: #666;">
+        <span>10.10.0.20</span><span>512 MB</span><span>1 vCPU</span>
+      </div>
+      <div class="vm-actions">
+        <span class="vm-btn" style="color: #21ba45; border-color: #0a3a12; background: rgba(33,186,69,0.06);">Start</span>
+      </div>
+    </div>
+
+    <!-- dev-python: running -->
+    <div class="vm-card" style="background: #1d1d1d; border: 1px solid #2A4A20;">
+      <div class="vm-card-header">
+        <span class="vm-name" style="color: #E0E0E0;">dev-python</span>
+        <span class="vm-status" style="background: rgba(33,186,69,0.15); color: #21ba45;">running</span>
+      </div>
+      <div class="vm-meta" style="color: #888;">
+        <span>10.10.0.21</span><span>512 MB</span><span>1 vCPU</span>
+      </div>
+      <div class="vm-actions">
+        <span class="vm-btn" style="color: #c10015; border-color: #3a0006; background: rgba(193,0,21,0.06);">Stop</span>
+        <span class="vm-btn" style="color: #FF6B35; border-color: #4a2010; background: rgba(255,107,53,0.06);">Restart</span>
+      </div>
+    </div>
+
+    <!-- svc-postgres: failed — red border override -->
+    <div class="vm-card" style="background: #1d1d1d; border: 1px solid #4A2020;">
+      <div class="vm-card-header">
+        <span class="vm-name" style="color: #E0E0E0;">svc-postgres</span>
+        <span class="vm-status" style="background: rgba(193,0,21,0.15); color: #c10015;">failed</span>
+      </div>
+      <div class="vm-meta" style="color: #666;">
+        <span>10.10.0.30</span><span>512 MB</span><span>1 vCPU</span>
+      </div>
+      <div class="vm-actions">
+        <span class="vm-btn" style="color: #21ba45; border-color: #0a3a12; background: rgba(33,186,69,0.06);">Start</span>
+        <span class="vm-btn" style="color: #FF6B35; border-color: #4a2010; background: rgba(255,107,53,0.06);">Restart</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer: whizBANG green copyright -->
+  <div class="app-footer" style="background: #161616; border-top: 1px solid #252525;">
+    <!-- Mini whizBANG wordmark in green -->
+    <span style="font-family: 'Inter', sans-serif; font-size: 11px;">
+      <span style="font-weight: 400; font-style: italic; color: #5A8A20;">whiz</span><span style="font-weight: 700; color: #7AB800;">BANG</span><span style="color: #7AB800; font-weight: 700;">!</span>
+    </span>
+    <span style="color: #333;">|</span>
+    <span style="color: #4A6A30; font-size: 10px; letter-spacing: 0.5px;">&copy; 2026 whizBANG Developers LLC</span>
+  </div>
+</div>
+
+<div class="caption">
+  Green card borders (<code style="color: #7AB800;">#2A4A20</code> dark) on all VM cards — subtle company frame.
+  Failed VMs override to red border. Footer carries the whizBANG wordmark and copyright in brand green.
+  Everything in the header/nav is amber — that's MicroVM's space.
+</div>
+
+<hr class="divider">
+
+<!-- ============================================ -->
+<!-- LIGHT MODE                                   -->
+<!-- ============================================ -->
+<div class="section-label" style="color: #E8520D;">Light Mode</div>
+
+<div class="app-frame" style="background: #FAFAFA; border: 1px solid #E0E0E0;">
+
+  <!-- Toolbar -->
+  <div class="app-toolbar" style="background: #FFFFFF; border-bottom: 1px solid #E8E8E8;">
+    <svg width="28" height="28" viewBox="0 0 120 120" fill="none">
+      <defs>
+        <linearGradient id="lt1Body" x1="60" y1="10" x2="60" y2="86" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stop-color="#FFB868"/>
+          <stop offset="30%" stop-color="#FF6B35"/>
+          <stop offset="65%" stop-color="#E8520D"/>
+          <stop offset="100%" stop-color="#A83A08"/>
+        </linearGradient>
+        <linearGradient id="lt1Core" x1="60" y1="28" x2="60" y2="66" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stop-color="#FFE0C0"/>
+          <stop offset="50%" stop-color="#FFB888"/>
+          <stop offset="100%" stop-color="#FF8844"/>
+        </linearGradient>
+      </defs>
+      <path d="M60 10 L72 40 L66 36 L78 72 L64 58 L68 86 L60 74 L52 86 L56 58 L42 72 L54 36 L48 40 Z"
+            fill="url(#lt1Body)"/>
+      <path d="M60 28 L67 50 L63 46 L68 66 L60 56 L52 66 L57 46 L53 50 Z" fill="url(#lt1Core)"/>
+      <circle cx="84" cy="28" r="2.5" fill="#E8520D" opacity="0.6"/>
+      <circle cx="36" cy="28" r="2.5" fill="#E8520D" opacity="0.6"/>
+    </svg>
+
+    <span class="app-name">
+      <span style="font-weight: 300; color: #888;">micro</span><span style="font-weight: 600; color: #2A2A2A;">vm</span>
+    </span>
+
+    <div class="spacer"></div>
+
+    <div class="toolbar-meta">
+      <div class="ws-dot" style="background: #21ba45;"></div>
+      <span style="color: #888; font-family: 'JetBrains Mono', monospace;">5 VMs</span>
+      <span style="color: #DDD;">|</span>
+      <span style="color: #666;">admin</span>
+      <span class="mdi mdi-account-circle" style="font-size: 22px; color: #999;"></span>
+    </div>
+  </div>
+
+  <!-- Nav: amber active -->
+  <div class="nav-bar" style="background: #FFFFFF;">
+    <div class="nav-item" style="background: rgba(232,82,13,0.07); color: #E8520D; font-weight: 500;">
+      <span class="mdi mdi-view-dashboard" style="margin-right: 6px;"></span>Dashboard
+    </div>
+    <div class="nav-item" style="color: #999;">
+      <span class="mdi mdi-lan" style="margin-right: 6px;"></span>Network
+    </div>
+    <div class="nav-item" style="color: #999;">
+      <span class="mdi mdi-account-group" style="margin-right: 6px;"></span>Users
+    </div>
+    <div class="nav-item" style="color: #999;">
+      <span class="mdi mdi-text-box-search" style="margin-right: 6px;"></span>Audit
+    </div>
+    <div class="nav-item" style="color: #999;">
+      <span class="mdi mdi-cog" style="margin-right: 6px;"></span>Settings
+    </div>
+    <div class="nav-item" style="color: #999;">
+      <span class="mdi mdi-help-circle" style="margin-right: 6px;"></span>Help
+    </div>
+  </div>
+
+  <!-- VM Cards: green borders -->
+  <div class="content-area" style="background: #FAFAFA;">
+    <!-- web-nginx: running -->
+    <div class="vm-card" style="background: #FFFFFF; border: 1px solid #B8D4A8;">
+      <div class="vm-card-header">
+        <span class="vm-name" style="color: #2A2A2A;">web-nginx</span>
+        <span class="vm-status" style="background: rgba(33,186,69,0.1); color: #1A8A0A;">running</span>
+      </div>
+      <div class="vm-meta" style="color: #888;">
+        <span>10.10.0.10</span><span>256 MB</span><span>1 vCPU</span>
+      </div>
+      <div class="vm-actions">
+        <span class="vm-btn" style="color: #c10015; border-color: #f0c0c4; background: rgba(193,0,21,0.03);">Stop</span>
+        <span class="vm-btn" style="color: #E8520D; border-color: #f0d4c0; background: rgba(232,82,13,0.03);">Restart</span>
+      </div>
+    </div>
+
+    <!-- web-app: running -->
+    <div class="vm-card" style="background: #FFFFFF; border: 1px solid #B8D4A8;">
+      <div class="vm-card-header">
+        <span class="vm-name" style="color: #2A2A2A;">web-app</span>
+        <span class="vm-status" style="background: rgba(33,186,69,0.1); color: #1A8A0A;">running</span>
+      </div>
+      <div class="vm-meta" style="color: #888;">
+        <span>10.10.0.11</span><span>512 MB</span><span>1 vCPU</span>
+      </div>
+      <div class="vm-actions">
+        <span class="vm-btn" style="color: #c10015; border-color: #f0c0c4; background: rgba(193,0,21,0.03);">Stop</span>
+        <span class="vm-btn" style="color: #E8520D; border-color: #f0d4c0; background: rgba(232,82,13,0.03);">Restart</span>
+      </div>
+    </div>
+
+    <!-- dev-node: stopped -->
+    <div class="vm-card" style="background: #FFFFFF; border: 1px solid #B8D4A8;">
+      <div class="vm-card-header">
+        <span class="vm-name" style="color: #2A2A2A;">dev-node</span>
+        <span class="vm-status" style="background: rgba(150,150,150,0.08); color: #AAA;">stopped</span>
+      </div>
+      <div class="vm-meta" style="color: #BBB;">
+        <span>10.10.0.20</span><span>512 MB</span><span>1 vCPU</span>
+      </div>
+      <div class="vm-actions">
+        <span class="vm-btn" style="color: #1A8A0A; border-color: #b8d8b8; background: rgba(26,138,10,0.03);">Start</span>
+      </div>
+    </div>
+
+    <!-- dev-python: running -->
+    <div class="vm-card" style="background: #FFFFFF; border: 1px solid #B8D4A8;">
+      <div class="vm-card-header">
+        <span class="vm-name" style="color: #2A2A2A;">dev-python</span>
+        <span class="vm-status" style="background: rgba(33,186,69,0.1); color: #1A8A0A;">running</span>
+      </div>
+      <div class="vm-meta" style="color: #888;">
+        <span>10.10.0.21</span><span>512 MB</span><span>1 vCPU</span>
+      </div>
+      <div class="vm-actions">
+        <span class="vm-btn" style="color: #c10015; border-color: #f0c0c4; background: rgba(193,0,21,0.03);">Stop</span>
+        <span class="vm-btn" style="color: #E8520D; border-color: #f0d4c0; background: rgba(232,82,13,0.03);">Restart</span>
+      </div>
+    </div>
+
+    <!-- svc-postgres: failed -->
+    <div class="vm-card" style="background: #FFFFFF; border: 1px solid #E0B8B8;">
+      <div class="vm-card-header">
+        <span class="vm-name" style="color: #2A2A2A;">svc-postgres</span>
+        <span class="vm-status" style="background: rgba(193,0,21,0.08); color: #c10015;">failed</span>
+      </div>
+      <div class="vm-meta" style="color: #BBB;">
+        <span>10.10.0.30</span><span>512 MB</span><span>1 vCPU</span>
+      </div>
+      <div class="vm-actions">
+        <span class="vm-btn" style="color: #1A8A0A; border-color: #b8d8b8; background: rgba(26,138,10,0.03);">Start</span>
+        <span class="vm-btn" style="color: #E8520D; border-color: #f0d4c0; background: rgba(232,82,13,0.03);">Restart</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="app-footer" style="background: #F5F5F5; border-top: 1px solid #E8E8E8;">
+    <span style="font-family: 'Inter', sans-serif; font-size: 11px;">
+      <span style="font-weight: 400; font-style: italic; color: #5A8A20;">whiz</span><span style="font-weight: 700; color: #4A7A10;">BANG</span><span style="color: #4A7A10; font-weight: 700;">!</span>
+    </span>
+    <span style="color: #DDD;">|</span>
+    <span style="color: #6A9A40; font-size: 10px; letter-spacing: 0.5px;">&copy; 2026 whizBANG Developers LLC</span>
+  </div>
+</div>
+
+<div class="caption">
+  Light mode: green borders shift to <code style="color: #7AB800;">#B8D4A8</code> (soft sage). Failed overrides to muted rose.
+  Footer green darkens for contrast on white. Same structural pattern — amber header, green frame.
+</div>
+
+<hr class="divider">
+
+<!-- ============================================ -->
+<!-- WORDMARK + ICON SYSTEM                        -->
+<!-- ============================================ -->
+<div class="section-label" style="color: #FF6B35;">Brand Lockups</div>
+
+<div style="display: flex; gap: 40px; flex-wrap: wrap; margin-bottom: 60px;">
+
+  <!-- Dark: full lockup with whizBANG badge -->
+  <div style="padding: 32px 40px; background: #1d1d1d; border: 1px solid #252525; border-radius: 16px;">
+    <div style="display: flex; align-items: center; gap: 20px; margin-bottom: 20px;">
+      <svg width="56" height="56" viewBox="0 0 120 120" fill="none">
+        <defs>
+          <linearGradient id="lkDkBody" x1="60" y1="10" x2="60" y2="86" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stop-color="#FFF0D0"/>
+            <stop offset="20%" stop-color="#FF6B35"/>
+            <stop offset="60%" stop-color="#E8520D"/>
+            <stop offset="100%" stop-color="#A83A08"/>
+          </linearGradient>
+          <linearGradient id="lkDkCore" x1="60" y1="28" x2="60" y2="66" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stop-color="#FFFFFF"/>
+            <stop offset="40%" stop-color="#FFD8B8"/>
+            <stop offset="100%" stop-color="#FFB088"/>
+          </linearGradient>
+          <filter id="lkGlow" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur stdDeviation="3" result="blur"/>
+            <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+          </filter>
+          <filter id="lkCorona" x="-80%" y="-80%" width="260%" height="260%">
+            <feGaussianBlur stdDeviation="6"/>
+          </filter>
+        </defs>
+        <path d="M60 10 L72 40 L66 36 L78 72 L64 58 L68 86 L60 74 L52 86 L56 58 L42 72 L54 36 L48 40 Z"
+              fill="#FF6B35" opacity="0.12" filter="url(#lkCorona)"/>
+        <path d="M60 10 L72 40 L66 36 L78 72 L64 58 L68 86 L60 74 L52 86 L56 58 L42 72 L54 36 L48 40 Z"
+              fill="url(#lkDkBody)" filter="url(#lkGlow)"/>
+        <path d="M60 28 L67 50 L63 46 L68 66 L60 56 L52 66 L57 46 L53 50 Z" fill="url(#lkDkCore)"/>
+        <path d="M60 10 L63 20 L57 20 Z" fill="white" opacity="0.85"/>
+        <circle cx="84" cy="28" r="2.5" fill="#FF6B35" opacity="0.7"/>
+        <circle cx="36" cy="28" r="2.5" fill="#FF6B35" opacity="0.7"/>
+      </svg>
+      <div>
+        <div style="font-size: 32px; letter-spacing: -1px;">
+          <span style="font-weight: 300; color: #888;">micro</span><span style="font-weight: 700; color: #E0E0E0;">vm</span>
+        </div>
+        <div style="font-size: 13px; font-weight: 400; letter-spacing: 4px; text-transform: uppercase; color: #FF6B35; margin-top: 1px;">Workbench</div>
+      </div>
+    </div>
+    <!-- whizBANG badge -->
+    <div style="border-top: 1px solid #2A4A20; padding-top: 12px; display: flex; align-items: center; gap: 6px;">
+      <span style="font-size: 10px; color: #4A6A30; letter-spacing: 0.5px;">a</span>
+      <span style="font-family: 'Inter', sans-serif; font-size: 11px;">
+        <span style="font-weight: 400; font-style: italic; color: #5A8A20;">whiz</span><span style="font-weight: 700; color: #7AB800;">BANG</span><span style="color: #7AB800; font-weight: 700;">!</span>
+      </span>
+      <span style="font-size: 10px; color: #4A6A30; letter-spacing: 0.5px;">Developers product</span>
+    </div>
+  </div>
+
+  <!-- Light: full lockup with whizBANG badge -->
+  <div style="padding: 32px 40px; background: #FFFFFF; border: 1px solid #E0E0E0; border-radius: 16px;">
+    <div style="display: flex; align-items: center; gap: 20px; margin-bottom: 20px;">
+      <svg width="56" height="56" viewBox="0 0 120 120" fill="none">
+        <defs>
+          <linearGradient id="lkLtBody" x1="60" y1="10" x2="60" y2="86" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stop-color="#FFB868"/>
+            <stop offset="30%" stop-color="#FF6B35"/>
+            <stop offset="65%" stop-color="#E8520D"/>
+            <stop offset="100%" stop-color="#A83A08"/>
+          </linearGradient>
+          <linearGradient id="lkLtCore" x1="60" y1="28" x2="60" y2="66" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stop-color="#FFE0C0"/>
+            <stop offset="50%" stop-color="#FFB888"/>
+            <stop offset="100%" stop-color="#FF8844"/>
+          </linearGradient>
+        </defs>
+        <path d="M60 10 L72 40 L66 36 L78 72 L64 58 L68 86 L60 74 L52 86 L56 58 L42 72 L54 36 L48 40 Z"
+              fill="url(#lkLtBody)"/>
+        <path d="M60 28 L67 50 L63 46 L68 66 L60 56 L52 66 L57 46 L53 50 Z" fill="url(#lkLtCore)"/>
+        <circle cx="84" cy="28" r="2.5" fill="#E8520D" opacity="0.6"/>
+        <circle cx="36" cy="28" r="2.5" fill="#E8520D" opacity="0.6"/>
+      </svg>
+      <div>
+        <div style="font-size: 32px; letter-spacing: -1px;">
+          <span style="font-weight: 300; color: #888;">micro</span><span style="font-weight: 700; color: #2A2A2A;">vm</span>
+        </div>
+        <div style="font-size: 13px; font-weight: 400; letter-spacing: 4px; text-transform: uppercase; color: #E8520D; margin-top: 1px;">Workbench</div>
+      </div>
+    </div>
+    <div style="border-top: 1px solid #C0D8B0; padding-top: 12px; display: flex; align-items: center; gap: 6px;">
+      <span style="font-size: 10px; color: #6A9A40; letter-spacing: 0.5px;">a</span>
+      <span style="font-family: 'Inter', sans-serif; font-size: 11px;">
+        <span style="font-weight: 400; font-style: italic; color: #5A8A20;">whiz</span><span style="font-weight: 700; color: #4A7A10;">BANG</span><span style="color: #4A7A10; font-weight: 700;">!</span>
+      </span>
+      <span style="font-size: 10px; color: #6A9A40; letter-spacing: 0.5px;">Developers product</span>
+    </div>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- ============================================ -->
+<!-- COLOR SYSTEM                                  -->
+<!-- ============================================ -->
+<div class="section-label" style="color: #FF6B35;">Color System</div>
+
+<div style="display: flex; gap: 48px; flex-wrap: wrap; margin-bottom: 40px;">
+
+  <!-- Product: Amber -->
+  <div>
+    <div style="font-size: 11px; color: #FF6B35; letter-spacing: 2px; margin-bottom: 12px;">MICROVM (PRODUCT)</div>
+    <div class="palette-row">
+      <div class="swatch-group">
+        <div class="swatch" style="background: #A83A08; color: #FFB088;">#A83A08</div>
+        <div class="role-label">deep</div>
+      </div>
+      <div class="swatch-group">
+        <div class="swatch" style="background: #E8520D; color: #FFD8B8;">#E8520D</div>
+        <div class="role-label">on-light</div>
+      </div>
+      <div class="swatch-group">
+        <div class="swatch" style="background: #FF6B35; color: #1A1A1A;">#FF6B35</div>
+        <div class="role-label">primary</div>
+      </div>
+      <div class="swatch-group">
+        <div class="swatch" style="background: #FFB088; color: #A83A08;">#FFB088</div>
+        <div class="role-label">core</div>
+      </div>
+      <div class="swatch-group">
+        <div class="swatch" style="background: #FFF0D0; color: #A83A08;">#FFF0D0</div>
+        <div class="role-label">tip</div>
+      </div>
+    </div>
+    <div style="font-size: 10px; color: #555; line-height: 1.6;">
+      Header icon, nav highlight, action buttons,<br>"Workbench" subtitle, active states
+    </div>
+  </div>
+
+  <!-- Company: Green -->
+  <div>
+    <div style="font-size: 11px; color: #7AB800; letter-spacing: 2px; margin-bottom: 12px;">WHIZBANG (COMPANY)</div>
+    <div class="palette-row">
+      <div class="swatch-group">
+        <div class="swatch" style="background: #2A4A20; color: #7AB800;">#2A4A20</div>
+        <div class="role-label">dk border</div>
+      </div>
+      <div class="swatch-group">
+        <div class="swatch" style="background: #4A7A10; color: #D0E8B0;">#4A7A10</div>
+        <div class="role-label">lt text</div>
+      </div>
+      <div class="swatch-group">
+        <div class="swatch" style="background: #7AB800; color: #1A1A1A;">#7AB800</div>
+        <div class="role-label">primary</div>
+      </div>
+      <div class="swatch-group">
+        <div class="swatch" style="background: #B8D4A8; color: #3A5A20;">#B8D4A8</div>
+        <div class="role-label">lt border</div>
+      </div>
+      <div class="swatch-group">
+        <div class="swatch" style="background: #C0D8B0; color: #3A5A20;">#C0D8B0</div>
+        <div class="role-label">lt divider</div>
+      </div>
+    </div>
+    <div style="font-size: 10px; color: #555; line-height: 1.6;">
+      Card borders, footer divider, copyright line,<br>"a whizBANG! Developers LLC product" badge
+    </div>
+  </div>
+
+  <!-- Semantic -->
+  <div>
+    <div style="font-size: 11px; color: #888; letter-spacing: 2px; margin-bottom: 12px;">SEMANTIC (UNCHANGED)</div>
+    <div class="palette-row">
+      <div class="swatch-group">
+        <div class="swatch" style="background: #21ba45; color: #0A2A0E;">#21ba45</div>
+        <div class="role-label">positive</div>
+      </div>
+      <div class="swatch-group">
+        <div class="swatch" style="background: #c10015; color: #FFD0D4;">#c10015</div>
+        <div class="role-label">negative</div>
+      </div>
+      <div class="swatch-group">
+        <div class="swatch" style="background: #f2c037; color: #3A2A08;">#f2c037</div>
+        <div class="role-label">warning</div>
+      </div>
+      <div class="swatch-group">
+        <div class="swatch" style="background: #26a69a; color: #0A2A28;">#26a69a</div>
+        <div class="role-label">secondary</div>
+      </div>
+    </div>
+    <div style="font-size: 10px; color: #555; line-height: 1.6;">
+      Existing Quasar semantic colors stay as-is.<br>Status badges, form validation, alerts.
+    </div>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- ============================================ -->
+<!-- BRAND HIERARCHY DIAGRAM                       -->
+<!-- ============================================ -->
+<div class="section-label" style="color: #7AB800;">Brand Hierarchy</div>
+
+<div style="max-width: 700px; margin-bottom: 60px; font-family: 'JetBrains Mono', monospace; font-size: 13px; line-height: 2.2; padding: 24px; background: #141414; border-radius: 12px; border: 1px solid #252525;">
+  <span style="color: #7AB800;">whizBANG! Developers LLC</span> <span style="color: #333;">............</span> <span style="color: #5A8A20;">green frame, copyright</span><br>
+  <span style="color: #444;">&nbsp;&nbsp;|</span><br>
+  <span style="color: #444;">&nbsp;&nbsp;|--</span> <span style="color: #FF6B35;">Weaver</span> <span style="color: #333;">......</span> <span style="color: #A83A08;">amber spark, amber chrome</span><br>
+  <span style="color: #444;">&nbsp;&nbsp;|--</span> <span style="color: #1E88E5;">Qepton</span> <span style="color: #333;">..................</span> <span style="color: #1565C0;">blue (backfill TBD)</span><br>
+  <span style="color: #444;">&nbsp;&nbsp;|--</span> <span style="color: #888;">Gantry</span> <span style="color: #333;">..................</span> <span style="color: #555;">TBD</span><br>
+  <span style="color: #444;">&nbsp;&nbsp;|--</span> <span style="color: #888;">Future products</span> <span style="color: #333;">.........</span> <span style="color: #555;">own color + green frame</span>
+</div>
+
+</body>
+</html>

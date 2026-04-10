@@ -1,0 +1,131 @@
+# Copyright (c) 2026 whizBANG Developers LLC. All rights reserved.
+# Proprietary and confidential. Do not distribute.
+# Demo Gists Reset
+# CREATED IN: Dev repo (when demo with login chosen)
+# USED BY: Demo maintenance - resets demo account gists to sample state
+# TRIGGERS: Daily schedule, manual
+#
+# REQUIRED SECRETS:
+#   - DEMO_GITHUB_TOKEN: PAT from demo account with repo and gist scope
+#
+# PLACEHOLDERS (replaced by setup-project.sh):
+#   - {{PROJECT_NAME}}: Project name (lowercase)
+#
+# NOTE: Requires sample gists backup in demo/sample-gists/ directory
+
+name: Demo Reset Gists
+
+on:
+  schedule:
+    # Run daily at 3am UTC
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run - show what would be deleted without deleting'
+        required: false
+        default: 'false'
+        type: boolean
+
+env:
+  DEMO_ACCOUNT: {{PROJECT_NAME}}-demo
+
+jobs:
+  reset:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Get sample gist IDs
+        id: samples
+        run: |
+          # Read sample gist IDs from backup directory
+          if [ -d "demo/sample-gists" ]; then
+            SAMPLE_IDS=$(ls demo/sample-gists/*.json 2>/dev/null | xargs -I{} basename {} .json | tr '\n' ',' | sed 's/,$//')
+            echo "sample_ids=$SAMPLE_IDS" >> $GITHUB_OUTPUT
+          else
+            echo "sample_ids=" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Delete non-sample gists
+        env:
+          GH_TOKEN: ${{ secrets.DEMO_GITHUB_TOKEN }}
+        run: |
+          SAMPLE_IDS="${{ steps.samples.outputs.sample_ids }}"
+          DRY_RUN="${{ github.event.inputs.dry_run }}"
+
+          echo "Sample gist IDs to preserve: $SAMPLE_IDS"
+          echo ""
+
+          # Get all gists for the demo account
+          GISTS=$(gh api users/${{ env.DEMO_ACCOUNT }}/gists --jq '.[].id')
+
+          DELETED=0
+          PRESERVED=0
+
+          for gist_id in $GISTS; do
+            if echo ",$SAMPLE_IDS," | grep -q ",$gist_id,"; then
+              echo "Preserving sample gist: $gist_id"
+              ((PRESERVED++))
+            else
+              if [ "$DRY_RUN" = "true" ]; then
+                echo "[DRY RUN] Would delete: $gist_id"
+              else
+                echo "Deleting gist: $gist_id"
+                gh api gists/$gist_id -X DELETE
+              fi
+              ((DELETED++))
+            fi
+          done
+
+          echo ""
+          echo "Summary: Deleted $DELETED, Preserved $PRESERVED"
+
+          echo "DELETED=$DELETED" >> $GITHUB_ENV
+          echo "PRESERVED=$PRESERVED" >> $GITHUB_ENV
+
+      - name: Restore sample gists (if needed)
+        if: github.event.inputs.dry_run != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.DEMO_GITHUB_TOKEN }}
+        run: |
+          if [ ! -d "demo/sample-gists" ]; then
+            echo "No sample gists directory found, skipping restore"
+            exit 0
+          fi
+
+          SAMPLE_IDS="${{ steps.samples.outputs.sample_ids }}"
+
+          # Check if sample gists exist, recreate if missing
+          for sample_file in demo/sample-gists/*.json; do
+            if [ ! -f "$sample_file" ]; then
+              continue
+            fi
+
+            gist_id=$(basename "$sample_file" .json)
+
+            # Check if gist exists
+            if ! gh api gists/$gist_id &>/dev/null; then
+              echo "Sample gist $gist_id is missing, would need manual restore"
+              # Note: Creating gists with specific IDs is not possible via API
+              # Sample gists should be created manually and backed up
+            else
+              echo "Sample gist $gist_id exists"
+            fi
+          done
+
+      - name: Summary
+        run: |
+          echo "## Demo Gists Reset" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- Gists deleted: ${{ env.DELETED }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Gists preserved: ${{ env.PRESERVED }}" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+            echo "- **DRY RUN** - no actual deletions" >> $GITHUB_STEP_SUMMARY
+          fi

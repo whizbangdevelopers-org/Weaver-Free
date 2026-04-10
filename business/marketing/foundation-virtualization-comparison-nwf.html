@@ -1,0 +1,201 @@
+<!-- Copyright (c) 2026 whizBANG Developers LLC. All rights reserved. -->
+<!-- Proprietary and confidential. Do not distribute. -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Virtualization & Container Feature Comparison</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Courier New', Courier, monospace; background: #fff; color: #1a1a1a; padding: 40px 32px; min-height: 100vh; }
+  h1 { font-size: 20px; font-weight: 600; color: #1a1a1a; margin-bottom: 4px; letter-spacing: .02em; }
+  .subtitle { font-size: 12px; color: #666; margin-bottom: 24px; letter-spacing: .04em; }
+  .filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
+  .filters button { font-size: 11px; padding: 4px 14px; border-radius: 20px; border: 1.5px solid #bbb; background: transparent; color: #444; font-weight: 500; cursor: pointer; transition: all .15s; font-family: 'Courier New', monospace; letter-spacing: .03em; }
+  .filters button:hover { border-color: #888; color: #222; background: #f0f0ec; }
+  .filters button.active { background: #2e7d18; color: #fff; border-color: #2e7d18; }
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 860px; }
+  thead th { padding: 10px 10px 14px; text-align: center; font-weight: 600; font-size: 11px; color: #444; border-bottom: 1.5px solid #ccc; white-space: nowrap; vertical-align: bottom; letter-spacing: .03em; }
+  thead th:first-child { text-align: left; min-width: 190px; }
+  thead th.highlight { color: #2e7d18; font-weight: 700; }
+  .nix-header { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .nix-badge { font-size: 9px; background: #e8f5e0; color: #2e7d18; padding: 2px 7px; border-radius: 10px; font-weight: 600; letter-spacing: .05em; }
+  tbody tr { border-bottom: 1px solid #ddd; transition: background .1s; }
+  tbody tr:hover { background: #f8f8f5; }
+  tbody tr.cat-header td { background: #eeeee8; font-size: 10px; font-weight: 600; letter-spacing: .1em; color: #444; padding: 8px 10px; text-transform: uppercase; border-bottom: 1px solid #ccc; }
+  tbody td { padding: 8px 10px; color: #222; font-size: 12px; }
+  tbody td:not(:first-child) { text-align: center; vertical-align: middle; }
+  tbody td.hcol { background: rgba(46,125,24,.06); }
+  tbody tr:hover td.hcol { background: rgba(46,125,24,.12); }
+  .score { display: inline-flex; gap: 3px; align-items: center; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+  .d3 { background: #2e7d18; }
+  .d2 { background: #5a9a38; }
+  .d1 { background: #b07818; }
+  .d0 { background: transparent; border: 1px solid #bbb; }
+  .legend { display: flex; gap: 20px; flex-wrap: wrap; margin-top: 20px; font-size: 11px; color: #555; align-items: center; border-top: 1.5px solid #ccc; padding-top: 16px; }
+  .legend-item { display: flex; align-items: center; gap: 6px; }
+  .row-hidden { display: none; }
+  tbody tr.cat-avg td { font-size: 11px; font-weight: 600; color: #555; padding: 6px 10px; border-top: 1.5px solid #ccc; background: #f8f8f5; letter-spacing: .02em; }
+  tbody tr.cat-avg td:first-child { text-align: right; font-style: italic; color: #888; font-weight: 500; }
+  tbody tr.cat-avg td.hcol { background: rgba(46,125,24,.08); font-weight: 700; color: #2e7d18; }
+  tbody tr.composite td { font-size: 12px; font-weight: 700; color: #1a1a1a; padding: 10px 10px; border-top: 2.5px solid #888; background: #f0f0ea; letter-spacing: .02em; }
+  tbody tr.composite td:first-child { text-transform: uppercase; font-size: 10px; letter-spacing: .1em; }
+  tbody tr.composite td.hcol { background: rgba(46,125,24,.12); color: #2e7d18; }
+  .credit { font-size: 10px; color: #999; margin-top: 12px; letter-spacing: .05em; }
+</style>
+</head>
+<body>
+
+<h1>Virtualization &amp; Container Feature Comparison</h1>
+<p class="subtitle">NixOS MicroVM &middot; Docker &middot; Full VM &middot; Firecracker &middot; gVisor &middot; Apptainer &middot; nspawn &middot; Unikernels &middot; Qubes OS</p>
+
+<div class="filters">
+  <button class="active" onclick="filterCat('all',this)">All features</button>
+  <button onclick="filterCat('security',this)">Security &amp; isolation</button>
+  <button onclick="filterCat('compliance',this)">Reproducibility &amp; compliance</button>
+  <button onclick="filterCat('ops',this)">Operations</button>
+</div>
+
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th></th>
+        <th class="highlight">NixOS<br>MicroVM</th>
+        <th>Docker<br>OCI</th>
+        <th>Full VM<br>QEMU/Proxmox</th>
+        <th>Firecracker<br>standalone</th>
+        <th>gVisor</th>
+        <th>Apptainer<br>SIF</th>
+        <th>systemd<br>nspawn</th>
+        <th>Unikernels</th>
+        <th>Qubes OS</th>
+      </tr>
+    </thead>
+    <tbody id="tbody"></tbody>
+  </table>
+</div>
+
+<div class="legend">
+  <span style="font-weight:500;color:#444;font-size:11px;">Score:</span>
+  <span class="legend-item"><span class="dot d3"></span> Excellent (3)</span>
+  <span class="legend-item"><span class="dot d2"></span> Good (2)</span>
+  <span class="legend-item"><span class="dot d1"></span> Partial (1)</span>
+  <span class="legend-item"><span class="dot d0"></span> None (0)</span>
+</div>
+
+<p class="credit">Generated by whizBang! Developers &middot; Foundation Research</p>
+
+<script>
+/* scores order: NixOS MicroVM, Docker, Full VM, Firecracker, gVisor, Apptainer, nspawn, Unikernels, Qubes */
+const cats = {
+  security: {
+    label: 'Security & Isolation',
+    rows: [
+      { label: 'Kernel isolation',         scores: [3,0,3,3,2,0,0,3,3] },
+      { label: 'Attack surface',           scores: [3,1,1,3,2,2,1,3,2] },
+      { label: 'VM/container escape risk', scores: [3,1,2,3,2,1,1,3,2] },
+      { label: 'Covert channel resist.',   scores: [2,0,2,2,1,0,0,3,2] },
+      { label: 'Syscall surface control',  scores: [3,1,1,3,3,2,1,3,1] },
+    ]
+  },
+  compliance: {
+    label: 'Reproducibility & Compliance',
+    rows: [
+      { label: 'Declarative config',       scores: [3,1,1,0,0,1,0,1,0] },
+      { label: 'Reproducible builds',      scores: [3,1,0,0,0,2,0,2,0] },
+      { label: 'Git-auditable state',      scores: [3,1,1,0,0,1,0,1,0] },
+      { label: 'Config drift protection',  scores: [3,1,0,0,0,1,0,2,0] },
+      { label: 'Formal verifiability',     scores: [3,0,0,1,1,0,0,2,0] },
+      { label: 'Compliance posture',       scores: [3,1,2,2,2,1,1,2,2] },
+    ]
+  },
+  ops: {
+    label: 'Operations',
+    rows: [
+      { label: 'Boot time',                scores: [2,3,1,3,2,3,3,3,1] },
+      { label: 'Memory efficiency',        scores: [2,3,1,3,2,3,3,3,1] },
+      { label: 'Guest OS flexibility',     scores: [0,3,3,1,2,2,2,0,2] },
+      { label: 'Live migration',           scores: [0,1,3,1,1,0,0,0,0] },
+      { label: 'Ecosystem maturity',       scores: [1,3,3,2,2,2,2,1,2] },
+      { label: 'Secrets management',       scores: [2,2,2,1,1,1,2,1,2] },
+      { label: 'Dev/debug experience',     scores: [1,3,3,2,2,1,2,0,1] },
+      { label: 'Migration / portability',  scores: [0,2,2,0,1,1,0,0,0] },
+    ]
+  }
+};
+
+function makeScore(n) {
+  const cls = n >= 3 ? 'd3' : n >= 2 ? 'd2' : n >= 1 ? 'd1' : 'd0';
+  return '<span class="score">' +
+    [0,1,2].map(i => `<span class="dot ${i < n ? cls : 'd0'}"></span>`).join('') +
+    '</span>';
+}
+
+function buildTable(filter) {
+  const tbody = document.getElementById('tbody');
+  tbody.innerHTML = '';
+  const numCols = cats[Object.keys(cats)[0]].rows[0].scores.length;
+  for (const [key, cat] of Object.entries(cats)) {
+    const hidden = (filter !== 'all' && filter !== key) ? ' row-hidden' : '';
+    const htr = document.createElement('tr');
+    htr.className = 'cat-header' + hidden;
+    htr.innerHTML = `<td colspan="${numCols + 1}">${cat.label}</td>`;
+    tbody.appendChild(htr);
+    for (const row of cat.rows) {
+      const tr = document.createElement('tr');
+      tr.className = hidden;
+      tr.dataset.cat = key;
+      let cells = `<td>${row.label}</td>`;
+      row.scores.forEach((s, i) => {
+        const cls = i === 0 ? ' class="hcol"' : '';
+        cells += `<td${cls}>${makeScore(s)}</td>`;
+      });
+      tr.innerHTML = cells;
+      tbody.appendChild(tr);
+    }
+    const avgs = Array(numCols).fill(0);
+    for (const row of cat.rows) row.scores.forEach((s, i) => avgs[i] += s);
+    const atr = document.createElement('tr');
+    atr.className = 'cat-avg' + hidden;
+    let acells = `<td>avg</td>`;
+    avgs.forEach((sum, i) => {
+      const avg = (sum / cat.rows.length).toFixed(1);
+      const cls = i === 0 ? ' class="hcol"' : '';
+      acells += `<td${cls}>${avg}</td>`;
+    });
+    atr.innerHTML = acells;
+    tbody.appendChild(atr);
+  }
+  // Composite score row — sum of all individual scores per column
+  if (filter === 'all') {
+    const totals = Array(numCols).fill(0);
+    for (const cat of Object.values(cats)) {
+      for (const row of cat.rows) row.scores.forEach((s, i) => totals[i] += s);
+    }
+    const ctr = document.createElement('tr');
+    ctr.className = 'composite';
+    let ccells = `<td>Composite</td>`;
+    totals.forEach((t, i) => {
+      const cls = i === 0 ? ' class="hcol"' : '';
+      ccells += `<td${cls}>${t}</td>`;
+    });
+    ctr.innerHTML = ccells;
+    tbody.appendChild(ctr);
+  }
+}
+
+function filterCat(cat, btn) {
+  document.querySelectorAll('.filters button').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  buildTable(cat);
+}
+
+buildTable('all');
+
+</script>
+</body>
+</html>
