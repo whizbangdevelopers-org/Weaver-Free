@@ -59,6 +59,16 @@ If flakes are disabled, add `nix.settings.experimental-features = [ "nix-command
 
 **Docker path (below):** `docker --version` and `docker compose version`.
 
+**Recommended: install `nh` (nix-helper) for store cleanup.** Each `nixos-rebuild` creates a new generation, and the Nix store grows fast when experimenting with Weaver configuration changes. `nh` makes garbage collection simple:
+
+```bash
+# Add to environment.systemPackages:
+environment.systemPackages = with pkgs; [ git nh ];
+
+# Then clean old generations anytime — keep the 3 most recent as rollback targets:
+nh clean all --keep 3
+```
+
 > **Installing NixOS in virt-manager?** When creating the VM, virt-manager auto-detects the NixOS ISO and shows **"NixOS Unstable"** in the "Choose the operating system you are installing" field. This is normal — NixOS minimal ISOs are published on the unstable channel even for stable releases. Proceed with the install; your `configuration.nix` controls which NixOS channel (e.g. `nixos-25.11`) you actually run.
 
 ### Automated (fastest)
