@@ -136,7 +136,7 @@ You'll see the default NixOS configuration. Make these **three changes**.
 
 > **Shell & nano tips for new users:**
 > - **Up arrow** at the shell prompt recalls previous commands — no need to retype `nixos-rebuild switch` every time
-> - In nano, use **arrow keys** to navigate, **Home/End** to jump to start/end of a line
+> - In nano, use **arrow keys** to navigate, **Page Up/Page Down** to scroll fast, **Home/End** to jump to start/end of a line
 > - Use **spaces, not tabs** for indentation — NixOS config uses 2-space indent (4 spaces inside the brackets is fine too, just be consistent and never use Tab)
 > - `Ctrl+O` → `Enter` to save, `Ctrl+X` to exit
 > - `Ctrl+W` to search for text (helpful for finding `systemPackages` quickly)
@@ -275,12 +275,16 @@ Add the Weaver module import and enable the service:
   # Weaver
   services.weaver = {
     enable = true;
-    # openFirewall = true;   # enable if your firewall is active
+    openFirewall = true;    # opens port 3100 so your browser can reach the dashboard
   };
 }
 ```
 
 > **Replace `your-username`** with the actual username you created during install.
+>
+> **"Why couldn't I do this in Step 5?"** Because git wasn't installed yet — you needed the first rebuild to get git, then clone the repo, and only THEN can you point `imports` at the repo on disk. That's why we do two edits.
+>
+> **What does `openFirewall` do?** NixOS enables a firewall by default that blocks incoming connections. Without `openFirewall = true`, you can reach Weaver at `http://localhost:3100` from the NixOS machine itself, but your browser on another device can't connect. This setting opens port 3100 through the firewall.
 
 Save and rebuild:
 
