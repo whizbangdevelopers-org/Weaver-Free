@@ -9,6 +9,17 @@ body:
       value: |
         Thanks for taking the time to report a bug! Please fill out the sections below.
 
+  - type: checkboxes
+    id: documentation
+    attributes:
+      label: Documentation
+      description: Please confirm you've checked the relevant docs before filing.
+      options:
+        - label: I have read the [README](https://github.com/whizbangdevelopers-org/Weaver-Free#readme)
+          required: true
+        - label: I have checked the [Admin Guide](https://github.com/whizbangdevelopers-org/Weaver-Free/blob/main/docs/ADMIN-GUIDE.md) and [User Guide](https://github.com/whizbangdevelopers-org/Weaver-Free/blob/main/docs/USER-GUIDE.md)
+          required: true
+
   - type: textarea
     id: description
     attributes:
@@ -46,12 +57,11 @@ body:
       label: Platform
       description: Which platform are you using?
       options:
-        - Web (SPA)
+        - NixOS (native install)
+        - Docker
+        - Web (browser UI)
         - PWA
-        - Electron (Desktop)
-        - Capacitor (iOS)
-        - Capacitor (Android)
-        - All platforms
+        - TUI
     validations:
       required: true
 
