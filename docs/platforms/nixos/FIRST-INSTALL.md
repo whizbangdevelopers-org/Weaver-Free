@@ -134,8 +134,9 @@ nano /etc/nixos/configuration.nix
 
 You'll see the default NixOS configuration. Make these **three changes**.
 
-> **Nano tips for new users:**
-> - Use the **arrow keys** to navigate up and down through the file
+> **Shell & nano tips for new users:**
+> - **Up arrow** at the shell prompt recalls previous commands — no need to retype `nixos-rebuild switch` every time
+> - In nano, use **arrow keys** to navigate, **Home/End** to jump to start/end of a line
 > - Use **spaces, not tabs** for indentation — NixOS config uses 2-space indent (4 spaces inside the brackets is fine too, just be consistent and never use Tab)
 > - `Ctrl+O` → `Enter` to save, `Ctrl+X` to exit
 > - `Ctrl+W` to search for text (helpful for finding `systemPackages` quickly)
