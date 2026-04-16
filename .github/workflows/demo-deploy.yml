@@ -9,7 +9,8 @@
 # Tag with demo/vX.Y to deploy (e.g., demo/v1.0). Private demo tracks main.
 #
 # REQUIRED SECRETS:
-#   - DEMO_GITHUB_TOKEN: PAT from demo account with repo scope
+#   - WEAVER_FREE_PUBLIC_DEMO: PAT from weaver-demo account with repo scope
+#     (tier-prefixed convention — matches WEAVER_FREE_SYNC)
 #   - VITE_HCAPTCHA_SITEKEY: hCaptcha site key for demo login
 
 name: Demo Deploy
@@ -72,7 +73,7 @@ jobs:
       - name: Deploy to demo repo
         uses: JamesIves/github-pages-deploy-action@d92aa235d04922e8f08b40ce78cc5442fcfbfa2f  # v4
         with:
-          token: ${{ secrets.DEMO_GITHUB_TOKEN }}
+          token: ${{ secrets.WEAVER_FREE_PUBLIC_DEMO }}
           repository-name: ${{ env.DEMO_REPO }}
           branch: main
           folder: dist/spa
