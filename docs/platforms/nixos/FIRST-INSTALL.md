@@ -138,7 +138,7 @@ You'll see the default NixOS configuration. Make these **three changes**.
 > - **Up arrow** at the shell prompt recalls previous commands — no need to retype `nixos-rebuild switch` every time
 > - In nano, use **arrow keys** to navigate, **Page Up/Page Down** to scroll fast, **Home/End** to jump to start/end of a line
 > - Use **spaces, not tabs** for indentation — NixOS config uses 2-space indent (4 spaces inside the brackets is fine too, just be consistent and never use Tab)
-> - `Ctrl+O` → `Enter` to save, `Ctrl+X` to exit
+> - `Ctrl+S` to save (or `Ctrl+O` → `Enter`), `Ctrl+X` to exit
 > - `Ctrl+W` to search for text (helpful for finding `systemPackages` quickly)
 
 ![NixOS default configuration.nix](images/05-config-before.png)
@@ -210,7 +210,7 @@ Scroll to the very bottom of the file. You'll see:
 
 ### Save and apply
 
-Save the file: `Ctrl+O`, `Enter`, `Ctrl+X`.
+Save the file: `Ctrl+S`, then `Ctrl+X` to exit.
 
 Apply the changes:
 
@@ -310,7 +310,7 @@ Adding it below something you just typed gives you a familiar landmark — you k
 
 ### Save and rebuild
 
-Save (`Ctrl+O`, `Enter`, `Ctrl+X`), then:
+Save (`Ctrl+S`, `Ctrl+X`), then:
 
 ```bash
 nixos-rebuild switch
