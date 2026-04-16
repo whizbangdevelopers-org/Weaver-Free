@@ -40,11 +40,14 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
+          cache-dependency-path: code/package-lock.json
 
       - name: Install dependencies
+        working-directory: code
         run: npm ci
 
       - name: Build SPA for public demo
+        working-directory: code
         env:
           VITE_DEMO_MODE: 'true'
           VITE_DEMO_PUBLIC: 'true'
@@ -54,21 +57,23 @@ jobs:
       - name: Prepare deployment
         run: |
           # Create .nojekyll for GitHub Pages
-          touch dist/spa/.nojekyll
+          touch code/dist/spa/.nojekyll
 
           # Copy demo README if exists
-          if [ -f demo/DEMO-README.md ]; then
-            cp demo/DEMO-README.md dist/spa/README.md
+          if [ -f code/demo/DEMO-README.md ]; then
+            cp code/demo/DEMO-README.md code/dist/spa/README.md
           fi
 
           # Include license in demo build
-          cp LICENSE dist/spa/LICENSE
+          cp code/LICENSE code/dist/spa/LICENSE
 
           # Block AI crawlers from using the demo as training data
-          cp demo/robots.txt dist/spa/robots.txt
+          if [ -f code/demo/robots.txt ]; then
+            cp code/demo/robots.txt code/dist/spa/robots.txt
+          fi
 
           # Inject noai meta tags into index.html (after charset meta)
-          sed -i 's|<meta charset="utf-8">|<meta charset="utf-8">\n    <meta name="robots" content="noai, noimageai">|' dist/spa/index.html
+          sed -i 's|<meta charset="utf-8">|<meta charset="utf-8">\n    <meta name="robots" content="noai, noimageai">|' code/dist/spa/index.html
 
       - name: Deploy to demo repo
         uses: JamesIves/github-pages-deploy-action@d92aa235d04922e8f08b40ce78cc5442fcfbfa2f  # v4
@@ -76,7 +81,7 @@ jobs:
           token: ${{ secrets.WEAVER_FREE_DEMO }}
           repository-name: ${{ env.DEMO_REPO }}
           branch: main
-          folder: dist/spa
+          folder: code/dist/spa
           clean-exclude: README.md
           commit-message: "Deploy demo app - ${{ github.sha }}"
 
