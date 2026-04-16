@@ -69,6 +69,10 @@ environment.systemPackages = with pkgs; [ git nh ];
 nh clean all --keep 3
 ```
 
+> **No desktop environment needed.** Weaver is a web application served on port 3100. Access it from any browser on your network (`http://<host-ip>:3100`). The NixOS host stays headless — during NixOS installation, select **"No desktop"** to keep the footprint small. A desktop (GNOME, KDE, etc.) is unnecessary and wastes resources.
+>
+> **"Allow unfree software?"** During NixOS installation, the installer asks whether to allow unfree packages. Weaver itself is AGPL-3.0 (Free tier) and does not require unfree software. Select **No** unless you have other software that needs it.
+>
 > **Installing NixOS in virt-manager?** When creating the VM, virt-manager auto-detects the NixOS ISO and shows **"NixOS Unstable"** in the "Choose the operating system you are installing" field. This is normal — NixOS minimal ISOs are published on the unstable channel even for stable releases. Proceed with the install; your `configuration.nix` controls which NixOS channel (e.g. `nixos-25.11`) you actually run.
 
 ### Automated (fastest)
