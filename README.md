@@ -2,7 +2,7 @@
 <!-- Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE. -->
 # Weaver
 
-![Weaver — grid view with running VMs](docs/images/free/dashboard.png)
+![Weaver — grid view with running VMs](docs/images/free/v1.0/dashboard.png)
 
 > **The definitive NixOS MicroVM management tool.** Monitor, control, and provision MicroVMs from a modern web interface -- no terminal required.
 
