@@ -59,6 +59,8 @@ If flakes are disabled, add `nix.settings.experimental-features = [ "nix-command
 
 **Docker path (below):** `docker --version` and `docker compose version`.
 
+> **Installing NixOS in virt-manager?** When creating the VM, virt-manager auto-detects the NixOS ISO and shows **"NixOS Unstable"** in the "Choose the operating system you are installing" field. This is normal — NixOS minimal ISOs are published on the unstable channel even for stable releases. Proceed with the install; your `configuration.nix` controls which NixOS channel (e.g. `nixos-25.11`) you actually run.
+
 ### Automated (fastest)
 
 If you have a local clone of this repo and root access on the target host, the install script handles everything:
