@@ -227,14 +227,17 @@ Once it finishes with no errors, git is available and you can clone Weaver.
 
 ## Step 6: Clone Weaver
 
-Still in your root shell on the VM, clone the Weaver repository into your home directory:
+Exit the root shell to return to your normal user (you're already in your home directory):
 
 ```bash
-cd /home/your-username
-git clone https://github.com/whizbangdevelopers-org/Weaver-Free.git
+exit
 ```
 
-> Replace `your-username` with the username you created during install (e.g. `cd /home/mark`).
+Your prompt changes back to `[your-username@nixos:~]$`. Now clone Weaver:
+
+```bash
+git clone https://github.com/whizbangdevelopers-org/Weaver-Free.git
+```
 
 You should see git downloading the repository. When it finishes:
 
