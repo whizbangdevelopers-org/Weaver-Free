@@ -1,0 +1,41 @@
+# Copyright (c) 2026 whizBANG Developers LLC. All rights reserved.
+# Proprietary and confidential. Do not distribute.
+# OpenSSF Scorecard
+# CREATED IN: Dev repo
+# USED BY: Security posture assessment
+# TRIGGERS: push to main, weekly schedule
+
+name: OpenSSF Scorecard
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '0 6 * * 1'  # Weekly Monday 6am UTC
+
+permissions:
+  security-events: write
+  id-token: write
+
+jobs:
+  scorecard:
+    name: Scorecard Analysis
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+        with:
+          persist-credentials: false
+
+      - name: Run OpenSSF Scorecard
+        uses: ossf/scorecard-action@62b2cac7ed8198b15735ed49ab1e5cf35480ba46  # v2.4.0
+        with:
+          results_file: results.sarif
+          results_format: sarif
+          publish_results: true
+
+      - name: Upload SARIF results
+        uses: github/codeql-action/upload-sarif@f5c2471be782132e47a6e6f9c725e56730d6e9a3  # v3
+        with:
+          sarif_file: results.sarif

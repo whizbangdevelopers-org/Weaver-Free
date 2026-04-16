@@ -1,0 +1,198 @@
+# Copyright (c) 2026 whizBANG Developers LLC. All rights reserved.
+# Proprietary and confidential. Do not distribute.
+# Update Release Verification Issue
+# CREATED IN: Dev repo
+# USED BY: Release process - updates verification status on an existing issue
+# TRIGGERS: Manual with issue_number and status inputs
+#
+# Updates the verification status table and optionally adds a comment
+# with details about what was verified.
+
+name: Update Release Verification
+
+on:
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: 'Verification issue number'
+        required: true
+        type: number
+      area:
+        description: 'Verification area to update'
+        required: true
+        type: choice
+        options:
+          - Build
+          - Installation
+          - Features
+          - Demo
+          - Free Repo
+          - NUR Package
+          - Documentation
+      status:
+        description: 'Verification status'
+        required: true
+        type: choice
+        options:
+          - passed
+          - failed
+          - in-progress
+          - skipped
+      notes:
+        description: 'Optional notes about verification results'
+        required: false
+        type: string
+        default: ''
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  update-verification:
+    name: Update Verification Issue
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Update verification issue
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b  # v7
+        with:
+          script: |
+            const issueNumber = ${{ github.event.inputs.issue_number }};
+            const area = '${{ github.event.inputs.area }}';
+            const status = '${{ github.event.inputs.status }}';
+            const notes = `${{ github.event.inputs.notes }}`;
+            const actor = context.actor;
+            const date = new Date().toISOString().split('T')[0];
+            const repo = context.repo;
+
+            // Status emoji mapping
+            const statusEmoji = {
+              'passed': ':white_check_mark: Passed',
+              'failed': ':x: Failed',
+              'in-progress': ':arrows_counterclockwise: In Progress',
+              'skipped': ':fast_forward: Skipped'
+            };
+
+            const statusText = statusEmoji[status] || status;
+
+            // Get current issue body
+            const issue = await github.rest.issues.get({
+              owner: repo.owner,
+              repo: repo.repo,
+              issue_number: issueNumber
+            });
+
+            let body = issue.data.body;
+
+            // Update the status table row for the specified area
+            // Match the row pattern: | Area | ... | ... | ... |
+            const rowPattern = new RegExp(
+              `\\| ${area.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} \\|[^|]*\\|[^|]*\\|[^|]*\\|`
+            );
+
+            const newRow = `| ${area} | ${statusText} | @${actor} | ${date} |`;
+
+            if (rowPattern.test(body)) {
+              body = body.replace(rowPattern, newRow);
+            } else {
+              console.log(`Warning: Could not find row for area "${area}" in issue body`);
+            }
+
+            // Update the issue body
+            await github.rest.issues.update({
+              owner: repo.owner,
+              repo: repo.repo,
+              issue_number: issueNumber,
+              body: body
+            });
+
+            // Add a comment with the update details
+            let commentBody = `### Verification Update: ${area}\n\n`;
+            commentBody += `- **Status:** ${statusText}\n`;
+            commentBody += `- **Verified by:** @${actor}\n`;
+            commentBody += `- **Date:** ${date}\n`;
+
+            if (notes) {
+              commentBody += `\n**Notes:**\n${notes}\n`;
+            }
+
+            await github.rest.issues.createComment({
+              owner: repo.owner,
+              repo: repo.repo,
+              issue_number: issueNumber,
+              body: commentBody
+            });
+
+            // Check if all areas are now verified (passed or skipped)
+            const allAreas = ['Build', 'Installation', 'Features', 'Demo', 'Free Repo', 'NUR Package', 'Documentation'];
+            let allComplete = true;
+            let anyFailed = false;
+
+            for (const a of allAreas) {
+              const areaPattern = new RegExp(
+                `\\| ${a.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} \\| ([^|]*) \\|`
+              );
+              const match = body.match(areaPattern);
+              if (match) {
+                const areaStatus = match[1].trim();
+                if (areaStatus.includes('Pending') || areaStatus.includes('In Progress')) {
+                  allComplete = false;
+                }
+                if (areaStatus.includes('Failed')) {
+                  anyFailed = true;
+                }
+              }
+            }
+
+            // If all areas are complete, add a summary comment and close if all passed
+            if (allComplete) {
+              let summaryComment = '### All Verification Areas Complete\n\n';
+              if (anyFailed) {
+                summaryComment += ':warning: **Some verification areas failed.** Please review and address the failures before considering this release fully verified.\n';
+                // Add a label to indicate failures
+                await github.rest.issues.addLabels({
+                  owner: repo.owner,
+                  repo: repo.repo,
+                  issue_number: issueNumber,
+                  labels: ['verification-failed']
+                });
+              } else {
+                summaryComment += ':tada: **All verification areas passed!** This release is fully verified.\n';
+                // Close the issue
+                await github.rest.issues.update({
+                  owner: repo.owner,
+                  repo: repo.repo,
+                  issue_number: issueNumber,
+                  state: 'closed',
+                  state_reason: 'completed'
+                });
+                // Add verified label
+                await github.rest.issues.addLabels({
+                  owner: repo.owner,
+                  repo: repo.repo,
+                  issue_number: issueNumber,
+                  labels: ['verified']
+                });
+              }
+
+              await github.rest.issues.createComment({
+                owner: repo.owner,
+                repo: repo.repo,
+                issue_number: issueNumber,
+                body: summaryComment
+              });
+            }
+
+            console.log(`Updated issue #${issueNumber}: ${area} -> ${status}`);
+
+      - name: Summary
+        run: |
+          echo "## Verification Updated" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- Issue: #${{ github.event.inputs.issue_number }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Area: ${{ github.event.inputs.area }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Status: ${{ github.event.inputs.status }}" >> $GITHUB_STEP_SUMMARY
+          if [ -n "${{ github.event.inputs.notes }}" ]; then
+            echo "- Notes: ${{ github.event.inputs.notes }}" >> $GITHUB_STEP_SUMMARY
+          fi
