@@ -256,43 +256,67 @@ You should see directories like `backend/`, `src/`, `nixos/`, `README.md`, etc.
 
 ## Step 7: Add Weaver to your NixOS configuration
 
+Get back into a root shell and open the config again:
+
 ```bash
+sudo -s
 nano /etc/nixos/configuration.nix
 ```
 
-Add the Weaver module import and enable the service:
+You're making **two additions** to the same file you edited in Step 5.
+
+### Addition 1: Import the Weaver module
+
+Scroll to the **top** of the file. You'll see the `imports` block:
 
 ```nix
-{ config, pkgs, ... }:
-{
   imports = [
     ./hardware-configuration.nix
-    /home/your-username/Weaver-Free/nixos/default.nix    # ← add this line
   ];
+```
 
-  # ... your existing config ...
+Add a second line inside the brackets so it looks like this:
+
+```nix
+  imports = [
+    ./hardware-configuration.nix
+    /home/your-username/Weaver-Free/nixos/default.nix
+  ];
+```
+
+> **Replace `your-username`** with the username you created during install (e.g. `/home/mark/Weaver-Free/nixos/default.nix`).
+
+### Addition 2: Enable the Weaver service
+
+Scroll down to the `nix.settings.experimental-features` line you added in Step 5. **Right below it**, add the Weaver service:
+
+```nix
+  nix.settings.experimental-features = [ "nix-command" "flakes" ];
 
   # Weaver
   services.weaver = {
     enable = true;
-    openFirewall = true;    # opens port 3100 so your browser can reach the dashboard
+    openFirewall = true;
   };
-}
+
+  system.stateVersion = "25.11"; # Did you read the comment?
 ```
 
-> **Replace `your-username`** with the actual username you created during install.
->
-> **"Why couldn't I do this in Step 5?"** Because git wasn't installed yet — you needed the first rebuild to get git, then clone the repo, and only THEN can you point `imports` at the repo on disk. That's why we do two edits.
->
-> **What does `openFirewall` do?** NixOS enables a firewall by default that blocks incoming connections. Without `openFirewall = true`, you can reach Weaver at `http://localhost:3100` from the NixOS machine itself, but your browser on another device can't connect. This setting opens port 3100 through the firewall.
+Adding it below something you just typed gives you a familiar landmark — you know you're in the right spot.
 
-Save and rebuild:
+> **"Why couldn't I do this in Step 5?"** Because git wasn't installed yet — you needed the first rebuild to get git, clone the repo, and only THEN can you point `imports` at the repo on disk. That's why we do two edits.
+>
+> **What does `openFirewall` do?** NixOS enables a firewall by default that blocks incoming connections. Without `openFirewall = true`, you can reach Weaver at `http://localhost:3100` from the NixOS machine itself, but your browser on another device can't connect. This setting opens port 3100.
+
+### Save and rebuild
+
+Save (`Ctrl+O`, `Enter`, `Ctrl+X`), then:
 
 ```bash
 nixos-rebuild switch
 ```
 
-The first build compiles Weaver from source — this takes **2-5 minutes**. Subsequent rebuilds are near-instant thanks to the Nix store cache.
+The first build compiles Weaver from source — this takes **2-5 minutes**. You'll see lots of Nix output scrolling by. Subsequent rebuilds are near-instant thanks to the Nix store cache.
 
 ---
 
