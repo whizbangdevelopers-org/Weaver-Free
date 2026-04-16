@@ -1,0 +1,126 @@
+# Copyright (c) 2026 whizBANG Developers LLC. All rights reserved.
+# Proprietary and confidential. Do not distribute.
+# Demo Environment Setup
+# CREATED IN: Dev repo (when any demo option chosen)
+# USED BY: One-time setup of demo repository and GitHub Pages
+# TRIGGERS: Manual only
+#
+# REQUIRED SECRETS:
+#   - DEMO_GITHUB_TOKEN: PAT from demo account with repo scope
+#
+# PLACEHOLDERS (replaced by setup-project.sh):
+#   - {{PROJECT_NAME}}: Project name (lowercase)
+#   - {{PRODUCT_NAME}}: Product display name
+
+name: Demo Setup
+
+on:
+  workflow_dispatch:
+    inputs:
+      recreate:
+        description: 'Delete and recreate repo if exists'
+        required: false
+        default: 'false'
+        type: boolean
+
+env:
+  DEMO_ACCOUNT: {{PROJECT_NAME}}-demo
+  DEMO_REPO: {{PROJECT_NAME}}-demo/{{PROJECT_NAME}}-demo.github.io
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check if repo exists
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.DEMO_GITHUB_TOKEN }}
+        run: |
+          if gh repo view ${{ env.DEMO_REPO }} &>/dev/null; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Delete existing repo (if recreate)
+        if: inputs.recreate && steps.check.outputs.exists == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.DEMO_GITHUB_TOKEN }}
+        run: |
+          echo "Deleting existing repo..."
+          gh repo delete ${{ env.DEMO_REPO }} --yes
+
+      - name: Create demo repo
+        if: steps.check.outputs.exists == 'false' || inputs.recreate
+        env:
+          GH_TOKEN: ${{ secrets.DEMO_GITHUB_TOKEN }}
+        run: |
+          echo "Creating demo repo..."
+          gh repo create ${{ env.DEMO_REPO }} \
+            --public \
+            --description "{{PRODUCT_NAME}} Demo - Try without signing up"
+
+      - name: Clone and setup demo app
+        env:
+          GH_TOKEN: ${{ secrets.DEMO_GITHUB_TOKEN }}
+        run: |
+          # Clone the new repo
+          git clone https://x-access-token:${GH_TOKEN}@github.com/${{ env.DEMO_REPO }}.git demo-repo
+          cd demo-repo
+
+          # Configure git
+          git config user.name "${{ env.DEMO_ACCOUNT }}"
+          git config user.email "${{ env.DEMO_ACCOUNT }}@users.noreply.github.com"
+
+          # Create placeholder index
+          cat > index.html << 'HTMLEOF'
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>{{PRODUCT_NAME}} Demo</title>
+            <style>
+              body { font-family: system-ui; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; background: #f5f5f5; }
+              .container { text-align: center; padding: 2rem; }
+              h1 { color: #0ea5e9; }
+              a { color: #0ea5e9; }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <h1>{{PRODUCT_NAME}} Demo</h1>
+              <p>Demo environment coming soon!</p>
+            </div>
+          </body>
+          </html>
+          HTMLEOF
+
+          # Create .nojekyll for GitHub Pages
+          touch .nojekyll
+
+          # Commit and push
+          git add -A
+          git commit -m "Initial demo setup" || echo "No changes to commit"
+          git push -u origin main || git push -u origin master
+
+      - name: Enable GitHub Pages
+        env:
+          GH_TOKEN: ${{ secrets.DEMO_GITHUB_TOKEN }}
+        run: |
+          # Enable pages from main branch root
+          gh api repos/${{ env.DEMO_REPO }}/pages \
+            -X POST \
+            -f build_type=legacy \
+            -f source='{"branch":"main","path":"/"}' \
+            2>/dev/null || echo "Pages may already be enabled"
+
+      - name: Summary
+        run: |
+          echo "## Demo Setup Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- Repo: https://github.com/${{ env.DEMO_REPO }}" >> $GITHUB_STEP_SUMMARY
+          echo "- URL: https://${{ env.DEMO_ACCOUNT }}.github.io" >> $GITHUB_STEP_SUMMARY
