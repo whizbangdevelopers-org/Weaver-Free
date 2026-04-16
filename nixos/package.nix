@@ -14,7 +14,7 @@ pkgs.buildNpmPackage rec {
   src = ./..;
 
   # Single hash covers all workspace deps (root + backend + tui)
-  npmDepsHash = "sha256-vVdc66uly5UgBOt84D1VrLcYYrFb+qzz+vYPZ0qFoKI=";
+  npmDepsHash = "sha256-UlUtKz8JQBrLHPFdVUXMe/BALJ0U5+lW5+Lq626qfmY=";
 
   makeCacheWritable = true;
   nodejs = pkgs.nodejs_24;
