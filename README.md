@@ -73,6 +73,12 @@ nh clean all --keep 3
 >
 > **"Allow unfree software?"** During NixOS installation, the installer asks whether to allow unfree packages. Weaver itself is AGPL-3.0 (Free tier) and does not require unfree software. Select **No** unless you have other software that needs it.
 >
+> **Disk setup during NixOS install:**
+> - **Erase disk** — correct for a fresh install (VM or dedicated host).
+> - **Swap** — skip it if you have 8 GB+ RAM. Weaver's backend uses ~200 MB; MicroVMs are the real consumers and perform best in RAM. If tight on memory (4 GB test VM), a 2 GB swap file prevents OOM during `nixos-rebuild` builds.
+> - **Hibernate** — select **No**. A Weaver host manages live VMs — hibernation would kill all running MicroVMs.
+> - **Encrypt** — skip for test VMs (no benefit, adds unlock complexity). For production, enable LUKS full-disk encryption to protect VM disk images and the Weaver database at rest.
+>
 > **Installing NixOS in virt-manager?** When creating the VM, virt-manager auto-detects the NixOS ISO and shows **"NixOS Unstable"** in the "Choose the operating system you are installing" field. This is normal — NixOS minimal ISOs are published on the unstable channel even for stable releases. Proceed with the install; your `configuration.nix` controls which NixOS channel (e.g. `nixos-25.11`) you actually run.
 
 ### Automated (fastest)
