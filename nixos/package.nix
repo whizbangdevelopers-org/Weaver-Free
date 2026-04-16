@@ -36,7 +36,8 @@ pkgs.buildNpmPackage rec {
     npm run build
     popd
 
-    # Build frontend PWA
+    # Build frontend SPA (PWA requires HTTPS which needs a reverse proxy;
+    # SPA works over plain HTTP for fresh installs)
     npx quasar build -m spa
   '';
 
