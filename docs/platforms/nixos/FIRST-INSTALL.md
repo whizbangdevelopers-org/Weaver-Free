@@ -122,41 +122,100 @@ You'll stay in this root shell for the rest of the install.
 
 ---
 
-## Step 5: Add git and nh to your system
+## Step 5: Add git, nh, SSH, and flakes to your system
 
-The minimal install doesn't include `git` (needed to clone Weaver) or `nh` (nix-helper, for keeping your system clean).
+The fresh install doesn't include `git` (needed to clone Weaver) or `nh` (nix-helper, for keeping your Nix store clean). You also need SSH enabled so you can work from your workstation, and flakes enabled for Weaver updates.
 
-Edit your configuration:
+All of this is done by editing one file:
 
 ```bash
 nano /etc/nixos/configuration.nix
 ```
 
-Find the `environment.systemPackages` line and add `git` and `nh`:
+You'll see the default NixOS configuration. Make these **three changes**:
+
+![NixOS default configuration.nix](images/05-config-before.png)
+
+### Change 1: Add git and nh to system packages
+
+Scroll down until you see this block (about halfway down):
 
 ```nix
+  # List packages installed in system profile. To search, run:
+  # $ nix search wget
   environment.systemPackages = with pkgs; [
-    git
-    nh
-    nano    # or vim, if you prefer
+  #  vim # Do not forget to add an editor to edit configuration.nix! The Nano editor is also installed by default.
+  #  wget
   ];
 ```
 
-Also enable flakes (recommended for Weaver updates):
+Add `git` and `nh` inside the brackets (below the commented lines):
+
+```nix
+  environment.systemPackages = with pkgs; [
+  #  vim
+  #  wget
+    git
+    nh
+  ];
+```
+
+### Change 2: Uncomment the SSH line
+
+Scroll further down until you see:
+
+```nix
+  # Enable the OpenSSH daemon.
+  # services.openssh.enable = true;
+```
+
+Remove the `#` at the start of the second line so it reads:
+
+```nix
+  # Enable the OpenSSH daemon.
+  services.openssh.enable = true;
+```
+
+This lets you SSH into the machine from your workstation — much easier than typing in the VM console.
+
+### Change 3: Enable flakes
+
+Scroll to the very bottom of the file. You'll see:
+
+```nix
+  # This value determines the NixOS release from which the default
+  # settings for stateful data, like file locations and database versions
+  # ...
+  system.stateVersion = "25.11"; # Did you read the comment?
+
+}
+```
+
+**Add this line right ABOVE `system.stateVersion`:**
 
 ```nix
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
+
+  system.stateVersion = "25.11"; # Did you read the comment?
 ```
 
-Save and exit (`Ctrl+O`, `Enter`, `Ctrl+X` in nano).
+> **Do not change the `system.stateVersion` line.** It tells NixOS which version's defaults to use. Leave it as-is.
 
-Apply the change:
+### Save and apply
+
+Save the file: `Ctrl+O`, `Enter`, `Ctrl+X`.
+
+Apply the changes:
 
 ```bash
 nixos-rebuild switch
 ```
 
-This downloads and installs git, nh, and enables flakes. Takes about a minute.
+This downloads and installs git, nh, enables SSH, and turns on flakes. Takes about a minute. You'll see Nix downloading packages — that's normal.
+
+![nixos-rebuild switch in progress](images/05-rebuild.png)
+
+Once it finishes with no errors, git is available and you can clone Weaver.
 
 ---
 
