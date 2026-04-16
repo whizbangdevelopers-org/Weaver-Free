@@ -2,7 +2,7 @@
 <!-- Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE. -->
 # Weaver
 
-![Weaver — grid view with running VMs](docs/designs/hero-dashboard.png)
+![Weaver — grid view with running VMs](docs/images/free/dashboard.png)
 
 > **The definitive NixOS MicroVM management tool.** Monitor, control, and provision MicroVMs from a modern web interface -- no terminal required.
 
@@ -37,9 +37,7 @@ Try the full dashboard without installing anything:
 
 **[weaver-demo.github.io](https://weaver-demo.github.io)**
 
-Eight sample VMs across multiple distros (NixOS, Ubuntu, Rocky, Alma, Windows), multiple hypervisors, and all status types. Use the **tier-switcher toolbar** to toggle between Free, Weaver, and Fabrick feature sets in real time.
-
-![Tier-switcher toolbar — toggle between Free, Weaver, and Fabrick](docs/designs/tier-switcher-free.png)
+Eight sample VMs across multiple distros (NixOS, Ubuntu, Rocky, Alma, Windows), multiple hypervisors, and all status types. Use the **tier-switcher toolbar** to toggle between Free, Solo, and FabricK feature sets in real time.
 
 ## Install
 
