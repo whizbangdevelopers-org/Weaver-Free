@@ -1,0 +1,19 @@
+# CODEOWNERS — Weaver
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+#
+# Default owner for everything
+* @wriver4
+
+# NixOS module
+nixos/ @wriver4
+
+# Backend API
+backend/ @wriver4
+
+# CI/CD and GitHub config
+.github/ @wriver4
+
+# Security-sensitive files
+LICENSE @wriver4
+SECURITY.md @wriver4
+scripts/security-audit.sh @wriver4

@@ -1,0 +1,409 @@
+# Copyright (c) 2026 whizBANG Developers LLC. All rights reserved.
+# Licensed under AGPL-3.0 (Free). See LICENSE.
+# Release Pipeline
+# CREATED IN: Dev repo
+# USED BY: Automated release on version tag push
+# TRIGGERS: push to v* tags
+#
+# REQUIRED SECRETS:
+#   - WEAVER_SYNC: PAT with repo scope for pushing to free repo and dispatching NUR
+#
+# REQUIRED ENVIRONMENTS:
+#   - release-publish: Environment with required reviewers for manual approval
+#
+# FLOW:
+#   1. Build frontend + backend artifacts
+#   2. Create DRAFT GitHub release on Dev with auto-generated notes
+#   3. Manual approval via 'release-publish' environment
+#   4. Publish release (draft -> public)
+#   5. Sync release to free repo (code + tag + release + assets)
+#   6. Dispatch NUR packages update (hash computed from free repo)
+
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+env:
+  FREE_REPO: whizbangdevelopers-org/Weaver-Free
+  NUR_REPO: whizbangdevelopers-org/nur-packages
+
+jobs:
+  build:
+    name: Build Release Artifacts
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: code
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: code/package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Install backend dependencies
+        run: cd backend && npm ci
+
+      - name: Install TUI dependencies
+        run: cd tui && npm ci
+
+      - name: Build all
+        run: npm run build:all
+
+      - name: Package PWA build
+        run: |
+          VERSION="${GITHUB_REF_NAME}"
+          tar -czf "weaver-${VERSION}-pwa.tar.gz" -C dist/pwa .
+
+      - name: Upload PWA artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        with:
+          name: pwa-build
+          path: code/dist/pwa/
+          retention-days: 30
+
+      - name: Upload PWA tarball
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        with:
+          name: pwa-tarball
+          path: "code/weaver-*.tar.gz"
+          retention-days: 30
+
+      - name: Upload backend build
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        with:
+          name: backend-build
+          path: code/backend/dist/
+          retention-days: 30
+
+      - name: Generate SBOM (frontend)
+        run: npx @cyclonedx/cyclonedx-npm --output-file sbom.cdx.json
+
+      - name: Generate SBOM (backend)
+        run: cd backend && npx @cyclonedx/cyclonedx-npm --output-file sbom-backend.cdx.json
+
+      - name: Stage SBOM artifacts
+        run: |
+          mkdir -p ../sbom-staging
+          cp sbom.cdx.json ../sbom-staging/
+          cp backend/sbom-backend.cdx.json ../sbom-staging/
+
+      - name: Upload SBOM artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        with:
+          name: sbom
+          path: sbom-staging/
+          retention-days: 90
+
+  release:
+    name: Create Draft Release
+    runs-on: ubuntu-latest
+    needs: [build]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+        with:
+          fetch-depth: 0
+
+      - name: Download PWA tarball
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4
+        with:
+          name: pwa-tarball
+          path: ./release-assets/
+
+      - name: Download SBOM artifacts
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4
+        with:
+          name: sbom
+          path: ./release-assets/
+
+      - name: Attest build provenance (PWA tarball)
+        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be  # v2
+        continue-on-error: true  # Requires public repo or paid plan
+        with:
+          subject-path: ./release-assets/weaver-*.tar.gz
+
+      - name: Attest build provenance (SBOM frontend)
+        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be  # v2
+        continue-on-error: true
+        with:
+          subject-path: ./release-assets/sbom.cdx.json
+
+      - name: Attest build provenance (SBOM backend)
+        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be  # v2
+        continue-on-error: true
+        with:
+          subject-path: ./release-assets/sbom-backend.cdx.json
+
+      - name: Create Draft GitHub Release
+        uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b  # v2
+        with:
+          generate_release_notes: true
+          draft: true
+          prerelease: ${{ contains(github.ref_name, '-rc') || contains(github.ref_name, '-beta') || contains(github.ref_name, '-alpha') }}
+          files: |
+            ./release-assets/weaver-*.tar.gz
+            ./release-assets/sbom.cdx.json
+            ./release-assets/sbom-backend.cdx.json
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Summary
+        run: |
+          echo "## Draft Release Created" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- Version: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Status: **DRAFT** (awaiting manual approval)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
+          echo "1. Test the draft release artifacts" >> $GITHUB_STEP_SUMMARY
+          echo "2. Approve the 'Publish Release' job in Actions" >> $GITHUB_STEP_SUMMARY
+
+  publish:
+    name: Publish Release
+    runs-on: ubuntu-latest
+    needs: [release]
+    environment: release-publish
+
+    steps:
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ github.ref_name }}"
+
+          IS_DRAFT=$(gh release view "$TAG" --repo "${{ github.repository }}" --json isDraft -q '.isDraft' 2>/dev/null || echo "unknown")
+
+          if [ "$IS_DRAFT" = "true" ]; then
+            gh release edit "$TAG" --repo "${{ github.repository }}" --draft=false
+            echo "Release $TAG published"
+          elif [ "$IS_DRAFT" = "false" ]; then
+            echo "Release $TAG is already published"
+          else
+            echo "Could not find release $TAG"
+            exit 1
+          fi
+
+      - name: Summary
+        run: |
+          echo "## Release Published" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- Version: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- URL: https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+
+  release-to-free:
+    name: Release to Free Repo
+    runs-on: ubuntu-latest
+    needs: [publish]
+
+    steps:
+      - name: Checkout dev repo
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+        with:
+          fetch-depth: 0
+          path: dev
+
+      - name: Checkout free repo
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+        with:
+          repository: ${{ env.FREE_REPO }}
+          token: ${{ secrets.WEAVER_SYNC }}
+          fetch-depth: 0
+          path: free
+
+      - name: Configure git
+        run: |
+          cd free
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Read sync exclusions config
+        id: exclusions
+        run: |
+          CONFIG_FILE="dev/.github/sync-exclude.yml"
+          EXTRA_EXCLUDES=""
+          if [ -f "$CONFIG_FILE" ]; then
+            echo "Reading repo-specific exclusions from $CONFIG_FILE"
+            while IFS= read -r line; do
+              line=$(echo "$line" | sed 's/#.*//' | xargs)
+              [ -z "$line" ] && continue
+              [[ "$line" == "exclude:" ]] && continue
+              path=$(echo "$line" | sed 's/^- //')
+              [ -z "$path" ] && continue
+              EXTRA_EXCLUDES="$EXTRA_EXCLUDES --exclude=$path"
+              echo "  exclude: $path"
+            done < "$CONFIG_FILE"
+          else
+            echo "No sync-exclude.yml found, using base exclusions only"
+          fi
+          echo "extra_excludes=$EXTRA_EXCLUDES" >> $GITHUB_OUTPUT
+
+      - name: Sync files to free repo
+        run: |
+          # Base excludes (same as sync-to-free.yml)
+          # Repo-specific excludes from .github/sync-exclude.yml
+          rsync -av --delete \
+            --exclude='.git' \
+            --exclude='testing/' \
+            --exclude='.claude/' \
+            --exclude='CLAUDE.md' \
+            --exclude='TESTING.md' \
+            --exclude='playwright.config.ts' \
+            --exclude='vitest.config.ts' \
+            --exclude='.mcp.json' \
+            --exclude='flake.nix' \
+            --exclude='flake.lock' \
+            --exclude='.github/workflows/sync-to-free.yml' \
+            --exclude='.github/sync-exclude.yml' \
+            --exclude='.github/dependabot.yml' \
+            --exclude='.github/issue-mapping.json' \
+            ${{ steps.exclusions.outputs.extra_excludes }} \
+            dev/ free/
+
+      - name: Commit and push changes
+        run: |
+          cd free
+          git add -A
+
+          if git diff --staged --quiet; then
+            echo "No code changes to commit (repos already in sync)"
+          else
+            VERSION="${GITHUB_REF_NAME}"
+            git commit -m "Release ${VERSION}"
+            git push origin main
+          fi
+
+      - name: Create tag and release in free repo
+        env:
+          GH_TOKEN: ${{ secrets.WEAVER_SYNC }}
+        run: |
+          VERSION="${GITHUB_REF_NAME}"
+          cd free
+
+          # Ensure we're on latest main
+          git pull origin main
+
+          # Create version tag
+          git tag -f "${VERSION}"
+          git push origin "${VERSION}" --force
+
+          # Get release notes from Dev release
+          NOTES=$(gh release view "${VERSION}" --repo "${{ github.repository }}" --json body -q '.body' 2>/dev/null || echo "Release ${VERSION}")
+
+          # Create release on Free (skip if already exists)
+          if gh release view "${VERSION}" --repo "${{ env.FREE_REPO }}" 2>/dev/null; then
+            echo "Release ${VERSION} already exists on Free repo"
+          else
+            gh release create "${VERSION}" \
+              --repo "${{ env.FREE_REPO }}" \
+              --title "${VERSION}" \
+              --notes "$NOTES"
+            echo "Created release ${VERSION} on Free repo"
+          fi
+
+      - name: Copy release assets to free repo
+        env:
+          GH_TOKEN: ${{ secrets.WEAVER_SYNC }}
+        run: |
+          VERSION="${GITHUB_REF_NAME}"
+
+          echo "Copying release assets from Dev to Free..."
+
+          mkdir -p /tmp/release-assets
+          cd /tmp/release-assets
+          gh release download "${VERSION}" --repo "${{ github.repository }}"
+
+          for file in *; do
+            if [ -f "$file" ]; then
+              echo "Uploading: $file"
+              gh release upload "${VERSION}" "$file" \
+                --repo "${{ env.FREE_REPO }}" \
+                --clobber || echo "  Failed: $file"
+            fi
+          done
+
+          ASSET_COUNT=$(gh release view "${VERSION}" --repo "${{ env.FREE_REPO }}" --json assets -q '.assets | length')
+          echo "Release ${VERSION} on Free repo has $ASSET_COUNT assets"
+
+      - name: Summary
+        run: |
+          echo "## Free Repo Release" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- Version: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Free repo: ${{ env.FREE_REPO }}" >> $GITHUB_STEP_SUMMARY
+
+  update-nur:
+    name: Update NUR Packages
+    runs-on: ubuntu-latest
+    needs: [release-to-free]
+    if: "!contains(github.ref_name, '-rc') && !contains(github.ref_name, '-beta') && !contains(github.ref_name, '-alpha')"
+
+    steps:
+      - name: Compute source hash from free repo
+        id: hash
+        run: |
+          VERSION="${GITHUB_REF_NAME}"
+          TARBALL_URL="https://github.com/${{ env.FREE_REPO }}/archive/refs/tags/${VERSION}.tar.gz"
+          echo "Computing hash from Free repo: $TARBALL_URL"
+
+          # Retry to allow CDN propagation
+          for attempt in 1 2 3; do
+            echo "Download attempt $attempt/3..."
+            HASH=$(curl -sL --retry 3 --retry-delay 5 "$TARBALL_URL" | sha256sum | cut -d' ' -f1)
+
+            if [ -n "$HASH" ] && [ "$HASH" != "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855" ]; then
+              echo "sha256=$HASH" >> $GITHUB_OUTPUT
+              echo "version=${VERSION#v}" >> $GITHUB_OUTPUT
+              echo "Source hash: $HASH"
+              break
+            fi
+
+            if [ "$attempt" -lt 3 ]; then
+              echo "Empty or zero-byte response, waiting 15s..."
+              sleep 15
+            else
+              echo "Failed to download source tarball after 3 attempts"
+              exit 1
+            fi
+          done
+
+      - name: Dispatch NUR packages update
+        uses: peter-evans/repository-dispatch@ff45666b9427631e3450c54a1bcbee4d9ff4d7c0  # v3
+        with:
+          token: ${{ secrets.WEAVER_SYNC }}
+          repository: ${{ env.NUR_REPO }}
+          event-type: update-package
+          client-payload: |
+            {
+              "package": "weaver",
+              "version": "${{ steps.hash.outputs.version }}",
+              "hash": "${{ steps.hash.outputs.sha256 }}",
+              "tag": "${{ github.ref_name }}"
+            }
+
+      - name: Summary
+        run: |
+          echo "## NUR Update Dispatched" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- Package: weaver" >> $GITHUB_STEP_SUMMARY
+          echo "- Version: ${{ steps.hash.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Hash: ${{ steps.hash.outputs.sha256 }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Source: ${{ env.FREE_REPO }} (Free repo)" >> $GITHUB_STEP_SUMMARY
+          echo "- NUR Repo: ${{ env.NUR_REPO }}" >> $GITHUB_STEP_SUMMARY

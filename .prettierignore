@@ -1,0 +1,28 @@
+# Build outputs
+dist/
+.quasar/
+node_modules/
+
+# Platform builds
+src-capacitor/android/
+src-capacitor/ios/
+src-electron/dist/
+
+# Test outputs
+coverage/
+testing/e2e-docker/output/
+test-results/
+playwright-report/
+
+# Package files
+*.tgz
+package-lock.json
+
+# IDE and editor files
+.idea/
+.vscode/
+*.sublime-*
+
+# Generated files
+*.min.js
+*.min.css

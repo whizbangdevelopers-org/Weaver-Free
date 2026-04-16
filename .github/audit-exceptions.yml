@@ -1,0 +1,63 @@
+# Copyright (c) 2026 whizBANG Developers LLC. All rights reserved.
+# Licensed under AGPL-3.0 (Free). See LICENSE.
+#
+# Approved Audit Exceptions
+# Each entry must be explicitly approved. This file is the source of truth
+# for both human policy and CI enforcement (security-scan.yml reads allow-ghsas).
+#
+# Policy: see wbd-corp-project/.claude/rules/quasar-standard.md
+#
+# Fields:
+#   ghsa:           GitHub Security Advisory ID
+#   package:        npm package name
+#   severity:       low | moderate | high | critical
+#   dev_only:       true if only in devDependencies tree
+#   controlled_by:  "quasar" | "eslint" | "fastify" | "direct"
+#   production:     true if the vuln is in the production bundle/runtime
+#   approved_date:  YYYY-MM-DD
+#   expires_when:   condition under which this exception should be removed
+#   notes:          brief rationale
+
+exceptions:
+  # ── Frontend (code/) — ALL dev-only, zero production vulns ──
+
+  # Quasar-controlled: resolve when Quasar bumps Vite to v8+
+  - ghsa: GHSA-67mh-4wv8-2f99
+    package: esbuild
+    severity: moderate
+    dev_only: true
+    controlled_by: quasar
+    production: false
+    approved_date: 2026-03-29
+    expires_when: "Quasar bumps Vite to v8+"
+    notes: "Vite dev server only — esbuild pinned by vite@6, which is pinned by @quasar/app-vite"
+
+  - ghsa: GHSA-5c6j-r48x-rmvq
+    package: serialize-javascript
+    severity: high
+    dev_only: true
+    controlled_by: quasar
+    production: false
+    approved_date: 2026-03-29
+    expires_when: "Quasar bumps @rollup/plugin-terser or workbox-build"
+    notes: "Build-time serialization in workbox PWA generation and rollup terser"
+
+  - ghsa: GHSA-qj8w-gfj5-8c6v
+    package: serialize-javascript
+    severity: high
+    dev_only: true
+    controlled_by: quasar
+    production: false
+    approved_date: 2026-03-29
+    expires_when: "Quasar bumps @rollup/plugin-terser or workbox-build"
+    notes: "CPU exhaustion DoS variant — same package as above"
+
+  # ESLint 9 + typescript-eslint v8 migration completed 2026-03-29.
+  # All 3 minimatch CVEs resolved:
+  #   GHSA-3ppc-4f35-3m26, GHSA-7r86-cg39-jmmj, GHSA-23c5-xmqv-rm74
+
+  # ── Backend (code/backend/) — zero production vulns after Fastify 5 migration ──
+  # Fastify 4→5 completed 2026-03-29. All 3 CVEs resolved:
+  #   GHSA-mrq3-vjjr-p77c (DoS via sendWebStream)
+  #   GHSA-jx2c-rxcm-jvmq (Content-Type tab bypass)
+  #   GHSA-444r-cwp2-x5xf (X-Forwarded-Proto/Host spoofing)
