@@ -35,7 +35,7 @@ Managing [microvm.nix](https://github.com/astro/microvm.nix) VMs through `system
 
 Try the full dashboard without installing anything:
 
-**[weaver-demo.github.io](https://weaver-demo.github.io)**
+**[whizbangdevelopers-org.github.io/weaver-free-demo](https://whizbangdevelopers-org.github.io/weaver-free-demo)**
 
 Eight sample VMs across multiple distros (NixOS, Ubuntu, Rocky, Alma, Windows), multiple hypervisors, and all status types. Use the **tier-switcher toolbar** to toggle between Free, Solo, and FabricK feature sets in real time.
 

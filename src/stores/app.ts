@@ -267,7 +267,20 @@ export const useAppStore = defineStore('app', {
     },
   },
 
-  persist: true
+  persist: {
+    pick: [
+      // Demo preferences (survive page reload for presenters)
+      'demoTierOverride',
+      'demoVersion',
+      'demoSelectedHostId',
+      'demoWeaverSubTier',
+      // Fabrick drill-down UI state
+      'fabrickDrillHostId',
+      'fabrickDrillFilter',
+      'fabrickDrillView',
+      'fabrickDrillSort',
+    ],
+  }
 })
 
 /** Plugin manifests for demo mode (mirrors backend/src/plugins.ts registry) */
