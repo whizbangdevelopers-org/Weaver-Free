@@ -21,7 +21,7 @@ on:
   workflow_dispatch:
 
 env:
-  DEMO_REPO: whizbangdevelopers-org/weaver-free-demo
+  DEMO_REPO: weaver-dev/weaver-demo.github.io
 
 jobs:
   build-and-deploy:

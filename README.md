@@ -4,7 +4,7 @@
 
 ![Weaver — grid view with running VMs](docs/images/free/v1.0/dashboard.png)
 
-> **The definitive NixOS MicroVM management tool.** Monitor, control, and provision MicroVMs from a modern web interface -- no terminal required.
+> **Unified container and MicroVM management for NixOS.** Monitor, control, and provision workloads from a modern web interface -- no terminal required.
 
 [![License: AGPL-3.0 (Free)](https://img.shields.io/badge/License-AGPL--3.0%20(Free)-blue.svg)](LICENSE)
 [![Built with Quasar](https://img.shields.io/badge/Built%20with-Quasar%202-1976D2.svg)](https://quasar.dev)
@@ -35,7 +35,7 @@ Managing [microvm.nix](https://github.com/astro/microvm.nix) VMs through `system
 
 Try the full dashboard without installing anything:
 
-**[whizbangdevelopers-org.github.io/weaver-free-demo](https://whizbangdevelopers-org.github.io/weaver-free-demo)**
+**[weaver-dev.github.io](https://weaver-dev.github.io)**
 
 Eight sample VMs across multiple distros (NixOS, Ubuntu, Rocky, Alma, Windows), multiple hypervisors, and all status types. Use the **tier-switcher toolbar** to toggle between Free, Solo, and FabricK feature sets in real time.
 
@@ -96,6 +96,25 @@ nh clean all --keep 3
 >
 > **Installing NixOS in virt-manager?** When creating the VM, virt-manager auto-detects the NixOS ISO and shows **"NixOS Unstable"** in the "Choose the operating system you are installing" field. This is normal — NixOS minimal ISOs are published on the unstable channel even for stable releases. Proceed with the install; your `configuration.nix` controls which NixOS channel (e.g. `nixos-25.11`) you actually run.
 
+### Hostname Convention
+
+We recommend naming your NixOS host after its Weaver tier:
+
+| Tier | Hostname |
+|------|----------|
+| Free | `weaver-free` |
+| Solo | `weaver-solo` |
+| Team | `weaver-team` |
+| Fabrick | `weaver-fabrick` |
+
+Set it in your `configuration.nix`:
+
+```nix
+networking.hostName = "weaver-free";
+```
+
+This makes the machine's role obvious in SSH sessions, monitoring, and fleet inventories. For multi-host Fabrick fleets, append a number: `weaver-team-01`, `weaver-team-02`.
+
 ### Automated (fastest)
 
 If you have a local clone of this repo and root access on the target host, the install script handles everything:
@@ -125,7 +144,7 @@ Three steps: add the flake input, load the module, enable the service.
   };
 
   outputs = { self, nixpkgs, weaver, ... }@inputs: {
-    nixosConfigurations.your-hostname = nixpkgs.lib.nixosSystem {
+    nixosConfigurations.weaver-free = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
       modules = [
         ./configuration.nix
@@ -153,7 +172,7 @@ standard NixOS install, so every `git` command needs `sudo`:
 ```bash
 cd /etc/nixos
 sudo git add -A                             # flakes only see staged/committed files
-sudo nixos-rebuild switch --flake .#your-hostname
+sudo nixos-rebuild switch --flake .#weaver-free
 sudo git add flake.lock                     # rebuild updates the lock file
 sudo git commit -m "Add weaver"
 ```
@@ -215,7 +234,7 @@ If you're on a channel-based NixOS and want to switch to flakes (recommended for
    {
      inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.11";
      outputs = { self, nixpkgs }: {
-       nixosConfigurations.your-hostname = nixpkgs.lib.nixosSystem {
+       nixosConfigurations.weaver-free = nixpkgs.lib.nixosSystem {
          system = "x86_64-linux";
          modules = [ ./configuration.nix ];
        };
@@ -232,7 +251,7 @@ If you're on a channel-based NixOS and want to switch to flakes (recommended for
 
 4. **Rebuild using the flake**:
    ```bash
-   sudo nixos-rebuild switch --flake /etc/nixos#your-hostname
+   sudo nixos-rebuild switch --flake /etc/nixos#weaver-free
    ```
 
 After this, you can follow the **NixOS Flake** install instructions above (or use the automated `nix-install.sh` script).

@@ -35,7 +35,7 @@ In your system `flake.nix`, add the Weaver input (and optionally microvm.nix if 
   };
 
   outputs = { self, nixpkgs, weaver, ... }@inputs: {
-    nixosConfigurations.your-hostname = nixpkgs.lib.nixosSystem {
+    nixosConfigurations.weaver-free = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
       modules = [
         ./configuration.nix
@@ -191,7 +191,7 @@ If you prefer not to use the NixOS module, you can configure the service manuall
 ## 4. Rebuild
 
 ```bash
-sudo nixos-rebuild switch --flake /etc/nixos#your-hostname
+sudo nixos-rebuild switch --flake /etc/nixos#weaver-free
 ```
 
 ## 5. Verify
