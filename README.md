@@ -41,6 +41,21 @@ Eight sample VMs across multiple distros (NixOS, Ubuntu, Rocky, Alma, Windows), 
 
 ## Install
 
+### New to NixOS?
+
+Weaver runs on [NixOS](https://nixos.org) — a Linux distribution where your entire system is defined in a single configuration file. If you're coming from Ubuntu, Debian, or Proxmox, here's what you need to know:
+
+- **NixOS is not installed with `apt` or `yum`.** You download an ISO, boot from it, and run the NixOS installer. The installer creates `/etc/nixos/configuration.nix` — a single file that declares everything about your system (packages, services, users, networking).
+- **`nixos-rebuild switch`** is how you apply changes. Edit `configuration.nix`, run `sudo nixos-rebuild switch`, and NixOS builds and activates the new system. If something breaks, reboot and select the previous generation from the boot menu — instant rollback.
+- **Weaver installs as a NixOS module.** You add a few lines to `configuration.nix`, rebuild, and Weaver is running. No `apt install`, no Docker required (though Docker is also an option — see below).
+
+**To get started:**
+1. Download the NixOS ISO from [nixos.org/download](https://nixos.org/download/#nixos-iso) (select the **Minimal ISO** — no desktop needed, see note below)
+2. Install NixOS on bare metal or in a VM ([official install guide](https://nixos.org/manual/nixos/stable/#sec-installation))
+3. Once you're at a NixOS shell prompt with internet access, continue with the Prerequisites section below
+
+> **Already have NixOS running?** Skip straight to [Prerequisites](#prerequisites).
+
 ### Prerequisites
 
 Before running any install path below, verify your host has the tools each path needs.
