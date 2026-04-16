@@ -102,7 +102,7 @@ import { isDemoMode } from 'src/config/demo'
 
 const TAG_PATTERN = /^[a-z0-9][a-z0-9-]*$/
 
-// Forward-compatible interface (internal decision).
+// Forward-compatible interface (Decision #60).
 // vmCount/vmNames populated by vm-store today.
 // containerCount/containerNames populated by container-store at v1.1;
 // populated by demo mock data until then.
@@ -116,7 +116,7 @@ interface CombinedTag {
 }
 
 // Demo mock — container tags shown at v1.1+ to preview unified workload tagging.
-// Replaced by real container-store iteration when container visibility ships (internal decision).
+// Replaced by real container-store iteration when container visibility ships (Decision #60).
 // Must stay in sync with FREE_CONTAINERS in src/config/demo.ts (canonical source).
 interface DemoContainer { name: string; tags: string[] }
 const DEMO_CONTAINERS: DemoContainer[] = [
@@ -153,7 +153,7 @@ const combinedTags = computed<CombinedTag[]>(() => {
     }
   }
 
-  // Containers — demo mock at v1.1+; replaced by container-store at v1.1 (internal decision)
+  // Containers — demo mock at v1.1+; replaced by container-store at v1.1 (Decision #60)
   if (isDemoMode() && appStore.isDemoVersionAtLeast('1.1')) {
     for (const container of DEMO_CONTAINERS) {
       for (const tag of container.tags) {
@@ -281,7 +281,7 @@ async function executeRename(tag: CombinedTag, newName: string) {
   let successCount = 0
   let failCount = 0
 
-  // Rename on VMs (containers: real rename added at v1.1 — internal decision)
+  // Rename on VMs (containers: real rename added at v1.1 — Decision #60)
   for (const vmName of tag.vmNames) {
     const vm = workloadStore.workloadByName(vmName)
     if (!vm) continue
@@ -326,7 +326,7 @@ async function executeDelete(tag: CombinedTag) {
   let successCount = 0
   let failCount = 0
 
-  // Remove from VMs (containers: real delete added at v1.1 — internal decision)
+  // Remove from VMs (containers: real delete added at v1.1 — Decision #60)
   for (const vmName of tag.vmNames) {
     const vm = workloadStore.workloadByName(vmName)
     if (!vm) continue

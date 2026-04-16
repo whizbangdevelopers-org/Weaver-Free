@@ -5,7 +5,7 @@
 # =============================================================================
 # Quasar Template Project Setup Script
 # =============================================================================
-# Creates a complete project structure based on the standard multi-repo model.
+# Creates a complete project structure based on the Qepton multi-repo model.
 #
 # CREATED: In each quasar-template-* repo under scripts/
 # USED BY: Developers after cloning a template to bootstrap their project

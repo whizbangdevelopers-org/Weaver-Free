@@ -13,7 +13,7 @@ import { createVmAclCheck } from '../middleware/vm-acl.js'
 import { createRateLimit } from '../middleware/rate-limit.js'
 
 /** Per-tier AI agent rate limits (requests per minute).
- *  Infrastructure protection (internal decision): each request consumes resources —
+ *  Infrastructure protection (Decision #128): each request consumes resources —
  *  API tokens (cloud), GPU compute (self-hosted), or host CPU/RAM (local). */
 const AI_RATE_LIMITS: Record<string, number> = {
   [TIERS.DEMO]: 5,

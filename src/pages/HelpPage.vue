@@ -745,7 +745,7 @@ const helpSections = computed<HelpSection[]>(() => [
       {
         question: 'How do extensions differ from core features?',
         answer:
-          'Core features (VM management, Live Provisioning, bridges, fleet bridges) are built into Weaver. Extensions are modular add-ons that integrate with external systems or add specialized capabilities. Most extensions are included in the base tier price. AI Pro and AI Fleet are separate paid extensions (internal decision) to prevent value leak on high-cost AI infrastructure.',
+          'Core features (VM management, Live Provisioning, bridges, fleet bridges) are built into Weaver. Extensions are modular add-ons that integrate with external systems or add specialized capabilities. Most extensions are included in the base tier price. AI Pro and AI Fleet are separate paid extensions (Decision #120) to prevent value leak on high-cost AI infrastructure.',
         minVersion: '1.1',
       },
     ],

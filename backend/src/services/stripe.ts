@@ -1,7 +1,7 @@
 // Copyright (c) 2026 whizBANG Developers LLC. All rights reserved.
 // Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE.
 import Stripe from 'stripe'
-// license generation not available in free repo
+import { generateLicenseKey } from '../license.js'
 import { TIERS } from '../constants/vocabularies.js'
 
 // ---------------------------------------------------------------------------
@@ -141,6 +141,7 @@ export async function generateLicenseFromSubscription(
   // Truncate Stripe customer ID to 4 chars for license payload
   const shortCustId = customerId.replace('cus_', '').slice(0, 4).toUpperCase()
 
+  const key = generateLicenseKey(tier, hmacSecret, {
     expiry: expiresAt,
     customerId: shortCustId,
   })

@@ -220,6 +220,16 @@ docker compose up -d
 
 Access at `http://localhost:3110`. See [Docker guide](docs/platforms/docker/) for details.
 
+### Development
+
+```bash
+git clone https://github.com/whizbangdevelopers-org/Weaver-Dev.git
+cd Weaver-Dev
+npm install && cd backend && npm install && cd ..
+npm run dev:full    # Frontend :9010 + Backend :3110
+```
+
+### Dependency Note
 
 > **Do not run `npm audit fix`.** Dependency versions are pinned and security-audited. Modifying `package-lock.json` will break the NixOS build. Vulnerabilities are tracked in the project's security pipeline.
 

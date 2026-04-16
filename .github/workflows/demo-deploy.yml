@@ -1,11 +1,11 @@
 # Copyright (c) 2026 whizBANG Developers LLC. All rights reserved.
-# Licensed under AGPL-3.0 (Free). See LICENSE.
-# Public Demo Deployment 
+# Proprietary and confidential. Do not distribute.
+# Public Demo Deployment (Decision #135)
 # CREATED IN: Dev repo
 # USED BY: Tag-based deployment of public demo to GitHub Pages
 # TRIGGERS: demo/* tag push, manual dispatch
 #
-# The public demo is a marketing funnel , not the private QA demo.
+# The public demo is a marketing funnel (Decision #135), not the private QA demo.
 # Tag with demo/vX.Y to deploy (e.g., demo/v1.0). Private demo tracks main.
 #
 # REQUIRED SECRETS:

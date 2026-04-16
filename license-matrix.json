@@ -1,5 +1,5 @@
 {
-  "$comment": "Canonical tier → license mapping (internal reference). Source of truth for scripts/verify-license-parity.ts.",
+  "$comment": "Canonical tier → license mapping (Decision #137). Source of truth for scripts/verify-license-parity.ts.",
   "tiers": {
     "free": {
       "license": "AGPL-3.0",
@@ -31,11 +31,15 @@
     { "file": "README.md", "type": "readme" },
     { "file": "ATTRIBUTION.md", "type": "attribution" },
     { "file": "docs/legal/LICENSE-PAID-DRAFT.md", "type": "legal-doc" },
+    { "file": "../business/legal/SOFTWARE-LICENSE-EVALUATION.md", "type": "legal-doc" },
+    { "file": "../business/product/TIER-MANAGEMENT.md", "type": "business-doc" },
+    { "file": "../business/legal/AI-TRAINING-RESTRICTION-TOS.md", "type": "legal-doc" }
   ],
   "retiredTerms": ["Premium", "Enterprise"],
   "retiredTermExceptions": [
     "LICENSE-PAID-DRAFT.md",
     "tier-matrix.json",
+    "MASTER-PLAN.md",
     "TIER-MANAGEMENT.md",
     "LESSONS-LEARNED.md",
     "KNOWN-GOTCHAS.md",

@@ -18,7 +18,7 @@ export type NotificationEventType =
   // Migration events (Fabrick v2.3+)
   | 'migration:eligible'
   | 'migration:completed'
-  // Fleet bridge events (Fabrick v3.0+ — internal decision)
+  // Fleet bridge events (Fabrick v3.0+ — Decision #114)
   | 'fleet-bridge:blue-green'
   | 'fleet-bridge:cordon'
   | 'fleet-bridge:weight-adjust'
