@@ -113,10 +113,10 @@ pkgs.buildNpmPackage rec {
     description = "NixOS workload isolation manager";
     homepage = "https://github.com/whizbangdevelopers-org/Weaver-Free";
     license = {
-      fullName = "AGPL-3.0 with Commons Clause and AI Training Restriction";
+      fullName = "AGPL-3.0 with AI Training Restriction";
       spdxId = "AGPL-3.0-only";
       url = "https://github.com/whizbangdevelopers-org/Weaver-Free/blob/main/LICENSE";
-      free = false;  # Commons Clause restricts commercial use
+      free = true;
     };
     maintainers = [ ];
     platforms = [ "x86_64-linux" ];
