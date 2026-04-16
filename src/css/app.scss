@@ -1,0 +1,100 @@
+/* Copyright (c) 2026 whizBANG Developers LLC. All rights reserved. */
+/* Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE. */
+@use 'sass:color';
+// App-level SCSS styles
+
+// Brand colors
+$fabrick-color: #2E5CC8;
+
+// Custom CSS variables
+:root {
+  --fabrick-color: #{$fabrick-color};
+  --app-header-height: 50px;
+  --app-sidebar-width: 300px;
+}
+
+// Fabrick brand color utilities
+.text-fabrick { color: $fabrick-color !important; }
+.bg-fabrick { background: $fabrick-color !important; }
+.bg-fabrick-active { background: rgba(46, 92, 200, 0.12) !important; }
+
+// Weaver brand color utilities
+.bg-weaver-active { background: rgba(255, 107, 53, 0.12) !important; }
+
+// WBD company brand color utilities
+$wbd-green: #7AB800;
+.text-wbd { color: $wbd-green !important; }
+.bg-wbd { background: $wbd-green !important; color: white !important; }
+.bg-wbd:hover { background: color.adjust($wbd-green, $lightness: -8%) !important; }
+
+// Shed brand color utilities
+$shed-color: #2A9D8F;
+.text-shed { color: $shed-color !important; }
+.bg-shed { background: $shed-color !important; }
+.bg-shed-active { background: rgba(42, 157, 143, 0.12) !important; }
+
+// Dark mode overrides
+.body--dark {
+  .stat-card {
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .vm-card {
+    border: 1px solid rgba(255, 255, 255, 0.08);
+
+    &:hover {
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+    }
+  }
+}
+
+// Utility classes
+.full-height {
+  height: 100%;
+}
+
+.full-width {
+  width: 100%;
+}
+
+// Transition classes
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+// VM Card grid responsiveness
+.vm-card {
+  height: 100%;
+}
+
+// Status badge animations
+.status-badge {
+  transition: background-color 0.3s ease;
+}
+
+// Scrollbar styling for dark mode
+.body--dark {
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: #1d1d1d;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #555;
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #777;
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "$comment": "Canonical tier → license mapping (Decision #137). Source of truth for scripts/verify-license-parity.ts.",
+  "tiers": {
+    "free": {
+      "license": "AGPL-3.0",
+      "addenda": ["Commons Clause", "AI Training Restriction"],
+      "repo": "free"
+    },
+    "solo": {
+      "license": "BSL-1.1",
+      "addenda": ["AI Training Restriction"],
+      "repo": "dev"
+    },
+    "team": {
+      "license": "BSL-1.1",
+      "addenda": ["AI Training Restriction"],
+      "repo": "dev"
+    },
+    "fabrick": {
+      "license": "BSL-1.1",
+      "addenda": ["AI Training Restriction"],
+      "repo": "dev"
+    }
+  },
+  "header": {
+    "line1": "Copyright (c) 2026 whizBANG Developers LLC. All rights reserved.",
+    "line2": "Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE."
+  },
+  "scanTargets": [
+    { "file": "LICENSE", "type": "license-file" },
+    { "file": "README.md", "type": "readme" },
+    { "file": "ATTRIBUTION.md", "type": "attribution" },
+    { "file": "docs/legal/LICENSE-PAID-DRAFT.md", "type": "legal-doc" },
+    { "file": "../business/legal/SOFTWARE-LICENSE-EVALUATION.md", "type": "legal-doc" },
+    { "file": "../business/product/TIER-MANAGEMENT.md", "type": "business-doc" },
+    { "file": "../business/legal/AI-TRAINING-RESTRICTION-TOS.md", "type": "legal-doc" }
+  ],
+  "retiredTerms": ["Premium", "Enterprise"],
+  "retiredTermExceptions": [
+    "LICENSE-PAID-DRAFT.md",
+    "tier-matrix.json",
+    "MASTER-PLAN.md",
+    "TIER-MANAGEMENT.md",
+    "LESSONS-LEARNED.md",
+    "KNOWN-GOTCHAS.md",
+    "LICENSE",
+    "README.md",
+    "ATTRIBUTION.md",
+    "SOFTWARE-LICENSE-EVALUATION.md"
+  ]
+}
