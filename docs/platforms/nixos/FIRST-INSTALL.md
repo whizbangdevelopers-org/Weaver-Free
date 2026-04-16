@@ -132,7 +132,13 @@ All of this is done by editing one file:
 nano /etc/nixos/configuration.nix
 ```
 
-You'll see the default NixOS configuration. Make these **three changes**:
+You'll see the default NixOS configuration. Make these **three changes**.
+
+> **Nano tips for new users:**
+> - Use the **arrow keys** to navigate up and down through the file
+> - Use **spaces, not tabs** for indentation — NixOS config uses 2-space indent (4 spaces inside the brackets is fine too, just be consistent and never use Tab)
+> - `Ctrl+O` → `Enter` to save, `Ctrl+X` to exit
+> - `Ctrl+W` to search for text (helpful for finding `systemPackages` quickly)
 
 ![NixOS default configuration.nix](images/05-config-before.png)
 
