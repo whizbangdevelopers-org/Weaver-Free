@@ -37,7 +37,7 @@ pkgs.buildNpmPackage rec {
     popd
 
     # Build frontend PWA
-    npx quasar build -m spa
+    npx quasar build -m pwa
   '';
 
   installPhase = ''
@@ -64,7 +64,7 @@ pkgs.buildNpmPackage rec {
 
     # Frontend PWA
     mkdir -p $out/lib/weaver/frontend
-    cp -r dist/spa/* $out/lib/weaver/frontend/
+    cp -r dist/pwa/* $out/lib/weaver/frontend/
 
     # Compliance docs (used by backend for PDF generation)
     mkdir -p $out/lib/weaver/docs/security/compliance

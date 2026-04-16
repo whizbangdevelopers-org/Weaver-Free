@@ -61,17 +61,17 @@ export const authRoutes: FastifyPluginAsync<AuthRouteOptions> = async (fastify, 
         })
 
         // Set httpOnly cookies (browser clients — XSS-safe token transport)
-        const isProduction = process.env.NODE_ENV === 'production'
+        const secureCookies = process.env.COOKIE_SECURE === 'true'
         reply.setCookie('weaver_token', result.token, {
           httpOnly: true,
-          secure: isProduction,
+          secure: secureCookies,
           sameSite: 'strict',
           path: '/',
           maxAge: 15 * 60,
         })
         reply.setCookie('weaver_refresh', result.refreshToken, {
           httpOnly: true,
-          secure: isProduction,
+          secure: secureCookies,
           sameSite: 'strict',
           path: '/api/auth/refresh',
           maxAge: 7 * 24 * 60 * 60,
@@ -121,17 +121,17 @@ export const authRoutes: FastifyPluginAsync<AuthRouteOptions> = async (fastify, 
         })
 
         // Set httpOnly cookies (browser clients — XSS-safe token transport)
-        const isProduction = process.env.NODE_ENV === 'production'
+        const secureCookies = process.env.COOKIE_SECURE === 'true'
         reply.setCookie('weaver_token', result.token, {
           httpOnly: true,
-          secure: isProduction,
+          secure: secureCookies,
           sameSite: 'strict',
           path: '/',
           maxAge: 15 * 60,  // 15 minutes (access token TTL)
         })
         reply.setCookie('weaver_refresh', result.refreshToken, {
           httpOnly: true,
-          secure: isProduction,
+          secure: secureCookies,
           sameSite: 'strict',
           path: '/api/auth/refresh',  // Only sent to refresh endpoint
           maxAge: 7 * 24 * 60 * 60,  // 7 days
@@ -171,17 +171,17 @@ export const authRoutes: FastifyPluginAsync<AuthRouteOptions> = async (fastify, 
         const tokens = await authService.refreshToken(refreshToken)
 
         // Set httpOnly cookies with new tokens
-        const isProduction = process.env.NODE_ENV === 'production'
+        const secureCookies = process.env.COOKIE_SECURE === 'true'
         reply.setCookie('weaver_token', tokens.token, {
           httpOnly: true,
-          secure: isProduction,
+          secure: secureCookies,
           sameSite: 'strict',
           path: '/',
           maxAge: 15 * 60,
         })
         reply.setCookie('weaver_refresh', tokens.refreshToken, {
           httpOnly: true,
-          secure: isProduction,
+          secure: secureCookies,
           sameSite: 'strict',
           path: '/api/auth/refresh',
           maxAge: 7 * 24 * 60 * 60,
