@@ -324,37 +324,28 @@ Fleet governance for production environments.
 
 ## Architecture
 
-```
-┌───────────────────────────────────────────────────────────┐
-│                    BROWSER (PWA)                           │
-│  ┌──────────────────────┐  ┌───────────────────────────┐  │
-│  │  Quasar / Vue 3      │  │  WebSocket Client         │  │
-│  │  Dashboard + Detail   │  │  Real-time VM status      │  │
-│  │  Pinia Stores         │  │  Agent streaming          │  │
-│  │  Tier-aware UI        │  │  Auto-reconnect           │  │
-│  └──────────┬───────────┘  └──────────┬────────────────┘  │
-└─────────────┼──────────────────────────┼──────────────────┘
-              │ REST API                 │ WebSocket
-┌─────────────┴──────────────────────────┴──────────────────┐
-│                  FASTIFY BACKEND (:3100)                    │
-│  ┌──────────────────────┐  ┌───────────────────────────┐  │
-│  │  /api/workload routes      │  │  /ws/status broadcast     │  │
-│  │  /api/users, /audit   │  │  2-second interval        │  │
-│  │  /api/agent           │  │  Agent token streaming    │  │
-│  │  Zod validation       │  │                           │  │
-│  │  JWT auth + RBAC      │  │                           │  │
-│  │  Tier gating          │  │                           │  │
-│  └──────────┬───────────┘  └──────────┬────────────────┘  │
-└─────────────┼──────────────────────────┼──────────────────┘
-              │ systemctl                │ systemctl
-┌─────────────┴──────────────────────────┴──────────────────┐
-│                     NIXOS HOST                             │
-│  microvm@web-nginx.service    (QEMU, 256 MB, 10.10.0.10)  │
-│  microvm@web-app.service      (Cloud HV, 512 MB)          │
-│  microvm@dev-node.service     (QEMU, 512 MB)              │
-│  microvm@ci-runner.service    (Firecracker, 256 MB)        │
-│  ...                                                       │
-└────────────────────────────────────────────────────────────┘
+```mermaid
+graph TD
+    subgraph browser["Browser (PWA)"]
+        direction LR
+        ui["<b>Quasar / Vue 3</b><br/>Dashboard + Detail<br/>Pinia Stores<br/>Tier-aware UI"]
+        ws_client["<b>WebSocket Client</b><br/>Real-time VM status<br/>Agent streaming<br/>Auto-reconnect"]
+    end
+
+    subgraph backend["Fastify Backend (:3100)"]
+        direction LR
+        api["<b>REST API</b><br/>/api/workload routes<br/>/api/users, /audit<br/>/api/agent<br/>Zod · JWT · RBAC · Tier gating"]
+        ws_server["<b>WebSocket Server</b><br/>/ws/status broadcast<br/>2-second interval<br/>Agent token streaming"]
+    end
+
+    subgraph host["NixOS Host"]
+        vms["microvm@web-nginx · QEMU · 256 MB · 10.10.0.10<br/>microvm@web-app · Cloud HV · 512 MB<br/>microvm@dev-node · QEMU · 512 MB<br/>microvm@ci-runner · Firecracker · 256 MB"]
+    end
+
+    ui -- "REST API" --> api
+    ws_client -- "WebSocket" --> ws_server
+    api -- "systemctl" --> vms
+    ws_server -- "systemctl" --> vms
 ```
 
 ## Network
