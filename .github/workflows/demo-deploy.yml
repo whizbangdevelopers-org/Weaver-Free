@@ -1,0 +1,91 @@
+# Copyright (c) 2026 whizBANG Developers LLC. All rights reserved.
+# Licensed under AGPL-3.0 (Free). See LICENSE.
+# Public Demo Deployment 
+# CREATED IN: Dev repo
+# USED BY: Tag-based deployment of public demo to GitHub Pages
+# TRIGGERS: demo/* tag push, manual dispatch
+#
+# The public demo is a marketing funnel , not the private QA demo.
+# Tag with demo/vX.Y to deploy (e.g., demo/v1.0). Private demo tracks main.
+#
+# REQUIRED SECRETS:
+#   - DEMO_GITHUB_TOKEN: PAT from demo account with repo scope
+#   - VITE_HCAPTCHA_SITEKEY: hCaptcha site key for demo login
+
+name: Demo Deploy
+
+on:
+  push:
+    tags: ['demo/*']
+  workflow_dispatch:
+
+env:
+  DEMO_REPO: weaver-demo/weaver-demo.github.io
+
+jobs:
+  build-and-deploy:
+    name: Build and Deploy Demo
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build SPA for public demo
+        env:
+          VITE_DEMO_MODE: 'true'
+          VITE_DEMO_PUBLIC: 'true'
+          VITE_HCAPTCHA_SITEKEY: ${{ secrets.VITE_HCAPTCHA_SITEKEY }}
+        run: npx quasar build -m spa
+
+      - name: Prepare deployment
+        run: |
+          # Create .nojekyll for GitHub Pages
+          touch dist/spa/.nojekyll
+
+          # Copy demo README if exists
+          if [ -f demo/DEMO-README.md ]; then
+            cp demo/DEMO-README.md dist/spa/README.md
+          fi
+
+          # Include license in demo build
+          cp LICENSE dist/spa/LICENSE
+
+          # Block AI crawlers from using the demo as training data
+          cp demo/robots.txt dist/spa/robots.txt
+
+          # Inject noai meta tags into index.html (after charset meta)
+          sed -i 's|<meta charset="utf-8">|<meta charset="utf-8">\n    <meta name="robots" content="noai, noimageai">|' dist/spa/index.html
+
+      - name: Deploy to demo repo
+        uses: JamesIves/github-pages-deploy-action@d92aa235d04922e8f08b40ce78cc5442fcfbfa2f  # v4
+        with:
+          token: ${{ secrets.DEMO_GITHUB_TOKEN }}
+          repository-name: ${{ env.DEMO_REPO }}
+          branch: main
+          folder: dist/spa
+          clean-exclude: README.md
+          commit-message: "Deploy demo app - ${{ github.sha }}"
+
+      - name: Summary
+        run: |
+          DEMO_ACCOUNT="${{ env.DEMO_REPO }}"
+          DEMO_ACCOUNT="${DEMO_ACCOUNT%%/*}"
+          echo "## Public Demo Deployed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- URL: https://${DEMO_ACCOUNT}.github.io" >> $GITHUB_STEP_SUMMARY
+          echo "- Ref: ${{ github.ref }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Commit: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Demo mode: enabled (public)" >> $GITHUB_STEP_SUMMARY

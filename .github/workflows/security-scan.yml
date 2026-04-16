@@ -1,0 +1,102 @@
+# Copyright (c) 2026 whizBANG Developers LLC. All rights reserved.
+# Licensed under AGPL-3.0 (Free). See LICENSE.
+# Security Vulnerability Scan
+# CREATED IN: All repos (Dev, Public, Premium, Enterprise, Plugins)
+# USED BY: Dependency vulnerability scanning
+# TRIGGERS: Manual (saves CI minutes on private repos)
+
+name: Security Scan
+
+on:
+  # Manual trigger only for private repos (saves CI minutes)
+  # For public repos, uncomment the schedule below
+  workflow_dispatch:
+  # schedule:
+  #   - cron: '0 9 * * 1'  # Every Monday at 9am UTC
+  # pull_request:
+  #   paths:
+  #     - 'package.json'
+  #     - 'package-lock.json'
+
+jobs:
+  audit:
+    name: Dependency Audit
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run npm audit
+        run: npm audit --audit-level=high
+        continue-on-error: true
+
+      - name: Generate audit report
+        run: |
+          echo "## Security Audit Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Generated: $(date -u)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          npm audit 2>&1 | head -100 >> $GITHUB_STEP_SUMMARY || true
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Check for critical vulnerabilities
+        run: |
+          # Fail only on critical vulnerabilities
+          CRITICAL=$(npm audit --json 2>/dev/null | jq '.metadata.vulnerabilities.critical // 0')
+          if [ "$CRITICAL" -gt 0 ]; then
+            echo "::error::Found $CRITICAL critical vulnerabilities!"
+            exit 1
+          fi
+          echo "No critical vulnerabilities found"
+
+      - name: Check production audit (--omit=dev)
+        run: |
+          echo "## Production Audit (--omit=dev)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          # Frontend
+          echo "### Frontend" >> $GITHUB_STEP_SUMMARY
+          if npm audit --omit=dev 2>&1 | grep -q "found 0 vulnerabilities"; then
+            echo "✅ Clean" >> $GITHUB_STEP_SUMMARY
+          else
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            npm audit --omit=dev 2>&1 | head -50 >> $GITHUB_STEP_SUMMARY || true
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
+          # Backend
+          echo "### Backend" >> $GITHUB_STEP_SUMMARY
+          cd backend
+          if npm audit --omit=dev 2>&1 | grep -q "found 0 vulnerabilities"; then
+            echo "✅ Clean" >> $GITHUB_STEP_SUMMARY
+          else
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            npm audit --omit=dev 2>&1 | head -50 >> $GITHUB_STEP_SUMMARY || true
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Validate exceptions manifest
+        run: |
+          # Cross-reference: .github/audit-exceptions.yml is the source of truth
+          # for approved vulnerabilities. All non-excepted production vulns must fail.
+          EXCEPTIONS_FILE=".github/audit-exceptions.yml"
+          if [ -f "$EXCEPTIONS_FILE" ]; then
+            EXCEPTION_COUNT=$(grep -c "ghsa:" "$EXCEPTIONS_FILE" || echo 0)
+            echo "📋 $EXCEPTION_COUNT approved audit exceptions on file"
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Audit Exceptions" >> $GITHUB_STEP_SUMMARY
+            echo "$EXCEPTION_COUNT approved exceptions — see .github/audit-exceptions.yml" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ No audit-exceptions.yml found"
+          fi

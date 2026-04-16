@@ -1,0 +1,74 @@
+# Copyright (c) 2026 whizBANG Developers LLC. All rights reserved.
+# Licensed under AGPL-3.0 (Free). See LICENSE.
+name: Feature Request
+description: Suggest a new feature or enhancement
+labels: ["enhancement", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting a feature! Please fill out the sections below.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem Statement
+      description: Is your feature request related to a problem? Describe it clearly.
+      placeholder: I'm always frustrated when...
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: Describe the solution you'd like to see.
+      placeholder: I would like...
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Describe any alternative solutions or features you've considered.
+      placeholder: I also considered...
+    validations:
+      required: false
+
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Target Platform
+      description: Which platform(s) would this feature apply to?
+      multiple: true
+      options:
+        - Web (SPA)
+        - PWA
+        - Electron (Desktop)
+        - Capacitor (iOS)
+        - Capacitor (Android)
+        - All platforms
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: How important is this feature to you?
+      options:
+        - Nice to have
+        - Important
+        - Critical
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Add any other context, mockups, or screenshots about the feature request.
+      placeholder: Any other relevant information...
+    validations:
+      required: false
