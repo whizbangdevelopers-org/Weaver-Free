@@ -182,7 +182,7 @@ Remove the `#` at the start of the second line so it reads:
   services.openssh.enable = true;
 ```
 
-This lets you SSH into the machine from your workstation — much easier than typing in the VM console.
+This lets you connect to the machine remotely from your workstation using SSH — optional, but much easier than typing in the VM console. If you don't know what SSH is, skip this — everything below works fine typed directly into the VM.
 
 ### Change 3: Enable flakes
 
@@ -227,10 +227,24 @@ Once it finishes with no errors, git is available and you can clone Weaver.
 
 ## Step 6: Clone Weaver
 
+Still in your root shell on the VM, clone the Weaver repository into your home directory:
+
 ```bash
 cd /home/your-username
 git clone https://github.com/whizbangdevelopers-org/Weaver-Free.git
 ```
+
+> Replace `your-username` with the username you created during install (e.g. `cd /home/mark`).
+
+You should see git downloading the repository. When it finishes:
+
+```bash
+ls Weaver-Free/
+```
+
+You should see directories like `backend/`, `src/`, `nixos/`, `README.md`, etc.
+
+> **Tip:** If you enabled SSH in the previous step and know how to use it, you can continue the remaining steps from your workstation: `ssh your-username@<vm-ip>`. This is optional — everything works fine typed directly into the VM.
 
 <!-- TODO: screenshot of successful clone -->
 
