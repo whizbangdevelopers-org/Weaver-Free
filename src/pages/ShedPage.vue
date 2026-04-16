@@ -1,5 +1,5 @@
 <!-- Copyright (c) 2026 whizBANG Developers LLC. All rights reserved. -->
-<!-- Shed — unified workload creation (internal decision) -->
+<!-- Shed — unified workload creation (Decision #92) -->
 <!-- Version-gated: content appears as demo version progresses v1.0→v3.3. -->
 
 <template>
@@ -308,6 +308,7 @@ const headerSubtitle = computed(() => {
 })
 
 // When templates tab becomes available, switch to it
+// (investor sees the hero content immediately)
 
 interface ShedTemplate {
   id: string
@@ -320,7 +321,7 @@ interface ShedTemplate {
   wave: 1 | 2
 }
 
-// Wave 1 catalog — v2.0.0 (internal decision, #68)
+// Wave 1 catalog — v2.0.0 (Decision #46, #68)
 // Wave 2 catalog — v2.1.0
 const templates: ShedTemplate[] = [
   // Wave 1

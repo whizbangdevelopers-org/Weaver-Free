@@ -6,7 +6,7 @@
 # =============================================================================
 # Acquires an exclusive file lock before running a command. If another process
 # holds the lock, waits (queues) until it's released. Prevents simultaneous
-# execution of dev servers, E2E tests, or builds — critical for CI
+# execution of dev servers, E2E tests, or builds — critical in Forge
 # where multiple agents may invoke the same scripts in parallel.
 #
 # Usage:  ./scripts/with-lock.sh <lock-name> <command...>

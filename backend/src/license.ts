@@ -130,7 +130,20 @@ export function parseLicenseKey(key: string, hmacSecret: string): LicenseResult 
  * Generate a license key for the given tier.
  * Useful for E2E testing and admin tooling.
  */
-
+export function generateLicenseKey(
+  tier: typeof TIERS.FREE | typeof TIERS.SOLO | typeof TIERS.FABRICK,
+  hmacSecret: string,
+  options?: { expiry?: Date; customerId?: string }
+): string {
+  const tierCode = { [TIERS.FREE]: 'FRE', [TIERS.SOLO]: 'WVS', [TIERS.FABRICK]: 'FAB' }[tier]
+  const issueDate = encodeDateToBase36(new Date())
+  const expiryEncoded = options?.expiry ? encodeDateToBase36(options.expiry) : 'ZZZZ'
+  const customerId = (options?.customerId ?? '0000').padStart(4, '0').slice(0, 4).toUpperCase()
+  const payload = `${issueDate}${expiryEncoded}${customerId}`
+  const prefix = `WVR-${tierCode}-${payload}`
+  const checksum = computeChecksum(prefix, hmacSecret)
+  return `${prefix}-${checksum}`
+}
 
 /**
  * Guard that throws a 403-style error if the current tier is below the minimum.

@@ -3,7 +3,7 @@
 # NUR package definition for weaver
 # This file is the reference for pkgs/weaver/default.nix in nur-packages repo
 #
-# This uses buildNpmPackage to build from source release tarball.
+# Unlike Qepton (AppImage), this uses buildNpmPackage to build from source release tarball.
 # The release.yml workflow triggers repository_dispatch to update the nur-packages repo
 # with the new version and hash.
 {

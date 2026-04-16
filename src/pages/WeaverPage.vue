@@ -250,7 +250,7 @@
       </q-card>
     </template>
 
-    <!-- Container Visibility nag (demo, pre-v1.1) — hidden in public demo (internal decision) -->
+    <!-- Container Visibility nag (demo, pre-v1.1) — hidden in public demo (Decision #135) -->
     <VersionNag
       v-if="isDemoMode() && !isPublicDemo() && !appStore.isDemoVersionAtLeast('1.1')"
       version="1.1"
@@ -268,7 +268,7 @@
       <DemoVersionFeatures section="weaver-team" />
     </template>
 
-    <!-- Public demo: cumulative release summary (internal decision) -->
+    <!-- Public demo: cumulative release summary (Decision #135) -->
     <DemoReleaseSummary v-if="isDemoMode()" />
 
     </div><!-- /demoWizardActive -->

@@ -690,7 +690,7 @@ function drillInto(hostId: string) {
     box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.25);
   }
 
-  // Cloud hosts — light-blue dashed border (internal decision)
+  // Cloud hosts — light-blue dashed border (Decision #80)
   &--cloud {
     border-style: dashed;
     border-color: var(--q-light-blue-7, #0288d1);

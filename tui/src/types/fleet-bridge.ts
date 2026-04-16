@@ -24,7 +24,7 @@ export interface BlueGreenState {
   initiatedBy: string | null
 }
 
-/** Fleet virtual bridge (internal decision). */
+/** Fleet virtual bridge (Decision #114). */
 export interface FleetBridge {
   name: string
   label: string

@@ -16,7 +16,7 @@
       Dashed amber — cross-host workload services   (DEMO_WORKLOAD_CONNECTIONS)
     Workload sub-nodes appear below hosts that participate in cross-host connections.
 
-  LOGICAL (v3.0+ only) — Fleet virtual bridge view (internal decision).
+  LOGICAL (v3.0+ only) — Fleet virtual bridge view (Decision #114).
     Fleet bridges as hub nodes (centre column), host nodes radiating out.
     Edges show host participation with aggregate weight labels.
     The primitive that replaces K8s CNI + Ingress + MetalLB + Argo Rollouts.

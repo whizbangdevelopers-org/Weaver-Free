@@ -1,0 +1,110 @@
+# Copyright (c) 2026 whizBANG Developers LLC. All rights reserved.
+# Proprietary and confidential. Do not distribute.
+# Sync Dev to Public Repository
+# CREATED IN: Dev repo (when "Private -> Public" production type chosen)
+# USED BY: Automated code sync from private dev to public release repo
+# TRIGGERS: Push to main, manual
+#
+# REQUIRED SECRETS:
+#   - SYNC_TOKEN: PAT with repo scope for pushing to public repo
+#
+# PLACEHOLDERS (replaced by setup-project.sh):
+#   - {{GITHUB_ORG}}: GitHub organization name
+#   - {{PROJECT_NAME}}: Project name (lowercase)
+
+name: Sync to Public
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '.github/workflows/sync-to-free.yml'
+      - 'docs/internal/**'
+      - '*.internal.md'
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Force sync even if no changes detected'
+        required: false
+        default: 'false'
+        type: boolean
+
+env:
+  TARGET_REPO: {{GITHUB_ORG}}/{{PROJECT_NAME}}
+  SOURCE_BRANCH: main
+  TARGET_BRANCH: main
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source (Dev)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          path: source
+
+      - name: Checkout target (Public)
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.TARGET_REPO }}
+          token: ${{ secrets.SYNC_TOKEN }}
+          fetch-depth: 0
+          path: target
+
+      - name: Configure git
+        run: |
+          cd target
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Sync files
+        run: |
+          # Files/directories to exclude from sync
+          EXCLUDE=(
+            ".github/workflows/sync-to-free.yml"
+            ".github/workflows/demo-*.yml"
+            "docs/internal"
+            "*.internal.md"
+            ".env*"
+            "secrets"
+          )
+
+          # Build rsync exclude args
+          EXCLUDE_ARGS=""
+          for item in "${EXCLUDE[@]}"; do
+            EXCLUDE_ARGS="$EXCLUDE_ARGS --exclude=$item"
+          done
+
+          # Sync files
+          rsync -av --delete \
+            $EXCLUDE_ARGS \
+            --exclude='.git' \
+            source/ target/
+
+          cd target
+          git add -A
+
+          # Check if there are changes
+          if git diff --staged --quiet; then
+            echo "No changes to sync"
+            echo "HAS_CHANGES=false" >> $GITHUB_ENV
+          else
+            echo "Changes detected"
+            echo "HAS_CHANGES=true" >> $GITHUB_ENV
+          fi
+
+      - name: Commit and push
+        if: env.HAS_CHANGES == 'true' || github.event.inputs.force == 'true'
+        run: |
+          cd target
+          git commit -m "Sync from Dev - ${{ github.sha }}"
+          git push origin ${{ env.TARGET_BRANCH }}
+
+      - name: Summary
+        run: |
+          echo "## Sync Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- Source: ${{ github.repository }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Target: ${{ env.TARGET_REPO }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Changes synced: ${{ env.HAS_CHANGES }}" >> $GITHUB_STEP_SUMMARY
