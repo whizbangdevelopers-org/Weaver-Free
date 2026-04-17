@@ -1,5 +1,5 @@
 # Copyright (c) 2026 whizBANG Developers LLC. All rights reserved.
-# Licensed under AGPL-3.0 (Free). See LICENSE.
+# Proprietary and confidential. Do not distribute.
 name: Bug Report
 description: Report a bug or unexpected behavior
 labels: ["bug", "triage"]
@@ -8,6 +8,17 @@ body:
     attributes:
       value: |
         Thanks for taking the time to report a bug! Please fill out the sections below.
+
+  - type: checkboxes
+    id: documentation
+    attributes:
+      label: Documentation
+      description: Please confirm you've checked the relevant docs before filing.
+      options:
+        - label: I have read the [README](https://github.com/whizbangdevelopers-org/Weaver-Free#readme)
+          required: true
+        - label: I have checked the [Admin Guide](https://github.com/whizbangdevelopers-org/Weaver-Free/blob/main/docs/ADMIN-GUIDE.md) and [User Guide](https://github.com/whizbangdevelopers-org/Weaver-Free/blob/main/docs/USER-GUIDE.md)
+          required: true
 
   - type: textarea
     id: description
@@ -46,12 +57,11 @@ body:
       label: Platform
       description: Which platform are you using?
       options:
-        - Web (SPA)
+        - NixOS (native install)
+        - Docker
+        - Web (browser UI)
         - PWA
-        - Electron (Desktop)
-        - Capacitor (iOS)
-        - Capacitor (Android)
-        - All platforms
+        - TUI
     validations:
       required: true
 

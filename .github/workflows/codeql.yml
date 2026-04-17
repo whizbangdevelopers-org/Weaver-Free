@@ -1,5 +1,5 @@
 # Copyright (c) 2026 whizBANG Developers LLC. All rights reserved.
-# Licensed under AGPL-3.0 (Free). See LICENSE.
+# Proprietary and confidential. Do not distribute.
 # CodeQL Analysis
 # CREATED IN: All repos (Dev, Public, Premium, Enterprise, Plugins)
 # USED BY: GitHub security scanning
@@ -8,13 +8,12 @@
 name: CodeQL Analysis
 
 on:
-  push:
-    branches: [main]
+  # Push trigger disabled on private Dev repo — saves CI minutes.
+  # CodeQL runs on the public Free repo (free minutes).
   pull_request:
     branches: [main]
   schedule:
-    # Run weekly on Sundays at 1am UTC
-    - cron: '0 1 * * 0'
+    - cron: '0 1 * * 0'   # Weekly Sunday 1am UTC
   workflow_dispatch:
 
 jobs:

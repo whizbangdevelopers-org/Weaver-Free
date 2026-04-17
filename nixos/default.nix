@@ -22,8 +22,8 @@ in
 
     host = mkOption {
       type = types.str;
-      default = "127.0.0.1";
-      description = "Host to bind the API server to";
+      default = "0.0.0.0";
+      description = "Host to bind the API server to. Default 0.0.0.0 (all interfaces) so the dashboard is reachable from other devices. Set to 127.0.0.1 for localhost-only.";
     };
 
     openFirewall = mkOption {
