@@ -63,8 +63,7 @@ jobs:
 
             ### Installation Testing
             - [ ] Fresh install from release artifact works
-            - [ ] \`npm ci && npm run build\` succeeds from tagged source
-            - [ ] Backend builds successfully (\`cd backend && npm ci && npm run build\`)
+            - [ ] \`npm ci && npm run build:all\` succeeds from tagged source (workspaces: single root npm ci installs frontend + backend + tui)
             - [ ] Docker compose setup works with release version
 
             ### Feature Smoke Tests

@@ -54,14 +54,8 @@ jobs:
           cache: 'npm'
           cache-dependency-path: code/package-lock.json
 
-      - name: Install frontend dependencies
+      - name: Install dependencies (workspaces)
         run: npm ci
-
-      - name: Install backend dependencies
-        run: cd backend && npm ci
-
-      - name: Install TUI dependencies
-        run: cd tui && npm ci
 
       - name: Build all
         run: npm run build:all

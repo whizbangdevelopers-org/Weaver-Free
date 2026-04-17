@@ -115,8 +115,8 @@ jobs:
         with:
           node-version: '24'
 
-      - name: Install backend dependencies
-        run: cd backend && npm ci
+      - name: Install dependencies (workspaces)
+        run: npm ci
 
       - name: Run backend linter
         run: cd backend && npm run lint
@@ -176,8 +176,8 @@ jobs:
         with:
           node-version: '24'
 
-      - name: Install TUI dependencies
-        run: cd tui && npm ci
+      - name: Install dependencies (workspaces)
+        run: npm ci
 
       - name: Run TUI typecheck
         run: cd tui && npm run typecheck
@@ -234,11 +234,8 @@ jobs:
         with:
           node-version: '24'
 
-      - name: Install dependencies
-        run: |
-          npm ci
-          cd backend && npm ci
-          cd ../tui && npm ci
+      - name: Install dependencies (workspaces)
+        run: npm ci
 
       - name: Build TUI (needed for cli-args audit)
         run: npm run build:tui
