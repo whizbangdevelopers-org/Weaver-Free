@@ -21,7 +21,7 @@ on:
   workflow_dispatch:
 
 env:
-  DEMO_REPO: weaver-dev/weaver-demo.github.io
+  DEMO_REPO: weaver-dev/weaver-dev.github.io
 
 jobs:
   build-and-deploy:
