@@ -1,5 +1,5 @@
 # Copyright (c) 2026 whizBANG Developers LLC. All rights reserved.
-# Licensed under AGPL-3.0 (Free). See LICENSE.
+# Proprietary and confidential. Do not distribute.
 name: Feature Request
 description: Suggest a new feature or enhancement
 labels: ["enhancement", "triage"]
@@ -8,6 +8,17 @@ body:
     attributes:
       value: |
         Thanks for suggesting a feature! Please fill out the sections below.
+
+  - type: checkboxes
+    id: documentation
+    attributes:
+      label: Documentation
+      description: Please confirm you've checked the relevant docs before filing.
+      options:
+        - label: I have read the [README](https://github.com/whizbangdevelopers-org/Weaver-Free#readme)
+          required: true
+        - label: I have checked the [Admin Guide](https://github.com/whizbangdevelopers-org/Weaver-Free/blob/main/docs/ADMIN-GUIDE.md) and [User Guide](https://github.com/whizbangdevelopers-org/Weaver-Free/blob/main/docs/USER-GUIDE.md)
+          required: true
 
   - type: textarea
     id: problem
@@ -43,11 +54,11 @@ body:
       description: Which platform(s) would this feature apply to?
       multiple: true
       options:
-        - Web (SPA)
+        - NixOS (native install)
+        - Docker
+        - Web (browser UI)
         - PWA
-        - Electron (Desktop)
-        - Capacitor (iOS)
-        - Capacitor (Android)
+        - TUI
         - All platforms
     validations:
       required: true

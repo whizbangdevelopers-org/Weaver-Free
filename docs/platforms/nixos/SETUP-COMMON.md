@@ -6,6 +6,29 @@ This document covers the shared configuration steps that apply to all NixOS setu
 
 ---
 
+## Hostname Convention
+
+We recommend naming your Weaver host after its license tier:
+
+| Tier | Hostname | License Key Prefix |
+|------|----------|--------------------|
+| Free | `weaver-free` | _(none)_ |
+| Solo | `weaver-solo` | `WVR-WVS-` |
+| Team | `weaver-team` | `WVR-WVT-` |
+| Fabrick | `weaver-fabrick` | `WVR-FAB-` |
+
+This makes the machine's role immediately obvious in SSH sessions, monitoring dashboards, and fleet inventories. In a Fabrick fleet with multiple hosts, append a numeric suffix: `weaver-team-01`, `weaver-team-02`, etc.
+
+Set the hostname in your NixOS configuration:
+
+```nix
+networking.hostName = "weaver-free";  # Match your tier
+```
+
+> **Flake users:** The hostname must also match your `nixosConfigurations` attribute name in `flake.nix` (e.g., `nixosConfigurations.weaver-free`). See [SETUP-FLAKES.md](SETUP-FLAKES.md).
+
+---
+
 ## Bridge Networking
 
 MicroVMs connect to the host via TAP interfaces attached to a bridge. Choose one of the two approaches below.

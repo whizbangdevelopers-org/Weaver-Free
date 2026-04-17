@@ -1,5 +1,5 @@
 <!-- Copyright (c) 2026 whizBANG Developers LLC. All rights reserved. -->
-<!-- Licensed under AGPL-3.0 (Free). See LICENSE. -->
+<!-- Proprietary and confidential. Do not distribute. -->
 ## Summary
 
 <!-- Brief description of what this PR does and why -->
