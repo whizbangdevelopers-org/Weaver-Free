@@ -4,7 +4,7 @@
 
 ![Weaver — grid view with running VMs](docs/images/free/v1.0/dashboard.png)
 
-> **The definitive NixOS MicroVM management tool.** Monitor, control, and provision MicroVMs from a modern web interface -- no terminal required.
+> **Unified container and MicroVM management for NixOS.** Monitor, control, and provision workloads from a modern web interface -- no terminal required.
 
 [![License: AGPL-3.0 (Free)](https://img.shields.io/badge/License-AGPL--3.0%20(Free)-blue.svg)](LICENSE)
 [![Built with Quasar](https://img.shields.io/badge/Built%20with-Quasar%202-1976D2.svg)](https://quasar.dev)
@@ -14,9 +14,9 @@
 [![NixOS](https://img.shields.io/badge/NixOS-25.11+-5277C3.svg)](https://nixos.org)
 [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/whizbangdevelopers-org/Weaver-Free/badge)](https://securityscorecards.dev/viewer/?uri=github.com/whizbangdevelopers-org/Weaver-Free)
 
-![Unit Tests](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/whizbangdevelopers-user/79355c8ae5e81aefa0f67ef318fdf785/raw/vitest-badge.json)
-![Backend Tests](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/whizbangdevelopers-user/79355c8ae5e81aefa0f67ef318fdf785/raw/backend-badge.json)
-![TUI Tests](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/whizbangdevelopers-user/79355c8ae5e81aefa0f67ef318fdf785/raw/tui-badge.json)
+![Unit Tests](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/wriver4/79355c8ae5e81aefa0f67ef318fdf785/raw/vitest-badge.json)
+![Backend Tests](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/wriver4/79355c8ae5e81aefa0f67ef318fdf785/raw/backend-badge.json)
+![TUI Tests](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/wriver4/79355c8ae5e81aefa0f67ef318fdf785/raw/tui-badge.json)
 
 ---
 
@@ -27,7 +27,7 @@ Managing [microvm.nix](https://github.com/astro/microvm.nix) VMs through `system
 - **Instant visibility** -- WebSocket-driven live status updates every 2 seconds. Start a VM from the terminal, watch the card flip green in the browser.
 - **One-click lifecycle** -- Start, stop, restart any MicroVM without touching a terminal.
 - **Declarative, reproducible deployment** -- A single NixOS module option. `services.weaver.enable = true;` and you're done.
-- **AI-powered diagnostics** -- Ask Claude to diagnose, explain, or suggest fixes for any VM. Bring your own API key -- no vendor lock-in.
+- **AI-powered diagnostics** -- Diagnose, explain, or get optimization suggestions for any VM. Bring your own API key -- no vendor lock-in.
 - **Multi-hypervisor provisioning** -- Create VMs from the browser with QEMU, Cloud Hypervisor, crosvm, kvmtool, or Firecracker.
 - **NixOS-native** -- Purpose-built for NixOS. Manages `microvm@<name>.service` units directly with restricted sudo. No agents, no shims.
 
@@ -35,7 +35,7 @@ Managing [microvm.nix](https://github.com/astro/microvm.nix) VMs through `system
 
 Try the full dashboard without installing anything:
 
-**[weaver-demo.github.io](https://weaver-demo.github.io)**
+**[weaver-dev.github.io](https://weaver-dev.github.io)**
 
 Eight sample VMs across multiple distros (NixOS, Ubuntu, Rocky, Alma, Windows), multiple hypervisors, and all status types. Use the **tier-switcher toolbar** to toggle between Free, Solo, and FabricK feature sets in real time.
 
@@ -96,6 +96,25 @@ nh clean all --keep 3
 >
 > **Installing NixOS in virt-manager?** When creating the VM, virt-manager auto-detects the NixOS ISO and shows **"NixOS Unstable"** in the "Choose the operating system you are installing" field. This is normal — NixOS minimal ISOs are published on the unstable channel even for stable releases. Proceed with the install; your `configuration.nix` controls which NixOS channel (e.g. `nixos-25.11`) you actually run.
 
+### Hostname Convention
+
+We recommend naming your NixOS host after its Weaver tier:
+
+| Tier | Hostname |
+|------|----------|
+| Free | `weaver-free` |
+| Solo | `weaver-solo` |
+| Team | `weaver-team` |
+| Fabrick | `weaver-fabrick` |
+
+Set it in your `configuration.nix`:
+
+```nix
+networking.hostName = "weaver-free";
+```
+
+This makes the machine's role obvious in SSH sessions, monitoring, and fleet inventories. For multi-host Fabrick fleets, append a number: `weaver-team-01`, `weaver-team-02`.
+
 ### Automated (fastest)
 
 If you have a local clone of this repo and root access on the target host, the install script handles everything:
@@ -125,7 +144,7 @@ Three steps: add the flake input, load the module, enable the service.
   };
 
   outputs = { self, nixpkgs, weaver, ... }@inputs: {
-    nixosConfigurations.your-hostname = nixpkgs.lib.nixosSystem {
+    nixosConfigurations.weaver-free = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
       modules = [
         ./configuration.nix
@@ -153,7 +172,7 @@ standard NixOS install, so every `git` command needs `sudo`:
 ```bash
 cd /etc/nixos
 sudo git add -A                             # flakes only see staged/committed files
-sudo nixos-rebuild switch --flake .#your-hostname
+sudo nixos-rebuild switch --flake .#weaver-free
 sudo git add flake.lock                     # rebuild updates the lock file
 sudo git commit -m "Add weaver"
 ```
@@ -215,7 +234,7 @@ If you're on a channel-based NixOS and want to switch to flakes (recommended for
    {
      inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.11";
      outputs = { self, nixpkgs }: {
-       nixosConfigurations.your-hostname = nixpkgs.lib.nixosSystem {
+       nixosConfigurations.weaver-free = nixpkgs.lib.nixosSystem {
          system = "x86_64-linux";
          modules = [ ./configuration.nix ];
        };
@@ -232,7 +251,7 @@ If you're on a channel-based NixOS and want to switch to flakes (recommended for
 
 4. **Rebuild using the flake**:
    ```bash
-   sudo nixos-rebuild switch --flake /etc/nixos#your-hostname
+   sudo nixos-rebuild switch --flake /etc/nixos#weaver-free
    ```
 
 After this, you can follow the **NixOS Flake** install instructions above (or use the automated `nix-install.sh` script).
@@ -254,15 +273,6 @@ docker compose up -d
 ```
 
 Access at `http://localhost:3110`. See [Docker guide](docs/platforms/docker/) for details.
-
-### Development
-
-```bash
-git clone https://github.com/whizbangdevelopers-org/Weaver-Dev.git
-cd Weaver-Dev
-npm install && cd backend && npm install && cd ..
-npm run dev:full    # Frontend :9010 + Backend :3110
-```
 
 ### Dependency Note
 
@@ -296,7 +306,7 @@ Everything you need to monitor and manage existing MicroVMs.
 - **VM lifecycle** -- Start / Stop / Restart from the browser
 - **VM scanning** -- Auto-discover `microvm@*.service` units on the host
 - **VM detail view** -- Configuration, networking, provisioning logs, and AI analysis tabs
-- **AI diagnostics (BYOK)** -- Bring your own API key for Claude-powered Diagnose, Explain, and Suggest actions (5 req/min)
+- **AI diagnostics (BYOK)** -- Bring your own API key for AI-powered Diagnose, Explain, and Suggest actions
 - **Serial console** -- In-browser terminal via xterm.js with WebSocket-to-TCP proxy
 - **Network topology** -- Auto-detected bridge visualization
 - **In-app notifications** -- Event bell with history
@@ -316,7 +326,7 @@ Create and manage VMs, not just monitor them.
 - **Bridge management** -- Create/delete managed bridges and IP pools
 - **Push notifications** -- ntfy, email (SMTP), webhook (Slack/Discord/PagerDuty), Web Push
 - **Resource alerts** -- Configurable CPU/memory thresholds
-- **AI diagnostics** -- Server-stored API key, 10 req/min
+- **AI diagnostics** -- Server-managed API key with higher rate limits
 
 ### Fabrick
 
@@ -326,44 +336,35 @@ Fleet governance for production environments.
 - **Audit log** -- Queryable API for all VM, user, and agent actions
 - **User quotas** -- VM resource limits with enforcement
 - **Bulk operations** -- Multi-select start/stop/restart across VMs
-- **AI diagnostics** -- 30 req/min
+- **AI diagnostics** -- Fleet-scale rate limits
 - **Priority support**
 
 ---
 
 ## Architecture
 
-```
-┌───────────────────────────────────────────────────────────┐
-│                    BROWSER (PWA)                           │
-│  ┌──────────────────────┐  ┌───────────────────────────┐  │
-│  │  Quasar / Vue 3      │  │  WebSocket Client         │  │
-│  │  Dashboard + Detail   │  │  Real-time VM status      │  │
-│  │  Pinia Stores         │  │  Agent streaming          │  │
-│  │  Tier-aware UI        │  │  Auto-reconnect           │  │
-│  └──────────┬───────────┘  └──────────┬────────────────┘  │
-└─────────────┼──────────────────────────┼──────────────────┘
-              │ REST API                 │ WebSocket
-┌─────────────┴──────────────────────────┴──────────────────┐
-│                  FASTIFY BACKEND (:3100)                    │
-│  ┌──────────────────────┐  ┌───────────────────────────┐  │
-│  │  /api/workload routes      │  │  /ws/status broadcast     │  │
-│  │  /api/users, /audit   │  │  2-second interval        │  │
-│  │  /api/agent           │  │  Agent token streaming    │  │
-│  │  Zod validation       │  │                           │  │
-│  │  JWT auth + RBAC      │  │                           │  │
-│  │  Tier gating          │  │                           │  │
-│  └──────────┬───────────┘  └──────────┬────────────────┘  │
-└─────────────┼──────────────────────────┼──────────────────┘
-              │ systemctl                │ systemctl
-┌─────────────┴──────────────────────────┴──────────────────┐
-│                     NIXOS HOST                             │
-│  microvm@web-nginx.service    (QEMU, 256 MB, 10.10.0.10)  │
-│  microvm@web-app.service      (Cloud HV, 512 MB)          │
-│  microvm@dev-node.service     (QEMU, 512 MB)              │
-│  microvm@ci-runner.service    (Firecracker, 256 MB)        │
-│  ...                                                       │
-└────────────────────────────────────────────────────────────┘
+```mermaid
+graph TD
+    subgraph browser["Browser (PWA)"]
+        direction LR
+        ui["<b>Quasar / Vue 3</b><br/>Dashboard + Detail<br/>Pinia Stores<br/>Tier-aware UI"]
+        ws_client["<b>WebSocket Client</b><br/>Real-time VM status<br/>Agent streaming<br/>Auto-reconnect"]
+    end
+
+    subgraph backend["Fastify Backend (:3100)"]
+        direction LR
+        api["<b>REST API</b><br/>/api/workload routes<br/>/api/users, /audit<br/>/api/agent<br/>Zod · JWT · RBAC · Tier gating"]
+        ws_server["<b>WebSocket Server</b><br/>/ws/status broadcast<br/>2-second interval<br/>Agent token streaming"]
+    end
+
+    subgraph host["NixOS Host"]
+        vms["microvm@web-nginx · QEMU · 256 MB · 10.10.0.10<br/>microvm@web-app · Cloud HV · 512 MB<br/>microvm@dev-node · QEMU · 512 MB<br/>microvm@ci-runner · Firecracker · 256 MB"]
+    end
+
+    ui -- "REST API" --> api
+    ws_client -- "WebSocket" --> ws_server
+    api -- "systemctl" --> vms
+    ws_server -- "systemctl" --> vms
 ```
 
 ## Network
@@ -398,11 +399,11 @@ Weaver manages VM lifecycle operations on NixOS hosts. Security is not an aftert
 
 - **Least privilege** -- Dedicated `weaver` system user with sudo restricted to `microvm@*.service` commands only
 - **Input validation** -- All API parameters validated with Zod schemas. VM names restricted to `^[a-z][a-z0-9-]*$`
-- **JWT authentication** -- 30-minute access tokens, 7-day refresh tokens, bcrypt cost 13 (OWASP 2024+)
-- **Account lockout** -- 5 attempts / 15 minutes, persisted to disk (survives restarts)
+- **JWT authentication** -- Short-lived access tokens with automatic refresh, bcrypt hashing (OWASP 2024+)
+- **Account lockout** -- Progressive lockout on repeated failed attempts, persisted to disk (survives restarts)
 - **RBAC** -- Admin / Operator / Viewer roles with backend enforcement
 - **Secrets management** -- JWT secret required in production, integrates with sops-nix
-- **Supply chain** -- All 40 GitHub Actions SHA-pinned across 10 workflows
+- **Supply chain** -- All GitHub Actions SHA-pinned, dependency lockfile verification
 
 See [SECURITY.md](SECURITY.md) for the full security policy and vulnerability reporting.
 
@@ -413,7 +414,7 @@ Weaver is tested to enterprise standards from day one:
 | Dimension | Our Approach | Industry Standard | Rating |
 |-----------|--------------|-------------------|--------|
 | Test coverage | 1,300+ tests across 4 layers (unit, backend, TUI, E2E) | Wide base, narrow top | A |
-| Static analysis | 13 custom auditors (forms, routes, SAST, tier parity, license, bundle, doc freshness) + lint + typecheck | 1–2 generic tools (lint + type) | A+ |
+| Static analysis | Custom compliance auditors (forms, routes, SAST, tier parity, license, bundle) + lint + typecheck | 1–2 generic tools (lint + type) | A+ |
 | E2E isolation | Docker-containerized, seed data, pre-auth, 5 browsers | Docker or CI-managed | A |
 | Tier enforcement | Machine-readable feature matrix + bidirectional code scanning | Manual review or none | A+ |
 | Gate enforcement | Git hooks + GitHub Actions CI on every push | CI blocks merge | A |
@@ -421,7 +422,7 @@ Weaver is tested to enterprise standards from day one:
 | Reproducibility | Deterministic Docker E2E + `.nvmrc` + lockfile verification | Hermetic CI containers | A |
 | **Overall** | | | **A** |
 
-Full benchmark: [docs/TESTING-ASSESSMENT.md](docs/TESTING-ASSESSMENT.md) — scored against enterprise standards.
+Weaver maintains enterprise-grade testing and compliance standards across the full development lifecycle.
 
 ## Terminal UI (TUI)
 
@@ -441,11 +442,12 @@ VM list, detail views, and status monitoring from the terminal. Supports `--demo
 
 | Document | Description |
 | --- | --- |
+| [First Install Guide](docs/platforms/nixos/FIRST-INSTALL.md) | Step-by-step for new NixOS users |
 | [NixOS Setup](docs/platforms/nixos/) | Flake and traditional NixOS deployment |
 | [Docker Setup](docs/platforms/docker/) | Container-based deployment |
 | [Production Deployment](docs/PRODUCTION-DEPLOYMENT.md) | Security checklist, monitoring, backup |
-| [Developer Guide](docs/DEVELOPER-GUIDE.md) | Architecture, API reference, contributing |
-| [Testing](TESTING.md) | Unit, E2E, and security test suites |
+| [Admin Guide](docs/ADMIN-GUIDE.md) | License, network, AI, user management |
+| [User Guide](docs/USER-GUIDE.md) | Daily usage, keyboard shortcuts, TUI |
 | [Changelog](CHANGELOG.md) | Version history |
 | [Compatibility Matrix](docs/COMPATIBILITY.md) | Hardware, platform, and BIOS requirements |
 | [Security Policy](SECURITY.md) | Vulnerability reporting |
@@ -457,11 +459,6 @@ We welcome contributions. See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 Before submitting a PR:
 ```bash
 npm run test:precommit   # lint + typecheck + unit tests
-```
-
-E2E tests run in Docker:
-```bash
-cd testing/e2e-docker && ./scripts/run-tests.sh
 ```
 
 ## Attributions
@@ -487,7 +484,7 @@ Special thanks to the [NixOS](https://nixos.org) community and [Astro](https://g
 
 **Weaver Free** is licensed under AGPL-3.0 with Commons Clause and AI Training Restriction. See [LICENSE](LICENSE).
 
-**Weaver Solo, Weaver Team, and Fabrick** are licensed under BSL-1.1 (Business Source License 1.1). See [LICENSE-PAID-DRAFT](docs/legal/LICENSE-PAID-DRAFT.md).
+**Weaver Solo, Weaver Team, and Fabrick** are licensed under BSL-1.1 (Business Source License 1.1). Contact us for details.
 
 The Free tier code is source-available and free to use, modify, and self-host. The restrictions prevent AI model training on this codebase and commercial resale of the software itself. If you're running it on your NixOS box, you're good. Paid tiers convert to AGPL-3.0 four years after each release.
 

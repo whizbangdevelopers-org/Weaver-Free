@@ -1,5 +1,5 @@
 # Copyright (c) 2026 whizBANG Developers LLC. All rights reserved.
-# Licensed under AGPL-3.0 (Free). See LICENSE.
+# Proprietary and confidential. Do not distribute.
 # OpenSSF Scorecard
 # CREATED IN: Dev repo
 # USED BY: Security posture assessment
@@ -8,19 +8,21 @@
 name: OpenSSF Scorecard
 
 on:
-  push:
-    branches: [main]
+  # Push trigger disabled on private Dev repo — saves CI minutes.
+  # Scorecard runs on the public Free repo (free minutes).
   schedule:
-    - cron: '0 6 * * 1'  # Weekly Monday 6am UTC
+    - cron: '0 6 * * 1'   # Weekly Monday 6am UTC
+  workflow_dispatch:
 
-permissions:
-  security-events: write
-  id-token: write
+permissions: read-all
 
 jobs:
   scorecard:
     name: Scorecard Analysis
     runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      id-token: write
 
     steps:
       - name: Checkout repository

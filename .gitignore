@@ -85,6 +85,7 @@ data/
 !backend/data/
 backend/data/*
 !backend/data/distro-catalog.json
+!scripts/data/
 
 # SBOM (build artifacts from CycloneDX)
 sbom*.json

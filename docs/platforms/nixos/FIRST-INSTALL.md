@@ -316,7 +316,20 @@ Save (`Ctrl+S`, `Ctrl+X`), then:
 nixos-rebuild switch
 ```
 
-The first build compiles Weaver from source — this takes **2-5 minutes**. You'll see lots of Nix output scrolling by. Subsequent rebuilds are near-instant thanks to the Nix store cache.
+The first build compiles Weaver from source. **This takes 5-10 minutes** depending on your machine and internet speed. Here's what you'll see and what each phase means:
+
+| What you see | What's happening | Time |
+|---|---|---|
+| `fetching path '/nix/store/...'` | Downloading npm dependencies (~200 MB) | 1-3 min |
+| `patchShebangs node_modules` (lots of output) | Nix fixing script paths — safe to ignore | ~30 sec |
+| `Building backend...` | Compiling the Fastify API server | ~30 sec |
+| `Building TUI...` | Compiling the terminal interface | ~30 sec |
+| Quasar ASCII art + `Compiling of SPA UI...` | Building the web frontend (biggest step) | 2-4 min |
+| `activating the configuration...` | NixOS applying the new system | ~15 sec |
+
+> **It will look stuck during the npm fetch and frontend compile.** This is normal — Nix doesn't show a progress bar for these phases. If it's been running for 10+ minutes with no output, check `journalctl -f` in another terminal for errors.
+>
+> **Subsequent rebuilds are near-instant** — Nix caches everything. Only changed files trigger a recompile.
 
 ---
 
