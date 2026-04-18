@@ -9,6 +9,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-04-18
+
+Non-security patch release. Fixes a critical release-mechanics bug that prevented the Weaver Free public tarball from being built from source. Tightens CI guardrails against the bug class that caused it.
+
+### Fixed
+
+- **Free tarball now builds from source.** v1.0.0 shipped with latent build failures on the Weaver-Free public repo: `../scripts/` path escapes in `prebuild` and `audit:docs-links` scripts, plus ~97 unguarded imports of sync-excluded paths across source, that only surfaced when someone tried to `nix-build` from the released tarball. Refactored with a stub-shim pattern: `demo.ts`, `mock-vm.ts`, `mock-container.ts`, `useDemoContainerState.ts`, `useMilestoneModal.ts`, and `mock-agent.ts` are now thin shims that ship to Free and eagerly glob (or `try/catch` dynamic-import) their `-data.ts` siblings that remain sync-excluded. Paid-tier route imports in `routes.ts` are now inside a `VITE_FREE_BUILD === 'true'` ternary guard that rolldown tree-shakes. Fabrick-tier pages (`FabrickOverviewPage.vue`, `LoomPage.vue`) moved into `src/pages/fabrick/` so they're auto-excluded by the existing directory rule.
+- **OpenSSF Scorecard badge was showing "invalid repo path"** due to the deprecated `api.securityscorecards.dev` domain. Updated `code/README.md` to the current `api.scorecard.dev`.
+- **Scorecard workflow rejected on "global perm is set to write"** — flipped `default_workflow_permissions` from `write` to `read` on both Weaver-Dev and Weaver-Free via the GitHub API, and added top-level `permissions: read-all` to 7 workflows that had only job-level permissions (codeql, demo-deploy, demo-reset, dependabot-labeler, dependabot-tracker, security-scan, stale).
+- **sync-to-free workflow** had the `- demo/` pattern matching `src/components/demo/` at any depth (rsync pattern semantics). Anchored to `- /demo/` so only `code/demo/` is excluded.
+- **`npm ci` anti-pattern in workspaces.** release.yml, test.yml, and release-verify-create.yml had redundant `cd backend && npm ci` and `cd tui && npm ci` steps that pruned root devDependencies (including `@quasar/app-vite` which provides the `quasar` binary) after the workspaces refactor. Collapsed to a single root `npm ci`.
+- **NUR dispatch payload** sent raw-hex source hashes; `fetchFromGitHub` expects SRI format. Added hex→SRI conversion step in release.yml and changed the dispatch event-type from generic `update-package` to the per-package `weaver-free-release` convention (matching the Qepton precedent).
+- **Dependency vulnerabilities** — `npm audit fix` (non-breaking) addressed 4 high-severity vulns; 11 dev-only issues remain.
+
+### Added
+
+- **New auditor `audit:excluded-imports`** — scans source for static or dynamic imports of sync-excluded paths without a guard. Static imports are always flagged; dynamic imports must be inside a `VITE_FREE_BUILD === 'true' ? [] : […]` ternary or a `try { … }` block. Wired into `test:compliance`.
+- **New auditor `audit:release-builds`** — pre-flight simulation of downstream build contexts before a release tag is pushed. Currently covers the `free-tarball` context (sync-flattened `npm ci + build:all`); docker, public-demo, private-demo contexts planned. Wired into `test:prerelease`.
+- **New auditor `audit:openssf-baseline`** — pre-OpenSSF Scorecard baseline check. Validates 7 Scorecard concerns locally (no network) so regressions fail the push rather than surfacing on the next weekly scan: Token-Permissions, Pinned-Dependencies, Dependency-Update-Tool, Security-Policy, SAST, License, Signed-Releases. Wired into `test:compliance`.
+- **New product doc `docs/security/ENGINEERING-DISCIPLINE.md`** — ships with Weaver Free, registered in DocsPage. Tells the "internal CI vs Enterprise CI" credibility story with enumerated, verifiable checks. Available as a compliance doc slug.
+- **Branch protection** enabled on `whizbangdevelopers-org/Weaver-Free` `main` (required_approving_review_count: 0, dismiss_stale_reviews: true, enforce_admins: false, allow_force_pushes: false, allow_deletions: false).
+- **Dependabot** — `.github/dependabot.yml` removed from the sync exclusion list so Weaver-Free gets weekly dependency updates.
+- **CodeQL push trigger** — codeql.yml now triggers on push to main (not just PRs and the weekly schedule).
+
+### Changed
+
+- **`src/config/demo.ts` split into `demo-mode.ts` (ships) + `demo-data.ts` (sync-excluded)**. 51 non-demo files migrated from `src/config/demo` to `src/config/demo-mode` for their flag-only imports (`isDemoMode`, `isPublicDemo`, `DEMO_LINKS`, `PUBLIC_DEMO_LINKS`, `DEMO_TIER_STAGES`). The mock-data side uses the stub-shim pattern — old `from 'src/config/demo'` imports still work; `demo.ts` is now a small shim with eager `import.meta.glob` fallback to `demo-data.ts`.
+- **Demo UI scaffolding** (`src/components/demo/`, `DemoBanner.vue`, `DemoToolbar.vue`, `DemoLoginModal.vue`, `src/pages/DemoLoginPage.vue`, `src/pages/funnel/`, `src/constants/pricing.ts`) is no longer sync-excluded. These files are small, not commercially sensitive, and publicly viewable at weaver-dev.github.io. Paid-tier components (`src/components/weaver/`, `src/components/fabrick/`, `src/pages/fabrick/`) remain excluded.
+- **Release-process documentation** now explicitly states patch releases aren't security-only: release-mechanics fixes, build regressions, pipeline fixes, and documentation corrections are all valid patch-release triggers.
+- **`audit:docs-links`** is now a no-op on Free builds where `scripts/verify-docs-links.ts` is sync-excluded. On Dev where the script exists, behavior is unchanged.
+- **`generate:versions`** is a no-op on Free builds where `../scripts/delivery-projection.ts` doesn't exist. On Dev, the script runs as before.
+
 ## [1.0.0] - 2026-04-17
 
 Initial public release. Production-ready NixOS MicroVM management dashboard.

@@ -85,7 +85,7 @@ import { computed } from 'vue'
 import { useQuasar } from 'quasar'
 import { useRouter } from 'vue-router'
 import { useAppStore, type Tier } from 'src/stores/app'
-import { DEMO_TIER_STAGES, isPublicDemo } from 'src/config/demo'
+import { DEMO_TIER_STAGES, isPublicDemo } from 'src/config/demo-mode'
 import { TIERS } from 'src/constants/vocabularies'
 import { PRICING } from 'src/constants/pricing'
 

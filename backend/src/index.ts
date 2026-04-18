@@ -224,11 +224,13 @@ await urlValidator.init()
 let provisioner: Provisioner | null = null
 if (config.provisioningEnabled) {
   try {
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore - tier-gated path sync-excluded from Free repo
     const { createProvisioner } = await import('./services/weaver/provisioner.js')
     provisioner = createProvisioner(vmRegistry, imageManager, config)
     setProvisioner(provisioner)
     fastify.log.info('VM provisioning enabled')
-    await provisioner.autostartCloudVms()
+    await provisioner!.autostartCloudVms()
   } catch {
     fastify.log.info('Provisioning services not available')
   }
@@ -239,6 +241,8 @@ const networkStore = new NetworkStore(join(config.dataDir, 'network-config.json'
 await networkStore.init()
 let networkManager: unknown = null
 try {
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-ignore - tier-gated path sync-excluded from Free repo
   const { NetworkManager } = await import('./services/weaver/network-manager.js')
   networkManager = new NetworkManager(networkStore, config)
 } catch {
@@ -459,6 +463,8 @@ if (config.stripeSecretKey) {
 
 // Premium routes (dynamically loaded — absent in free tier)
 try {
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-ignore - tier-gated path sync-excluded from Free repo
   const { premiumRoutes } = await import('./routes/weaver/index.js')
   await fastify.register(premiumRoutes, {
     config, auditService,

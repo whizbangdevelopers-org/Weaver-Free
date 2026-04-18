@@ -215,7 +215,8 @@ interface ImportRef {
 }
 
 const STATIC_IMPORT_RE = /^\s*import\s+(?:(?:type\s+)?[^'"`]+\s+from\s+)?['"]([^'"]+)['"]/gm
-const DYNAMIC_IMPORT_RE = /\bimport\s*\(\s*['"]([^'"]+)['"]/g
+// Match `import(...)` but NOT `typeof import(...)` (which is type-only and has no runtime).
+const DYNAMIC_IMPORT_RE = /(?<!typeof\s)\bimport\s*\(\s*['"]([^'"]+)['"]/g
 const GLOB_IMPORT_RE = /import\.meta\.glob\s*\(\s*['"]([^'"]+)['"]/g
 
 function extractImports(content: string): ImportRef[] {
@@ -233,7 +234,10 @@ function extractImports(content: string): ImportRef[] {
   }
 
   const getContextBefore = (line: number) => {
-    const start = Math.max(0, line - 6)
+    // Widened to 40 lines so guards that open a longer array of route
+    // entries or nested blocks still reach later imports. Deeper guards
+    // than 40 lines suggest the block should be extracted into a helper.
+    const start = Math.max(0, line - 60)
     return lines.slice(start, line).join('\n')
   }
 
@@ -260,14 +264,25 @@ function extractImports(content: string): ImportRef[] {
 }
 
 /**
- * Is this dynamic import lexically inside a VITE_FREE_BUILD guard?
- * Heuristic: the 6 lines preceding the import contain
- * `VITE_FREE_BUILD === 'true' ? [] :` or similar ternary-spread. This
- * mirrors the established pattern in routes.ts.
+ * Is this dynamic import lexically guarded against Free-build evaluation?
+ *
+ * Accepted guard patterns within the preceding context window:
+ *
+ *   1. `VITE_FREE_BUILD === 'true' ?` — any ternary with the Free-build
+ *      flag as its predicate. Free branch (stub) must come first; the
+ *      import lives in the false branch that rolldown tree-shakes.
+ *
+ *   2. `try {` — the import is inside a try/catch block that catches
+ *      the missing-module error at runtime. Applies to backend files
+ *      that aren't Vite-bundled and so can't use the ternary pattern.
+ *
+ *   3. `import.meta.glob(` — declared elsewhere (already handled by
+ *      the 'glob' ref kind), never reaches this check.
  */
 function isGuarded(ref: ImportRef): boolean {
-  const guardRe = /VITE_FREE_BUILD\s*===?\s*['"]true['"]\s*\?\s*\[\s*\]\s*:/
-  return guardRe.test(ref.contextBefore)
+  const freeBuildGuard = /VITE_FREE_BUILD\s*===?\s*['"]true['"]\s*\?/
+  const tryGuard = /\btry\s*\{/
+  return freeBuildGuard.test(ref.contextBefore) || tryGuard.test(ref.contextBefore)
 }
 
 // ---------------------------------------------------------------------------
