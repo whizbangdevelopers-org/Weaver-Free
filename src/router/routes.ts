@@ -87,23 +87,23 @@ const routes: RouteRecordRaw[] = [
         props: true,
         meta: { title: 'Documentation' },
       },
-      {
-        // Fabrick overview — demo v3.0+ Fabrick only
-        path: 'fabrick',
-        component: () => import('pages/FabrickOverviewPage.vue'),
-        meta: { requiresFabrick: true, title: 'FabricK' },
-      },
-      {
-        // Loom — fleet topology, demo v3.0+ Fabrick only
-        path: 'loom',
-        component: () => import('pages/LoomPage.vue'),
-        meta: { requiresFabrick: true, title: 'Loom' },
-      },
-      // Tier-gated routes — imports are sync-excluded from the public Free repo.
+      // Tier-gated routes — imports reference sync-excluded files.
       // Free builds set VITE_FREE_BUILD=true so the spread resolves to [] and
-      // rolldown tree-shakes the dynamic imports dead. Do NOT reference these
-      // page paths outside this guarded block, or the Free tarball build breaks.
+      // rolldown tree-shakes the dynamic imports dead. Do NOT reference any
+      // of these page paths outside this guarded block.
       ...(import.meta.env.VITE_FREE_BUILD === 'true' ? [] : [
+        {
+          // Fabrick overview — demo v3.0+ Fabrick only
+          path: 'fabrick',
+          component: () => import('pages/fabrick/FabrickOverviewPage.vue'),
+          meta: { requiresFabrick: true, title: 'FabricK' },
+        },
+        {
+          // Loom — fleet topology, demo v3.0+ Fabrick only
+          path: 'loom',
+          component: () => import('pages/fabrick/LoomPage.vue'),
+          meta: { requiresFabrick: true, title: 'Loom' },
+        },
         {
           // Warp — fleet host configuration patterns, demo v2.5+ Fabrick
           path: 'warp',

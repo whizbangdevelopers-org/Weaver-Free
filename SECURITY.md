@@ -17,13 +17,15 @@ We take security seriously, especially given that Weaver manages virtual machine
 
 ### How to Report
 
-1. **Do NOT** open a public issue for security vulnerabilities.
-2. Use GitHub's private vulnerability reporting feature:
-   - Go to the repository's **Security** tab
-   - Click **Report a vulnerability**
-3. Alternatively, email the maintainers directly with:
+**Primary channel — GitHub Private Vulnerability Reporting:** [Report a vulnerability](https://github.com/whizbangdevelopers-org/Weaver-Free/security/advisories/new).
+
+**Alternative channel — email:** `security@whizbangdevelopers.com`. Use this if the GitHub Security UI is unavailable or the report involves GitHub itself. For sensitive reports, encrypt with our PGP key (published at [whizbangdevelopers.com/.well-known/security.txt](https://whizbangdevelopers.com/.well-known/security.txt) per [RFC 9116](https://www.rfc-editor.org/rfc/rfc9116)).
+
+1. **Do NOT** open a public issue or pull request for security vulnerabilities.
+2. **Do NOT** disclose publicly until we have coordinated a release.
+3. When reporting, include:
    - Description of the vulnerability
-   - Steps to reproduce
+   - Steps to reproduce (minimal reproduction preferred)
    - Potential impact assessment
    - Any suggested fixes (optional)
 

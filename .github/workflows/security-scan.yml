@@ -18,6 +18,8 @@ on:
   #     - 'package.json'
   #     - 'package-lock.json'
 
+permissions: read-all
+
 jobs:
   audit:
     name: Dependency Audit

@@ -31,7 +31,11 @@ import { TIERS } from 'src/constants/vocabularies'
 
 const PushChannels = useTierFeature({
   minimumTier: TIERS.SOLO,
-  loader: () => import('src/components/weaver/NotificationPushChannels.vue'),
+  // Loader references a sync-excluded file. Free builds stub it; paid-tier
+  // builds lazy-load the real component.
+  loader: import.meta.env.VITE_FREE_BUILD === 'true'
+    ? () => Promise.resolve({ default: { template: '' } })
+    : () => import('src/components/weaver/NotificationPushChannels.vue'),
   featureName: 'Push Notifications',
   featureDescription: 'Configure push notification channels for alerts.',
   features: ['ntfy.sh integration', 'Email (SMTP)', 'Webhooks', 'Web Push'],

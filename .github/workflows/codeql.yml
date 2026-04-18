@@ -8,13 +8,15 @@
 name: CodeQL Analysis
 
 on:
-  # Push trigger disabled on private Dev repo — saves CI minutes.
-  # CodeQL runs on the public Free repo (free minutes).
+  push:
+    branches: [main]
   pull_request:
     branches: [main]
   schedule:
     - cron: '0 1 * * 0'   # Weekly Sunday 1am UTC
   workflow_dispatch:
+
+permissions: read-all
 
 jobs:
   analyze:

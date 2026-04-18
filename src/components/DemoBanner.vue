@@ -18,7 +18,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { isDemoMode as checkDemoMode, isPublicDemo, PUBLIC_DEMO_LINKS } from 'src/config/demo'
+import { isDemoMode as checkDemoMode, isPublicDemo, PUBLIC_DEMO_LINKS } from 'src/config/demo-mode'
 
 const isDemo = computed(() => checkDemoMode())
 const isPublic = computed(() => isPublicDemo())

@@ -23,6 +23,8 @@ on:
 env:
   DEMO_REPO: weaver-dev/weaver-dev.github.io
 
+permissions: read-all
+
 jobs:
   build-and-deploy:
     name: Build and Deploy Demo

@@ -21,7 +21,9 @@ export interface TierViewConfig {
 export const TIER_VIEWS: Record<string, TierViewConfig> = {
   network: {
     minimumTier: TIERS.SOLO,
-    loader: () => import('../components/weaver/NetworkView.js'),
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore - tier-gated path sync-excluded from Free repo
+    loader: async () => { try { return await import('../components/weaver/NetworkView.js') } catch { return { default: () => null } } },
     exportName: 'NetworkView',
     featureName: 'Network Topology',
     featureDescription: 'View bridge topology, VM network mappings, and connectivity status.',
@@ -29,7 +31,9 @@ export const TIER_VIEWS: Record<string, TierViewConfig> = {
   },
   templates: {
     minimumTier: TIERS.SOLO,
-    loader: () => import('../components/weaver/TemplatesView.js'),
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore - tier-gated path sync-excluded from Free repo
+    loader: async () => { try { return await import('../components/weaver/TemplatesView.js') } catch { return { default: () => null } } },
     exportName: 'TemplatesView',
     featureName: 'VM Templates',
     featureDescription: 'Pre-configured VM templates for common workloads.',
@@ -37,7 +41,9 @@ export const TIER_VIEWS: Record<string, TierViewConfig> = {
   },
   'host-detail': {
     minimumTier: TIERS.FREE,
-    loader: () => import('../components/weaver/HostDetailView.js'),
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore - tier-gated path sync-excluded from Free repo
+    loader: async () => { try { return await import('../components/weaver/HostDetailView.js') } catch { return { default: () => null } } },
     exportName: 'HostDetailView',
     featureName: 'Host Information',
     featureDescription: 'Basic host info at all tiers. CPU topology, disk, and live metrics require weaver.',
@@ -45,7 +51,9 @@ export const TIER_VIEWS: Record<string, TierViewConfig> = {
   },
   notifications: {
     minimumTier: TIERS.FREE,
-    loader: () => import('../components/weaver/NotificationsView.js'),
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore - tier-gated path sync-excluded from Free repo
+    loader: async () => { try { return await import('../components/weaver/NotificationsView.js') } catch { return { default: () => null } } },
     exportName: 'NotificationsView',
     featureName: 'Notifications',
     featureDescription: 'View system events, VM lifecycle alerts, and error notifications.',
@@ -53,7 +61,9 @@ export const TIER_VIEWS: Record<string, TierViewConfig> = {
   },
   settings: {
     minimumTier: TIERS.FREE,
-    loader: () => import('../components/weaver/SettingsView.js'),
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore - tier-gated path sync-excluded from Free repo
+    loader: async () => { try { return await import('../components/weaver/SettingsView.js') } catch { return { default: () => null } } },
     exportName: 'SettingsView',
     featureName: 'Settings',
     featureDescription: 'Configure AI agent, view connection info, and manage preferences.',
@@ -61,7 +71,9 @@ export const TIER_VIEWS: Record<string, TierViewConfig> = {
   },
   users: {
     minimumTier: TIERS.FABRICK,
-    loader: () => import('../components/fabrick/UsersView.js'),
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore - tier-gated path sync-excluded from Free repo
+    loader: async () => { try { return await import('../components/fabrick/UsersView.js') } catch { return { default: () => null } } },
     exportName: 'UsersView',
     featureName: 'User Management',
     featureDescription: 'Manage users, roles, and permissions across your organization.',
@@ -69,7 +81,9 @@ export const TIER_VIEWS: Record<string, TierViewConfig> = {
   },
   'user-detail': {
     minimumTier: TIERS.FABRICK,
-    loader: () => import('../components/fabrick/UserDetailView.js'),
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore - tier-gated path sync-excluded from Free repo
+    loader: async () => { try { return await import('../components/fabrick/UserDetailView.js') } catch { return { default: () => null } } },
     exportName: 'UserDetailView',
     featureName: 'User Details',
     featureDescription: 'View user info, resource quotas, and per-VM access control.',
@@ -77,7 +91,9 @@ export const TIER_VIEWS: Record<string, TierViewConfig> = {
   },
   audit: {
     minimumTier: TIERS.FABRICK,
-    loader: () => import('../components/fabrick/AuditView.js'),
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore - tier-gated path sync-excluded from Free repo
+    loader: async () => { try { return await import('../components/fabrick/AuditView.js') } catch { return { default: () => null } } },
     exportName: 'AuditView',
     featureName: 'Audit Log',
     featureDescription: 'Track all user actions, VM operations, and security events.',
@@ -85,7 +101,9 @@ export const TIER_VIEWS: Record<string, TierViewConfig> = {
   },
   'fleet-bridges': {
     minimumTier: TIERS.FABRICK,
-    loader: () => import('../components/fabrick/FleetBridgesView.js'),
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore - tier-gated path sync-excluded from Free repo
+    loader: async () => { try { return await import('../components/fabrick/FleetBridgesView.js') } catch { return { default: () => null } } },
     exportName: 'FleetBridgesView',
     featureName: 'Fleet Bridges',
     featureDescription: 'Fleet virtual bridges — AI-operated routing across hosts. Replaces K8s CNI, ingress, and rollout controllers.',
