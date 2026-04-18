@@ -4,7 +4,8 @@ import { ref } from 'vue'
 import { vmApiService } from 'src/services/api'
 import type { WorkloadInfo, WorkloadActionResult, VmCreateInput } from 'src/types/workload'
 import { extractErrorMessage } from 'src/utils/error'
-import { isDemoMode, getDemoVmsForTier, getDemoVmsForHost } from 'src/config/demo'
+import { isDemoMode } from 'src/config/demo-mode'
+import { getDemoVmsForTier, getDemoVmsForHost } from 'src/config/demo'
 import { useAppStore } from 'src/stores/app'
 import {
   mockCreateVm, mockDeleteVm, mockStartVm, mockStopVm, mockRestartVm,

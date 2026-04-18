@@ -117,7 +117,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useAppStore } from 'src/stores/app'
-import { isDemoMode } from 'src/config/demo'
+import { isDemoMode } from 'src/config/demo-mode'
 import { PRICING, formatPricing } from 'src/constants/pricing'
 
 const appStore = useAppStore()

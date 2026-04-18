@@ -3,7 +3,7 @@
 import { defineStore } from 'pinia'
 import { api } from 'src/boot/axios'
 import { useSettingsStore } from 'src/stores/settings-store'
-import { isDemoMode } from 'src/config/demo'
+import { isDemoMode } from 'src/config/demo-mode'
 import { ROLES, type UserRole } from 'src/constants/vocabularies'
 
 export type SectorId =

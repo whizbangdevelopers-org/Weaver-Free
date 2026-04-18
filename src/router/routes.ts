@@ -1,7 +1,7 @@
 // Copyright (c) 2026 whizBANG Developers LLC. All rights reserved.
 // Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE.
 import { RouteRecordRaw } from 'vue-router'
-import { isDemoMode } from 'src/config/demo'
+import { isDemoMode } from 'src/config/demo-mode'
 
 // Build-time demo mode: show DemoLoginPage instead of LoginPage
 const loginComponent = isDemoMode()
@@ -99,40 +99,45 @@ const routes: RouteRecordRaw[] = [
         component: () => import('pages/LoomPage.vue'),
         meta: { requiresFabrick: true, title: 'Loom' },
       },
-      {
-        // Warp — fleet host configuration patterns, demo v2.5+ Fabrick
-        path: 'warp',
-        component: () => import('pages/fabrick/WarpPage.vue'),
-        meta: { requiresFabrick: true, title: 'Warp' },
-      },
-      {
-        // Workload Groups — demo v3.3+ Fabrick only
-        path: 'groups',
-        component: () => import('pages/fabrick/GroupsPage.vue'),
-        meta: { requiresFabrick: true, title: 'Groups' },
-      },
-
-      // Public demo funnel pages (Decision #135)
-      {
-        path: 'explore/solo',
-        component: () => import('pages/funnel/SoloTeaserPage.vue'),
-        meta: { title: 'Weaver Solo' },
-      },
-      {
-        path: 'explore/team',
-        component: () => import('pages/funnel/TeamVisionPage.vue'),
-        meta: { title: 'Weaver Team' },
-      },
-      {
-        path: 'explore/fabrick',
-        component: () => import('pages/funnel/FabrickVisionPage.vue'),
-        meta: { title: 'FabricK' },
-      },
-      {
-        path: 'explore/pricing',
-        component: () => import('pages/funnel/PricingPage.vue'),
-        meta: { title: 'Pricing' },
-      },
+      // Tier-gated routes — imports are sync-excluded from the public Free repo.
+      // Free builds set VITE_FREE_BUILD=true so the spread resolves to [] and
+      // rolldown tree-shakes the dynamic imports dead. Do NOT reference these
+      // page paths outside this guarded block, or the Free tarball build breaks.
+      ...(import.meta.env.VITE_FREE_BUILD === 'true' ? [] : [
+        {
+          // Warp — fleet host configuration patterns, demo v2.5+ Fabrick
+          path: 'warp',
+          component: () => import('pages/fabrick/WarpPage.vue'),
+          meta: { requiresFabrick: true, title: 'Warp' },
+        },
+        {
+          // Workload Groups — demo v3.3+ Fabrick only
+          path: 'groups',
+          component: () => import('pages/fabrick/GroupsPage.vue'),
+          meta: { requiresFabrick: true, title: 'Groups' },
+        },
+        // Public demo funnel pages (Decision #135)
+        {
+          path: 'explore/solo',
+          component: () => import('pages/funnel/SoloTeaserPage.vue'),
+          meta: { title: 'Weaver Solo' },
+        },
+        {
+          path: 'explore/team',
+          component: () => import('pages/funnel/TeamVisionPage.vue'),
+          meta: { title: 'Weaver Team' },
+        },
+        {
+          path: 'explore/fabrick',
+          component: () => import('pages/funnel/FabrickVisionPage.vue'),
+          meta: { title: 'FabricK' },
+        },
+        {
+          path: 'explore/pricing',
+          component: () => import('pages/funnel/PricingPage.vue'),
+          meta: { title: 'Pricing' },
+        },
+      ]),
     ],
   },
 

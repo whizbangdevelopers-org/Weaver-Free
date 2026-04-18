@@ -5,7 +5,7 @@ import type { AxiosRequestConfig } from 'axios'
 import type { WorkloadInfo, WorkloadActionResult, VmCreateInput } from 'src/types/workload'
 import type { NetworkTopology, BridgeInfo, IpPoolConfig, FirewallRule } from 'src/types/network'
 import type { NotificationEvent, NotificationChannelConfigData, ChannelConfig, ResourceAlertConfig } from 'src/types/notification'
-import { isDemoMode } from 'src/config/demo'
+import { isDemoMode } from 'src/config/demo-mode'
 import { STATUSES } from 'src/constants/vocabularies'
 
 /**

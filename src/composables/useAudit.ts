@@ -4,7 +4,7 @@ import { ref, reactive, computed, watch } from 'vue'
 import { auditApiService } from 'src/services/api'
 import type { AuditEntry, AuditQueryParams } from 'src/services/api'
 import { extractErrorMessage } from 'src/utils/error'
-import { isDemoMode } from 'src/config/demo'
+import { isDemoMode } from 'src/config/demo-mode'
 import { ROLES } from 'src/constants/vocabularies'
 
 /** Known audit action categories for color-coding and filtering */

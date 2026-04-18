@@ -114,7 +114,7 @@ import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useAppStore } from 'src/stores/app'
 import { useAuthStore } from 'src/stores/auth-store'
 import { api } from 'src/boot/axios'
-import { isDemoMode } from 'src/config/demo'
+import { isDemoMode } from 'src/config/demo-mode'
 import { doctorApiService } from 'src/services/api'
 import type { HostBasicInfo } from 'src/types/host'
 

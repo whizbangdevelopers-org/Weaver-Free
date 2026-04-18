@@ -5,7 +5,7 @@ import { agentApiService } from 'src/services/agent-api'
 import { useAgentStore } from 'src/stores/agent-store'
 import { useAppStore } from 'src/stores/app'
 import { useSettingsStore } from 'src/stores/settings-store'
-import { isDemoMode } from 'src/config/demo'
+import { isDemoMode } from 'src/config/demo-mode'
 import type { AgentAction, LlmVendor } from 'src/types/agent'
 import { extractErrorMessage } from 'src/utils/error'
 

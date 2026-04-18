@@ -4,7 +4,7 @@ import { boot } from 'quasar/wrappers'
 import axios, { AxiosInstance, InternalAxiosRequestConfig } from 'axios'
 import type { AxiosError } from 'axios'
 import type { Router } from 'vue-router'
-import { isDemoMode } from 'src/config/demo'
+import { isDemoMode } from 'src/config/demo-mode'
 
 declare module '@vue/runtime-core' {
   interface ComponentCustomProperties {

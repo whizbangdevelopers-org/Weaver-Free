@@ -307,7 +307,8 @@ import DemoVersionFeatures from 'src/components/demo/DemoVersionFeatures.vue'
 import DemoReleaseSummary from 'src/components/demo/DemoReleaseSummary.vue'
 import { useAuthStore } from 'src/stores/auth-store'
 import { useAppStore } from 'src/stores/app'
-import { isDemoMode, isPublicDemo, getDemoContainersForTier, DEMO_WORKLOAD_CONNECTIONS, DEMO_HOSTS, getDemoVmsForHost } from 'src/config/demo'
+import { isDemoMode, isPublicDemo } from 'src/config/demo-mode'
+import { getDemoContainersForTier, DEMO_WORKLOAD_CONNECTIONS, DEMO_HOSTS, getDemoVmsForHost } from 'src/config/demo'
 import { api } from 'src/boot/axios'
 
 const $q = useQuasar()

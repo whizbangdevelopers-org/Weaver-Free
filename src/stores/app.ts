@@ -2,7 +2,8 @@
 // Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE.
 import { defineStore } from 'pinia'
 import { api } from 'src/boot/axios'
-import { isDemoMode, isPublicDemo, DEMO_VERSIONS, getPublicDemoSteps, getDemoHostBasicInfo } from 'src/config/demo'
+import { isDemoMode, isPublicDemo } from 'src/config/demo-mode'
+import { DEMO_VERSIONS, getPublicDemoSteps, getDemoHostBasicInfo } from 'src/config/demo'
 import { setMockVmsForHost, clearMockVms } from 'src/services/mock-vm'
 import type { HostBasicInfo } from 'src/types/host'
 import type { PluginManifest } from 'src/types/plugin'

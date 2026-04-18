@@ -128,7 +128,7 @@ import StatusBadge from 'src/components/StatusBadge.vue'
 import { useVmSelection } from 'src/composables/useVmSelection'
 import { useResourceDrawerStore } from 'src/stores/resource-drawer-store'
 import { useAppStore } from 'src/stores/app'
-import { isDemoMode } from 'src/config/demo'
+import { isDemoMode } from 'src/config/demo-mode'
 import { vmTypeIcon, vmTypeColor } from 'src/utils/vm'
 import type { WorkloadInfo } from 'src/types/workload'
 

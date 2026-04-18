@@ -275,7 +275,7 @@
 import { ref, computed } from 'vue'
 import { useQuasar } from 'quasar'
 import { useAppStore } from 'stores/app'
-import { isDemoMode } from 'src/config/demo'
+import { isDemoMode } from 'src/config/demo-mode'
 import AddVmDialog from 'src/components/AddVmDialog.vue'
 import CreateVmDialog from 'src/components/CreateVmDialog.vue'
 import VersionNag from 'src/components/demo/VersionNag.vue'

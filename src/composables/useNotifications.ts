@@ -5,7 +5,8 @@ import { onWsMessage } from 'src/services/ws'
 import { useNotificationStore } from 'src/stores/notification-store'
 import { useAppStore } from 'src/stores/app'
 import { notificationApiService } from 'src/services/api'
-import { isDemoMode, getDemoNotificationsForTier } from 'src/config/demo'
+import { isDemoMode } from 'src/config/demo-mode'
+import { getDemoNotificationsForTier } from 'src/config/demo'
 import type { NotificationEvent } from 'src/types/notification'
 
 export function useNotifications() {

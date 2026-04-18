@@ -3,7 +3,8 @@
 import { ref, watch, onMounted, onUnmounted, type Ref } from 'vue'
 import type { WorkloadInfo } from 'src/types/workload'
 import { acquireWs, onWsMessage, onWsConnect, onWsDisconnect, isWsConnected } from 'src/services/ws'
-import { isDemoMode, getDemoVmsForTier, getDemoVmsForHost } from 'src/config/demo'
+import { isDemoMode } from 'src/config/demo-mode'
+import { getDemoVmsForTier, getDemoVmsForHost } from 'src/config/demo'
 import { useAppStore } from 'src/stores/app'
 
 function loadDemoVms(appStore: ReturnType<typeof useAppStore>, vms: Ref<WorkloadInfo[]>, connected: Ref<boolean>, lastUpdate: Ref<string | null>) {
