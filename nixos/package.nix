@@ -13,8 +13,9 @@ pkgs.buildNpmPackage rec {
 
   src = ./..;
 
-  # Single hash covers all workspace deps (root + backend + tui)
-  npmDepsHash = "sha256-UlUtKz8JQBrLHPFdVUXMe/BALJ0U5+lW5+Lq626qfmY=";
+  # Single hash covers all workspace deps (root + backend + tui).
+  # Updated for v1.0.1 after `npm audit fix` changed the lockfile.
+  npmDepsHash = "sha256-aHvho8ROGegiLwa+czwrcQT6YMgAu8uc40YJ2sTiMjs=";
 
   makeCacheWritable = true;
   nodejs = pkgs.nodejs_24;
