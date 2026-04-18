@@ -12,7 +12,7 @@
     "tui"
   ],
   "scripts": {
-    "generate:versions": "npx tsx ../scripts/delivery-projection.ts --codegen",
+    "generate:versions": "if [ -f ../scripts/delivery-projection.ts ]; then npx tsx ../scripts/delivery-projection.ts --codegen; fi",
     "predev": "npm run generate:versions",
     "prebuild": "npm run generate:versions && npm run audit:docs-links",
     "dev": "./scripts/check-ports.sh 9010 && quasar dev -m pwa",
@@ -83,7 +83,7 @@
     "audit:test-coverage": "npx tsx scripts/verify-test-coverage.ts",
     "audit:nixos-version": "npx tsx scripts/verify-nixos-version.ts",
     "audit:project-parity": "npx tsx scripts/verify-project-parity.ts",
-    "audit:docs-links": "npx tsx scripts/verify-docs-links.ts",
+    "audit:docs-links": "if [ -f scripts/verify-docs-links.ts ]; then npx tsx scripts/verify-docs-links.ts; fi",
     "audit:runbooks": "npx tsx scripts/verify-runbooks.ts",
     "audit:eager-eval-tdz": "npx tsx scripts/verify-eager-eval-tdz.ts",
     "docs:snapshot": "bash scripts/snapshot-docs.sh",

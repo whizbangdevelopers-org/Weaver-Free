@@ -427,7 +427,7 @@ import HostListItem from 'src/components/fabrick/HostListItem.vue'
 import WorkloadCard from 'src/components/WorkloadCard.vue'
 import VmListItem from 'src/components/VmListItem.vue'
 import { STATUSES } from 'src/constants/vocabularies'
-import { isDemoMode } from 'src/config/demo'
+import { isDemoMode } from 'src/config/demo-mode'
 import DemoVersionFeatures from 'src/components/demo/DemoVersionFeatures.vue'
 
 const appStore = useAppStore()

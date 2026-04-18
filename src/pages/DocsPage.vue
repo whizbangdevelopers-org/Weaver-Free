@@ -71,7 +71,7 @@
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAppStore } from 'src/stores/app'
-import { isDemoMode } from 'src/config/demo'
+import { isDemoMode } from 'src/config/demo-mode'
 import MarkdownIt from 'markdown-it'
 
 // Raw markdown imports — bundled at build time
@@ -84,8 +84,16 @@ import pciDssRaw from '../../docs/security/compliance/PCI-DSS-MAPPING.md?raw'
 import cisBenchmarksRaw from '../../docs/security/compliance/CIS-BENCHMARK-ALIGNMENT.md?raw'
 import cisControlsRaw from '../../docs/security/compliance/CIS-CONTROLS-MAPPING.md?raw'
 import soc2ReadinessRaw from '../../docs/security/compliance/SOC2-READINESS.md?raw'
-import runbookCacheKeyCompromiseRaw from '../../docs/operations/cache-key-compromise-runbook.md?raw'
-import policyCacheKeyRetirementRaw from '../../docs/operations/cache-key-retirement-policy.md?raw'
+// Operations docs live in a sync-excluded directory (internal-only). Use
+// import.meta.glob so the Free build doesn't fail when the directory is
+// absent — glob resolves to {} and we fall back to empty strings.
+const operationsDocs = import.meta.glob<string>('../../docs/operations/*.md', {
+  query: '?raw',
+  import: 'default',
+  eager: true,
+})
+const runbookCacheKeyCompromiseRaw = operationsDocs['../../docs/operations/cache-key-compromise-runbook.md'] ?? ''
+const policyCacheKeyRetirementRaw = operationsDocs['../../docs/operations/cache-key-retirement-policy.md'] ?? ''
 import attributionRaw from '../../ATTRIBUTION.md?raw'
 import termsOfServiceRaw from '../../docs/legal/TERMS-OF-SERVICE.md?raw'
 import productionDeploymentRaw from '../../docs/PRODUCTION-DEPLOYMENT.md?raw'

@@ -10,7 +10,7 @@ import {
 import routes from './routes'
 import { useAuthStore } from 'src/stores/auth-store'
 import { useAppStore } from 'src/stores/app'
-import { isDemoMode, isPublicDemo } from 'src/config/demo'
+import { isDemoMode, isPublicDemo } from 'src/config/demo-mode'
 
 export default route(function (/* { store, ssrContext } */) {
   const createHistory = process.env.SERVER

@@ -214,7 +214,7 @@ import { useSettingsStore } from 'src/stores/settings-store'
 import { useUiStore } from 'src/stores/ui-store'
 import { useAppStore } from 'src/stores/app'
 import { useAuthStore, SECTOR_OPTIONS, type SectorId } from 'src/stores/auth-store'
-import { isDemoMode } from 'src/config/demo'
+import { isDemoMode } from 'src/config/demo-mode'
 import { api } from 'src/boot/axios'
 
 const $q = useQuasar()

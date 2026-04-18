@@ -98,7 +98,7 @@ import { useWorkloadStore } from 'src/stores/workload-store'
 import { useAppStore } from 'src/stores/app'
 import { useWorkloadApi } from 'src/composables/useVmApi'
 import { presetTagApiService } from 'src/services/api'
-import { isDemoMode } from 'src/config/demo'
+import { isDemoMode } from 'src/config/demo-mode'
 
 const TAG_PATTERN = /^[a-z0-9][a-z0-9-]*$/
 

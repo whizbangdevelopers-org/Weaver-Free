@@ -119,7 +119,7 @@
 import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
 import { api } from 'src/boot/axios'
-import { isDemoMode } from 'src/config/demo'
+import { isDemoMode } from 'src/config/demo-mode'
 
 interface QuotaForm {
   maxVms: number | null

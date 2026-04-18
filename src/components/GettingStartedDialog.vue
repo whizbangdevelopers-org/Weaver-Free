@@ -169,7 +169,7 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useSettingsStore } from 'src/stores/settings-store'
 import { useWorkloadApi } from 'src/composables/useVmApi'
-import { isDemoMode } from 'src/config/demo'
+import { isDemoMode } from 'src/config/demo-mode'
 
 defineProps<{
   modelValue: boolean

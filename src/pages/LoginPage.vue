@@ -211,7 +211,7 @@ import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore, SECTOR_OPTIONS, type SectorId } from 'src/stores/auth-store'
 import { api } from 'src/boot/axios'
-import { isDemoMode } from 'src/config/demo'
+import { isDemoMode } from 'src/config/demo-mode'
 import { TIERS, TIER_LABELS, type TierName } from 'src/constants/vocabularies'
 
 const router = useRouter()

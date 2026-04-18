@@ -8,7 +8,8 @@ import { acquireWs, onWsMessage, onWsConnect, onWsDisconnect, isWsConnected } fr
 import type { WorkloadInfo } from 'src/types/workload'
 import type { BridgeInfo, NetworkNode } from 'src/types/network'
 import { extractErrorMessage } from 'src/utils/error'
-import { isDemoMode, getDemoVmsForHost, getDemoContainersForTier } from 'src/config/demo'
+import { isDemoMode } from 'src/config/demo-mode'
+import { getDemoVmsForHost, getDemoContainersForTier } from 'src/config/demo'
 import { STATUSES } from 'src/constants/vocabularies'
 
 export function useNetworkTopology() {

@@ -4,7 +4,7 @@ import { ref, computed } from 'vue'
 import { hostApiService } from 'src/services/api'
 import { useAppStore } from 'src/stores/app'
 import { extractErrorMessage } from 'src/utils/error'
-import { isDemoMode } from 'src/config/demo'
+import { isDemoMode } from 'src/config/demo-mode'
 import type { HostDetailedInfo } from 'src/types/host'
 
 export function useHostInfo() {
