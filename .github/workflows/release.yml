@@ -128,21 +128,42 @@ jobs:
           name: sbom
           path: ./release-assets/
 
+      # Keyless Sigstore signing. The OIDC token provided by `id-token: write`
+      # authorizes cosign to request a short-lived signing certificate from
+      # Fulcio and log the signature to Rekor. No long-lived keys, no secrets
+      # to rotate. Produces .sig + .pem per artifact; uploaded as release
+      # assets so OpenSSF Scorecard's Signed-Releases check can detect them.
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@cad07c2e89fa2edd6e2d7bab4c1aa38e53f76003  # v4.1.1
+
+      - name: Sign release artifacts (keyless Sigstore)
+        env:
+          COSIGN_YES: 'true'
+        run: |
+          cd ./release-assets
+          for file in weaver-*.tar.gz sbom.cdx.json sbom-backend.cdx.json; do
+            if [ -f "$file" ]; then
+              cosign sign-blob \
+                --output-signature "${file}.sig" \
+                --output-certificate "${file}.pem" \
+                "$file"
+              echo "Signed: $file"
+            fi
+          done
+          ls -la
+
       - name: Attest build provenance (PWA tarball)
         uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be  # v2
-        continue-on-error: true  # Requires public repo or paid plan
         with:
           subject-path: ./release-assets/weaver-*.tar.gz
 
       - name: Attest build provenance (SBOM frontend)
         uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be  # v2
-        continue-on-error: true
         with:
           subject-path: ./release-assets/sbom.cdx.json
 
       - name: Attest build provenance (SBOM backend)
         uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be  # v2
-        continue-on-error: true
         with:
           subject-path: ./release-assets/sbom-backend.cdx.json
 
@@ -154,8 +175,14 @@ jobs:
           prerelease: ${{ contains(github.ref_name, '-rc') || contains(github.ref_name, '-beta') || contains(github.ref_name, '-alpha') }}
           files: |
             ./release-assets/weaver-*.tar.gz
+            ./release-assets/weaver-*.tar.gz.sig
+            ./release-assets/weaver-*.tar.gz.pem
             ./release-assets/sbom.cdx.json
+            ./release-assets/sbom.cdx.json.sig
+            ./release-assets/sbom.cdx.json.pem
             ./release-assets/sbom-backend.cdx.json
+            ./release-assets/sbom-backend.cdx.json.sig
+            ./release-assets/sbom-backend.cdx.json.pem
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

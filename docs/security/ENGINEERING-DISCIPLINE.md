@@ -14,7 +14,7 @@ This page documents the specific checks, what they cover, and how to compare the
 
 | Practice | Enterprise-CI norm (industry baseline) | Weaver internal CI |
 |---|---|---|
-| Static analyzers per push | 1–2 generic tools (ESLint, tsc) | **32** domain-specific auditors |
+| Static analyzers per push | 1–2 generic tools (ESLint, tsc) | **33** domain-specific auditors |
 | Release-build pre-flight | None (release failures surface in user reports) | **Simulated downstream build contexts** before tag push |
 | Compliance framework mapping | Maintained manually, drifts between releases | **Single-source data + generator + parity auditor** across 13 verticals |
 | Supply-chain pinning | Latest major tags (`@v4`) | **All GitHub Actions SHA-pinned**, verified on every push |
@@ -27,7 +27,7 @@ The industry baseline numbers come from the Google Research *Accelerate* enginee
 
 ---
 
-## The 32 compliance auditors
+## The 33 compliance auditors
 
 Each auditor runs in the `test:compliance` chain on every push. Failures block the push. They live in `code/scripts/verify-*.ts` and `code/scripts/audit-*.ts`.
 
@@ -74,7 +74,7 @@ Each auditor runs in the `test:compliance` chain on every push. Failures block t
 - **verify-project-parity** — deprecated term migration (one renamed term caught = push blocked)
 - **verify-runbooks** — runbook and policy docs have required sections
 - **verify-test-coverage** — every backend source file has a matching test file
-- **verify-eager-eager-tdz** — composables that eagerly evaluate getters (useMeta, watchEffect) catch TDZ at compile time
+- **verify-eager-eval-tdz** — composables that eagerly evaluate getters (useMeta, watchEffect) catch TDZ at compile time
 
 ---
 
@@ -101,7 +101,7 @@ To prevent this, `audit:openssf-baseline` runs on every push and validates 7 of 
 4. Security-Policy — SECURITY.md has email + disclosure URL
 5. SAST — CodeQL triggers on push (not just PR/schedule)
 6. License — LICENSE file ships with the Free tarball
-7. Signed-Releases — release workflow has attest-build-provenance step
+7. Signed-Releases — release workflow signs every asset with Sigstore cosign keyless AND publishes build-provenance attestations
 
 **Not covered locally (require the actual scan):** Branch-Protection (GitHub Settings API), Fuzzing, Code-Review (historical PR data), Contributors, Maintained, CII-Best-Practices.
 
@@ -127,11 +127,39 @@ Why this matters: a supply-chain attacker who compromises a popular Action repos
 ## Release provenance
 
 Every release tag triggers:
-1. **Build provenance attestation** (via `actions/attest-build-provenance`) — cryptographic proof that a given artifact was built from the stated source commit, signed with Sigstore
-2. **SBOM generation** (via `@cyclonedx/cyclonedx-npm`) — CycloneDX-formatted software bill of materials for frontend + backend, attached to the release
-3. **Source archive sync** to the public Free repo — the tag on Weaver-Free points to the exact source that produced the artifacts
+1. **Keyless Sigstore signing** (via `cosign sign-blob`) — every release asset (tarball, SBOMs) gets a `.sig` + `.pem` published alongside it. Signatures are issued by Sigstore's Fulcio CA against the workflow's GitHub OIDC token and logged to the Rekor transparency log — no long-lived keys, no secrets to rotate.
+2. **Build provenance attestation** (via `actions/attest-build-provenance`) — cryptographic proof that a given artifact was built from the stated source commit, signed with Sigstore.
+3. **SBOM generation** (via `@cyclonedx/cyclonedx-npm`) — CycloneDX-formatted software bill of materials for frontend + backend, attached to the release and signed.
+4. **Source archive sync** to the public Free repo — the tag on Weaver-Free points to the exact source that produced the artifacts.
 
-Consumers can verify a downloaded release artifact against its provenance attestation via [`gh attestation verify`](https://cli.github.com/manual/gh_attestation_verify). This validates that the artifact was built by the declared workflow on the declared commit — no tampering in transit.
+Two independent verification paths:
+
+```sh
+# Verify via Sigstore cosign (signature + Rekor log)
+cosign verify-blob \
+  --certificate weaver-v1.2.3-pwa.tar.gz.pem \
+  --signature  weaver-v1.2.3-pwa.tar.gz.sig \
+  --certificate-identity-regexp 'https://github.com/whizbangdevelopers-org/Weaver-Dev/.github/workflows/release.yml@.*' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  weaver-v1.2.3-pwa.tar.gz
+
+# Verify via GitHub build provenance attestation
+gh attestation verify weaver-v1.2.3-pwa.tar.gz --repo whizbangdevelopers-org/Weaver-Free
+```
+
+Either path confirms the artifact was built by the declared workflow on the declared commit — no tampering in transit.
+
+---
+
+## Coming next — load testing
+
+The A-rating baseline reflects static analysis, unit, and functional E2E coverage. The next frontier of the CI pipeline is **sustained-load testing**: concurrent-request soak runs against the backend API, WebSocket-channel saturation, and VM provisioning throughput under queue pressure.
+
+**Planned integration.** `audit:load-baseline` runs on a nightly cadence (per-push is too slow to be useful). Baseline numbers are published alongside each release. A p95 latency regression beyond a 10% ceiling fails the next release's pre-flight. Likely toolchain: k6 or autocannon for HTTP, Playwright harness for WebSocket soak, shell harness for the provisioning queue.
+
+**Horizon:** v1.2 (after pricing infrastructure lands).
+
+Why this earns the next rating notch: load testing closes the performance-regression blind spot that static and functional tests cannot catch by construction. A user-visible latency regression is functionally a bug; it should fail in CI, not in a customer report.
 
 ---
 
@@ -149,11 +177,12 @@ For compliance framework mappings (NIST 800-171, HIPAA, PCI-DSS, ISO 27001, etc.
 
 | Claim | How to verify |
 |---|---|
-| 32 auditors on every push | [.github/workflows/test.yml](../../.github/workflows/test.yml) compliance-suite job |
+| 33 auditors on every push | [.github/workflows/test.yml](../../.github/workflows/test.yml) compliance-suite job |
 | SHA-pinned GitHub Actions | `grep "uses:" .github/workflows/*.yml` — every line ends with a 40-char SHA |
 | OpenSSF Scorecard score | [scorecard.dev/viewer](https://scorecard.dev/viewer/?uri=github.com/whizbangdevelopers-org/Weaver-Free) |
 | SBOM present on each release | [github.com/whizbangdevelopers-org/Weaver-Free/releases](https://github.com/whizbangdevelopers-org/Weaver-Free/releases) — `sbom.cdx.json` + `sbom-backend.cdx.json` |
 | Free tarball builds from source | `nix-build -A weaver-free` against [nur-packages](https://github.com/whizbangdevelopers-org/nur-packages) |
 | Public release provenance | `gh attestation verify <artifact> --repo whizbangdevelopers-org/Weaver-Free` |
+| Sigstore cosign signature | `cosign verify-blob` (see Release provenance section for the full invocation) |
 
 Nothing here is aspirational. If you can't verify a claim from the links above, the claim is incorrect — file an issue.

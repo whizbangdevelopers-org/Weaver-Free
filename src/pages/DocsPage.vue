@@ -85,6 +85,7 @@ import cisBenchmarksRaw from '../../docs/security/compliance/CIS-BENCHMARK-ALIGN
 import cisControlsRaw from '../../docs/security/compliance/CIS-CONTROLS-MAPPING.md?raw'
 import soc2ReadinessRaw from '../../docs/security/compliance/SOC2-READINESS.md?raw'
 import engineeringDisciplineRaw from '../../docs/security/ENGINEERING-DISCIPLINE.md?raw'
+import compensatingControlsRaw from '../../docs/security/COMPENSATING-CONTROLS.md?raw'
 // Operations docs live in a sync-excluded directory (internal-only). Use
 // import.meta.glob so the Free build doesn't fail when the directory is
 // absent — glob resolves to {} and we fall back to empty strings.
@@ -120,6 +121,7 @@ const currentDocs: Record<string, { title: string; content: string }> = {
   'cis-controls': { title: 'CIS Controls v8.1 Mapping', content: cisControlsRaw },
   'soc2-readiness': { title: 'SOC 2 Readiness', content: soc2ReadinessRaw },
   'engineering-discipline': { title: 'Engineering Discipline', content: engineeringDisciplineRaw },
+  'compensating-controls': { title: 'Compensating Controls', content: compensatingControlsRaw },
   'runbook-cache-key-compromise': { title: 'Runbook: Cache Key Compromise Response', content: runbookCacheKeyCompromiseRaw },
   'policy-cache-key-retirement': { title: 'Policy: Cache Key Retirement', content: policyCacheKeyRetirementRaw },
   'attribution': { title: 'Open Source Dependencies', content: attributionRaw },
@@ -142,6 +144,7 @@ const slugToPath: Record<string, string> = {
   'cis-controls': 'security/compliance/CIS-CONTROLS-MAPPING.md',
   'soc2-readiness': 'security/compliance/SOC2-READINESS.md',
   'engineering-discipline': 'security/ENGINEERING-DISCIPLINE.md',
+  'compensating-controls': 'security/COMPENSATING-CONTROLS.md',
   'runbook-cache-key-compromise': 'operations/cache-key-compromise-runbook.md',
   'policy-cache-key-retirement': 'operations/cache-key-retirement-policy.md',
   'attribution': 'ATTRIBUTION.md',
@@ -173,6 +176,7 @@ const fileToSlug: Record<string, string> = {
   'CIS-BENCHMARK-ALIGNMENT.md': 'cis-benchmarks',
   'SOC2-READINESS.md': 'soc2-readiness',
   'ENGINEERING-DISCIPLINE.md': 'engineering-discipline',
+  'COMPENSATING-CONTROLS.md': 'compensating-controls',
   'ATTRIBUTION.md': 'attribution',
   'TERMS-OF-SERVICE.md': 'terms-of-service',
   'COMPATIBILITY.md': 'compatibility',
@@ -209,7 +213,7 @@ const doc = computed(() => {
 })
 const pageTitle = computed(() => doc.value?.title ?? 'Not Found')
 
-const complianceSlugs = new Set(['security-baselines', 'nist-800-171', 'hipaa-164-312', 'pci-dss', 'cis-benchmarks', 'cis-controls', 'soc2-readiness', 'engineering-discipline', 'attribution', 'terms-of-service'])
+const complianceSlugs = new Set(['security-baselines', 'nist-800-171', 'hipaa-164-312', 'pci-dss', 'cis-benchmarks', 'cis-controls', 'soc2-readiness', 'engineering-discipline', 'compensating-controls', 'attribution', 'terms-of-service'])
 const guideSlugs = new Set(['admin-guide', 'user-guide'])
 const isComplianceDoc = computed(() => complianceSlugs.has(slug.value))
 const isGuide = computed(() => guideSlugs.has(slug.value))
