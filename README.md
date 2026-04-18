@@ -12,7 +12,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6.svg)](https://www.typescriptlang.org)
 [![Fastify](https://img.shields.io/badge/Fastify-4-000000.svg)](https://fastify.dev)
 [![NixOS](https://img.shields.io/badge/NixOS-25.11+-5277C3.svg)](https://nixos.org)
-[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/whizbangdevelopers-org/Weaver-Free/badge)](https://securityscorecards.dev/viewer/?uri=github.com/whizbangdevelopers-org/Weaver-Free)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/whizbangdevelopers-org/Weaver-Free/badge)](https://scorecard.dev/viewer/?uri=github.com/whizbangdevelopers-org/Weaver-Free)
 
 ![Unit Tests](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/wriver4/79355c8ae5e81aefa0f67ef318fdf785/raw/vitest-badge.json)
 ![Backend Tests](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/wriver4/79355c8ae5e81aefa0f67ef318fdf785/raw/backend-badge.json)
