@@ -306,7 +306,7 @@ import { useAuthStore } from 'src/stores/auth-store'
 import { useAppStore } from 'src/stores/app'
 import { useWorkloadStore } from 'src/stores/workload-store'
 import { extractErrorMessage } from 'src/utils/error'
-import { isDemoMode } from 'src/config/demo'
+import { isDemoMode } from 'src/config/demo-mode'
 import { ROLES } from 'src/constants/vocabularies'
 
 interface UserEntry {

@@ -457,7 +457,7 @@ import { useAppStore } from 'src/stores/app'
 import { useAuthStore } from 'src/stores/auth-store'
 import { useWorkloadStore } from 'src/stores/workload-store'
 import { useHostInfo } from 'src/composables/useHostInfo'
-import { isDemoMode } from 'src/config/demo'
+import { isDemoMode } from 'src/config/demo-mode'
 import { distroApiService, organizationApiService, doctorApiService, type DistroEntry, type CustomDistroInput, type UrlValidationData, type DistroTestStatus } from 'src/services/api'
 import type { DoctorResult } from 'src/types/host'
 

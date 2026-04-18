@@ -30,7 +30,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { isPublicDemo } from 'src/config/demo'
+import { isPublicDemo } from 'src/config/demo-mode'
 import { TIERS, TIER_LABELS, type TierName } from 'src/constants/vocabularies'
 
 const props = withDefaults(defineProps<{

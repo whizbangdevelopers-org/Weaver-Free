@@ -104,7 +104,8 @@
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
 
 import { hostConfigApiService } from 'src/services/api'
-import { isDemoMode, getDemoHostConfig } from 'src/config/demo'
+import { isDemoMode } from 'src/config/demo-mode'
+import { getDemoHostConfig } from 'src/config/demo'
 import { useAppStore } from 'src/stores/app'
 import type { NixConfigResponse, NixConfigSectionType } from 'src/types/host-config'
 

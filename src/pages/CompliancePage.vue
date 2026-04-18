@@ -115,7 +115,7 @@
 // Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE.
 import { ref, computed } from 'vue'
 import { api } from 'src/boot/axios'
-import { isDemoMode } from 'src/config/demo'
+import { isDemoMode } from 'src/config/demo-mode'
 import { useAppStore } from 'src/stores/app'
 
 const appStore = useAppStore()

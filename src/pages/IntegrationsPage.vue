@@ -95,7 +95,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useAppStore, type Tier } from 'src/stores/app'
-import { isDemoMode, isPublicDemo } from 'src/config/demo'
+import { isDemoMode, isPublicDemo } from 'src/config/demo-mode'
 import type { PluginManifest, PluginCategory } from 'src/types/plugin'
 
 const appStore = useAppStore()

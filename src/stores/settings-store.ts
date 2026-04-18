@@ -3,7 +3,7 @@
 import { defineStore } from 'pinia'
 import { Dark } from 'quasar'
 import { api } from 'src/boot/axios'
-import { isDemoMode } from 'src/config/demo'
+import { isDemoMode } from 'src/config/demo-mode'
 import type { LlmVendor } from 'src/types/agent'
 
 export type DarkModePreference = 'auto' | 'light' | 'dark'

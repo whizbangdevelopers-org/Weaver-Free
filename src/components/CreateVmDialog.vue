@@ -298,7 +298,7 @@ import { isHostIPv4, ipNotInUse, ipOnBridgeSubnet, nameNotInUse, onlyIPv4Chars }
 import { useWorkloadStore } from 'src/stores/workload-store'
 import { useAppStore } from 'src/stores/app'
 import { useAuthStore } from 'src/stores/auth-store'
-import { isDemoMode } from 'src/config/demo'
+import { isDemoMode } from 'src/config/demo-mode'
 import { getMockVmState } from 'src/services/mock-vm'
 import { api } from 'src/boot/axios'
 import HelpTooltip from 'src/components/HelpTooltip.vue'
