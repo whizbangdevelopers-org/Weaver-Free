@@ -6,7 +6,7 @@
 # TRIGGERS: push to v* tags
 #
 # REQUIRED SECRETS:
-#   - WEAVER_SYNC: PAT with repo scope for pushing to free repo and dispatching NUR
+#   - WEAVER_FREE_SYNC: PAT with repo scope for pushing to free repo and dispatching NUR
 #
 # REQUIRED ENVIRONMENTS:
 #   - release-publish: Environment with required reviewers for manual approval
@@ -218,7 +218,7 @@ jobs:
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
         with:
           repository: ${{ env.FREE_REPO }}
-          token: ${{ secrets.WEAVER_SYNC }}
+          token: ${{ secrets.WEAVER_FREE_SYNC }}
           fetch-depth: 0
           path: free
 
@@ -286,7 +286,7 @@ jobs:
 
       - name: Create tag and release in free repo
         env:
-          GH_TOKEN: ${{ secrets.WEAVER_SYNC }}
+          GH_TOKEN: ${{ secrets.WEAVER_FREE_SYNC }}
         run: |
           VERSION="${GITHUB_REF_NAME}"
           cd free
@@ -314,7 +314,7 @@ jobs:
 
       - name: Copy release assets to free repo
         env:
-          GH_TOKEN: ${{ secrets.WEAVER_SYNC }}
+          GH_TOKEN: ${{ secrets.WEAVER_FREE_SYNC }}
         run: |
           VERSION="${GITHUB_REF_NAME}"
 
@@ -404,7 +404,7 @@ jobs:
       - name: Dispatch NUR weaver-free update
         uses: peter-evans/repository-dispatch@ff45666b9427631e3450c54a1bcbee4d9ff4d7c0  # v3
         with:
-          token: ${{ secrets.WEAVER_SYNC }}
+          token: ${{ secrets.WEAVER_FREE_SYNC }}
           repository: ${{ env.NUR_REPO }}
           event-type: weaver-free-release
           client-payload: |
