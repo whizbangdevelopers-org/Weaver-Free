@@ -98,7 +98,8 @@
 </template>
 
 <script setup lang="ts">
-import { getDemoVmsForTier, PUBLIC_DEMO_LINKS } from 'src/config/demo'
+import { PUBLIC_DEMO_LINKS } from 'src/config/demo-mode'
+import { getDemoVmsForTier } from 'src/config/demo'
 import { TIERS } from 'src/constants/vocabularies'
 
 // Solo-tier mock workloads — displayed read-only as a snapshot

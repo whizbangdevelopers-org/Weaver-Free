@@ -104,5 +104,5 @@
 </template>
 
 <script setup lang="ts">
-import { PUBLIC_DEMO_LINKS } from 'src/config/demo'
+import { PUBLIC_DEMO_LINKS } from 'src/config/demo-mode'
 </script>

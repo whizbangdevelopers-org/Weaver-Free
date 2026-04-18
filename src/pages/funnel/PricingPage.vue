@@ -146,7 +146,7 @@
 
 <script setup lang="ts">
 import type { QTableColumn } from 'quasar'
-import { PUBLIC_DEMO_LINKS } from 'src/config/demo'
+import { PUBLIC_DEMO_LINKS } from 'src/config/demo-mode'
 import { PRICING, FM_AVAILABLE, fmCardPrice } from 'src/constants/pricing'
 
 // Phase 1 competitors: Proxmox + DIY only (Decision #135).

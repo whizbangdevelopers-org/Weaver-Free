@@ -263,6 +263,8 @@ export class NotificationService {
     try {
       switch (config.type) {
         case 'ntfy': {
+          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+          // @ts-ignore - tier-gated path sync-excluded from Free repo
           const { NtfyAdapter } = await import('./weaver/adapters/ntfy-adapter.js')
           return new NtfyAdapter({
             url: config.url,
@@ -271,6 +273,8 @@ export class NotificationService {
           })
         }
         case 'email': {
+          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+          // @ts-ignore - tier-gated path sync-excluded from Free repo
           const { EmailAdapter } = await import('./weaver/adapters/email-adapter.js')
           return new EmailAdapter({
             smtpHost: config.smtpHost,
@@ -283,6 +287,8 @@ export class NotificationService {
           })
         }
         case 'webhook': {
+          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+          // @ts-ignore - tier-gated path sync-excluded from Free repo
           const { WebhookAdapter } = await import('./weaver/adapters/webhook-adapter.js')
           return new WebhookAdapter({
             url: config.url,
@@ -293,6 +299,8 @@ export class NotificationService {
         }
         case 'web-push': {
           if (!this.webPushSubscriptionStore) return null
+          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+          // @ts-ignore - tier-gated path sync-excluded from Free repo
           const { WebPushAdapter } = await import('./weaver/adapters/web-push-adapter.js')
           return new WebPushAdapter(
             {

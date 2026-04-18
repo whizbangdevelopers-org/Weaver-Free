@@ -32,7 +32,8 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { DEMO_VERSIONS, weeksUntilRelease, isPublicDemo } from 'src/config/demo'
+import { isPublicDemo } from 'src/config/demo-mode'
+import { DEMO_VERSIONS, weeksUntilRelease } from 'src/config/demo'
 
 const isPublic = computed(() => isPublicDemo())
 

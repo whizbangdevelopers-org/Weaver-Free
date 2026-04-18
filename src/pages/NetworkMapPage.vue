@@ -146,7 +146,10 @@ const settingsStore = useSettingsStore()
 
 const NetworkMgmtPanel = useTierFeature({
   minimumTier: TIERS.SOLO,
-  loader: () => import('src/components/weaver/NetworkMgmtPanel.vue'),
+  // Loader references a sync-excluded file. Free builds stub it.
+  loader: import.meta.env.VITE_FREE_BUILD === 'true'
+    ? () => Promise.resolve({ default: { template: '' } })
+    : () => import('src/components/weaver/NetworkMgmtPanel.vue'),
   featureName: 'Network Management',
   featureDescription: 'Configure bridges, IP pools, firewall rules, and VM networking.',
   features: ['Bridge management', 'IP pool allocation', 'Firewall rules', 'VM network config'],
