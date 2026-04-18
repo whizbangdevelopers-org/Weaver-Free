@@ -4,6 +4,10 @@
 
 Thank you for your interest in Weaver. Whether you're filing a bug, improving docs, or building a new feature, this guide will help you get started.
 
+## About this project
+
+Weaver has a committed release roadmap through v2.0 and v3.0 with feature scope and tier structure already staked in the ground. Contributions land in a project with long-term direction and maintenance commitment, not a drifting experiment. Release cadence and published tags validate progress against the plan.
+
 ## Code of Conduct
 
 This project follows the [Contributor Covenant v2.1](CODE_OF_CONDUCT.md). Please read it before participating.
