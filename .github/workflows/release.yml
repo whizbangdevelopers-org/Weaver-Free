@@ -350,6 +350,20 @@ jobs:
     if: "!contains(github.ref_name, '-rc') && !contains(github.ref_name, '-beta') && !contains(github.ref_name, '-alpha')"
 
     steps:
+      # LICENSING GATE: NUR only receives the Free tier (AGPL-3.0). Solo / Team /
+      # Fabrick are BSL-1.1 and must never be dispatched to NUR. This step fails
+      # loud if FREE_REPO is mis-set to Weaver-Dev or any paid-tier repository.
+      - name: Assert NUR dispatch is Free-tier only
+        run: |
+          EXPECTED="whizbangdevelopers-org/Weaver-Free"
+          if [ "${{ env.FREE_REPO }}" != "$EXPECTED" ]; then
+            echo "::error::LICENSING GATE FAILED — FREE_REPO is '${{ env.FREE_REPO }}', expected '$EXPECTED'."
+            echo "::error::NUR distributes AGPL-3.0 Free tier only. Commercial tiers (BSL-1.1) must not be dispatched."
+            echo "::error::Revert the FREE_REPO env var to the public Weaver-Free repo before retrying."
+            exit 1
+          fi
+          echo "Licensing gate OK: dispatching Free-tier source from $EXPECTED"
+
       - name: Compute source hash from free repo
         id: hash
         run: |
