@@ -94,3 +94,6 @@ sbom*.json
 .env
 .env.local
 .env.*.local
+
+# Personal working notes (not product-bundled)
+docs/security/CII-BEST-PRACTICES-ANSWERS.md

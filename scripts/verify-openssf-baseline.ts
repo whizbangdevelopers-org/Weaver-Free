@@ -207,21 +207,31 @@ function checkSignedReleases(): void {
   }
   const content = readFileSync(RELEASE_WORKFLOW, 'utf-8')
   const hasAttest = /actions\/attest-build-provenance/.test(content)
-  if (!hasAttest) {
-    warn(
+  const hasCosign = /sigstore\/cosign-installer/.test(content) && /cosign\s+sign-blob/.test(content)
+
+  if (!hasAttest && !hasCosign) {
+    fail(
       'Signed-Releases',
-      'release.yml has no attest-build-provenance step — Scorecard will score Signed-Releases 0/10. Consider Sigstore cosign integration.'
+      'release.yml has neither attest-build-provenance nor cosign sign-blob — Scorecard will score Signed-Releases 0/10. Add Sigstore cosign keyless signing and/or actions/attest-build-provenance.'
     )
     return
   }
-  const hasContinueOnError = /attest-build-provenance[\s\S]{0,500}continue-on-error:\s*true/i.test(content)
-  if (hasContinueOnError) {
-    warn(
+
+  const attestContinueOnError = /attest-build-provenance[\s\S]{0,500}continue-on-error:\s*true/i.test(content)
+  if (attestContinueOnError) {
+    fail(
       'Signed-Releases',
-      'attest-build-provenance is `continue-on-error: true`. Runs only succeed for public repos on paid plans; if Free is on a plan that supports it, remove continue-on-error so failures fail the workflow.'
+      'attest-build-provenance has `continue-on-error: true` — attestation failures are silently swallowed. Public repos on GitHub free plan support attestations; remove continue-on-error so the workflow fails loud if signing breaks.'
     )
+    return
+  }
+
+  if (hasCosign && hasAttest) {
+    pass('Signed-Releases', 'release.yml signs artifacts with cosign (keyless Sigstore) AND publishes build-provenance attestations')
+  } else if (hasCosign) {
+    pass('Signed-Releases', 'release.yml signs artifacts with cosign (keyless Sigstore)')
   } else {
-    pass('Signed-Releases', 'release.yml has required attest-build-provenance step')
+    pass('Signed-Releases', 'release.yml publishes build-provenance attestations (no continue-on-error)')
   }
 }
 
