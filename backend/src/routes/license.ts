@@ -116,7 +116,7 @@ export const licenseRoutes: FastifyPluginAsync<LicenseRouteOptions> = async (fas
         graceMode: result.graceMode,
         foundingMember: record?.foundingMember ?? false,
       }
-    } catch (err) {
+    } catch {
       return reply.status(400).send({ error: 'Invalid license key' })
     }
   })
