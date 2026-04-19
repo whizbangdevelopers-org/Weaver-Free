@@ -8,6 +8,21 @@ Thank you for your interest in Weaver. Whether you're filing a bug, improving do
 
 Weaver has a committed release roadmap through v2.0 and v3.0 with feature scope and tier structure already staked in the ground. Contributions land in a project with long-term direction and maintenance commitment, not a drifting experiment. Release cadence and published tags validate progress against the plan.
 
+## Governance
+
+Weaver uses a **Benevolent Dictator with named successor** governance model. Final say on scope, design, and merges rests with the primary maintainer; a secondary admin holds independent access for continuity purposes.
+
+| Role | Person | GitHub | Status |
+|---|---|---|---|
+| Primary maintainer | Mark Wriver | [@wriver4](https://github.com/wriver4) | Active |
+| Secondary admin | Yuri Jacuk | — | Dormant until 2026-06; active maintenance from that point |
+
+**Decision process.** Technical scope is governed by the published roadmap (`plans/` directory of Weaver-Dev; summarized in this file). Non-roadmap feature requests are evaluated against tier strategy and compliance posture; acceptance criteria are documented in each agent/release plan. Pull request merges are performed by the primary maintainer until 2026-06, after which either admin can merge non-security changes under the shared-maintainer model. Security-sensitive changes retain a 24-hour cool-off before merge regardless of admin.
+
+**Succession.** Weaver is owned by WhizBang Developers LLC — project assets (copyright, trademarks, repository control) belong to the entity, not to individuals. If both admins become unavailable, the LLC's operating agreement governs succession. See `docs/security/COMPENSATING-CONTROLS.md` §Gap 4 for the full continuity plan.
+
+**Changing governance.** This document is the source of truth for governance. Material changes (new role, changed decision rights, successor appointment) require a pull request and attorney review before merge.
+
 ## Code of Conduct
 
 This project follows the [Contributor Covenant v2.1](CODE_OF_CONDUCT.md). Please read it before participating.
