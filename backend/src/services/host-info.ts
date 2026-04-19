@@ -10,7 +10,6 @@ import { promisify } from 'node:util'
 import type {
   BasicHostInfo, BasicLiveMetrics, DetailedHostInfo, CpuTopology, DiskUsage, NetworkInterface,
 } from '../schemas/host.js'
-import { TIERS } from '../constants/vocabularies.js'
 
 const execFileAsync = promisify(execFile)
 
