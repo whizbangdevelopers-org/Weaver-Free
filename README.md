@@ -482,7 +482,7 @@ Special thanks to the [NixOS](https://nixos.org) community and [Astro](https://g
 
 ## License
 
-**Weaver Free** is licensed under AGPL-3.0 with Commons Clause and AI Training Restriction. See [LICENSE](LICENSE).
+**Weaver Free** is licensed under AGPL-3.0 with an AI Training Restriction (an AGPL §7 additional term). See [LICENSE](LICENSE).
 
 **Weaver Solo, Weaver Team, and Fabrick** are licensed under BSL-1.1 (Business Source License 1.1). Contact us for details.
 
