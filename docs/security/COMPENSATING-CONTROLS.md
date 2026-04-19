@@ -65,18 +65,22 @@ If an OpenSSF Scorecard check, a CII Best Practices question, a SOC 2 control, o
 
 ## Gap 4 — Bus Factor / Access Continuity
 
-**Why we fall short.** Bus factor is the number of people who can go missing before the project cannot continue. With one maintainer, the bus factor is one. Every credential, every secret, every signing identity currently lives with a single person.
+**Why we fall short.** Bus factor is the minimum number of project members that have to suddenly disappear before the project cannot continue. Current posture:
+
+- **Bus factor (access):** 2 — both the primary maintainer (Mark Wriver, GitHub: wriver4) and the secondary admin (Yuri Jacuk) hold independent repo admin and can execute releases, manage issues, and merge PRs.
+- **Bus factor (active knowledge):** 1 until June 2026 — the secondary admin is dormant until then. If the primary maintainer disappeared today, active maintenance would stall pending secondary-admin onboarding. From June 2026 onward, active-knowledge bus factor becomes 2 as the secondary admin enters the shared-maintainer model.
 
 **Compensating controls.**
 
-1. **Business entity is formed.** WhizBang Developers LLC is an incorporated entity with a bank account. If the maintainer is unavailable, the entity persists and has legal standing to act.
-2. **Operating agreement with IP assignment.** Attorney-drafted operating agreement covers ownership, IP assignment, buyout provisions, and voting. Project assets belong to the entity, not to a person.
-3. **Encrypted offline backup of credentials.** GitHub account recovery codes, signing keys (for non-Sigstore-keyless uses), LLC formation documents, and deployment credentials are in an encrypted offline backup at a second physical location. Restore procedure is documented.
-4. **Sigstore keyless signing minimizes key-loss risk.** Because release signing uses short-lived OIDC-issued certificates rather than a long-lived maintainer-held key, there is no signing key to lose that would prevent future releases.
-5. **Infrastructure-as-code on public GitHub.** The entire state of the Dev repository — workflows, configurations, documentation, tests — is public on Weaver-Free for every released version. A new maintainer can pick up where the prior one left off without needing access to private knowledge.
-6. **NUR and Nix reproducibility.** Past releases can be rebuilt from public source indefinitely. The Weaver-Free mirror and NUR Nix expression are sufficient to reproduce any shipped version.
+1. **Secondary admin with independent access.** Yuri Jacuk holds repo admin rights today. Releases, issue triage, PR merges, and security actions can be executed by the secondary admin without primary-maintainer involvement. Active maintenance duties shift to shared model June 2026.
+2. **Business entity is formed.** WhizBang Developers LLC is an incorporated entity with a bank account. If both admins were unavailable simultaneously, the entity persists and has legal standing to act — project assets belong to the entity, not to an individual.
+3. **Operating agreement with IP assignment.** Attorney-drafted operating agreement covers ownership, IP assignment, buyout provisions, and voting. Covers succession scenarios.
+4. **Encrypted offline backup of credentials.** GitHub account recovery codes, signing keys (for non-Sigstore-keyless uses), LLC formation documents, and deployment credentials are in an encrypted offline backup at a second physical location. Restore procedure is documented. Backup is accessible by both admins — not tied to a single person's device.
+5. **Sigstore keyless signing minimizes key-loss risk.** Because release signing uses short-lived OIDC-issued certificates rather than a long-lived maintainer-held key, there is no signing key to lose that would prevent future releases. Either admin can execute a signed release.
+6. **Infrastructure-as-code on public GitHub.** The entire state of the Dev repository — workflows, configurations, documentation, tests — is public on Weaver-Free for every released version. A new maintainer (including the secondary admin during onboarding) can pick up where the prior one left off without needing access to private knowledge.
+7. **NUR and Nix reproducibility.** Past releases can be rebuilt from public source indefinitely. The Weaver-Free mirror and NUR Nix expression are sufficient to reproduce any shipped version.
 
-**Maturity path.** Co-maintainer recruitment (by v2.0) directly raises the bus factor. By Fabrick-tier commercial scale, the project is staffed by a named team with documented on-call rotation and cross-training.
+**Maturity path.** Active-knowledge bus factor = 2 from June 2026 when the secondary admin enters the shared-maintainer model. At Fabrick-tier commercial scale, the project is staffed by a named team with documented on-call rotation and cross-training. Between now and June 2026, a written handoff runbook (covering both repo operations AND CII badge ownership transfer) should be drafted so the secondary admin can execute without delay if called up early.
 
 ---
 
