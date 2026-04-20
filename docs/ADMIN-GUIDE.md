@@ -255,6 +255,8 @@ Weaver supports two ways to run MicroVMs, and they complement each other:
 
 **Free tier** users define MicroVMs in their NixOS configuration and use Weaver to monitor, start, stop, and restart them. This path offers lighter hypervisors, shared filesystems, and full declarative reproducibility.
 
+> **Free-tier cap (v1.0.2+):** Weaver Free controls the **alphabetical-first 10 workloads** and a **64 GB total-running-memory** ceiling. Additional workloads remain visible but are read-only ("observer pattern") — start/restart actions return 403 with an upgrade-nag message; stop stays allowed so you can shut down any running workload. The cap is enforced at the backend API, so the TUI and any other client see the same behavior. Paid tiers (Solo/Team/Fabrick) have no cap. See `backend/src/constants/tier-limits.ts` for the exact numbers.
+
 **Weaver Solo+** unlocks Live Provisioning — create and manage MicroVMs directly from the browser with any guest OS, no terminal needed. This is the core paid differentiator.
 
 ### Discovering Existing Workloads (All Tiers)
