@@ -41,7 +41,7 @@ Not all contributions require writing code. Here are the ways you can help:
 
 ### Try Before You Contribute
 
-The fastest way to understand Weaver is the **[live demo](https://weaver-demo.github.io)**. It runs the full dashboard in mock mode with eight sample VMs. Use the tier-switcher toolbar to see how Free, Premium, and Enterprise features differ.
+The fastest way to understand Weaver is the **[live demo](https://weaver-dev.github.io)**. It runs the full dashboard in mock mode with eight sample VMs. Use the tier-switcher toolbar to see how Free, Solo, Team, and Fabrick features differ.
 
 ## Getting Started
 
@@ -228,7 +228,7 @@ cd testing/e2e-docker && ./scripts/run-tests.sh
 - **Bug reports** -- Use the [bug report template](.github/ISSUE_TEMPLATE/bug_report.yml)
 - **Feature requests** -- Use the [feature request template](.github/ISSUE_TEMPLATE/feature_request.yml)
 - **Questions** -- Open a GitHub issue with the `question` label
-- **Live demo** -- [weaver-demo.github.io](https://weaver-demo.github.io)
+- **Live demo** -- [weaver-dev.github.io](https://weaver-dev.github.io)
 
 ## Architecture Overview
 

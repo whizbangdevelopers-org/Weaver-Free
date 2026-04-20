@@ -6,5 +6,5 @@ contact_links:
     url: https://github.com/whizbangdevelopers-org/Weaver-Free#readme
     about: Check the README for setup instructions and usage
   - name: Live Demo
-    url: https://weaver-demo.github.io
+    url: https://weaver-dev.github.io
     about: Try the dashboard without installing anything

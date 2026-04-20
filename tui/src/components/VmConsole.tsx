@@ -23,7 +23,7 @@ const MOTD = [
   '',
   '━━ Simulated Console ━━',
   '  Upgrade to Weaver Solo for live serial access to your VMs.',
-  '  Learn more: https://weaver-demo.github.io/pricing',
+  '  Learn more: https://weaver-dev.github.io/pricing',
   '',
 ]
 
