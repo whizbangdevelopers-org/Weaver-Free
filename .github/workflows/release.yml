@@ -135,22 +135,27 @@ jobs:
       # assets so OpenSSF Scorecard's Signed-Releases check can detect them.
       - name: Install Cosign
         uses: sigstore/cosign-installer@cad07c2e89fa2edd6e2d7bab4c1aa38e53f76003  # v4.1.1
+        with:
+          # Pin to cosign 2.x. Cosign 3.0 changed the sign-blob default to
+          # require explicit --bundle <path> or bare --new-bundle-format — both
+          # produce a single .sigstore file instead of separate .sig + .pem
+          # artifacts, breaking the README verification flow and downstream
+          # consumer expectations. v3 migration is a deliberate v1.0.3+ change.
+          cosign-release: 'v2.5.3'
 
       - name: Sign release artifacts (keyless Sigstore)
         env:
           COSIGN_YES: 'true'
         run: |
           cd ./release-assets
-          # Pin to legacy signature+certificate outputs. Recent cosign defaults
-          # to --new-bundle-format, which deprecates these flags and requires
-          # --bundle <path> instead — silently producing an "open : no such
-          # file or directory" failure when old flags are present. Keep legacy
-          # so .sig/.pem files match what the README and downstream verifiers
-          # expect. Migrate to --bundle format as a dedicated v1.0.3+ change.
+          # Cosign 2.x: --output-signature and --output-certificate produce
+          # separate .sig and .pem files matching README verification flow.
+          # Cosign v3 dropped these in favor of a single --bundle .sigstore
+          # output; we pin v2.5.3 via the installer above to preserve the
+          # artifact contract. Migration to v3 is a deliberate v1.0.3+ change.
           for file in weaver-*.tar.gz sbom.cdx.json sbom-backend.cdx.json; do
             if [ -f "$file" ]; then
               cosign sign-blob \
-                --new-bundle-format=false \
                 --output-signature "${file}.sig" \
                 --output-certificate "${file}.pem" \
                 "$file"
