@@ -41,6 +41,7 @@
     "test:unit:run": "vitest run",
     "test:unit:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage",
+    "test:coverage:free": "vitest run --coverage --config vitest.free.config.ts",
     "test:backend": "npm -w backend test",
     "test:mutation": "npx stryker run",
     "test:mutation:quick": "npx stryker run --mutate 'src/utils/*.ts'",

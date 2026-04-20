@@ -67,7 +67,7 @@ const defaultDescription = computed(() => {
 const ctaHref = computed(() =>
   publicDemo
     ? 'https://github.com/whizbangdevelopers-org/Weaver-Free/discussions'
-    : 'https://weaver-demo.github.io/pricing',
+    : 'https://weaver-dev.github.io/pricing',
 )
 
 const ctaLabel = computed(() => {
