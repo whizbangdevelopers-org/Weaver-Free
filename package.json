@@ -155,7 +155,7 @@
     "prettier": "^3.8.0",
     "register-service-worker": "^1.7.2",
     "sass": "^1.97.3",
-    "typescript": "^5.3.3",
+    "typescript": "^6.0.3",
     "typescript-eslint": "^8.57.2",
     "vite": "^5.0.11",
     "vitest": "^4.0.16",
