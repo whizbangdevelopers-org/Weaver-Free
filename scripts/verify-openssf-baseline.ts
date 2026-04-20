@@ -218,20 +218,28 @@ function checkSignedReleases(): void {
   }
 
   const attestContinueOnError = /attest-build-provenance[\s\S]{0,500}continue-on-error:\s*true/i.test(content)
-  if (attestContinueOnError) {
+  // Explicit exemption pragma: allows continue-on-error on attest when the
+  // workflow comments document WHY (e.g., private repo on a free-plan org
+  // where GitHub's attestation API returns "Feature not available"). The
+  // pragma is the author asserting "I know; remove when constraint lifts."
+  const hasAttestExemption =
+    /#\s*openssf-baseline-allow:\s*attest-continue-on-error/i.test(content)
+  if (attestContinueOnError && !hasAttestExemption) {
     fail(
       'Signed-Releases',
-      'attest-build-provenance has `continue-on-error: true` — attestation failures are silently swallowed. Public repos on GitHub free plan support attestations; remove continue-on-error so the workflow fails loud if signing breaks.'
+      'attest-build-provenance has `continue-on-error: true` without exemption pragma. Public repos on the GitHub free plan support attestations natively — remove continue-on-error so the workflow fails loud if signing breaks. If this workflow runs on a private repo where attestations fundamentally cannot succeed, add the comment `# openssf-baseline-allow: attest-continue-on-error (<reason>)` next to the flag to document the constraint.'
     )
     return
   }
 
   if (hasCosign && hasAttest) {
-    pass('Signed-Releases', 'release.yml signs artifacts with cosign (keyless Sigstore) AND publishes build-provenance attestations')
+    const suffix = attestContinueOnError ? ' (attest soft-fail exempted by pragma)' : ''
+    pass('Signed-Releases', `release.yml signs artifacts with cosign (keyless Sigstore) AND publishes build-provenance attestations${suffix}`)
   } else if (hasCosign) {
     pass('Signed-Releases', 'release.yml signs artifacts with cosign (keyless Sigstore)')
   } else {
-    pass('Signed-Releases', 'release.yml publishes build-provenance attestations (no continue-on-error)')
+    const suffix = attestContinueOnError ? ' (attest soft-fail exempted by pragma)' : ' (no continue-on-error)'
+    pass('Signed-Releases', `release.yml publishes build-provenance attestations${suffix}`)
   }
 }
 

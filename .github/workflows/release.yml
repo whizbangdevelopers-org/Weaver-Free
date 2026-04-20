@@ -164,18 +164,29 @@ jobs:
           done
           ls -la
 
+      # GitHub attestations require either a paid plan or a public repo.
+      # Weaver-Dev is private and the org is on the free plan, so these
+      # steps are soft-fails here. Attestations fire successfully when the
+      # Weaver-Free mirror (public) produces its own release assets via
+      # the release-to-free step downstream. Remove continue-on-error only
+      # when either: (a) the org upgrades to Team/Enterprise, or (b) this
+      # workflow is moved to run on the public Free repo directly.
+      # openssf-baseline-allow: attest-continue-on-error (private repo + free org plan)
       - name: Attest build provenance (PWA tarball)
         uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be  # v2
+        continue-on-error: true
         with:
           subject-path: ./release-assets/weaver-*.tar.gz
 
       - name: Attest build provenance (SBOM frontend)
         uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be  # v2
+        continue-on-error: true
         with:
           subject-path: ./release-assets/sbom.cdx.json
 
       - name: Attest build provenance (SBOM backend)
         uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be  # v2
+        continue-on-error: true
         with:
           subject-path: ./release-assets/sbom-backend.cdx.json
 
