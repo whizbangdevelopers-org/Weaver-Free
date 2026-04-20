@@ -21,21 +21,22 @@
  *      sync-to-free.yml, flatten code/ → tmpdir/, run npm ci + build:all.
  *      Catches: relative-path escapes, missing-file references.
  *
- *   2. docker — sync-flattened + `docker build` against the layout a Dockerfile
- *      user would see. Catches: Dockerfile assumptions that diverge from
- *      flattened reality.
- *
- *   3. public-demo — Dev monorepo layout (no flattening) +
+ *   2. public-demo — Dev monorepo layout (no flattening) +
  *      VITE_DEMO_MODE=true VITE_DEMO_PUBLIC=true npm run build.
  *      Catches: public-demo-specific build regressions.
  *
- *   4. private-demo — Dev monorepo layout + VITE_DEMO_MODE=true npm run build.
+ *   3. private-demo — Dev monorepo layout + VITE_DEMO_MODE=true npm run build.
  *      Catches: private-demo-specific build regressions.
+ *
+ * Weaver itself is NOT distributed as a Docker image — it's a NixOS module
+ * that manages microvm@*.service units and br-microvm bridge networking at
+ * host level. Running Weaver in a container would require --privileged or
+ * Docker-in-Docker, either of which defeats the isolation model. Docker is
+ * a workload Weaver MANAGES, not a shipping format for Weaver itself.
  *
  * Usage:
  *   npx tsx scripts/verify-release-builds.ts                  # all contexts
  *   npx tsx scripts/verify-release-builds.ts --context=free-tarball
- *   npx tsx scripts/verify-release-builds.ts --skip-docker    # CI runner w/o docker
  *   npx tsx scripts/verify-release-builds.ts --fast           # skip build:all,
  *                                                             # just validate
  *                                                             # npm ci succeeds
@@ -48,7 +49,7 @@ import { readFileSync, existsSync, mkdtempSync, rmSync, mkdirSync } from 'fs'
 import { resolve, dirname, join } from 'path'
 import { tmpdir } from 'os'
 import { fileURLToPath } from 'url'
-import { execSync, spawnSync } from 'child_process'
+import { spawnSync } from 'child_process'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -74,7 +75,6 @@ const RESET = '\x1b[0m'
 
 const args = process.argv.slice(2)
 const contextFilter = args.find((a) => a.startsWith('--context='))?.split('=')[1]
-const skipDocker = args.includes('--skip-docker')
 const fastMode = args.includes('--fast')
 
 // ---------------------------------------------------------------------------
@@ -124,8 +124,6 @@ const BASE_CODE_EXCLUDES = [
 interface BuildContext {
   id: string
   description: string
-  /** When true, the context requires docker + optional --skip-docker flag honored. */
-  requiresDocker?: boolean
   /** Prepare a sandbox directory for this context and return its path. */
   prepare: (sandboxRoot: string) => string
   /** Run the build inside the prepared sandbox. Throw on failure. */
@@ -177,23 +175,6 @@ const CONTEXTS: BuildContext[] = [
     },
   },
   {
-    id: 'docker',
-    description: 'Docker image — sync-flattened + `docker build` from flattened context',
-    requiresDocker: true,
-    prepare: (sandboxRoot) => {
-      const dir = join(sandboxRoot, 'docker')
-      flattenToFreeLayout(dir)
-      return dir
-    },
-    build: (dir) => {
-      if (!existsSync(join(dir, 'Dockerfile'))) {
-        throw new Error('Dockerfile missing in flattened layout — not excluded by sync-to-free but absent')
-      }
-      // Tag-only build; we don't need to push or run the image here.
-      sh('docker build --pull=false -t weaver-free-prerelease-audit:test .', dir)
-    },
-  },
-  {
     id: 'public-demo',
     description: 'Public demo — Dev monorepo layout, VITE_DEMO_MODE + VITE_DEMO_PUBLIC',
     prepare: (sandboxRoot) => {
@@ -239,23 +220,6 @@ interface Result {
 
 function runContext(ctx: BuildContext, sandboxRoot: string): Result {
   const start = Date.now()
-  if (ctx.requiresDocker && skipDocker) {
-    return { context: ctx.id, status: 'skipped', durationMs: 0, detail: '--skip-docker' }
-  }
-  if (ctx.requiresDocker) {
-    const probe = spawnSync('docker', ['version', '--format', '{{.Server.Version}}'], {
-      encoding: 'utf-8',
-      stdio: 'pipe',
-    })
-    if (probe.status !== 0) {
-      return {
-        context: ctx.id,
-        status: 'skipped',
-        durationMs: 0,
-        detail: 'docker daemon unavailable on this runner (pass --skip-docker to silence)',
-      }
-    }
-  }
   try {
     const dir = ctx.prepare(sandboxRoot)
     ctx.build(dir)
