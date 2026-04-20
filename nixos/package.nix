@@ -14,8 +14,13 @@ pkgs.buildNpmPackage rec {
   src = ./..;
 
   # Single hash covers all workspace deps (root + backend + tui).
-  # Updated for v1.0.1 after `npm audit fix` changed the lockfile.
-  npmDepsHash = "sha256-aHvho8ROGegiLwa+czwrcQT6YMgAu8uc40YJ2sTiMjs=";
+  # Paired with a lockfile-marker comment below — both must be updated together
+  # when package-lock.json changes. `audit:nix-deps-hash` enforces this pairing
+  # on every push. Remediation when it fails: `npm run nix:refresh-deps-hash`
+  # (or manually: nix-shell -p prefetch-npm-deps --run 'prefetch-npm-deps
+  # package-lock.json' → copy sha256 to npmDepsHash → update marker below).
+  npmDepsHash = "sha256-iKvLuBk0RxDDGqJ1FrNgqhpkDURdt0Nbx7nIEZa2GFY=";
+  # lockfile-marker: e028f925a01849a4
 
   makeCacheWritable = true;
   nodejs = pkgs.nodejs_24;

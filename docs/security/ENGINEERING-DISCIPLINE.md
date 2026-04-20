@@ -14,7 +14,7 @@ This page documents the specific checks, what they cover, and how to compare the
 
 | Practice | Enterprise-CI norm (industry baseline) | Weaver internal CI |
 |---|---|---|
-| Static analyzers per push | 1–2 generic tools (ESLint, tsc) | **34** domain-specific auditors |
+| Static analyzers per push | 1–2 generic tools (ESLint, tsc) | **35** domain-specific auditors |
 | Release-build pre-flight | None (release failures surface in user reports) | **Simulated downstream build contexts** before tag push |
 | Compliance framework mapping | Maintained manually, drifts between releases | **Single-source data + generator + parity auditor** across 13 verticals |
 | Supply-chain pinning | Latest major tags (`@v4`) | **All GitHub Actions SHA-pinned**, verified on every push |
@@ -32,7 +32,7 @@ The industry baseline numbers come from the Google Research *Accelerate* enginee
 
 ---
 
-## The 34 compliance auditors
+## The 35 compliance auditors
 
 Each auditor runs in the `test:compliance` chain on every push. Failures block the push. They live in `code/scripts/verify-*.ts` and `code/scripts/audit-*.ts`.
 
@@ -81,6 +81,7 @@ Each auditor runs in the `test:compliance` chain on every push. Failures block t
 - **verify-test-coverage** — every backend source file has a matching test file
 - **verify-eager-eval-tdz** — composables that eagerly evaluate getters (useMeta, watchEffect) catch TDZ at compile time
 - **verify-mcp-coverage** — institutional-knowledge sources (`.claude/rules/`, `docs/development/LESSONS-LEARNED.md`, `KNOWN-GOTCHAS.md`) stay acknowledged in the development-tooling coverage manifest; enforces the reader pattern on all MCP tool files so source docs remain single source of truth
+- **verify-nix-deps-hash** — `nixos/package.nix` npmDepsHash stays in sync with `package-lock.json`; catches the "Dependabot bumped lockfile, Nix hash not refreshed" failure mode that breaks every Nix-built install
 
 ---
 
@@ -183,7 +184,7 @@ For compliance framework mappings (NIST 800-171, HIPAA, PCI-DSS, ISO 27001, etc.
 
 | Claim | How to verify |
 |---|---|
-| 34 auditors on every push | [.github/workflows/test.yml](../../.github/workflows/test.yml) compliance-suite job |
+| 35 auditors on every push | [.github/workflows/test.yml](../../.github/workflows/test.yml) compliance-suite job |
 | SHA-pinned GitHub Actions | `grep "uses:" .github/workflows/*.yml` — every line ends with a 40-char SHA |
 | OpenSSF Scorecard score | [scorecard.dev/viewer](https://scorecard.dev/viewer/?uri=github.com/whizbangdevelopers-org/Weaver-Free) |
 | SBOM present on each release | [github.com/whizbangdevelopers-org/Weaver-Free/releases](https://github.com/whizbangdevelopers-org/Weaver-Free/releases) — `sbom.cdx.json` + `sbom-backend.cdx.json` |
