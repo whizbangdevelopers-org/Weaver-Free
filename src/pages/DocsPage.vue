@@ -77,6 +77,7 @@ import MarkdownIt from 'markdown-it'
 // Raw markdown imports — bundled at build time
 import adminGuideRaw from '../../docs/ADMIN-GUIDE.md?raw'
 import userGuideRaw from '../../docs/USER-GUIDE.md?raw'
+import upgradeGuideRaw from '../../docs/UPGRADE.md?raw'
 import securityBaselinesRaw from '../../docs/security/SECURITY-BASELINES.md?raw'
 import nist800171Raw from '../../docs/security/compliance/NIST-800-171-MAPPING.md?raw'
 import hipaa164312Raw from '../../docs/security/compliance/HIPAA-164-312-MAPPING.md?raw'
@@ -113,6 +114,7 @@ const appVersion = computed(() =>
 const currentDocs: Record<string, { title: string; content: string }> = {
   'admin-guide': { title: 'Admin Guide', content: adminGuideRaw },
   'user-guide': { title: 'User Guide', content: userGuideRaw },
+  'upgrade': { title: 'Upgrade Guide', content: upgradeGuideRaw },
   'security-baselines': { title: 'Security Baselines', content: securityBaselinesRaw },
   'nist-800-171': { title: 'NIST 800-171 Mapping', content: nist800171Raw },
   'hipaa-164-312': { title: 'HIPAA §164.312 Mapping', content: hipaa164312Raw },
@@ -134,6 +136,7 @@ const currentDocs: Record<string, { title: string; content: string }> = {
 const slugToPath: Record<string, string> = {
   'admin-guide': 'ADMIN-GUIDE.md',
   'user-guide': 'USER-GUIDE.md',
+  'upgrade': 'UPGRADE.md',
   'production-deployment': 'PRODUCTION-DEPLOYMENT.md',
   'compatibility': 'COMPATIBILITY.md',
   'security-baselines': 'security/SECURITY-BASELINES.md',
@@ -168,6 +171,7 @@ const versionedDocs = import.meta.glob<string>(
 const fileToSlug: Record<string, string> = {
   'ADMIN-GUIDE.md': 'admin-guide',
   'USER-GUIDE.md': 'user-guide',
+  'UPGRADE.md': 'upgrade',
   'PRODUCTION-DEPLOYMENT.md': 'production-deployment',
   'SECURITY-BASELINES.md': 'security-baselines',
   'NIST-800-171-MAPPING.md': 'nist-800-171',
