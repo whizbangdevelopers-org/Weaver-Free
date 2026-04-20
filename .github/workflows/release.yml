@@ -283,7 +283,12 @@ jobs:
           # --delete-excluded: required so files matching new exclusions are
           # cleaned up from the Free mirror even if they existed pre-exclusion
           # (plain --exclude alone preserves them as cruft — silent breakage).
+          # --filter='P /.git' PROTECTS target's .git from deletion (target is
+          # a git clone of Free); must precede exclude rules in rsync filter
+          # chain. Without it, --delete-excluded + --exclude='.git' trashes
+          # target's .git and the follow-up git commands fail.
           rsync -av --delete --delete-excluded \
+            --filter='P /.git' \
             --exclude='.git' \
             --exclude='testing/' \
             --exclude='.claude/' \
