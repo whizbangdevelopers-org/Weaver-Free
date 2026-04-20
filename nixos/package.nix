@@ -42,6 +42,17 @@ pkgs.buildNpmPackage rec {
     npm run build
     popd
 
+    # Auto-detect Free-tier layout: if paid-tier source trees are absent
+    # (i.e. we're building from the Weaver-Free sync mirror, where these
+    # paths are sync-excluded), set VITE_FREE_BUILD=true so routes.ts
+    # tree-shakes the paid-tier route imports that would otherwise fail
+    # with UNLOADABLE_DEPENDENCY at rolldown time. Dev builds with paid
+    # tiers present leave the flag unset and get the full build.
+    if [ ! -d "src/pages/fabrick" ]; then
+      export VITE_FREE_BUILD=true
+      echo "[package.nix] Paid-tier sources absent — VITE_FREE_BUILD=true enabled for rolldown tree-shake"
+    fi
+
     # Build frontend PWA
     npx quasar build -m pwa
   '';
