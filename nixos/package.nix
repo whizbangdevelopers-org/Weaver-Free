@@ -72,6 +72,13 @@ pkgs.buildNpmPackage rec {
     cp docs/security/SECURITY-BASELINES.md $out/lib/weaver/docs/security/
     cp docs/security/compliance/*.md $out/lib/weaver/docs/security/compliance/
 
+    # Operator-facing docs (UPGRADE.md is accessible from a shell when the
+    # service is down — the scenario where users need it most). Also ship
+    # ADMIN and USER guides so a shell user can `cat` them during recovery.
+    cp docs/UPGRADE.md $out/lib/weaver/docs/
+    cp docs/ADMIN-GUIDE.md $out/lib/weaver/docs/
+    cp docs/USER-GUIDE.md $out/lib/weaver/docs/
+
     # TUI
     mkdir -p $out/lib/weaver/tui
     cp -r tui/dist/* $out/lib/weaver/tui/
