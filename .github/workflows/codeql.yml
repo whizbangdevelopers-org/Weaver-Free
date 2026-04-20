@@ -21,6 +21,9 @@ permissions: read-all
 jobs:
   analyze:
     name: Analyze
+    # Skip on private repos — GitHub code scanning upload requires Advanced Security on private repos.
+    # CodeQL runs on the public Weaver-Free mirror where it's free.
+    if: github.event.repository.visibility != 'private'
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
