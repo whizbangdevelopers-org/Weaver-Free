@@ -201,8 +201,10 @@
         AI
       </q-item-label>
 
-      <!-- AI Default (server key) — Solo only. Free uses BYOK; Team/Fabrick use credential vault. -->
-      <q-card v-if="appStore.isWeaver && !isTeamOrFabrick" flat bordered>
+      <!-- AI Default (server key). Free/Solo see this card; Team/Fabrick use credential vault. -->
+      <!-- At Free tier the card functions as an upgrade touchpoint — "Weaver Solo" badge + -->
+      <!-- "requires a Weaver Solo or higher license" explanatory text. -->
+      <q-card v-if="!isTeamOrFabrick" flat bordered>
         <q-expansion-item icon="mdi-robot" label="AI Default" caption="Server-side AI key status" header-class="text-h6">
           <q-card-section>
             <div class="q-gutter-md">
@@ -421,8 +423,8 @@
       <!-- Notifications -->
       <NotificationSettings />
 
-      <!-- Resource Quotas (weaver+ admin only) -->
-      <q-card v-if="authStore.isAdmin && appStore.isWeaver" flat bordered>
+      <!-- Resource Quotas (admin only — Fabrick-tier feature; Free/Solo admins see an upgrade nag) -->
+      <q-card v-if="authStore.isAdmin" flat bordered>
         <q-expansion-item icon="mdi-gauge" label="Resource Quotas" :caption="appStore.isFabrick ? 'Per-user VM, memory, vCPU limits' : 'Fabrick tier'" header-class="text-h6">
           <q-card-section>
             <template v-if="appStore.isFabrick">

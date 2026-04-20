@@ -38,7 +38,7 @@ export function UpgradeNag({ featureName, featureDescription, requiredTier, feat
       )}
 
       <Box marginTop={1}>
-        <Text dimColor>Learn more: https://weaver-demo.github.io/pricing</Text>
+        <Text dimColor>Learn more: https://weaver-dev.github.io/pricing</Text>
       </Box>
 
       <Box marginTop={1}>

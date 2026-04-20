@@ -84,7 +84,7 @@ const BOOT_LINES = [
   '\x1b[33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\x1b[0m',
   '\x1b[33m  Simulated Console\x1b[0m',
   '\x1b[2m  Upgrade to Weaver Solo for live serial access to your VMs.\x1b[0m',
-  '\x1b[2m  https://weaver-demo.github.io/pricing\x1b[0m',
+  '\x1b[2m  https://weaver-dev.github.io/pricing\x1b[0m',
   '\x1b[33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\x1b[0m',
   '',
 ]
@@ -214,7 +214,7 @@ Common commands: ls, cd, cat, echo, ps, free, df, uname, ip, systemctl`,
   const gatedCommands = ['ssh ', 'scp ', 'systemctl restart', 'systemctl start', 'systemctl stop', 'reboot', 'shutdown', 'poweroff', 'nixos-rebuild']
   for (const pc of gatedCommands) {
     if (trimmed === pc || trimmed.startsWith(pc + ' ') || trimmed.startsWith(pc)) {
-      return '\x1b[33mThis command requires live serial access (Weaver Solo).\x1b[0m\n\x1b[2mUpgrade at: https://weaver-demo.github.io/pricing\x1b[0m'
+      return '\x1b[33mThis command requires live serial access (Weaver Solo).\x1b[0m\n\x1b[2mUpgrade at: https://weaver-dev.github.io/pricing\x1b[0m'
     }
   }
 

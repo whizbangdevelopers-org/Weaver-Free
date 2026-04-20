@@ -9,7 +9,7 @@
 # Tag with demo/vX.Y to deploy (e.g., demo/v1.0). Private demo tracks main.
 #
 # REQUIRED SECRETS:
-#   - WEAVER_FREE_DEMO: PAT from weaver-demo account with repo scope
+#   - WEAVER_FREE_DEMO: PAT from weaver-dev account with repo scope
 #     (tier-prefixed convention — matches WEAVER_FREE_SYNC)
 #   - VITE_HCAPTCHA_SITEKEY: hCaptcha site key for demo login
 
@@ -76,6 +76,12 @@ jobs:
 
           # Inject noai meta tags into index.html (after charset meta)
           sed -i 's|<meta charset="utf-8">|<meta charset="utf-8">\n    <meta name="robots" content="noai, noimageai">|' code/dist/spa/index.html
+
+          # Inject Content-Security-Policy meta tag (GitHub Pages can't set HTTP headers).
+          # X-Frame-Options / X-Content-Type-Options cannot be set via meta; the WBD-hosted
+          # deployment will add those at the HTTP layer. frame-ancestors replaces X-Frame-Options in modern browsers.
+          CSP="default-src 'self'; script-src 'self' https://js.hcaptcha.com https://*.hcaptcha.com; style-src 'self' 'unsafe-inline' https://*.hcaptcha.com; img-src 'self' data: blob: https://*.hcaptcha.com; font-src 'self' data:; connect-src 'self' https://*.hcaptcha.com; frame-src https://*.hcaptcha.com https://newassets.hcaptcha.com; frame-ancestors 'none'; form-action 'self'; base-uri 'self'; object-src 'none'"
+          sed -i "s|<meta name=\"robots\" content=\"noai, noimageai\">|<meta name=\"robots\" content=\"noai, noimageai\">\n    <meta http-equiv=\"Content-Security-Policy\" content=\"${CSP}\">|" code/dist/spa/index.html
 
       - name: Deploy to demo repo
         uses: JamesIves/github-pages-deploy-action@d92aa235d04922e8f08b40ce78cc5442fcfbfa2f  # v4
