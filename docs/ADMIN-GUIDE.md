@@ -563,25 +563,20 @@ For full monitoring guidance, see [PRODUCTION-DEPLOYMENT.md](PRODUCTION-DEPLOYME
 
 *Available: v1.0+*
 
-### NixOS (Flake)
+Full upgrade runbook: **[UPGRADE.md](UPGRADE.md)** — covers NUR-path, direct-flake-path, pre-upgrade checklist, 8-point verification, rollback via NixOS generations, and per-version notes.
+
+**Short form** for the common case (NUR-installed Weaver Free, upgrading by one minor/patch):
 
 ```bash
-# Update the Weaver flake input
-nix flake update weaver
-
-# Rebuild the system
+sudo tar -czf /root/weaver-backup-$(date +%Y%m%d-%H%M%S).tar.gz /var/lib/weaver
+cd /etc/nixos
+sudo nix flake update nur
 sudo nixos-rebuild switch
+systemctl status weaver.service
+curl -s http://localhost:3100/api/health | jq .version   # verify new version
 ```
 
-The NixOS module handles service restart automatically. After rebuild, run `gh auth setup-git` if you use the GitHub CLI (the credential helper path goes stale after NixOS rebuilds).
-
-### Version Compatibility
-
-- User data files (`users.json`, `vms.json`, etc.) are forward-compatible. Weaver migrates data automatically on startup when needed.
-- NixOS module options may change between major versions. Check the changelog before upgrading.
-- The JWT secret must remain the same across upgrades. If it changes, all user sessions are invalidated.
-
-> **Note:** Always back up your data directory before upgrading. See [Backup & Restore](#backup--restore).
+Always back up before upgrading. See [Backup & Restore](#backup--restore) for the data-dir layout, and [UPGRADE.md § Verification Checklist](UPGRADE.md#verification-checklist) for the full post-upgrade smoke test.
 
 ---
 
