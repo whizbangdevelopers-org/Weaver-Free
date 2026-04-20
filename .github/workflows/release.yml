@@ -299,17 +299,21 @@ jobs:
           fi
           echo "extra_excludes=$EXTRA_EXCLUDES" >> $GITHUB_OUTPUT
 
-      - name: Sync files to free repo
+      - name: Sync code (dev/code/ → free root)
         run: |
-          # Base excludes (same as sync-to-free.yml)
-          # Repo-specific excludes from .github/sync-exclude.yml
-          # --delete-excluded: required so files matching new exclusions are
-          # cleaned up from the Free mirror even if they existed pre-exclusion
-          # (plain --exclude alone preserves them as cruft — silent breakage).
-          # --filter='P /.git' PROTECTS target's .git from deletion (target is
-          # a git clone of Free); must precede exclude rules in rsync filter
-          # chain. Without it, --delete-excluded + --exclude='.git' trashes
-          # target's .git and the follow-up git commands fail.
+          # Source MUST be dev/code/, not dev/. Dev is a multi-dir repo (code/,
+          # business/, portfolio/, research/, agents/, MASTER-PLAN.md, etc.) and
+          # the Free mirror should contain ONLY the flattened contents of code/.
+          # Syncing dev/ (the whole repo) with --delete-excluded aggressively
+          # leaks all of Dev's internal planning/strategy/GTM content to the
+          # public Free repo — the excludes only cover code/-relative paths.
+          # This exact bug leaked 72,807 lines of internal content on 2026-04-20
+          # via the v1.0.2 attempted release (reverted with a force-push).
+          #
+          # --delete-excluded: cleans up files matching new exclusion patterns
+          # --filter='P /.git' PROTECTS target's .git from deletion — must
+          # precede exclude rules in rsync filter chain. Without it,
+          # --delete-excluded + --exclude='.git' trashes target's .git.
           rsync -av --delete --delete-excluded \
             --filter='P /.git' \
             --exclude='.git' \
@@ -322,12 +326,24 @@ jobs:
             --exclude='.mcp.json' \
             --exclude='flake.nix' \
             --exclude='flake.lock' \
-            --exclude='.github/workflows/sync-to-free.yml' \
-            --exclude='.github/sync-exclude.yml' \
-            --exclude='.github/dependabot.yml' \
-            --exclude='.github/issue-mapping.json' \
             ${{ steps.exclusions.outputs.extra_excludes }} \
-            dev/ free/
+            dev/code/ free/
+
+      - name: Sync .github config (dev/.github/ → free .github)
+        run: |
+          # .github config lives at repo root in both dev and free — sync
+          # separately. Dev-only workflows and sync infrastructure are
+          # excluded (mirrors the exclude set in sync-to-free.yml).
+          rsync -av --delete --delete-excluded \
+            --exclude='workflows/sync-to-free.yml' \
+            --exclude='sync-exclude.yml' \
+            --exclude='issue-mapping.json' \
+            --exclude='workflows/dependabot-labeler.yml' \
+            --exclude='workflows/dependabot-tracker.yml' \
+            --exclude='workflows/version-drift-check.yml' \
+            --exclude='workflows/demo-reset.yml' \
+            --exclude='workflows/stale.yml' \
+            dev/.github/ free/.github/
 
       - name: Commit and push changes
         run: |
@@ -422,42 +438,48 @@ jobs:
           fi
           echo "Licensing gate OK: dispatching Free-tier source from $EXPECTED"
 
-      - name: Compute source hash from free repo
+      - name: Install Nix
+        uses: cachix/install-nix-action@e4f4bde15728394ded896ef07491a85f2eb24956  # v31
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+
+      - name: Compute source hash from free repo (fetchFromGitHub-compatible)
         id: hash
         run: |
           VERSION="${GITHUB_REF_NAME}"
           TARBALL_URL="https://github.com/${{ env.FREE_REPO }}/archive/refs/tags/${VERSION}.tar.gz"
           echo "Computing hash from Free repo: $TARBALL_URL"
 
-          # Retry to allow CDN propagation
+          # CRITICAL: fetchFromGitHub hashes the EXTRACTED source tree, not
+          # the .tar.gz file bytes. A naive `curl | sha256sum` computes the
+          # file-level hash which is rejected at build time with a mismatch.
+          # Use `nix-prefetch-url --unpack` so the hash matches what Nix
+          # recomputes when consuming this package in a real build.
+          # Retry to allow CDN propagation.
           for attempt in 1 2 3; do
-            echo "Download attempt $attempt/3..."
-            HASH=$(curl -sL --retry 3 --retry-delay 5 "$TARBALL_URL" | sha256sum | cut -d' ' -f1)
+            echo "Prefetch attempt $attempt/3..."
+            # nix-prefetch-url prints the base32 hash on stdout; --unpack
+            # tells it to unpack and hash the directory tree (matching
+            # fetchFromGitHub's behavior exactly).
+            BASE32=$(nix-prefetch-url --type sha256 --unpack "$TARBALL_URL" 2>/dev/null || true)
 
-            if [ -n "$HASH" ] && [ "$HASH" != "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855" ]; then
-              echo "sha256=$HASH" >> $GITHUB_OUTPUT
+            if [ -n "$BASE32" ]; then
+              # Convert base32 → SRI (sha256-<base64>) for fetchFromGitHub.
+              SRI=$(nix-hash --to-sri --type sha256 "$BASE32")
+              echo "sri=$SRI" >> $GITHUB_OUTPUT
               echo "version=${VERSION#v}" >> $GITHUB_OUTPUT
-              echo "Source hash: $HASH"
+              echo "Source hash (SRI, extracted-content): $SRI"
               break
             fi
 
             if [ "$attempt" -lt 3 ]; then
-              echo "Empty or zero-byte response, waiting 15s..."
+              echo "Prefetch returned empty, waiting 15s..."
               sleep 15
             else
-              echo "Failed to download source tarball after 3 attempts"
+              echo "Failed to prefetch source tarball after 3 attempts"
               exit 1
             fi
           done
-
-      - name: Convert source hash to SRI format
-        id: sri
-        run: |
-          # fetchFromGitHub expects SRI format (sha256-<base64>); workflow computed hex above.
-          HEX="${{ steps.hash.outputs.sha256 }}"
-          SRI="sha256-$(printf '%s' "$HEX" | xxd -r -p | base64 -w0)"
-          echo "sri=$SRI" >> $GITHUB_OUTPUT
-          echo "Source SRI hash: $SRI"
 
       - name: Dispatch NUR weaver-free update
         uses: peter-evans/repository-dispatch@28959ce8df70de7be546dd1250a005dd32156697  # v4.0.1
@@ -468,7 +490,7 @@ jobs:
           client-payload: |
             {
               "version": "${{ steps.hash.outputs.version }}",
-              "hash": "${{ steps.sri.outputs.sri }}",
+              "hash": "${{ steps.hash.outputs.sri }}",
               "tag": "${{ github.ref_name }}"
             }
 
