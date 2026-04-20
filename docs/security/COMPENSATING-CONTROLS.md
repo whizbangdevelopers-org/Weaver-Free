@@ -40,7 +40,7 @@ If an OpenSSF Scorecard check, a CII Best Practices question, a SOC 2 control, o
 
 **Why we fall short.** The Silver and Gold tiers of the Core Infrastructure Initiative Best Practices badge require a `two_person_review` criterion that is the same structural dependency as Gap 1. A solo maintainer cannot satisfy it.
 
-**Compensating controls.** The same eight controls enumerated under Gap 1 apply. Additionally, Weaver is pursuing the CII Best Practices *Passing* badge, which confirms all Passing-level criteria and is independently achievable by a solo maintainer.
+**Compensating controls.** The same eight controls enumerated under Gap 1 apply. Additionally, Weaver **earned the CII Best Practices *Passing* badge on 2026-04-20** (100% of Passing-level criteria satisfied; project ID 12592 at [bestpractices.dev](https://www.bestpractices.dev/projects/12592)). Silver and Gold remain structurally blocked by the same two-person-review gap as Gap 1.
 
 **Maturity path.** Silver and Gold pursued in lockstep with Gap 1's co-maintainer / contracted-reviewer landing by v2.0.
 
