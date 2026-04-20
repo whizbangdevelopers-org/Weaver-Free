@@ -203,6 +203,8 @@ Action buttons appear based on your role and the workload state:
 - **Stop** — stop a running workload (Operator, Admin)
 - **Restart** — restart a running workload (Operator, Admin)
 - **Delete** — remove the workload and clean up resources (Admin, paid tiers)
+
+> **Free-tier limits (v1.0.2+):** Weaver Free controls the **alphabetical-first 10 workloads** and a **64 GB total running memory ceiling**. Workloads beyond 10 are visible in your list but start/restart actions return "outside your managed set" — they're read-only at Free tier. Stop stays allowed regardless, so you can shut down any running workload. Upgrade to Weaver Solo to lift both caps. If a specific workload sorts outside the top 10, you can rename it in your NixOS config to bring it into the controllable set.
 - **Clone** — duplicate the workload configuration (v1.1+, paid tiers)
 - **Migrate** — move the workload to another host (v2.3+ cold migration, v3.0+ live migration, Fabrick tier)
 
