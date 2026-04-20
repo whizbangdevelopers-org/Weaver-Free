@@ -30,6 +30,9 @@ jobs:
   unit-tests:
     name: Unit Tests
     runs-on: ubuntu-latest
+    outputs:
+      passed: ${{ steps.vitest.outputs.passed }}
+      failed: ${{ steps.vitest.outputs.failed }}
     defaults:
       run:
         working-directory: code
@@ -102,6 +105,9 @@ jobs:
   backend-tests:
     name: Backend Tests
     runs-on: ubuntu-latest
+    outputs:
+      passed: ${{ steps.backend-vitest.outputs.passed }}
+      failed: ${{ steps.backend-vitest.outputs.failed }}
     defaults:
       run:
         working-directory: code
@@ -163,6 +169,9 @@ jobs:
   tui-tests:
     name: TUI Tests
     runs-on: ubuntu-latest
+    outputs:
+      passed: ${{ steps.tui-vitest.outputs.passed }}
+      failed: ${{ steps.tui-vitest.outputs.failed }}
     defaults:
       run:
         working-directory: code
@@ -216,6 +225,36 @@ jobs:
           label: tui tests
           message: "${{ steps.tui-vitest.outputs.passed }} passed"
           color: ${{ steps.tui-vitest.outputs.failed == '0' && 'brightgreen' || 'red' }}
+        continue-on-error: true
+
+  # Aggregates unit + backend + TUI pass/fail counts into a single total badge.
+  # E2E is intentionally excluded — it runs via `update-e2e-badge.yml` manual
+  # dispatch after `test:prerelease` (see testing policy in CLAUDE.md). The
+  # "total" here is the CI-run suite total, not the release-gate total.
+  total-tests-badge:
+    name: Total Tests Badge
+    needs: [unit-tests, backend-tests, tui-tests]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - name: Sum pass/fail counts across suites
+        id: totals
+        run: |
+          PASSED=$(( ${{ needs.unit-tests.outputs.passed }} + ${{ needs.backend-tests.outputs.passed }} + ${{ needs.tui-tests.outputs.passed }} ))
+          FAILED=$(( ${{ needs.unit-tests.outputs.failed }} + ${{ needs.backend-tests.outputs.failed }} + ${{ needs.tui-tests.outputs.failed }} ))
+          echo "passed=$PASSED" >> $GITHUB_OUTPUT
+          echo "failed=$FAILED" >> $GITHUB_OUTPUT
+          echo "Total: $PASSED passed, $FAILED failed"
+
+      - name: Update total-tests badge
+        uses: schneegans/dynamic-badges-action@e9a478b16159b4d31420099ba146cdc50f134483  # v1.7.0
+        with:
+          auth: ${{ secrets.WEAVER_FREE_GIST_TOKEN }}
+          gistID: ${{ secrets.TEST_BADGE_GIST_ID }}
+          filename: total-badge.json
+          label: tests
+          message: "${{ steps.totals.outputs.passed }} passing"
+          color: ${{ steps.totals.outputs.failed == '0' && 'brightgreen' || 'red' }}
         continue-on-error: true
 
   compliance:
