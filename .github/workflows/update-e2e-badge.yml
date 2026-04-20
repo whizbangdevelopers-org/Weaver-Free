@@ -1,0 +1,62 @@
+# Copyright (c) 2026 whizBANG Developers LLC. All rights reserved.
+# Proprietary and confidential. Do not distribute.
+# E2E Badge Updater
+# CREATED IN: Dev repo
+# USED BY: Manual dispatch after local `npm run test:prerelease` completes
+# TRIGGERS: workflow_dispatch only
+#
+# REQUIRED SECRETS:
+#   - WEAVER_FREE_GIST_TOKEN: PAT with gist scope (weaver-dev account)
+#   - TEST_BADGE_GIST_ID: gist ID on weaver-dev that hosts badge JSON
+#
+# USAGE:
+#   After `npm run test:prerelease` passes locally, dispatch with the counts:
+#     gh workflow run update-e2e-badge.yml -f passed=<N> -f failed=<N>
+#   The `badge:e2e` npm script prints the exact command with counts filled in.
+#
+# WHY MANUAL DISPATCH: E2E tests run in Docker locally via the testing/e2e-docker/
+# harness. Running them in GitHub Actions adds significant CI minutes and
+# requires Playwright-in-Docker setup that isn't pulling its weight until a
+# compliance buyer requires a CI-verified signal. Local → manual dispatch
+# keeps the badge accurate without the CI overhead.
+
+name: Update E2E Badge
+
+on:
+  workflow_dispatch:
+    inputs:
+      passed:
+        description: 'Number of E2E tests that passed'
+        required: true
+        type: string
+      failed:
+        description: 'Number of E2E tests that failed (default 0)'
+        required: false
+        default: '0'
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  update-badge:
+    name: Update E2E badge
+    runs-on: ubuntu-latest
+    steps:
+      - name: Write badge JSON
+        uses: schneegans/dynamic-badges-action@e9a478b16159b4d31420099ba146cdc50f134483  # v1.7.0
+        with:
+          auth: ${{ secrets.WEAVER_FREE_GIST_TOKEN }}
+          gistID: ${{ secrets.TEST_BADGE_GIST_ID }}
+          filename: e2e-badge.json
+          label: e2e
+          message: "${{ inputs.passed }} passing"
+          color: ${{ inputs.failed == '0' && 'brightgreen' || 'red' }}
+
+      - name: Summary
+        run: |
+          echo "## E2E Badge Updated" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- Passed: ${{ inputs.passed }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Failed: ${{ inputs.failed }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Color: ${{ inputs.failed == '0' && 'brightgreen' || 'red' }}" >> $GITHUB_STEP_SUMMARY
