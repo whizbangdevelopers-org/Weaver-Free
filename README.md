@@ -14,9 +14,10 @@
 [![NixOS](https://img.shields.io/badge/NixOS-25.11+-5277C3.svg)](https://nixos.org)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/whizbangdevelopers-org/Weaver-Free/badge)](https://scorecard.dev/viewer/?uri=github.com/whizbangdevelopers-org/Weaver-Free)
 
-![Unit Tests](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/wriver4/79355c8ae5e81aefa0f67ef318fdf785/raw/vitest-badge.json)
-![Backend Tests](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/wriver4/79355c8ae5e81aefa0f67ef318fdf785/raw/backend-badge.json)
-![TUI Tests](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/wriver4/79355c8ae5e81aefa0f67ef318fdf785/raw/tui-badge.json)
+![Unit Tests](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/weaver-dev/77b8f722f5ca97c9aca33d9560589ab3/raw/vitest-badge.json)
+![Backend Tests](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/weaver-dev/77b8f722f5ca97c9aca33d9560589ab3/raw/backend-badge.json)
+![TUI Tests](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/weaver-dev/77b8f722f5ca97c9aca33d9560589ab3/raw/tui-badge.json)
+![E2E Tests](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/weaver-dev/77b8f722f5ca97c9aca33d9560589ab3/raw/e2e-badge.json)
 
 ---
 

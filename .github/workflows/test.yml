@@ -80,10 +80,10 @@ jobs:
         continue-on-error: true
 
       - name: Update test badge
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
         uses: schneegans/dynamic-badges-action@e9a478b16159b4d31420099ba146cdc50f134483  # v1.7.0
         with:
-          auth: ${{ secrets.GIST_TOKEN }}
+          auth: ${{ secrets.WEAVER_FREE_GIST_TOKEN }}
           gistID: ${{ secrets.TEST_BADGE_GIST_ID }}
           filename: vitest-badge.json
           label: unit tests
@@ -149,10 +149,10 @@ jobs:
           fi
 
       - name: Update backend test badge
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
         uses: schneegans/dynamic-badges-action@e9a478b16159b4d31420099ba146cdc50f134483  # v1.7.0
         with:
-          auth: ${{ secrets.GIST_TOKEN }}
+          auth: ${{ secrets.WEAVER_FREE_GIST_TOKEN }}
           gistID: ${{ secrets.TEST_BADGE_GIST_ID }}
           filename: backend-badge.json
           label: backend tests
@@ -207,10 +207,10 @@ jobs:
           fi
 
       - name: Update TUI test badge
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
         uses: schneegans/dynamic-badges-action@e9a478b16159b4d31420099ba146cdc50f134483  # v1.7.0
         with:
-          auth: ${{ secrets.GIST_TOKEN }}
+          auth: ${{ secrets.WEAVER_FREE_GIST_TOKEN }}
           gistID: ${{ secrets.TEST_BADGE_GIST_ID }}
           filename: tui-badge.json
           label: tui tests

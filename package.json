@@ -108,6 +108,7 @@
     "e2e:free": "testing/e2e-docker/scripts/run-tests-free.sh",
     "e2e:demo-public": "testing/e2e-docker/scripts/run-tests-demo-public.sh",
     "e2e:demo-private": "testing/e2e-docker/scripts/run-tests-demo-private.sh",
+    "badge:e2e": "node -e 'const [p,f]=process.argv.slice(2);if(!p){console.error(\"usage: npm run badge:e2e -- <passed> [failed]\");process.exit(1)}console.log(`gh workflow run update-e2e-badge.yml -f passed=${p} -f failed=${f||0}`)'",
     "e2e:demo-screenshots": "testing/e2e-docker/scripts/run-tests-demo-screenshots.sh",
     "e2e:single": "testing/e2e-docker/scripts/run-single.sh",
     "e2e:analyze": "testing/e2e-docker/scripts/analyze-results.sh",
