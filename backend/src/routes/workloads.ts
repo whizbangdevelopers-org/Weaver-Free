@@ -7,6 +7,7 @@ import { listVms, getVm, startVm, stopVm, restartVm, createVm, deleteVm, getWork
 import { requireRole } from '../middleware/rbac.js'
 import { requireTier } from '../license.js'
 import { TIERS, ROLES, STATUSES, PROVISIONING } from '../constants/vocabularies.js'
+import { checkFreeTierCap as checkFreeTierCapPure } from '../services/free-tier-cap.js'
 import type { Provisioner } from '../services/provisioner-types.js'
 import type { ImageManager } from '../services/image-manager.js'
 import type { DashboardConfig } from '../config.js'
@@ -130,6 +131,18 @@ export const workloadsRoutes: FastifyPluginAsync<VmsRouteOptions> = async (fasti
   // Per-VM ACL check middleware (fabrick only, admin bypass)
   const aclCheck = (aclStore && config) ? createVmAclCheck(aclStore, config) : undefined
   const aclPreHandler = aclCheck ? [aclCheck] : []
+
+  /**
+   * Free-tier cap wrapper — fetches current registry state then delegates
+   * to the pure function. See `services/free-tier-cap.ts` for the logic.
+   */
+  async function checkFreeTierCap(
+    targetName: string,
+  ): ReturnType<typeof checkFreeTierCapPure> extends infer R ? Promise<R> : never {
+    if (!config) return null
+    const all = await listVms()
+    return checkFreeTierCapPure(targetName, all, config.tier)
+  }
 
   // GET /api/workload — list all VMs (with ACL filtering for fabrick)
   app.get('/', { schema: { response: { 200: z.array(vmInfoResponseSchema) } } }, async (request) => {
@@ -422,9 +435,24 @@ export const workloadsRoutes: FastifyPluginAsync<VmsRouteOptions> = async (fasti
   // POST /api/workload/:name/start — start VM (operator+)
   app.post(
     '/:name/start',
-    { schema: { params: vmNameSchema, response: { 200: vmActionResponseSchema, 400: errorResponseSchema } }, preHandler: [requireRole(ROLES.ADMIN, ROLES.OPERATOR), ...aclPreHandler], config: { rateLimit: createRateLimit(30) } },
+    { schema: { params: vmNameSchema, response: { 200: vmActionResponseSchema, 400: errorResponseSchema, 403: errorResponseSchema } }, preHandler: [requireRole(ROLES.ADMIN, ROLES.OPERATOR), ...aclPreHandler], config: { rateLimit: createRateLimit(30) } },
     async (request, reply) => {
       const { name } = request.params
+
+      // Free-tier cap check (observer pattern — alphabetical-first-N controllable + 64GB memory ceiling).
+      const capError = await checkFreeTierCap(name)
+      if (capError) {
+        await auditService?.log({
+          userId: request.userId ?? null,
+          username: request.username ?? 'unknown',
+          action: 'vm.start',
+          resource: name,
+          ip: request.ip,
+          success: false,
+        })
+        return reply.status(capError.status).send({ error: capError.error })
+      }
+
       const result = await startVm(name)
 
       await auditService?.log({
@@ -470,9 +498,24 @@ export const workloadsRoutes: FastifyPluginAsync<VmsRouteOptions> = async (fasti
   // POST /api/workload/:name/restart — restart VM (operator+)
   app.post(
     '/:name/restart',
-    { schema: { params: vmNameSchema, response: { 200: vmActionResponseSchema, 400: errorResponseSchema } }, preHandler: [requireRole(ROLES.ADMIN, ROLES.OPERATOR), ...aclPreHandler], config: { rateLimit: createRateLimit(30) } },
+    { schema: { params: vmNameSchema, response: { 200: vmActionResponseSchema, 400: errorResponseSchema, 403: errorResponseSchema } }, preHandler: [requireRole(ROLES.ADMIN, ROLES.OPERATOR), ...aclPreHandler], config: { rateLimit: createRateLimit(30) } },
     async (request, reply) => {
       const { name } = request.params
+
+      // Free-tier cap check (same rules as start).
+      const capError = await checkFreeTierCap(name)
+      if (capError) {
+        await auditService?.log({
+          userId: request.userId ?? null,
+          username: request.username ?? 'unknown',
+          action: 'vm.restart',
+          resource: name,
+          ip: request.ip,
+          success: false,
+        })
+        return reply.status(capError.status).send({ error: capError.error })
+      }
+
       const result = await restartVm(name)
 
       await auditService?.log({
