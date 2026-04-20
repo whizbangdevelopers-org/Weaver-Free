@@ -25,6 +25,11 @@ This page documents the specific checks, what they cover, and how to compare the
 
 The industry baseline numbers come from the Google Research *Accelerate* engineering-performance studies and the [OpenSSF](https://openssf.org) tier rubric. Weaver's internal CI is benchmarked at an **A** rating in the enterprise engineering-discipline band.
 
+**Third-party attestations:**
+- [**CII Best Practices — Passing**](https://www.bestpractices.dev/projects/12592) (earned 2026-04-20, 100% of Passing criteria). Silver and Gold blocked by solo-maintainer structural constraints — see [COMPENSATING-CONTROLS.md § Gap 2](COMPENSATING-CONTROLS.md).
+- [**OpenSSF Scorecard**](https://scorecard.dev/viewer/?uri=github.com/whizbangdevelopers-org/Weaver-Free) — weekly public scan.
+- **Sigstore-signed releases + SLSA Level 3 provenance** — every release asset carries a Fulcio-issued signature logged to Rekor, plus `actions/attest-build-provenance` attestations. See Release provenance section below.
+
 ---
 
 ## The 34 compliance auditors
