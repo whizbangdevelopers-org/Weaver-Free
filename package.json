@@ -128,7 +128,7 @@
     "idb": "^8.0.0",
     "markdown-it": "^14.1.1",
     "pinia": "^2.1.7",
-    "pinia-plugin-persistedstate": "^3.2.1",
+    "pinia-plugin-persistedstate": "^4.7.1",
     "quasar": "^2.14.0",
     "sortablejs": "^1.15.7",
     "v-network-graph": "^0.9.22",
