@@ -9,6 +9,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.2] - 2026-04-20
+
+Patch release. Closes a Free-tier monetization gap (unlimited VM control) and tightens the release/sync machinery. End-to-end upgrade path validated on a live non-flake NixOS VM.
+
+### Added
+
+- **Free-tier VM control cap (observer pattern).** Free-tier installations can register and observe unlimited VMs, but lifecycle actions (start/restart) are gated to the first 10 VMs alphabetically plus a 64 GB total running-memory ceiling. Pure-function gate at `backend/src/services/free-tier-cap.ts` with 11 unit tests; wired into `POST /api/workload/:name/start` and `/:name/restart` with a 403 response and audit-logged denial. Upgrade nags (AI Default, Resource Quotas) are now visible to Free admins as conversion touchpoints.
+- **New auditor `audit:mcp-coverage`** (#34) — three-layer parity check that the code MCP server's knowledge manifest covers every source it claims to, that the manifest is fresher than its sources, and that the reader pattern matches what the manifest declares.
+- **New auditor `audit:nix-deps-hash`** (#35) — computes a sha256 fingerprint of `package-lock.json` and compares it against a `# lockfile-marker:` comment in `nixos/package.nix`. Fails the push with remediation steps when the pairing drifts, so downstream Nix builds can't surface with an outdated `npmDepsHash`.
+- **New auditor `audit:sync-exclude-cruft`** (#36) — greps every rsync invocation in `sync-to-free.yml` and `release.yml` to ensure `--delete-excluded` is present. Prevents the class of bug where a pattern added to `sync-exclude.yml` silently leaves pre-existing files behind on the Free mirror.
+- **`docs/UPGRADE.md`** — canonical upgrade runbook covering three installation paths: flake + NUR, flake + direct GitHub input, and traditional channels + NUR (pinned and unpinned sub-cases). Includes an 8-point post-upgrade verification checklist, rollback guidance, and a staging-VM validation pattern.
+- **`ADMIN-GUIDE.md` — "Validating Upgrades in a Staging VM"** section documents the two-VM recommendation (flake-managed and channels-managed) and the per-release six-step validation workflow.
+- **Sigstore cosign keyless signing** on all release tarballs and SBOMs. Release assets now include `.sig` and `.pem` files signed via Fulcio with Rekor transparency-log inclusion. The `attest-build-provenance` step no longer uses `continue-on-error: true` — provenance failures now block the release.
+- **Badge wiring (Row 2 + Row 3).** README now shows a total-tests badge that sums unit + backend + TUI + E2E pass/fail counts from per-job gist writes, plus per-suite badges. Row 3 adds compliance-auditors, cosign-signed, SLSA L3, and a live CII Best Practices Passing badge (project #12592).
+- **`docs/security/COMPENSATING-CONTROLS.md`** — documents 7 structural gaps (solo-maintainer, second reviewer, etc.) and the compensating controls that offset each. AI review is recognized as a first-layer compensating control alongside automated auditors and recorded exceptions.
+- **`docs/security/CONTRACTED-REVIEW-OFFERING.md`** — Fabrick-tier bolt-on for customers who need human second-reviewer coverage on their Weaver deployments.
+- **`CONTRIBUTING.md` — "About this project"** + Governance sections now spell out the two-admin model (Mark Wriver primary; Yuri Jacuk secondary-admin-on-standby, activating June 2026) and the committed roadmap through v2.x and v3.x.
+
+### Fixed
+
+- **`/api/health` missing `version` field.** The health route now resolves the backend package version at module load and includes `version` in the response. Catches version drift on upgraded installs.
+- **`VITE_FREE_BUILD` auto-detect in Nix builds.** When `src/pages/fabrick/` is absent (the Weaver-Free tarball), `nixos/package.nix` now sets `VITE_FREE_BUILD=true` automatically so rolldown tree-shakes the paid-tier route ternary. Previously the env var had to be set by the caller; omitting it produced `UNLOADABLE_DEPENDENCY` failures on pages that were supposed to be excluded.
+- **Sync workflow preserved stale excluded files** on the Free mirror. `sync-to-free.yml` now passes `--delete-excluded` on both the `code/ → target/` rsync and the `.github/ → target/.github/` rsync, so files newly added to `sync-exclude.yml` are removed from Free on the next sync instead of lingering as cruft. A `--filter='P /.git'` protect rule guards `target/.git` from being deleted by `--delete-excluded` combined with `--exclude='.git'`.
+- **`release.yml` rsync path symmetry.** The release workflow's final sync to Free now uses the same `--delete-excluded` + `--filter='P /.git'` discipline as the main sync workflow.
+- **Over-broad rsync exclusion patterns.** `- /reports/`, `- /coverage/`, `- /logs/`, `- /data/`, `- /playwright-report/`, `- /test-results/` are now anchored with leading slashes so they match ONLY the top-level path. Unanchored `- data/` was matching `backend/data/` (which holds `distro-catalog.json`, a real shipped file) and deleting it on sync — the Nix build then failed with `cp: cannot stat backend/data/distro-catalog.json`. `dist/` is intentionally kept unanchored; nested `backend/dist`, `tui/dist`, and `src-pwa/dist` are all build artifacts that should be excluded.
+- **`audit:doc-parity` counter drift** — auditor-count references in `CLAUDE.md`, `MASTER-PLAN.md`, `NOTES.md`, `STATUS.md`, and `ENGINEERING-DISCIPLINE.md` brought back into sync at 36.
+- **Test-badge pipeline schema violation.** `.github/workflows/test.yml` `if:` expressions no longer reference `secrets.*` (forbidden at the job/step `if:` level in GitHub Actions). Badge publishing now keys off `workflow_dispatch || startsWith(github.ref, 'refs/tags/v')` and sends to a classic-PAT-authenticated gist owned by the weaver-dev user.
+- **Backend + TUI lint drift** — `test:precommit` now covers backend lint + typecheck and TUI typecheck, catching three pre-existing backend lint errors (unused imports + unused caught-error) that had slipped past the root-scoped precommit.
+- **OpenSSF CII Passing unblocked** — Commons Clause dropped from the Weaver-Free LICENSE (Decision recap: AGPL-3.0 only for Free). Combined with the new Governance doc, this let us earn the CII Passing badge on first submission.
+- **`audit:release-builds` docker context removed.** Weaver is a NixOS module, not a Docker image — it manages `microvm@*.service` units and `br-microvm` bridge networking at host level. Running Weaver in a container would require `--privileged` or Docker-in-Docker, either of which defeats the isolation model. Docker is a workload Weaver **manages**, not a shipping format for Weaver itself. The aspirational `docker build -t ghcr.io/...` line was also struck from the release checklist in `code/CLAUDE.md`.
+
+### Changed
+
+- **Upgrade nags visible on Free.** `SettingsPage.vue` no longer gates the AI Default and Resource Quotas cards behind `appStore.isWeaver`. Free-tier admins see the same cards with tier-upgrade messaging — a deliberate conversion touchpoint at the tier boundary.
+- **`nixos/package.nix`** now copies `docs/UPGRADE.md`, `docs/ADMIN-GUIDE.md`, and `docs/USER-GUIDE.md` into `$out/lib/weaver/docs/` so installed binaries ship with their own upgrade and operator documentation.
+- **CI no longer sets `continue-on-error: true` on `attest-build-provenance`** — provenance failures now block the release.
+
+### Validated
+
+- **Non-flake upgrade path end-to-end.** The traditional-channels + NUR upgrade path was smoke-tested against v1.0.1 on a live NixOS VM. Six cascading bugs discovered during the test are all fixed in this release: npmDepsHash drift, `VITE_FREE_BUILD` auto-detect missing from Nix build, `--delete-excluded` missing from sync rsyncs, `--exclude='.git'` combined with `--delete-excluded` trashing target `.git`, unanchored `/data/` exclusion pattern deleting `backend/data/distro-catalog.json`, and `/api/health` missing a `version` field. Flake-based upgrade paths share the same `nixos/package.nix` derivation and are covered transitively.
+
 ## [1.0.1] - 2026-04-18
 
 Non-security patch release. Fixes a critical release-mechanics bug that prevented the Weaver Free public tarball from being built from source. Tightens CI guardrails against the bug class that caused it.

@@ -141,9 +141,16 @@ jobs:
           COSIGN_YES: 'true'
         run: |
           cd ./release-assets
+          # Pin to legacy signature+certificate outputs. Recent cosign defaults
+          # to --new-bundle-format, which deprecates these flags and requires
+          # --bundle <path> instead — silently producing an "open : no such
+          # file or directory" failure when old flags are present. Keep legacy
+          # so .sig/.pem files match what the README and downstream verifiers
+          # expect. Migrate to --bundle format as a dedicated v1.0.3+ change.
           for file in weaver-*.tar.gz sbom.cdx.json sbom-backend.cdx.json; do
             if [ -f "$file" ]; then
               cosign sign-blob \
+                --new-bundle-format=false \
                 --output-signature "${file}.sig" \
                 --output-certificate "${file}.pem" \
                 "$file"
