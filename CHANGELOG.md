@@ -21,7 +21,7 @@ Patch release. Closes a Free-tier monetization gap (unlimited VM control) and ti
 - **New auditor `audit:sync-exclude-cruft`** (#36) — greps every rsync invocation in `sync-to-free.yml` and `release.yml` to ensure `--delete-excluded` is present. Prevents the class of bug where a pattern added to `sync-exclude.yml` silently leaves pre-existing files behind on the Free mirror.
 - **`docs/UPGRADE.md`** — canonical upgrade runbook covering three installation paths: flake + NUR, flake + direct GitHub input, and traditional channels + NUR (pinned and unpinned sub-cases). Includes an 8-point post-upgrade verification checklist, rollback guidance, and a staging-VM validation pattern.
 - **`ADMIN-GUIDE.md` — "Validating Upgrades in a Staging VM"** section documents the two-VM recommendation (flake-managed and channels-managed) and the per-release six-step validation workflow.
-- **Sigstore cosign keyless signing** on all release tarballs and SBOMs. Release assets now include `.sig` and `.pem` files signed via Fulcio with Rekor transparency-log inclusion. The `attest-build-provenance` step no longer uses `continue-on-error: true` — provenance failures now block the release.
+- **Sigstore cosign keyless signing** on all release tarballs and SBOMs. Release assets now include `.sig` and `.pem` files signed via Fulcio with Rekor transparency-log inclusion. Cosign pinned to v2.5.3 in `sigstore/cosign-installer` — cosign v3 dropped `--output-signature` / `--output-certificate` in favor of a single `--bundle` output; the migration is a deliberate v1.0.3+ change.
 - **Badge wiring (Row 2 + Row 3).** README now shows a total-tests badge that sums unit + backend + TUI + E2E pass/fail counts from per-job gist writes, plus per-suite badges. Row 3 adds compliance-auditors, cosign-signed, SLSA L3, and a live CII Best Practices Passing badge (project #12592).
 - **`docs/security/COMPENSATING-CONTROLS.md`** — documents 7 structural gaps (solo-maintainer, second reviewer, etc.) and the compensating controls that offset each. AI review is recognized as a first-layer compensating control alongside automated auditors and recorded exceptions.
 - **`docs/security/CONTRACTED-REVIEW-OFFERING.md`** — Fabrick-tier bolt-on for customers who need human second-reviewer coverage on their Weaver deployments.
@@ -44,7 +44,7 @@ Patch release. Closes a Free-tier monetization gap (unlimited VM control) and ti
 
 - **Upgrade nags visible on Free.** `SettingsPage.vue` no longer gates the AI Default and Resource Quotas cards behind `appStore.isWeaver`. Free-tier admins see the same cards with tier-upgrade messaging — a deliberate conversion touchpoint at the tier boundary.
 - **`nixos/package.nix`** now copies `docs/UPGRADE.md`, `docs/ADMIN-GUIDE.md`, and `docs/USER-GUIDE.md` into `$out/lib/weaver/docs/` so installed binaries ship with their own upgrade and operator documentation.
-- **CI no longer sets `continue-on-error: true` on `attest-build-provenance`** — provenance failures now block the release.
+- **`attest-build-provenance` documented as soft-fail on the private Dev repo.** GitHub attestations require either a paid org plan or a public repo. Weaver-Dev is private on the free plan, so attestations fail with "Feature not available for the organization." `continue-on-error: true` is retained with a workflow comment explaining the constraint — the flag becomes removable when the org upgrades to Team/Enterprise or this workflow is moved to run on the public Free repo directly.
 
 ### Validated
 
