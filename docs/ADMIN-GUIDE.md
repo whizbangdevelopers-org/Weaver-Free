@@ -563,20 +563,93 @@ For full monitoring guidance, see [PRODUCTION-DEPLOYMENT.md](PRODUCTION-DEPLOYME
 
 *Available: v1.0+*
 
-Full upgrade runbook: **[UPGRADE.md](UPGRADE.md)** — covers NUR-path, direct-flake-path, pre-upgrade checklist, 8-point verification, rollback via NixOS generations, and per-version notes.
+Full upgrade runbook: **[UPGRADE.md](UPGRADE.md)** — covers three paths (flake+NUR, flake+direct-input, traditional-channels+NUR), pre-upgrade checklist, 8-point verification, rollback via NixOS generations, and per-version notes.
 
-**Short form** for the common case (NUR-installed Weaver Free, upgrading by one minor/patch):
+**Short form** for the common cases. **Always back up first**:
 
 ```bash
 sudo tar -czf /root/weaver-backup-$(date +%Y%m%d-%H%M%S).tar.gz /var/lib/weaver
+```
+
+**Flake + NUR:**
+```bash
 cd /etc/nixos
 sudo nix flake update nur
 sudo nixos-rebuild switch
-systemctl status weaver.service
-curl -s http://localhost:3100/api/health | jq .version   # verify new version
 ```
 
-Always back up before upgrading. See [Backup & Restore](#backup--restore) for the data-dir layout, and [UPGRADE.md § Verification Checklist](UPGRADE.md#verification-checklist) for the full post-upgrade smoke test.
+**Traditional channels + NUR (unpinned mainline):**
+```bash
+sudo nix-channel --update
+sudo nixos-rebuild switch
+```
+
+**Verify new version rendered:**
+```bash
+systemctl status weaver.service
+curl -s http://localhost:3100/api/health | jq .version
+```
+
+See [Backup & Restore](#backup--restore) for the data-dir layout, and [UPGRADE.md § Verification Checklist](UPGRADE.md#verification-checklist) for the full post-upgrade smoke test.
+
+### Validating Upgrades in a Staging VM (Recommended for Production)
+
+*Available: v1.0+*
+
+For mission-critical Weaver deployments, test the upgrade on a disposable staging VM before running it against production. This catches environment-specific regressions that the project's own CI cannot (your NixOS module config, your data shape, your workload inventory).
+
+**Recommended setup: two staging VMs, one per installation paradigm**
+
+The reason for two is that Weaver supports both flake-based and traditional-channels NixOS, and regressions can show up in one path while the other is fine. Mirror whichever paradigm production uses; keep the other as insurance for when you eventually migrate.
+
+| Staging VM | Mirrors | Refreshed |
+|---|---|---|
+| `weaver-staging-flake` | Flake + NUR (Path A) or flake + direct input (Path B) | On every Weaver release |
+| `weaver-staging-channels` | Traditional channels + NUR (Path C) | On every Weaver release |
+
+**Minimum specs per VM:** 4 GB RAM, 2 vCPU, 20 GB disk. These run Weaver itself plus a handful of sample workloads — not the production workload fleet.
+
+**Example `configuration.nix` — flake variant (excerpt):**
+
+```nix
+# Inside flake.nix `nixosConfigurations.weaver-staging-flake`
+{
+  imports = [
+    (nur-packages + "/modules/weaver-free")
+    ./hardware-configuration.nix
+  ];
+  services.weaver.enable = true;
+  services.weaver.dataDir = "/var/lib/weaver";
+  # Mirror production: same JWT secret source, same network config
+}
+```
+
+**Example `configuration.nix` — traditional-channels variant (excerpt):**
+
+```nix
+# /etc/nixos/configuration.nix (no flake)
+{ config, pkgs, ... }: {
+  imports = [ ./hardware-configuration.nix ];
+  nixpkgs.config.packageOverrides = pkgs: {
+    nur = import (builtins.fetchTarball
+      "https://github.com/nix-community/NUR/archive/main.tar.gz"
+    ) { inherit pkgs; };
+  };
+  environment.systemPackages = [ pkgs.nur.repos.whizbangdevelopers.weaver-free ];
+  # Or use the module if shipped: imports = [ pkgs.nur.repos.whizbangdevelopers.weaver-module ];
+}
+```
+
+**Upgrade-validation workflow (per release):**
+
+1. On each staging VM, confirm current version matches production (or the version you're upgrading *from*).
+2. Take a data-dir backup on each.
+3. Run the upgrade (Path A/B/C as appropriate) on each staging VM.
+4. Walk the full [UPGRADE.md § Verification Checklist](UPGRADE.md#verification-checklist) on each.
+5. If both pass: proceed with production upgrade.
+6. If either fails: file a bug against Weaver with the `journalctl -u weaver.service` output and your `configuration.nix` (redacted). Hold production at N-1 until resolved.
+
+Budget ~30 min for the two-VM validation per release. That's the cost of confidence.
 
 ---
 
