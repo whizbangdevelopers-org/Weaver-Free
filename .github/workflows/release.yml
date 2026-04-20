@@ -280,7 +280,10 @@ jobs:
         run: |
           # Base excludes (same as sync-to-free.yml)
           # Repo-specific excludes from .github/sync-exclude.yml
-          rsync -av --delete \
+          # --delete-excluded: required so files matching new exclusions are
+          # cleaned up from the Free mirror even if they existed pre-exclusion
+          # (plain --exclude alone preserves them as cruft — silent breakage).
+          rsync -av --delete --delete-excluded \
             --exclude='.git' \
             --exclude='testing/' \
             --exclude='.claude/' \
