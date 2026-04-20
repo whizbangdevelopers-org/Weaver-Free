@@ -46,21 +46,25 @@ This guide is for administrators upgrading an **existing Weaver installation** t
 
 ## Upgrade Paths
 
-Two paths depending on how you installed Weaver. Use the one that matches.
+Three paths depending on how you installed Weaver. Use the one that matches.
 
-### Path A — NUR (Weaver Free)
+### Path A — Flake + NUR (Weaver Free)
 
-You installed via the Nix User Repository (`nixpkgs.nur.repos.whizbangdevelopers.weaver-free`) and have a `weaver-free` flake input in your NixOS configuration.
+You installed via the Nix User Repository and have a `flake.nix` at `/etc/nixos/` with an NUR input (typically `nur.url = "github:nix-community/NUR";`). Commands use `nix flake update`.
 
-### Path B — Direct flake input (Solo/Team/Fabrick or Weaver-Dev checkout)
+### Path B — Flake + direct input (Solo/Team/Fabrick or Weaver-Dev checkout)
 
-You installed from a flake that points at a specific release tag (e.g., `github:whizbangdevelopers-org/Weaver-Dev/v1.0.1`) or a local path.
+You installed from a flake that points at a specific release tag (e.g., `github:whizbangdevelopers-org/Weaver-Dev/v1.0.1`) or a local path. Commands use `nix flake update`.
+
+### Path C — Traditional channels + NUR (non-flake)
+
+You use the classic NixOS channels setup (`nix-channel`, imports like `<nixpkgs>` in `configuration.nix`). NUR is typically brought in via `pkgs.callPackage` or a top-of-config `fetchTarball`. Commands use `nix-channel --update`.
 
 ---
 
 ## Upgrade Procedure
 
-### Path A — NUR
+### Path A — Flake + NUR
 
 ```sh
 cd /etc/nixos              # or wherever your flake.nix lives
@@ -68,7 +72,7 @@ sudo nix flake update nur  # or the specific NUR input name
 sudo nixos-rebuild switch
 ```
 
-### Path B — Direct flake input
+### Path B — Flake + direct input
 
 Edit your flake.nix to pin the new version:
 
@@ -88,7 +92,53 @@ sudo nix flake update weaver
 sudo nixos-rebuild switch
 ```
 
-Both paths conclude with `nixos-rebuild switch`. The NixOS module's `systemd.services.weaver` declaration handles the service restart automatically — the old binary stops, the new binary starts, and systemd handles the transition.
+### Path C — Traditional channels + NUR
+
+Two sub-cases depending on how your NUR is pinned.
+
+**C1 — NUR at mainline (unpinned)** — your `configuration.nix` uses `builtins.fetchTarball` without a rev:
+
+```nix
+nixpkgs.config.packageOverrides = pkgs: {
+  nur = import (builtins.fetchTarball "https://github.com/nix-community/NUR/archive/main.tar.gz") {
+    inherit pkgs;
+  };
+};
+```
+
+In this case, every `nixos-rebuild switch` fetches the current NUR HEAD, which picks up the latest Weaver Free automatically. Just:
+
+```sh
+sudo nix-channel --update
+sudo nixos-rebuild switch
+```
+
+`nix-channel --update` refreshes your nixpkgs channel; the NUR `fetchTarball` always gets mainline HEAD. Weaver Free updates land with whichever NUR revision arrived.
+
+**C2 — NUR pinned to a specific commit** — your `configuration.nix` pins the NUR revision:
+
+```nix
+nur = import (builtins.fetchTarball {
+  url = "https://github.com/nix-community/NUR/archive/<OLD_COMMIT_SHA>.tar.gz";
+  sha256 = "<OLD_SHA256>";
+}) { inherit pkgs; };
+```
+
+To upgrade to the latest Weaver Free:
+
+1. Look up the latest NUR commit on [github.com/nix-community/NUR/commits/main](https://github.com/nix-community/NUR/commits/main) (or the specific commit that bumped Weaver Free to your target version).
+2. Update the pinned URL:
+   ```nix
+   url = "https://github.com/nix-community/NUR/archive/<NEW_COMMIT_SHA>.tar.gz";
+   ```
+3. Drop the `sha256` line (or replace with a stub) and run `sudo nixos-rebuild switch`. The build will fail with the correct hash; copy it into the `sha256 = "...";` line.
+4. Re-run `sudo nixos-rebuild switch`.
+
+Alternatively, if you trust mainline and don't need reproducibility, switch to C1 (unpinned) by removing the `sha256` and using `main.tar.gz`. Tradeoff: unpredictable NUR version on each rebuild.
+
+---
+
+All three paths conclude with `nixos-rebuild switch`. The NixOS module's `systemd.services.weaver` declaration handles the service restart automatically — the old binary stops, the new binary starts, and systemd handles the transition.
 
 Expected downtime: **5–30 seconds** while systemd restarts the service. WebSocket-connected clients reconnect automatically once the new backend is up.
 
