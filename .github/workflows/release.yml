@@ -489,6 +489,31 @@ jobs:
             fi
           done
 
+      - name: Extract npmDepsHash from nixos/package.nix
+        id: npmdeps
+        run: |
+          # NUR's weaver-free/default.nix has TWO hashes:
+          #   1. src.hash — source tarball SRI (computed above from Free tag)
+          #   2. npmDepsHash — buildNpmPackage's prefetch of package-lock.json
+          #
+          # Without this step, the dispatch only sent #1, so NUR's npmDepsHash
+          # stayed frozen at whatever was last manually written. That caused
+          # the v1.0.2 initial NUR build to fail with a hash mismatch on the
+          # npm-deps derivation. audit:nix-deps-hash guarantees the value in
+          # nixos/package.nix matches package-lock.json on every push, so
+          # reading from package.nix is authoritative — no separate prefetch
+          # needed.
+          #
+          # audit:nur-dispatch-completeness (scripts/verify-nur-dispatch-completeness.ts)
+          # static-checks that the dispatch payload below carries BOTH hashes.
+          NPM_HASH=$(grep -oP 'npmDepsHash = "\Ksha256-[^"]+' code/nixos/package.nix)
+          if [ -z "$NPM_HASH" ]; then
+            echo "::error::Could not extract npmDepsHash from code/nixos/package.nix"
+            exit 1
+          fi
+          echo "npm_hash=$NPM_HASH" >> $GITHUB_OUTPUT
+          echo "npmDepsHash: $NPM_HASH"
+
       - name: Dispatch NUR weaver-free update
         uses: peter-evans/repository-dispatch@28959ce8df70de7be546dd1250a005dd32156697  # v4.0.1
         with:
@@ -499,6 +524,7 @@ jobs:
             {
               "version": "${{ steps.hash.outputs.version }}",
               "hash": "${{ steps.hash.outputs.sri }}",
+              "npmDepsHash": "${{ steps.npmdeps.outputs.npm_hash }}",
               "tag": "${{ github.ref_name }}"
             }
 
@@ -508,6 +534,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "- Package: weaver-free" >> $GITHUB_STEP_SUMMARY
           echo "- Version: ${{ steps.hash.outputs.version }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Hash (SRI): ${{ steps.hash.outputs.sri }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Source Hash (SRI): ${{ steps.hash.outputs.sri }}" >> $GITHUB_STEP_SUMMARY
+          echo "- npmDepsHash: ${{ steps.npmdeps.outputs.npm_hash }}" >> $GITHUB_STEP_SUMMARY
           echo "- Source: ${{ env.FREE_REPO }} (Free repo)" >> $GITHUB_STEP_SUMMARY
           echo "- NUR Repo: ${{ env.NUR_REPO }}" >> $GITHUB_STEP_SUMMARY
