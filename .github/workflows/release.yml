@@ -330,10 +330,11 @@ jobs:
             --exclude='playwright.config.ts' \
             --exclude='vitest.config.ts' \
             --exclude='.mcp.json' \
-            --exclude='flake.nix' \
-            --exclude='flake.lock' \
             ${{ steps.exclusions.outputs.extra_excludes }} \
             dev/code/ free/
+            # flake.nix + flake.lock INCLUDED — Weaver-Free needs them at
+            # root for users installing via direct flake input. Excluding
+            # them broke Path B of UPGRADE.md (2026-04-21 discovery).
 
       - name: Sync .github config (dev/.github/ → free .github)
         run: |
