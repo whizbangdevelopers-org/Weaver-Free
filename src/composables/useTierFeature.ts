@@ -40,7 +40,7 @@ export function useTierFeature(opts: TierFeatureOptions): Component {
     inheritAttrs: false,
     setup(_props, { attrs }) {
       const appStore = useAppStore()
-      let premiumComponent: Component | null = null
+      let gatedComponent: Component | null = null
       const loadFailed = ref(false)
       const loaded = ref(false)
 
@@ -48,10 +48,10 @@ export function useTierFeature(opts: TierFeatureOptions): Component {
 
       // Load gated component when tier becomes sufficient
       watch(hasTier, async (has) => {
-        if (has && !premiumComponent && !loadFailed.value) {
+        if (has && !gatedComponent && !loadFailed.value) {
           try {
             const mod = await opts.loader()
-            premiumComponent = mod.default
+            gatedComponent = mod.default
             loaded.value = true
           } catch {
             // File doesn't exist in this edition (directory excluded)
@@ -61,8 +61,8 @@ export function useTierFeature(opts: TierFeatureOptions): Component {
       }, { immediate: true })
 
       return () => {
-        if (hasTier.value && loaded.value && premiumComponent) {
-          return h(premiumComponent, attrs)
+        if (hasTier.value && loaded.value && gatedComponent) {
+          return h(gatedComponent, attrs)
         }
         if (hasTier.value && !loaded.value && !loadFailed.value) {
           return null // loading

@@ -16,7 +16,7 @@ export const provisioningEvents = new EventEmitter()
 
 /**
  * Provisioner interface — extracted so free-tier code can reference
- * the type without importing the premium implementation.
+ * the type without importing the weaver-tier implementation.
  */
 export interface Provisioner {
   autostartCloudVms(): Promise<void>

@@ -53,7 +53,7 @@ const MOCK_RESULT: DoctorResult = {
     { check: 'IP forwarding', status: 'pass', detail: 'Enabled', remediation: null },
     { check: 'Data directory', status: 'pass', detail: 'Writable', remediation: null },
     { check: 'Bridge interface', status: 'warn', detail: 'br-microvm not found (demo mode)', remediation: 'Configure bridge networking' },
-    { check: 'License', status: 'pass', detail: 'Premium (valid)', remediation: null },
+    { check: 'License', status: 'pass', detail: 'Weaver (valid)', remediation: null },
   ],
 }
 
