@@ -36,7 +36,7 @@ const PREMIUM_COMMANDS = new Set([
   'reboot', 'shutdown', 'poweroff', 'halt', 'init',
 ])
 
-function isPremiumCommand(cmd: string): boolean {
+function isGatedCommand(cmd: string): boolean {
   const trimmed = cmd.trim()
   for (const pc of PREMIUM_COMMANDS) {
     if (trimmed === pc || trimmed.startsWith(pc + ' ')) return true
@@ -51,7 +51,7 @@ function getCannedResponse(cmd: string, vmName: string): string | null {
   if (trimmed === '' || trimmed === '\r') return null
 
   // Solo-gated commands
-  if (isPremiumCommand(trimmed)) {
+  if (isGatedCommand(trimmed)) {
     return 'This command requires live serial access (Weaver Solo)'
   }
 

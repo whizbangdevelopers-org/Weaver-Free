@@ -134,7 +134,7 @@ export class AuthService {
     this.failedAttempts.delete(username)
     this.persistLockout()
 
-    // Single-session enforcement (premium+): revoke prior sessions before issuing new tokens.
+    // Single-session enforcement (weaver+ tier): revoke prior sessions before issuing new tokens.
     // Prevents duplicate concurrent logins from the same user.
     if (opts?.singleSession) {
       await this.sessionStore.deleteByUser(user.id)

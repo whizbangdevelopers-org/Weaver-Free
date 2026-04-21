@@ -487,7 +487,7 @@ All persistent state lives in the data directory (`/var/lib/weaver` on NixOS, or
 | `vms.json` | VM registry and metadata | Yes |
 | `network-config.json` | Network configuration | Yes |
 | `custom-distros.json` | User-defined distribution templates | Yes |
-| `sessions.db` + WAL/SHM | SQLite session store (premium tiers) | No (users re-auth) |
+| `sessions.db` + WAL/SHM | SQLite session store (weaver+ tiers) | No (users re-auth) |
 | `distro-catalog.json` | Cached curated distro catalog | No (auto-refreshed) |
 | `lockout.json` | Account lockout state | No (auto-pruned) |
 
@@ -508,7 +508,7 @@ For backup scripts, automated backup with cron/systemd timers, and restore proce
   "status": "healthy",
   "timestamp": "2026-02-12T12:00:00.000Z",
   "service": "weaver",
-  "tier": "premium",
+  "tier": "weaver",
   "tierExpiry": "2027-01-15T00:00:00.000Z",
   "tierGraceMode": false
 }

@@ -26,8 +26,8 @@ import { useTierView } from './hooks/useTierView.js'
 type View =
   | 'connecting' | 'login' | 'register'                // auth
   | 'list' | 'detail' | 'agent' | 'create' | 'help' | 'distros' // free
-  | 'network' | 'templates' | 'host-detail'              // premium
-  | 'notifications' | 'settings'                        // premium
+  | 'network' | 'templates' | 'host-detail'              // weaver-tier
+  | 'notifications' | 'settings'                        // weaver-tier
   | 'users' | 'audit' | 'user-detail' | 'fleet-bridges' // fabrick
 
 interface AppState {

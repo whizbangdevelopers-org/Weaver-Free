@@ -53,7 +53,7 @@ export const agentRoutes: FastifyPluginAsync<AgentRouteOptions> = async (fastify
       const { action, apiKey, vendor } = request.body
 
       // Server-key gating: if no BYOK key provided and server has a key,
-      // require premium+ tier (free/demo users must BYOK)
+      // require weaver+ tier (free/demo users must BYOK)
       if (!apiKey && config?.aiApiKey) {
         try {
           requireTier({ tier: config.tier }, TIERS.SOLO)
