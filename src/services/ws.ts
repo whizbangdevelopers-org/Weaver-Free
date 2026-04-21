@@ -5,7 +5,18 @@
  *
  * One connection is shared by all consumers (useVmStatus, useAgentStream, etc.).
  * Reconnects with exponential backoff and a maximum retry count.
+ *
+ * Demo-mode behavior: skips the connection entirely. Demo builds have no
+ * backend, so attempting to connect would immediately fail, disconnectListeners
+ * would fire, and the "WebSocket Offline" chip in MainLayout would flash red
+ * within ~1s of page load — which is both incorrect (the demo IS working) and
+ * a confusing trust signal for visitors. isDemoMode() shortcuts acquireWs()
+ * so `_connected` stays false and listeners stay idle; MainLayout's initial
+ * `ref(isDemoMode || isWsConnected())` seeds the chip to green and nothing
+ * later flips it.
  */
+
+import { isDemoMode } from 'src/config/demo-mode'
 
 type MessageHandler = (msg: Record<string, unknown>) => void
 
@@ -109,6 +120,14 @@ function closeConnection() {
  * Returns a release function to call on unmount.
  */
 export function acquireWs(): () => void {
+  // Demo mode has no backend to connect to. Skip the open entirely so we
+  // never emit an onclose event that would flip UI chips to "Offline".
+  if (isDemoMode()) {
+    return () => {
+      /* no-op release — no resources acquired */
+    }
+  }
+
   refCount++
   if (refCount === 1) openConnection()
 

@@ -34,6 +34,20 @@ export interface WorkloadInfo {
   containerId?: string
   image?: string
   ports?: string[]
+  /**
+   * Runtime utilization snapshot. Optional by design:
+   *   - Demo data populates this so public-demo visitors see VMs as
+   *     "alive" (non-zero CPU/memory) on the dashboard cards.
+   *   - Production code may populate it later when per-VM metrics ship
+   *     from the backend (v1.1 Resource Metrics feature). Until then,
+   *     prod VMs have this field undefined and the card gauges don't
+   *     render — zero visual cost.
+   * Only meaningful for running VMs (no gauges shown otherwise).
+   */
+  liveMetrics?: {
+    cpuPercent: number       // 0-100
+    memUsedMb: number        // actual memory used (bytes / 1024 / 1024 / 1024 would be GB)
+  }
 }
 
 export type ImageFormat = 'qcow2' | 'raw' | 'iso'
