@@ -35,7 +35,7 @@
           <q-card-section>
             <div class="row items-center no-wrap q-mb-xs">
               <q-badge
-                :color="vm.status === 'running' ? 'positive' : vm.status === 'stopped' ? 'grey-5' : 'negative'"
+                :color="vm.status === STATUSES.RUNNING ? 'positive' : vm.status === STATUSES.STOPPED ? 'grey-5' : 'negative'"
                 rounded
                 class="q-mr-sm"
               >{{ vm.status }}</q-badge>
@@ -100,7 +100,7 @@
 <script setup lang="ts">
 import { PUBLIC_DEMO_LINKS } from 'src/config/demo-mode'
 import { getDemoVmsForTier } from 'src/config/demo'
-import { TIERS } from 'src/constants/vocabularies'
+import { TIERS, STATUSES } from 'src/constants/vocabularies'
 
 // Solo-tier mock workloads — displayed read-only as a snapshot
 const soloVms = getDemoVmsForTier(TIERS.SOLO)
