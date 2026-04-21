@@ -9,7 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-Planned next release: 1.0.2. Closes a Free-tier monetization gap (unlimited VM control), tightens the release/sync machinery (root cause: a parallel broken copy of sync logic in release.yml leaked Dev-root content to the public Free mirror during a v1.0.2 attempted release — contained before public indexing), and sweeps through the CodeQL code-scanning backlog on Weaver-Free. End-to-end upgrade path validated on a live non-flake NixOS VM.
+## [1.0.2] - 2026-04-21
+
+Closes a Free-tier monetization gap (unlimited VM control), tightens the release/sync machinery (root cause: a parallel broken copy of sync logic in release.yml leaked Dev-root content to the public Free mirror during a v1.0.2 attempted release — contained before public indexing), and sweeps through the CodeQL code-scanning backlog on Weaver-Free. End-to-end upgrade path validated on a live non-flake NixOS VM, plus a fresh NixOS 25.11 flake-install smoke test.
 
 ### Added
 
@@ -35,6 +37,11 @@ Planned next release: 1.0.2. Closes a Free-tier monetization gap (unlimited VM c
 - **Test-file hygiene.** Replaced predictable `join(tmpdir(), 'name-${Date.now()}')` with `mkdtemp(...)` in `catalog-store.spec.ts` and `json-registry.spec.ts` (closes 9× `js/insecure-temporary-file`). Moved `import { vi } from 'vitest'` above `vi.mock()` / `vi.hoisted()` usage in 4 test files (closes 4× `js/use-before-declaration`). Removed 3 unused `vitest` imports and 1 unused module-level variable (closes 4× `js/unused-local-variable`).
 - **`verify-mcp-coverage.ts` incomplete-sanitization** — glob-to-regex conversion now escapes every regex metacharacter before re-expanding `*` to `.*`. Prior two-step escape missed backslashes, brackets, parens, etc.; CodeQL correctly flagged this.
 - **`VmConsole.vue` trivial-conditional** — removed dead `bootTimeout` declaration and its always-false `if` branch in cleanup. Vestigial from a prior boot-sequence implementation.
+- **Dependabot running independently on Weaver-Free.** `sync-to-free.yml` and `release.yml` both had `.github` rsync exclude lists that omitted `dependabot.yml`, so Dependabot was running on Weaver-Free and accumulating unmergeable PRs (17 open at time of fix — force-push sync would clobber any merge). Both workflows now exclude `dependabot.yml`; Dev is the sole Dependabot control point. `--delete-excluded` removed the stale config from Free automatically.
+- **`release.yml` Summary typo** — final step referenced `${{ steps.sri.outputs.sri }}` but the computing step id is `hash`; emitted an empty Hash (SRI) line in the release summary on every run. Now `steps.hash.outputs.sri`.
+- **SETUP-FLAKES.md fresh-install gaps.** Added §1 "First-time setup" covering `git init` + `git add -A` for `/etc/nixos`, the `hardware-configuration.nix` untracked-by-default gotcha, the harmless "Git tree is dirty" warning, and an expected-phases table for the 5-10 min first build. Surfaced while smoke-testing v1.0.2 flake install on a fresh NixOS 25.11 VM — every new flake user hit the same four gotchas without the doc.
+- **LLGD Coverage Baseline script** (`code/scripts/audit-llgd-coverage-baseline.ts`) — one-shot read-only measurement of what fraction of historical CodeQL findings on Weaver-Free produced an `llgd` entry in LESSONS-LEARNED.md or KNOWN-GOTCHAS.md. Baseline capture rate: 75.2% (109/145). Serves as the "before" half of a before/after comparison when v1.0.4 Semgrep rolls out. Report: `code/reports/llgd-coverage-baseline.{json,md}`.
+- **`UNINSTALL.md` + ADMIN-GUIDE "Removing Weaver" section** — canonical uninstall documentation covering flake and traditional-channel paths, with data/config cleanup warnings.
 
 ### Changed
 
