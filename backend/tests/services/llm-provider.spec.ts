@@ -1,10 +1,12 @@
 // Copyright (c) 2026 whizBANG Developers LLC. All rights reserved.
 // Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE.
 
-// Must be before all imports per vitest rules
-vi.mock('@anthropic-ai/sdk', () => ({ default: vi.fn() }))
+// `vi` must be imported above any vi.mock/vi.hoisted usage so static analyzers
+// (CodeQL's js/use-before-declaration) see the binding. Vitest's transform
+// hoists vi.mock() above the imports at runtime regardless of source order.
+import { describe, it, expect, afterEach, vi } from 'vitest'
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+vi.mock('@anthropic-ai/sdk', () => ({ default: vi.fn() }))
 
 import * as llmModule from '../../src/services/llm-provider.js'
 import {

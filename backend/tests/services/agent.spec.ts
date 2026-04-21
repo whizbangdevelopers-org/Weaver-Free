@@ -1,6 +1,11 @@
 // Copyright (c) 2026 whizBANG Developers LLC. All rights reserved.
 // Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE.
 
+// Import vi above any vi.mock/vi.hoisted usage so static analyzers see the
+// binding. Vitest's transform still hoists these calls above the imports at
+// runtime, so placement order in source is a static-analysis concern only.
+import { vi } from 'vitest'
+
 const mocks = vi.hoisted(() => ({
   getWorkloadDefinitions: vi.fn().mockResolvedValue({
     'web-nginx': { ip: '10.10.0.10', mem: 256, vcpu: 1, hypervisor: 'qemu' },
@@ -26,7 +31,7 @@ vi.mock('../../src/services/mock-agent.js', () => ({
   runMockAgent: vi.fn().mockResolvedValue(undefined),
 }))
 
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach } from 'vitest'
 import {
   buildPrompt,
   getOperation,

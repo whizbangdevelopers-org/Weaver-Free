@@ -52,7 +52,6 @@ const terminalRef = ref<HTMLElement | null>(null)
 let terminal: Terminal | null = null
 let fitAddon: FitAddon | null = null
 let resizeObserver: ResizeObserver | null = null
-let bootTimeout: ReturnType<typeof setTimeout> | null = null
 let lineTimeout: ReturnType<typeof setTimeout> | null = null
 let inputBuffer = ''
 let booted = false
@@ -355,10 +354,6 @@ function initTerminal() {
 }
 
 function cleanup() {
-  if (bootTimeout) {
-    clearTimeout(bootTimeout)
-    bootTimeout = null
-  }
   if (lineTimeout) {
     clearTimeout(lineTimeout)
     lineTimeout = null

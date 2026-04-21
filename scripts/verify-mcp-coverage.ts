@@ -77,9 +77,15 @@ function expandGlob(pattern: string): string[] {
   const filePart = pattern.slice(starIdx + 1)
   const absDir = resolve(PROJECT_ROOT, dirPart)
   if (!existsSync(absDir) || !statSync(absDir).isDirectory()) return []
-  const re = new RegExp(
-    '^' + filePart.replace(/\./g, '\\.').replace(/\*/g, '.*') + '$'
-  )
+  // Glob → regex: escape EVERY regex metacharacter, then re-expand `*` to `.*`.
+  // The prior two-step escape (just `.`) left backslashes and other metachars
+  // (+, ?, |, (, ), [, ], {, }, ^, $) unescaped — CodeQL's incomplete-sanitization
+  // rule correctly flagged this. A manifest entry containing those metachars
+  // would have produced a malformed regex or an accidentally-permissive match.
+  const escaped = filePart
+    .replace(/[.+?^${}()|[\]\\]/g, '\\$&')  // escape every regex metachar
+    .replace(/\*/g, '.*')                    // then expand glob `*` to regex `.*`
+  const re = new RegExp('^' + escaped + '$')
   return readdirSync(absDir)
     .filter((f) => re.test(f))
     .map((f) => join(dirPart, f))

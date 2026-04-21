@@ -2,8 +2,14 @@
 // Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE.
 import { readFile, writeFile, mkdir } from 'node:fs/promises'
 import { dirname } from 'node:path'
+import { z } from 'zod'
 import type { DistroImageSource } from '../services/image-manager.js'
 import { validateExternalUrl } from '../validate-url.js'
+
+// Max size of a catalog payload we'll accept from a remote URL (1 MiB).
+// Real catalogs are a few KB; anything remotely close to this is either
+// malicious or misconfigured. Cap prevents DoS / disk-fill.
+const MAX_REMOTE_CATALOG_BYTES = 1 * 1024 * 1024
 
 export interface CatalogDistro {
   name: string
@@ -21,6 +27,29 @@ export interface CatalogData {
   version: number
   entries: CatalogDistro[]
 }
+
+// Zod schemas mirror the explicit interfaces above. Parse-don't-validate:
+// `catalogDataSchema.parse(rawJson)` throws on any shape mismatch and
+// yields a typed CatalogData value, so downstream code (including the
+// file write below) receives provably-shaped data — not just unverified
+// network JSON coerced via `as CatalogData`. Interfaces remain the source
+// of truth for types (per the feedback rule "never z.infer at scale");
+// the schemas are runtime validators kept manually in sync.
+const catalogDistroSchema: z.ZodType<CatalogDistro> = z.object({
+  name: z.string().min(1).max(128).regex(/^[a-z0-9][a-z0-9._-]*$/i),
+  label: z.string().min(1).max(256),
+  description: z.string().max(1024).optional(),
+  url: z.string().url().max(2048).optional(),
+  format: z.enum(['qcow2', 'raw', 'iso', 'flake']),
+  cloudInit: z.boolean(),
+  guestOs: z.enum(['linux', 'windows']).optional(),
+  license: z.string().max(128).optional(),
+})
+
+const catalogDataSchema: z.ZodType<CatalogData> = z.object({
+  version: z.number().int().nonnegative(),
+  entries: z.array(catalogDistroSchema).max(1000),
+})
 
 export class CatalogStore {
   private persistPath: string
@@ -47,6 +76,11 @@ export class CatalogStore {
   private async loadFile(filePath: string): Promise<boolean> {
     try {
       const data = await readFile(filePath, 'utf-8')
+      // Lenient load: accept a structurally-valid catalog (object with an
+      // entries array) and filter semantically-invalid entries. Stricter
+      // schema validation applies to network-fetched catalogs in refresh()
+      // — local-disk files are trusted to the extent that their origin
+      // was validated when they were written.
       const parsed = JSON.parse(data) as CatalogData
       if (!parsed.entries || !Array.isArray(parsed.entries)) return false
       this.distros = {}
@@ -73,9 +107,31 @@ export class CatalogStore {
       throw new Error(`HTTP ${response.status} fetching catalog from ${this.remoteUrl}`)
     }
 
-    const data = await response.json() as CatalogData
-    if (!data.entries || !Array.isArray(data.entries)) {
-      throw new Error('Invalid catalog format: missing entries array')
+    // Read as text with a hard size cap BEFORE JSON.parse. Reject oversized
+    // payloads — catch both malicious and misconfigured endpoints that could
+    // otherwise disk-fill via the persist step below. 1 MiB comfortably covers
+    // catalogs with hundreds of distro entries.
+    const raw = await response.text()
+    if (raw.length > MAX_REMOTE_CATALOG_BYTES) {
+      throw new Error(
+        `Catalog payload exceeds ${MAX_REMOTE_CATALOG_BYTES} bytes — refusing to persist`,
+      )
+    }
+
+    // Parse + validate against the schema. Invalid shape throws with a
+    // useful message; caller sees a structured error, not a coerced-null.
+    // CodeQL's js/http-to-file-access previously flagged the subsequent
+    // writeFile because `as CatalogData` made the value opaque to flow
+    // analysis; after schema.parse() the value is provably-shaped.
+    let data: CatalogData
+    try {
+      data = catalogDataSchema.parse(JSON.parse(raw))
+    } catch (err) {
+      throw new Error(
+        `Invalid catalog format from ${this.remoteUrl}: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      )
     }
 
     const oldKeys = Object.keys(this.distros).sort().join(',')
