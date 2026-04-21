@@ -345,6 +345,7 @@ jobs:
             --exclude='workflows/sync-to-free.yml' \
             --exclude='sync-exclude.yml' \
             --exclude='issue-mapping.json' \
+            --exclude='dependabot.yml' \
             --exclude='workflows/dependabot-labeler.yml' \
             --exclude='workflows/dependabot-tracker.yml' \
             --exclude='workflows/version-drift-check.yml' \
@@ -507,6 +508,6 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "- Package: weaver-free" >> $GITHUB_STEP_SUMMARY
           echo "- Version: ${{ steps.hash.outputs.version }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Hash (SRI): ${{ steps.sri.outputs.sri }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Hash (SRI): ${{ steps.hash.outputs.sri }}" >> $GITHUB_STEP_SUMMARY
           echo "- Source: ${{ env.FREE_REPO }} (Free repo)" >> $GITHUB_STEP_SUMMARY
           echo "- NUR Repo: ${{ env.NUR_REPO }}" >> $GITHUB_STEP_SUMMARY
