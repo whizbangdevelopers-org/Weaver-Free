@@ -271,16 +271,6 @@ sudo ./scripts/nix-uninstall.sh
 
 Stops the service, removes runtime data, and guides you through removing the NixOS configuration. Supports `--keep-data` and `--dry-run`.
 
-### Docker
-
-```bash
-git clone https://github.com/whizbangdevelopers-org/Weaver-Free.git
-cd Weaver-Free
-docker compose up -d
-```
-
-Access at `http://localhost:3110`. See [Docker guide](docs/platforms/docker/) for details.
-
 ### Dependency Note
 
 > **Do not run `npm audit fix`.** Dependency versions are pinned and security-audited. Modifying `package-lock.json` will break the NixOS build. Vulnerabilities are tracked in the project's security pipeline.
@@ -451,7 +441,6 @@ VM list, detail views, and status monitoring from the terminal. Supports `--demo
 | --- | --- |
 | [First Install Guide](docs/platforms/nixos/FIRST-INSTALL.md) | Step-by-step for new NixOS users |
 | [NixOS Setup](docs/platforms/nixos/) | Flake and traditional NixOS deployment |
-| [Docker Setup](docs/platforms/docker/) | Container-based deployment |
 | [Production Deployment](docs/PRODUCTION-DEPLOYMENT.md) | Security checklist, monitoring, backup |
 | [Admin Guide](docs/ADMIN-GUIDE.md) | License, network, AI, user management |
 | [User Guide](docs/USER-GUIDE.md) | Daily usage, keyboard shortcuts, TUI |
