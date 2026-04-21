@@ -193,9 +193,9 @@
                   <td class="text-weight-medium">{{ c.name }}</td>
                   <td class="text-caption">{{ c.image }}</td>
                   <td><q-badge outline :color="c.runtime === 'Docker' ? 'blue' : c.runtime === 'Podman' ? 'deep-purple' : 'teal'" :label="c.runtime" size="sm" /></td>
-                  <td><q-badge :color="c.status === 'running' ? 'positive' : 'grey'" :label="c.status" /></td>
+                  <td><q-badge :color="c.status === STATUSES.RUNNING ? 'positive' : 'grey'" :label="c.status" /></td>
                   <td>
-                    <q-btn flat dense size="xs" :icon="c.status === 'running' ? 'mdi-stop' : 'mdi-play'" :color="c.status === 'running' ? 'negative' : 'positive'" class="q-mr-xs" />
+                    <q-btn flat dense size="xs" :icon="c.status === STATUSES.RUNNING ? 'mdi-stop' : 'mdi-play'" :color="c.status === STATUSES.RUNNING ? 'negative' : 'positive'" class="q-mr-xs" />
                     <q-btn flat dense size="xs" icon="mdi-restart" color="warning" />
                   </td>
                 </tr>
@@ -849,6 +849,7 @@ Confidence: 98%</code>
 
 <script setup lang="ts">
 import { useAppStore } from 'src/stores/app'
+import { STATUSES } from 'src/constants/vocabularies'
 import {
   isDemoMode,
   isPublicDemo,
@@ -902,9 +903,9 @@ const firewallPresets = [
 
 // v1.2 mock data
 const containerLifecycleMocks = [
-  { name: 'nginx-proxy', image: 'nginx:1.25', runtime: 'Docker', status: 'running' },
-  { name: 'redis-cache', image: 'redis:7-alpine', runtime: 'Podman', status: 'running' },
-  { name: 'ml-training', image: 'pytorch.sif', runtime: 'Apptainer', status: 'stopped' },
+  { name: 'nginx-proxy', image: 'nginx:1.25', runtime: 'Docker', status: STATUSES.RUNNING },
+  { name: 'redis-cache', image: 'redis:7-alpine', runtime: 'Podman', status: STATUSES.RUNNING },
+  { name: 'ml-training', image: 'pytorch.sif', runtime: 'Apptainer', status: STATUSES.STOPPED },
 ]
 
 const sshKeyMocks = [
