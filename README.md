@@ -20,7 +20,7 @@
 ![TUI Tests](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/weaver-dev/77b8f722f5ca97c9aca33d9560589ab3/raw/tui-badge.json)
 ![E2E Tests](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/weaver-dev/77b8f722f5ca97c9aca33d9560589ab3/raw/e2e-badge.json)
 
-![Compliance Auditors](https://img.shields.io/badge/compliance-37%20auditors-blue)
+![Compliance Auditors](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/weaver-dev/77b8f722f5ca97c9aca33d9560589ab3/raw/compliance-auditors-badge.json)
 ![Signed Releases](https://img.shields.io/badge/releases-cosign%20signed-brightgreen)
 ![SLSA Level](https://img.shields.io/badge/SLSA-Level%203-blue)
 [![CII Best Practices](https://www.bestpractices.dev/projects/12592/badge)](https://www.bestpractices.dev/projects/12592)
