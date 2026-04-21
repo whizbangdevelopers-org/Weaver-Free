@@ -10,9 +10,11 @@
 #   - TEST_BADGE_GIST_ID: Gist ID containing badge JSON files
 #
 # BADGE FILES (written to gist on main push):
-#   - vitest-badge.json   (unit tests)
-#   - backend-badge.json  (backend tests)
-#   - tui-badge.json      (TUI tests)
+#   - vitest-badge.json                  (unit tests)
+#   - backend-badge.json                 (backend tests)
+#   - tui-badge.json                     (TUI tests)
+#   - total-badge.json                   (unit + backend + TUI sum)
+#   - compliance-auditors-badge.json     (auditor count from package.json)
 
 name: Tests
 
@@ -284,6 +286,30 @@ jobs:
 
       - name: Run compliance suite
         run: npm run test:compliance
+
+      # Derive the auditor count from package.json's test:compliance script
+      # (single source of truth — same logic audit:doc-parity uses to verify
+      # reference sites). Runs after the suite passes so a failing compliance
+      # run never writes a "green" badge.
+      - name: Compute auditor count
+        id: auditors
+        if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
+        run: |
+          COUNT=$(node -e "const p = require('./package.json'); const s = p.scripts['test:compliance']; console.log((s.match(/npm run audit:[\w-]+/g) || []).length);")
+          echo "count=$COUNT" >> $GITHUB_OUTPUT
+          echo "Auditors: $COUNT"
+
+      - name: Update compliance-auditors badge
+        if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
+        uses: schneegans/dynamic-badges-action@e9a478b16159b4d31420099ba146cdc50f134483  # v1.7.0
+        with:
+          auth: ${{ secrets.WEAVER_FREE_GIST_TOKEN }}
+          gistID: ${{ secrets.TEST_BADGE_GIST_ID }}
+          filename: compliance-auditors-badge.json
+          label: compliance
+          message: "${{ steps.auditors.outputs.count }} auditors"
+          color: blue
+        continue-on-error: true
 
   build:
     name: Build
