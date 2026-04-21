@@ -1,7 +1,7 @@
 // Copyright (c) 2026 whizBANG Developers LLC. All rights reserved.
 // Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { writeFile, rm, mkdir } from 'node:fs/promises'
+import { writeFile, rm, mkdtemp } from 'node:fs/promises'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { JsonWorkloadRegistry } from '../../src/storage/json-registry.js'
@@ -12,8 +12,9 @@ describe('JsonWorkloadRegistry', () => {
   let filePath: string
 
   beforeEach(async () => {
-    testDir = join(tmpdir(), `vm-registry-test-${Date.now()}`)
-    await mkdir(testDir, { recursive: true })
+    // mkdtemp → atomically-unique tmp dir, not a predictable Date.now() path.
+    // See catalog-store.spec.ts for the same CodeQL insecure-temporary-file fix.
+    testDir = await mkdtemp(join(tmpdir(), 'vm-registry-test-'))
     filePath = join(testDir, 'vms.json')
   })
 

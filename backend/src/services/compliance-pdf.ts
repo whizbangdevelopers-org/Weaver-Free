@@ -1,7 +1,7 @@
 // Copyright (c) 2026 whizBANG Developers LLC. All rights reserved.
 // Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE.
-import { readFileSync, existsSync } from 'node:fs'
-import { writeFile, mkdtemp, rm, mkdir } from 'node:fs/promises'
+import { readFileSync } from 'node:fs'
+import { readFile, writeFile, mkdtemp, rm, mkdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { execFile } from 'node:child_process'
@@ -57,11 +57,20 @@ export async function generateCompliancePdf(options: PdfOptions): Promise<Buffer
   const docDef = COMPLIANCE_DOCS[slug]
   if (!docDef) throw new Error(`Unknown compliance document: ${slug}`)
 
-  // Check cache first
+  // Check cache first — read-with-ENOENT-fallthrough instead of existsSync+readFile
+  // to avoid the TOCTOU window where a file passes existsSync() and is then
+  // deleted before readFileSync(). The same race existed on the write side
+  // (cachePath passing exists check and then being mutated by a concurrent
+  // writer before our overwrite). `readFile` returning a buffer means "it
+  // existed AND we got its contents atomically"; ENOENT falls through to
+  // regenerate. CodeQL's js/file-system-race rule prescribes exactly this.
   const cacheFileName = `weaver-${slug}-v${version}.pdf`
   const cachePath = join(cacheDir, cacheFileName)
-  if (existsSync(cachePath)) {
-    return readFileSync(cachePath)
+  try {
+    return await readFile(cachePath)
+  } catch (err) {
+    // ENOENT is the expected miss path; any other error should propagate.
+    if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err
   }
 
   // Read and convert markdown

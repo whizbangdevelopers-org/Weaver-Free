@@ -1,6 +1,10 @@
 // Copyright (c) 2026 whizBANG Developers LLC. All rights reserved.
 // Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE.
 
+// Import vi above any vi.mock usage (CodeQL use-before-declaration).
+// Vitest hoists vi.mock() calls at transform time regardless of source order.
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+
 vi.mock('node:child_process', () => ({
   execFile: vi.fn((_cmd: string, _args: string[], cb: (err: null, stdout: string, stderr: string) => void) =>
     cb(null, 'mock output', ''),
@@ -28,7 +32,6 @@ vi.mock('node:os', async (importOriginal) => {
   }
 })
 
-import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { arch, totalmem } from 'node:os'
 import { DoctorService } from '../../src/services/doctor.js'
 import type { DashboardConfig } from '../../src/config.js'

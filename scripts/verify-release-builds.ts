@@ -56,7 +56,6 @@ const __dirname = dirname(__filename)
 const CODE_ROOT = resolve(__dirname, '..')
 const PROJECT_ROOT = resolve(CODE_ROOT, '..')
 const SYNC_EXCLUDE_YML = resolve(PROJECT_ROOT, '.github', 'sync-exclude.yml')
-const SYNC_WORKFLOW_YML = resolve(PROJECT_ROOT, '.github', 'workflows', 'sync-to-free.yml')
 
 // ---------------------------------------------------------------------------
 // ANSI
@@ -130,8 +129,16 @@ interface BuildContext {
   build: (sandboxDir: string) => void
 }
 
-function sh(cmd: string, cwd: string, env: NodeJS.ProcessEnv = process.env): void {
-  const r = spawnSync('bash', ['-c', cmd], {
+/**
+ * Run a command with argv — no shell interpolation, no injection surface.
+ * CodeQL's shell-command-injection rule flags `bash -c <string>` invocations
+ * when any interpolated value comes from file I/O or env. Using argv arrays
+ * with `shell: false` (the default) eliminates the surface entirely: argv
+ * entries are passed to execve verbatim, no shell metacharacters interpreted.
+ */
+function run(argv: string[], cwd: string, env: NodeJS.ProcessEnv = process.env): void {
+  const [cmd, ...args] = argv
+  const r = spawnSync(cmd, args, {
     cwd,
     env,
     stdio: 'pipe',
@@ -139,20 +146,32 @@ function sh(cmd: string, cwd: string, env: NodeJS.ProcessEnv = process.env): voi
   })
   if (r.status !== 0) {
     const tail = (r.stdout + r.stderr).split('\n').slice(-40).join('\n')
-    throw new Error(`command failed (exit ${r.status}): ${cmd}\n--- last 40 lines ---\n${tail}`)
+    throw new Error(`command failed (exit ${r.status}): ${argv.join(' ')}\n--- last 40 lines ---\n${tail}`)
   }
 }
 
 /**
  * Flatten code/ → sandbox/ applying sync-to-free exclusions. Mirrors the
  * rsync step in sync-to-free.yml: --exclude='.git' --exclude='testing/' etc.
+ *
+ * Exclude args are pushed into argv directly (one `--exclude=<path>` entry
+ * per exclusion). No shell, no quoting required. A sync-exclude.yml entry
+ * containing shell metacharacters (spaces, `;`, `$`, etc.) becomes a literal
+ * rsync pattern rather than a command fragment.
  */
 function flattenToFreeLayout(sandboxDir: string): void {
   mkdirSync(sandboxDir, { recursive: true })
   const allExcludes = [...BASE_CODE_EXCLUDES, ...readSyncExcludes()]
-  const excludeArgs = allExcludes.map((p) => `--exclude='${p.replace(/'/g, "'\\''")}'`).join(' ')
-  // Trailing slashes matter — `code/` sources contents; `sandbox/` is the target.
-  sh(`rsync -a --delete ${excludeArgs} '${CODE_ROOT}/' '${sandboxDir}/'`, PROJECT_ROOT)
+  const argv = [
+    'rsync',
+    '-a',
+    '--delete',
+    ...allExcludes.map((p) => `--exclude=${p}`),
+    // Trailing slashes matter — `code/` sources contents; `sandbox/` is the target.
+    `${CODE_ROOT}/`,
+    `${sandboxDir}/`,
+  ]
+  run(argv, PROJECT_ROOT)
 }
 
 const CONTEXTS: BuildContext[] = [
@@ -165,12 +184,12 @@ const CONTEXTS: BuildContext[] = [
       return dir
     },
     build: (dir) => {
-      sh('npm ci', dir)
+      run(['npm', 'ci'], dir)
       if (!fastMode) {
         // VITE_FREE_BUILD=true tells routes.ts to strip paid-tier route imports
         // (which reference sync-excluded files). Matches the env Free releases
         // build under; any regression makes this context fail.
-        sh('npm run build:all', dir, { ...process.env, VITE_FREE_BUILD: 'true' })
+        run(['npm', 'run', 'build:all'], dir, { ...process.env, VITE_FREE_BUILD: 'true' })
       }
     },
   },
@@ -181,13 +200,16 @@ const CONTEXTS: BuildContext[] = [
       const dir = join(sandboxRoot, 'public-demo')
       // Copy code/ as-is (monorepo layout) to avoid touching the working tree's node_modules.
       mkdirSync(dir, { recursive: true })
-      sh(`rsync -a --exclude='node_modules/' --exclude='dist/' --exclude='.quasar/' '${CODE_ROOT}/' '${dir}/'`, PROJECT_ROOT)
+      run(
+        ['rsync', '-a', '--exclude=node_modules/', '--exclude=dist/', '--exclude=.quasar/', `${CODE_ROOT}/`, `${dir}/`],
+        PROJECT_ROOT,
+      )
       return dir
     },
     build: (dir) => {
-      sh('npm ci', dir)
+      run(['npm', 'ci'], dir)
       if (fastMode) return
-      sh('npm run build', dir, { ...process.env, VITE_DEMO_MODE: 'true', VITE_DEMO_PUBLIC: 'true' })
+      run(['npm', 'run', 'build'], dir, { ...process.env, VITE_DEMO_MODE: 'true', VITE_DEMO_PUBLIC: 'true' })
     },
   },
   {
@@ -196,13 +218,16 @@ const CONTEXTS: BuildContext[] = [
     prepare: (sandboxRoot) => {
       const dir = join(sandboxRoot, 'private-demo')
       mkdirSync(dir, { recursive: true })
-      sh(`rsync -a --exclude='node_modules/' --exclude='dist/' --exclude='.quasar/' '${CODE_ROOT}/' '${dir}/'`, PROJECT_ROOT)
+      run(
+        ['rsync', '-a', '--exclude=node_modules/', '--exclude=dist/', '--exclude=.quasar/', `${CODE_ROOT}/`, `${dir}/`],
+        PROJECT_ROOT,
+      )
       return dir
     },
     build: (dir) => {
-      sh('npm ci', dir)
+      run(['npm', 'ci'], dir)
       if (fastMode) return
-      sh('npm run build', dir, { ...process.env, VITE_DEMO_MODE: 'true' })
+      run(['npm', 'run', 'build'], dir, { ...process.env, VITE_DEMO_MODE: 'true' })
     },
   },
 ]

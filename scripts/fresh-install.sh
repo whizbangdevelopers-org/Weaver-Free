@@ -80,9 +80,13 @@ if [ "$has_root_files" = true ] && [ "$(id -u)" -ne 0 ]; then
     die "Root-owned files in $dir (likely from sudo dev server). Run: sudo $0"
 fi
 
+# node_modules cleared; lockfile PRESERVED so npm ci can do a deterministic,
+# hash-pinned reinstall. Root package-lock.json covers all workspaces
+# (backend, tui) — there are no per-workspace lockfiles anymore.
+# To force a lockfile regeneration (dep-drift testing), delete
+# package-lock.json manually before running this script.
 rm -rf node_modules backend/node_modules tui/node_modules mcp-server/node_modules
-rm -f package-lock.json backend/package-lock.json tui/package-lock.json mcp-server/package-lock.json
-ok "node_modules and lockfiles removed"
+ok "node_modules removed (lockfile preserved for deterministic reinstall)"
 
 # ── 2. Clear caches ──────────────────────────────────────────────────────────
 step "Clearing build caches"
@@ -101,14 +105,12 @@ else
 fi
 
 # ── 4. Install dependencies ─────────────────────────────────────────────────
-step "Installing frontend dependencies"
-$RUN_AS npm install
-
-step "Installing backend dependencies"
-$RUN_AS npm --prefix backend install
-
-step "Installing TUI dependencies"
-$RUN_AS npm --prefix tui install
+# Single npm ci at the root installs all workspaces (root + backend + tui)
+# pinned exactly to package-lock.json. npm ci rejects any drift between
+# package.json and package-lock.json — matches OpenSSF Scorecard's
+# PinnedDependencies requirement (no uncontrolled dependency resolution).
+step "Installing workspace dependencies (root + backend + tui)"
+$RUN_AS npm ci
 
 # ── 5. Verify ────────────────────────────────────────────────────────────────
 echo ""
