@@ -653,6 +653,47 @@ Budget ~30 min for the two-VM validation per release. That's the cost of confide
 
 ---
 
+## Removing Weaver
+
+The inverse of upgrade — for decommissioning a host, migrating to a different machine, or wiping an evaluation environment. Full procedure including dry-run, data-preservation, and manual fallback is in [UNINSTALL.md](UNINSTALL.md). Short version for administrators:
+
+```sh
+sudo ./scripts/nix-uninstall.sh           # scripted — both flake + channels paths
+sudo ./scripts/nix-uninstall.sh --dry-run # preview what would change; no edits
+sudo ./scripts/nix-uninstall.sh --keep-data  # preserve /var/lib/weaver (DB, users, audit log)
+```
+
+The script is **non-destructive until you confirm** — phase 1 scans, phase 2 prints the plan, phase 3 asks `Continue? [y/N]`, and only then phase 4 edits config and wipes data. Phase 5 verifies the result.
+
+**What the script handles uniformly:**
+
+- Stops `weaver.service`
+- Stops every running `microvm@*` service
+- Classifies your `.nix` config files: *weaver-only* (deleted whole) vs *weaver-shared* (line-edited in place)
+- Removes `weaver` from `flake.nix` inputs, outputs params, and modules list
+- Regenerates `flake.lock`
+- Runs `sudo nixos-rebuild switch --flake $NIXOS_FLAKE#$NIXOS_HOST`
+- Optionally wipes `/var/lib/weaver` (default: wipe; `--keep-data` preserves)
+
+**Environment overrides** for non-standard config paths:
+
+```sh
+sudo NIXOS_FLAKE=/srv/nixos-config NIXOS_HOST=weaverlab WEAVER_DATA_DIR=/mnt/weaver \
+  ./scripts/nix-uninstall.sh
+```
+
+**Before-you-uninstall checklist:**
+
+1. Back up `/var/lib/weaver/` to a tarball — the ultimate safety net, regardless of `--keep-data`. One command: `sudo tar -czf /root/weaver-backup-$(date +%Y%m%d-%H%M%S).tar.gz /var/lib/weaver`
+2. Note running MicroVMs: `systemctl list-units --type=service --state=running | grep microvm@`. If any have uncommitted state you care about, dump/pause them first — the script will stop all of them.
+3. If the same `.nix` file holds Weaver plus unrelated modules, review the plan carefully before confirming. Line-level removal is usually clean but syntax in complex shared files can surprise `sed`.
+
+**Reinstall gotcha:** after uninstall, if you later reinstall Weaver on the same host, the `br-microvm-netdev.service` and `network-addresses-br-microvm.service` units may not auto-start — `WantedBy=network.target` is only honored at boot. Run `sudo systemctl start br-microvm-netdev.service network-addresses-br-microvm.service` or reboot.
+
+If you're trying to move to a newer Weaver version, **uninstall/reinstall is the wrong path** — use [UPGRADE.md](UPGRADE.md) for in-place upgrades that preserve all data and audit history.
+
+---
+
 ## Extensions
 
 *Available: v1.1+*
