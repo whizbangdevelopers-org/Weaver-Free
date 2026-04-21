@@ -185,7 +185,7 @@ For compliance framework mappings (NIST 800-171, HIPAA, PCI-DSS, ISO 27001, etc.
 
 | Claim | How to verify |
 |---|---|
-| 37 auditors on every push | [.github/workflows/test.yml](../../.github/workflows/test.yml) compliance-suite job |
+| 38 auditors on every push | [.github/workflows/test.yml](../../.github/workflows/test.yml) compliance-suite job |
 | SHA-pinned GitHub Actions | `grep "uses:" .github/workflows/*.yml` — every line ends with a 40-char SHA |
 | OpenSSF Scorecard score | [scorecard.dev/viewer](https://scorecard.dev/viewer/?uri=github.com/whizbangdevelopers-org/Weaver-Free) |
 | SBOM present on each release | [github.com/whizbangdevelopers-org/Weaver-Free/releases](https://github.com/whizbangdevelopers-org/Weaver-Free/releases) — `sbom.cdx.json` + `sbom-backend.cdx.json` |
