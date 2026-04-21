@@ -119,6 +119,7 @@ import { ref, computed } from 'vue'
 import { useAppStore } from 'src/stores/app'
 import { isDemoMode } from 'src/config/demo-mode'
 import { PRICING, formatPricing } from 'src/constants/pricing'
+import { TIERS } from 'src/constants/vocabularies'
 
 const appStore = useAppStore()
 const orgContactEmail = computed(() => appStore.organization?.contactEmail ?? '')
@@ -515,7 +516,7 @@ const helpSections = computed<HelpSection[]>(() => [
       {
         question: 'What are the feature tiers?',
         answer:
-          `Weaver has four tiers: Weaver Free (${PRICING.free.standard}, full free-tier features), Weaver Solo (${formatPricing('solo')} — single operator, live provisioning, firewall, distros, bridges, TLS), Weaver Team (${formatPricing('team')} — 2–4 users, everything Solo plus peer monitoring, workload groups, auditor role), and FabricK (${formatPricing('fabrick')} — full fleet governance, per-workload RBAC, quotas, audit log, fleet bridges).`,
+          `Weaver has four tiers: Weaver Free (${PRICING.free.standard}, full free-tier features), Weaver Solo (${formatPricing('solo')} — single operator, live provisioning, firewall, distros, bridges, TLS), Weaver Team (${formatPricing('team')} — 2–4 users, everything Solo plus peer monitoring, workload groups, auditor role), and FabricK (${formatPricing(TIERS.FABRICK)} — full fleet governance, per-workload RBAC, quotas, audit log, fleet bridges).`,
       },
       {
         question: 'Where can I see my current tier?',

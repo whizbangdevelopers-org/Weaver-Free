@@ -1,6 +1,7 @@
 // Copyright (c) 2026 whizBANG Developers LLC. All rights reserved.
 // Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE.
 import { createTransport, type Transporter } from 'nodemailer'
+import { TIERS } from '../constants/vocabularies.js'
 
 // ---------------------------------------------------------------------------
 // SMTP configuration
@@ -59,7 +60,7 @@ export class EmailService {
     foundingMember: boolean
     siteUrl: string
   }): Promise<void> {
-    const tierLabel = opts.tier === 'fabrick' ? 'FabricK' : 'Weaver'
+    const tierLabel = opts.tier === TIERS.FABRICK ? 'FabricK' : 'Weaver'
     const fmBadge = opts.foundingMember ? ' (Founding Member)' : ''
     const subject = `Your ${tierLabel} License Key${fmBadge}`
 
