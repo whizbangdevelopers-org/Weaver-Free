@@ -373,7 +373,7 @@ export function createDemoApiClient(tier: string): TuiApiClient {
       })
     },
 
-    // Distros (read-only list is free, mutations would be premium)
+    // Distros (read-only list is free, mutations would be weaver-tier)
     async listDistros() {
       return ok([
         { name: 'nixos', label: 'NixOS', url: 'https://hydra.nixos.org/build/latest/download/nixos-image.qcow2',

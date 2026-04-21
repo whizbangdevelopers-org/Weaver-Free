@@ -257,7 +257,7 @@ export class NotificationService {
   /**
    * Factory: create an adapter from a channel config.
    * Returns null for in-app (no push adapter needed), unknown types,
-   * or when premium adapters are not available (free tier).
+   * or when weaver-tier adapters are not available (free tier).
    */
   private async createAdapter(_channelId: string, config: ChannelConfig): Promise<NotificationAdapter | null> {
     try {
@@ -317,7 +317,7 @@ export class NotificationService {
           return null
       }
     } catch {
-      return null // Premium adapters not available in free tier
+      return null // Weaver-tier adapters not available in free tier
     }
   }
 }

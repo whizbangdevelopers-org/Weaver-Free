@@ -236,7 +236,7 @@ if (config.provisioningEnabled) {
   }
 }
 
-// Initialize network management (premium)
+// Initialize network management (weaver tier)
 const networkStore = new NetworkStore(join(config.dataDir, 'network-config.json'))
 await networkStore.init()
 let networkManager: unknown = null
@@ -246,7 +246,7 @@ try {
   const { NetworkManager } = await import('./services/weaver/network-manager.js')
   networkManager = new NetworkManager(networkStore, config)
 } catch {
-  fastify.log.info('Network management not available (premium feature)')
+  fastify.log.info('Network management not available (weaver-tier feature)')
 }
 
 // Initialize authentication
@@ -461,20 +461,20 @@ if (config.stripeSecretKey) {
   fastify.log.info('Stripe not configured (STRIPE_SECRET_KEY not set) — commerce routes disabled')
 }
 
-// Premium routes (dynamically loaded — absent in free tier)
+// Weaver-tier routes (dynamically loaded — absent in free tier)
 try {
   // eslint-disable-next-line @typescript-eslint/ban-ts-comment
   // @ts-ignore - tier-gated path sync-excluded from Free repo
-  const { premiumRoutes } = await import('./routes/weaver/index.js')
-  await fastify.register(premiumRoutes, {
+  const { weaverRoutes } = await import('./routes/weaver/index.js')
+  await fastify.register(weaverRoutes, {
     config, auditService,
     notificationConfigStore, notificationService,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- networkManager typed as unknown from dynamic import
     webPushSubscriptionStore, networkManager: networkManager as any,
   })
-  fastify.log.info('Premium routes loaded')
+  fastify.log.info('Weaver-tier routes loaded')
 } catch {
-  fastify.log.info('Premium routes not available (free tier)')
+  fastify.log.info('Weaver-tier routes not available (free tier)')
 }
 
 // Serve frontend SPA if STATIC_DIR is set

@@ -84,7 +84,7 @@ export const distroRoutes: FastifyPluginAsync<DistroRouteOptions> = async (fasti
   const { distroStore, catalogStore, imageManager, urlValidator, config, auditService, distroTester } = opts
 
   /** Tier gate: distro mutations require weaver */
-  const requirePremium: import('fastify').preHandlerHookHandler = (_req, reply, done) => {
+  const requireWeaverTier: import('fastify').preHandlerHookHandler = (_req, reply, done) => {
     if (config) {
       try { requireTier(config, TIERS.SOLO) } catch {
         void reply.status(403).send({ error: 'Distro management requires weaver tier' })
@@ -170,10 +170,10 @@ export const distroRoutes: FastifyPluginAsync<DistroRouteOptions> = async (fasti
     return entries
   })
 
-  // POST /api/distros — add a custom distro (admin + premium)
+  // POST /api/distros — add a custom distro (admin + weaver)
   app.post(
     '/',
-    { schema: { body: customDistroSchema }, preHandler: [requireRole(ROLES.ADMIN), requirePremium] },
+    { schema: { body: customDistroSchema }, preHandler: [requireRole(ROLES.ADMIN), requireWeaverTier] },
     async (request, reply) => {
       const body = request.body
 
@@ -209,10 +209,10 @@ export const distroRoutes: FastifyPluginAsync<DistroRouteOptions> = async (fasti
     }
   )
 
-  // DELETE /api/distros/:name — remove a custom distro (admin + premium)
+  // DELETE /api/distros/:name — remove a custom distro (admin + weaver)
   app.delete(
     '/:name',
-    { schema: { params: distroNameSchema }, preHandler: [requireRole(ROLES.ADMIN), requirePremium] },
+    { schema: { params: distroNameSchema }, preHandler: [requireRole(ROLES.ADMIN), requireWeaverTier] },
     async (request, reply) => {
       const { name } = request.params
 
@@ -245,8 +245,8 @@ export const distroRoutes: FastifyPluginAsync<DistroRouteOptions> = async (fasti
     }
   )
 
-  // POST /api/distros/refresh-catalog — refresh catalog from remote URL (operator+ / premium)
-  app.post('/refresh-catalog', { preHandler: [requireRole(ROLES.ADMIN, ROLES.OPERATOR), requirePremium] }, async (request, reply) => {
+  // POST /api/distros/refresh-catalog — refresh catalog from remote URL (operator+ / weaver)
+  app.post('/refresh-catalog', { preHandler: [requireRole(ROLES.ADMIN, ROLES.OPERATOR), requireWeaverTier] }, async (request, reply) => {
     if (!catalogStore.hasRemoteUrl()) {
       return reply.status(400).send({ error: 'No remote catalog URL configured' })
     }
@@ -288,8 +288,8 @@ export const distroRoutes: FastifyPluginAsync<DistroRouteOptions> = async (fasti
     return urlValidator.getResults()
   })
 
-  // POST /api/distros/validate-urls — trigger immediate URL validation (admin + premium)
-  app.post('/validate-urls', { preHandler: [requireRole(ROLES.ADMIN), requirePremium] }, async (request) => {
+  // POST /api/distros/validate-urls — trigger immediate URL validation (admin + weaver)
+  app.post('/validate-urls', { preHandler: [requireRole(ROLES.ADMIN), requireWeaverTier] }, async (request) => {
     if (!urlValidator) {
       return { results: {}, lastRunAt: null }
     }
@@ -312,10 +312,10 @@ export const distroRoutes: FastifyPluginAsync<DistroRouteOptions> = async (fasti
     return data
   })
 
-  // PUT /api/distros/:name/url — update/override a distro URL (admin + premium)
+  // PUT /api/distros/:name/url — update/override a distro URL (admin + weaver)
   app.put(
     '/:name/url',
-    { schema: { params: distroNameSchema, body: urlUpdateSchema }, preHandler: [requireRole(ROLES.ADMIN), requirePremium] },
+    { schema: { params: distroNameSchema, body: urlUpdateSchema }, preHandler: [requireRole(ROLES.ADMIN), requireWeaverTier] },
     async (request, reply) => {
       const { name } = request.params
       const { url } = request.body
@@ -367,10 +367,10 @@ export const distroRoutes: FastifyPluginAsync<DistroRouteOptions> = async (fasti
     }
   )
 
-  // DELETE /api/distros/:name/url-override — remove custom URL override, restore default (admin + premium)
+  // DELETE /api/distros/:name/url-override — remove custom URL override, restore default (admin + weaver)
   app.delete(
     '/:name/url-override',
-    { schema: { params: distroNameSchema }, preHandler: [requireRole(ROLES.ADMIN), requirePremium] },
+    { schema: { params: distroNameSchema }, preHandler: [requireRole(ROLES.ADMIN), requireWeaverTier] },
     async (request, reply) => {
       const { name } = request.params
       const builtins = ImageManager.builtinDistros()
@@ -405,7 +405,7 @@ export const distroRoutes: FastifyPluginAsync<DistroRouteOptions> = async (fasti
     }
   )
 
-  // POST /api/distros/:name/test — start a smoke test for a distro (admin + premium)
+  // POST /api/distros/:name/test — start a smoke test for a distro (admin + weaver)
   app.post(
     '/:name/test',
     {
@@ -417,7 +417,7 @@ export const distroRoutes: FastifyPluginAsync<DistroRouteOptions> = async (fasti
           409: z.object({ error: z.string() }),
         },
       },
-      preHandler: [requireRole(ROLES.ADMIN), requirePremium],
+      preHandler: [requireRole(ROLES.ADMIN), requireWeaverTier],
       config: { rateLimit: createRateLimit(5) },
     },
     async (request, reply) => {
@@ -452,7 +452,7 @@ export const distroRoutes: FastifyPluginAsync<DistroRouteOptions> = async (fasti
     }
   )
 
-  // GET /api/distros/:name/test — get smoke test status for a distro (admin + premium)
+  // GET /api/distros/:name/test — get smoke test status for a distro (admin + weaver)
   app.get(
     '/:name/test',
     {
@@ -467,7 +467,7 @@ export const distroRoutes: FastifyPluginAsync<DistroRouteOptions> = async (fasti
           }),
         },
       },
-      preHandler: [requireRole(ROLES.ADMIN), requirePremium],
+      preHandler: [requireRole(ROLES.ADMIN), requireWeaverTier],
     },
     async (request, reply) => {
       if (!distroTester) {

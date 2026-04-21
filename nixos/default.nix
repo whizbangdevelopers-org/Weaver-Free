@@ -43,7 +43,7 @@ in
       default = null;
       description = ''
         License key string (WVR-<tier>-<payload>-<checksum>).
-        Determines feature tier: free, premium, or enterprise.
+        Determines feature tier: free, weaver (Solo/Team), or fabrick.
         No key = demo mode.
       '';
     };
@@ -64,13 +64,21 @@ in
       description = "HMAC secret for license key validation";
     };
 
+    # DEPRECATED OPTION: name retained for backward compatibility with existing
+    # configuration.nix files. Do not rename — renaming would break user
+    # deployments on next `nixos-rebuild switch`. A `mkRenamedOptionModule`
+    # migration to a canonical `weaverTierEnabled` option is planned for v1.1;
+    # until then, keep the name and the tier vocab corrected in the description.
+    # Vocab auditor exemption: `nixos/default.nix` identifiers + descriptions
+    # that reference this deprecated option are allowed to say "premium-"/"Premium-"
+    # as part of the option name only.
     premiumEnabled = mkOption {
       type = types.bool;
       default = false;
       description = ''
-        DEPRECATED: Use licenseKey instead.
-        Enable premium features (VM provisioning).
-        When true and no licenseKey is set, maps to premium tier.
+        DEPRECATED: Use licenseKey instead. Option name retained for
+        backward compatibility with existing configuration.nix files.
+        When true and no licenseKey is set, maps to weaver tier.
       '';
     };
 
@@ -182,7 +190,7 @@ in
       default = null;
       description = ''
         API key for server-side AI agent features (any supported vendor).
-        When set, premium+ users can use the server key instead of BYOK.
+        When set, weaver+ tier users can use the server key instead of BYOK.
         For production, use aiApiKeyFile instead.
       '';
     };
