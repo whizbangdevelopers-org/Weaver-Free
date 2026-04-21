@@ -4,9 +4,9 @@
 
 **How Weaver's internal CI compares to Enterprise-grade CI practices.**
 
-Weaver ships with engineering discipline you can verify, not just claim. Every commit passes 32 static auditors. Every release passes a pre-flight simulation of downstream build contexts. Every public artifact carries provenance you can audit.
+Weaver ships with engineering discipline you can verify, not just claim. Every commit passes 39 static auditors. Every release passes a pre-flight simulation of downstream build contexts. Every public artifact carries provenance you can audit.
 
-This page documents the specific checks, what they cover, and how to compare them against your current Enterprise CI baseline.
+This page describes the *coverage shape* of our CI. The exact list of auditors is kept machine-readable in [`package.json`](../../package.json) (`test:compliance` chain) — readers who want to verify the inventory can do so there. This page communicates what the coverage protects against, not the script-by-script plumbing.
 
 ---
 
@@ -14,7 +14,7 @@ This page documents the specific checks, what they cover, and how to compare the
 
 | Practice | Enterprise-CI norm (industry baseline) | Weaver internal CI |
 |---|---|---|
-| Static analyzers per push | 1–2 generic tools (ESLint, tsc) | **36** domain-specific auditors |
+| Static analyzers per push | 1–2 generic tools (ESLint, tsc) | **39** domain-specific auditors across 4 coverage categories |
 | Release-build pre-flight | None (release failures surface in user reports) | **Simulated downstream build contexts** before tag push |
 | Compliance framework mapping | Maintained manually, drifts between releases | **Single-source data + generator + parity auditor** across 13 verticals |
 | Supply-chain pinning | Latest major tags (`@v4`) | **All GitHub Actions SHA-pinned**, verified on every push |
@@ -22,6 +22,7 @@ This page documents the specific checks, what they cover, and how to compare the
 | OpenSSF Scorecard | Published once, rarely re-checked | **Pre-OpenSSF baseline auditor** catches regressions before the weekly scan |
 | Documentation link integrity | Manual | **audit:docs-links** on every push — cross-doc + anchor + snapshot validation |
 | E2E test parity | Run ad-hoc before release | **E2E via Docker, audit:e2e-coverage** gap checker on every push |
+| Release-pipeline handshake | Trust by convention | **Static auditors verify sender/receiver payload shape** for every dispatch the release produces |
 
 The industry baseline numbers come from the Google Research *Accelerate* engineering-performance studies and the [OpenSSF](https://openssf.org) tier rubric. Weaver's internal CI is benchmarked at an **A** rating in the enterprise engineering-discipline band.
 
@@ -32,57 +33,29 @@ The industry baseline numbers come from the Google Research *Accelerate* enginee
 
 ---
 
-## The 36 compliance auditors
+## Coverage categories
 
-Each auditor runs in the `test:compliance` chain on every push. Failures block the push. They live in `code/scripts/verify-*.ts` and `code/scripts/audit-*.ts`.
+Every push exercises the full set — failure anywhere blocks the merge. The 39 auditors group into four coverage categories:
 
 ### Source-code discipline
 
-- **verify-vocabulary-sync** — string-literal vocabulary drift (renamed tiers, retired terms)
-- **verify-form-rules** — Zod validation parity between API and UI forms
-- **verify-route-auth** — every backend route declares `requireTier` / `requireAuth`
-- **verify-form-e2e-coverage** — every validated form has matching E2E test coverage
-- **verify-e2e-selectors** — E2E selectors resolve to actual DOM elements
-- **verify-legal-ip** — license headers on every code file, AI-training restriction language
-- **verify-tier-parity** — backend tier gates match frontend guards match tier-matrix.json
-- **verify-tui-parity** — TUI features match web UI features by tier
-- **verify-cli-args** — npm scripts correctly pass args through the shell layers
-- **verify-contrast** — WCAG AA contrast ratios on every color pair
-- **verify-ws-codes** — WebSocket close codes match DEVELOPER-GUIDE table
-- **audit-sast** — OWASP Top 10 pattern scan on every file
+Every file is scanned on every push for license-header compliance, vocabulary drift from retired tier or feature names, tier-gate parity across backend + frontend + TUI, E2E coverage of every validated form, Zod round-trip validation between API and UI, WCAG AA color-contrast ratios, WebSocket close-code alignment with the developer-facing protocol doc, and an OWASP-aligned SAST rulebook that scans for command injection, SQL injection, path traversal, XSS, SSRF, and race conditions. Coverage extends beyond generic lint/type-check because these are product-domain invariants, not language-level defaults.
 
 ### Supply-chain & dependency discipline
 
-- **verify-lockfile** — `package-lock.json` integrity, no unexpected dep hoisting
-- **audit-licenses** — every transitive dep's license is on the allowlist
-- **check-bundle-size** — bundle doesn't grow beyond defined ceiling per tier
-- **verify-nixos-version** — NixOS version string consistent across derivations
-- **verify-openssf-baseline** *(new, this release)* — pre-flight check for 7 OpenSSF Scorecard concerns
+Lockfile integrity, every transitive dependency's license checked against an allowlist, bundle-size ceilings enforced per tier, NixOS version strings kept consistent across derivations, and a pre-OpenSSF-Scorecard baseline check that validates seven Scorecard concerns locally on every push — so a regression fails the merge instead of waiting for the weekly public scan to surface it. See the Pre-OpenSSF Scorecard baseline section below for the specific checks covered.
 
 ### Release & distribution discipline
 
-- **verify-excluded-imports** *(new, this release)* — no unguarded imports of sync-excluded paths (prevents Free tarball build failures)
-- **verify-demo-parity** — public demo content matches production Dev content
-- **verify-demo-guards** — demo-mode code paths don't leak into production builds
-- **verify-decision-parity** — MASTER-PLAN decisions have ascending numbers; no gaps
-- **verify-compliance-parity** — compliance framework docs match shipped code
-- **verify-compliance-matrix-parity** — 13 vertical sales docs stay in sync with single-source data module
-- **verify-attribution-parity** — open-source attribution list reflects actual deps
-- **verify-compatibility-sync** — browser/platform compatibility table matches tested set
-- **verify-license-parity** — tier license claims match license-matrix.json
+Every release mechanism that touches the public Free mirror or downstream registries is gated at compile time. Parity checks verify that MASTER-PLAN decisions carry ascending numbers, compliance-framework mappings stay in sync with shipped code, 13 vertical sales documents stay in sync with a single-source data module, license claims match the canonical tier matrix, and attribution reflects actual dependencies. Two auditors added after v1.0.2 harden the release pipeline specifically: one verifies every rsync in the release + sync workflows sources only from the intended subtree (never the whole Dev repo), closing the content-leak class that was caught and contained before public indexing. The other verifies that every repository-dispatch the release produces carries the full payload shape its receiver expects, closing the silent-stale-field class where a receiver tolerates a missing field indefinitely.
 
 ### Documentation discipline
 
-- **verify-doc-parity** — docs claims (features, tiers, auditor count) match actual code state
-- **verify-doc-freshness** — no stale "Planned" entries for shipped features
-- **verify-docs-links** — cross-doc links, anchors, and snapshot completeness
-- **verify-project-parity** — deprecated term migration (one renamed term caught = push blocked)
-- **verify-runbooks** — runbook and policy docs have required sections
-- **verify-test-coverage** — every backend source file has a matching test file
-- **verify-eager-eval-tdz** — composables that eagerly evaluate getters (useMeta, watchEffect) catch TDZ at compile time
-- **verify-mcp-coverage** — institutional-knowledge sources (`.claude/rules/`, `docs/development/LESSONS-LEARNED.md`, `KNOWN-GOTCHAS.md`) stay acknowledged in the development-tooling coverage manifest; enforces the reader pattern on all MCP tool files so source docs remain single source of truth
-- **verify-nix-deps-hash** — `nixos/package.nix` npmDepsHash stays in sync with `package-lock.json`; catches the "Dependabot bumped lockfile, Nix hash not refreshed" failure mode that breaks every Nix-built install
-- **verify-sync-exclude-cruft** — `sync-to-free.yml` and `release.yml` rsync invocations include `--delete-excluded` so new exclusion patterns actually clean up stale files on the Weaver-Free mirror (without it, pre-excluded files persist indefinitely as cruft and break rebuild-from-source)
+Docs claims are cross-checked against code: feature rosters match shipped code, no stale "Planned" entries for features that shipped, cross-document and anchor-level link integrity on every push, deprecated-term migration completeness (one missed rename blocks the push), runbook section completeness, backend source-to-test file parity, eager-evaluation composables caught at compile time, institutional-knowledge manifests (LESSONS-LEARNED, KNOWN-GOTCHAS) kept registered in the code MCP server, and Nix build-hash freshness against the lockfile. Doc drift is a trust problem, not a cosmetic one — public docs are how enterprise prospects calibrate engineering rigor, so they're held to the same compile-time guardrails as code.
+
+### Parity with reality
+
+Each category's coverage claim above is verified by a machine check. The `audit:doc-parity` auditor cross-references every numeric claim on this page (auditor count, vertical count, CII project ID, etc.) against code state. The `audit:engineering-discipline-parity` auditor (this page's own checker) ensures internal consistency — every occurrence of the auditor count throughout this document agrees, and matches the actual `test:compliance` chain in [`package.json`](../../package.json).
 
 ---
 
@@ -92,7 +65,7 @@ Before a release tag is pushed, `audit:release-builds` simulates every downstrea
 
 **Current context: free-tarball.** Simulates the `sync-to-free` flattening (code/ → root, applying sync-exclude.yml), then runs the full `npm ci && npm run build:all` in a sandbox. Catches path-escape bugs, missing-file references, and sync-exclusion errors that would break the Free tarball build — the exact bug class that shipped in v1.0.0 and was fixed by the v1.0.1 refactor.
 
-**Planned contexts:** docker (Dockerfile build from flattened layout), public-demo (VITE_DEMO_MODE + VITE_DEMO_PUBLIC build), private-demo (VITE_DEMO_MODE build).
+**Planned contexts:** public-demo (VITE_DEMO_MODE + VITE_DEMO_PUBLIC build), private-demo (VITE_DEMO_MODE build), NUR build sandbox.
 
 ---
 
@@ -100,7 +73,7 @@ Before a release tag is pushed, `audit:release-builds` simulates every downstrea
 
 The public OpenSSF Scorecard for Weaver Free is at [scorecard.dev/viewer](https://scorecard.dev/viewer/?uri=github.com/whizbangdevelopers-org/Weaver-Free). Scorecard rescans weekly; between scans, a regression on the badge isn't visible.
 
-To prevent this, `audit:openssf-baseline` runs on every push and validates 7 of the Scorecard checks locally (no network). Any regression from the baseline fails the push, so the badge stays green without waiting for the weekly scan.
+To prevent this, `audit:openssf-baseline` runs on every push and validates seven of the Scorecard checks locally (no network). Any regression from the baseline fails the push, so the badge stays green without waiting for the weekly scan.
 
 **Checks covered locally:**
 1. Token-Permissions — every workflow YAML declares top-level `permissions:`
@@ -117,7 +90,7 @@ To prevent this, `audit:openssf-baseline` runs on every push and validates 7 of 
 
 ## Supply-chain pinning
 
-Every GitHub Action referenced in the `.github/workflows/` directory is SHA-pinned to a specific commit — never a floating tag like `@v4`. The `audit:pinned-dependencies` check (part of `audit:openssf-baseline`) verifies this on every push.
+Every GitHub Action referenced in the `.github/workflows/` directory is SHA-pinned to a specific commit — never a floating tag like `@v4`. The pinned-dependencies check (part of `audit:openssf-baseline`) verifies this on every push.
 
 Example:
 ```yaml
@@ -173,7 +146,7 @@ Why this earns the next rating notch: load testing closes the performance-regres
 
 ## What this page is and isn't
 
-**Is:** a statement of our engineering practices with specific, enumerable checks. Every claim here corresponds to an auditor or workflow that runs in public CI. You can verify each one in [github.com/whizbangdevelopers-org/Weaver-Free/actions](https://github.com/whizbangdevelopers-org/Weaver-Free/actions).
+**Is:** a statement of our engineering practices with specific, enumerable checks. Every claim here corresponds to an auditor or workflow that runs in public CI. You can verify each one in [github.com/whizbangdevelopers-org/Weaver-Free/actions](https://github.com/whizbangdevelopers-org/Weaver-Free/actions) or by inspecting the `test:compliance` chain in [package.json](../../package.json).
 
 **Isn't:** a compliance certification. SOC 2 Type II, ISO 27001, CMMC assessments are process-maturity audits performed by external assessors. This page tells you what our *engineering discipline* looks like — the technical artifacts that *would* be evaluated in such an audit.
 
@@ -185,7 +158,7 @@ For compliance framework mappings (NIST 800-171, HIPAA, PCI-DSS, ISO 27001, etc.
 
 | Claim | How to verify |
 |---|---|
-| 38 auditors on every push | [.github/workflows/test.yml](../../.github/workflows/test.yml) compliance-suite job |
+| 39 auditors on every push | [.github/workflows/test.yml](../../.github/workflows/test.yml) compliance-suite job, or grep `audit:` in [package.json](../../package.json) `test:compliance` script |
 | SHA-pinned GitHub Actions | `grep "uses:" .github/workflows/*.yml` — every line ends with a 40-char SHA |
 | OpenSSF Scorecard score | [scorecard.dev/viewer](https://scorecard.dev/viewer/?uri=github.com/whizbangdevelopers-org/Weaver-Free) |
 | SBOM present on each release | [github.com/whizbangdevelopers-org/Weaver-Free/releases](https://github.com/whizbangdevelopers-org/Weaver-Free/releases) — `sbom.cdx.json` + `sbom-backend.cdx.json` |
