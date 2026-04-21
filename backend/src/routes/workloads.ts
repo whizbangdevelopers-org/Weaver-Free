@@ -309,7 +309,10 @@ export const workloadsRoutes: FastifyPluginAsync<VmsRouteOptions> = async (fasti
       // Fire-and-forget provisioning when provisioner is available
       if (provisioner && config?.provisioningEnabled) {
         provisioner.provision(request.body.name).catch(err => {
-          fastify.log.error(err, `Provisioning failed for ${request.body.name}`)
+          // Structured log — name goes as a field, not string-interpolated
+          // into the message. Prevents log-injection if upstream validation
+          // ever relaxes. Also lets log aggregators filter/facet by vmName.
+          fastify.log.error({ err, vmName: request.body.name }, 'Provisioning failed')
         })
         return reply.status(202).send({ ...result, provisioningState: 'provisioning' })
       }
