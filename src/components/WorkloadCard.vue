@@ -116,6 +116,36 @@
           <span class="text-grey-7">{{ formatHypervisor(vm.hypervisor) }}</span>
         </div>
       </div>
+
+      <!-- Utilization gauges — only when liveMetrics populated.
+           Demo data populates this for running VMs so public-demo visitors see
+           each VM as "alive" at a glance. Prod VMs have liveMetrics undefined
+           until v1.1 Resource Metrics ships; this block stays empty and costs
+           nothing there. -->
+      <div v-if="vm.liveMetrics" class="q-mt-xs utilization-gauges">
+        <div class="row items-center no-wrap q-gutter-xs util-row">
+          <q-icon name="mdi-chip" size="11px" :color="utilColor(vm.liveMetrics.cpuPercent)" />
+          <span class="text-caption text-grey-7">CPU</span>
+          <q-linear-progress
+            :value="vm.liveMetrics.cpuPercent / 100"
+            :color="utilColor(vm.liveMetrics.cpuPercent)"
+            rounded size="4px"
+            class="col util-bar"
+          />
+          <span class="text-caption text-grey-8 util-pct">{{ vm.liveMetrics.cpuPercent }}%</span>
+        </div>
+        <div class="row items-center no-wrap q-gutter-xs q-mt-xs util-row">
+          <q-icon name="mdi-memory" size="11px" :color="utilColor(memPercent)" />
+          <span class="text-caption text-grey-7">MEM</span>
+          <q-linear-progress
+            :value="memPercent / 100"
+            :color="utilColor(memPercent)"
+            rounded size="4px"
+            class="col util-bar"
+          />
+          <span class="text-caption text-grey-8 util-pct">{{ memPercent }}%</span>
+        </div>
+      </div>
     </q-card-section>
 
   </q-card>
@@ -137,6 +167,12 @@ function formatHypervisor(hv: string): string {
   return short[hv] ?? hv
 }
 
+function utilColor(pct: number): string {
+  if (pct >= 90) return 'negative'
+  if (pct >= 70) return 'warning'
+  return 'positive'
+}
+
 const MAX_VISIBLE_TAGS = 3
 
 const props = defineProps<{
@@ -144,6 +180,11 @@ const props = defineProps<{
   selectable?: boolean
   remoteHostname?: string
 }>()
+
+const memPercent = computed(() => {
+  if (!props.vm.liveMetrics || !props.vm.mem) return 0
+  return Math.min(100, Math.round((props.vm.liveMetrics.memUsedMb / props.vm.mem) * 100))
+})
 
 const router = useRouter()
 const drawerStore = useResourceDrawerStore()
@@ -223,6 +264,21 @@ function goToSettings() {
   &--remote {
     border-left-style: dashed;
     opacity: 0.88;
+  }
+}
+
+.utilization-gauges {
+  // Compact utilization rows — CPU and memory bars under the static stats
+  .util-row {
+    min-height: 14px;
+  }
+  .util-bar {
+    margin: 0 4px;
+  }
+  .util-pct {
+    min-width: 32px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
   }
 }
 </style>
