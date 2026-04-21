@@ -1,6 +1,10 @@
 // Copyright (c) 2026 whizBANG Developers LLC. All rights reserved.
 // Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE.
 
+// Import vi above any vi.mock/vi.hoisted usage (CodeQL use-before-declaration).
+// Vitest hoists vi.mock() calls at transform time regardless of source order.
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+
 const mocks = vi.hoisted(() => ({
   createVm: vi.fn().mockResolvedValue({ success: true }),
   deleteVm: vi.fn().mockResolvedValue({ success: true }),
@@ -9,8 +13,6 @@ const mocks = vi.hoisted(() => ({
 }))
 
 vi.mock('../../src/services/microvm.js', () => mocks)
-
-import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { DistroTester } from '../../src/services/distro-tester.js'
 import type { WorkloadRegistry } from '../../src/storage/workload-registry.js'
 import type { Provisioner } from '../../src/services/provisioner-types.js'

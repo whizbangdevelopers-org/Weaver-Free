@@ -1,7 +1,7 @@
 // Copyright (c) 2026 whizBANG Developers LLC. All rights reserved.
 // Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { writeFile, rm, mkdir } from 'node:fs/promises'
+import { writeFile, rm, mkdir, mkdtemp } from 'node:fs/promises'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { CatalogStore } from '../../src/storage/catalog-store.js'
@@ -20,8 +20,12 @@ describe('CatalogStore', () => {
   }
 
   beforeEach(async () => {
-    testDir = join(tmpdir(), `catalog-store-test-${Date.now()}`)
-    await mkdir(testDir, { recursive: true })
+    // mkdtemp generates a unique random suffix atomically. Previously we
+    // used join(tmpdir(), `catalog-store-test-${Date.now()}`) which is
+    // predictable — CodeQL's js/insecure-temporary-file flagged every
+    // subsequent write as tmp-file hijack-vulnerable (attacker could
+    // pre-create the guessable path as a symlink before the test ran).
+    testDir = await mkdtemp(join(tmpdir(), 'catalog-store-test-'))
     persistPath = join(testDir, 'persist', 'distro-catalog.json')
     defaultPath = join(testDir, 'default', 'distro-catalog.json')
   })
