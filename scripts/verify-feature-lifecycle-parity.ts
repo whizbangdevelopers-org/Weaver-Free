@@ -82,6 +82,7 @@ interface Stage {
   surface?: string
   adds?: string
   pricing?: string
+  tier?: string
   decision?: number
 }
 
@@ -93,6 +94,7 @@ interface Feature {
   progressive?: Stage[]
   devPreview?: Stage
   skuLaunch?: Stage
+  generalAvailability?: Stage
   postLaunch?: Stage[]
 }
 
@@ -152,6 +154,7 @@ function checkSchemaValidity(features: Feature[]): Violation[] {
       ['foundation', f.foundation],
       ['devPreview', f.devPreview],
       ['skuLaunch', f.skuLaunch],
+      ['generalAvailability', f.generalAvailability],
     ]
     for (const [name, stage] of allStages) {
       if (stage && !VERSION_RE.test(stage.version)) {
@@ -174,14 +177,40 @@ function checkSchemaValidity(features: Feature[]): Violation[] {
       }
     }
 
-    // At minimum, every tracked feature should have a skuLaunch — otherwise
-    // it's not a lifecycle, it's just a feature in one version.
-    if (!f.skuLaunch) {
+    // Every tracked feature must declare exactly one delivery stage —
+    // either skuLaunch (purchasable) or generalAvailability (tier-included).
+    // Both-or-neither is schema abuse: both implies the feature is
+    // simultaneously purchasable AND tier-included at the same version
+    // (contradictory for downstream doc citations); neither implies the
+    // feature is in-progress forever with no anchor for consumer docs.
+    const hasSku = !!f.skuLaunch
+    const hasGa = !!f.generalAvailability
+    if (!hasSku && !hasGa) {
       vs.push({
         check: 'schema',
         feature: f.slug,
         detail:
-          'missing skuLaunch stage — features in the schema are by definition multi-stage; a feature that never becomes a purchasable SKU shouldn\'t be tracked here',
+          'missing delivery stage — every tracked feature needs either skuLaunch (purchasable SKU) or generalAvailability (tier-included capability)',
+      })
+    } else if (hasSku && hasGa) {
+      vs.push({
+        check: 'schema',
+        feature: f.slug,
+        detail:
+          'both skuLaunch AND generalAvailability declared — pick exactly one: skuLaunch for purchasable SKUs (opens a revenue line), generalAvailability for tier-included capabilities (no new revenue line)',
+      })
+    }
+
+    // generalAvailability must declare the tier that receives the capability.
+    // skuLaunch already encodes this via its pricing reference; GA has no
+    // pricing reference, so the tier field is load-bearing for tier-matrix
+    // citations downstream.
+    if (f.generalAvailability && !f.generalAvailability.tier) {
+      vs.push({
+        check: 'schema',
+        feature: f.slug,
+        detail:
+          'generalAvailability.tier is required — tier-matrix citations depend on knowing which tier receives the capability',
       })
     }
 
@@ -223,6 +252,8 @@ function checkVersionToPlan(features: Feature[]): Violation[] {
     if (f.foundation) stagesToCheck.push(['foundation', f.foundation.version])
     if (f.devPreview) stagesToCheck.push(['devPreview', f.devPreview.version])
     if (f.skuLaunch) stagesToCheck.push(['skuLaunch', f.skuLaunch.version])
+    if (f.generalAvailability)
+      stagesToCheck.push(['generalAvailability', f.generalAvailability.version])
     for (const [i, s] of (f.progressive ?? []).entries()) {
       stagesToCheck.push([`progressive[${i}]`, s.version])
     }
