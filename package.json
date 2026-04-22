@@ -98,6 +98,7 @@
     "audit:runbooks": "npx tsx scripts/verify-runbooks.ts",
     "audit:eager-eval-tdz": "npx tsx scripts/verify-eager-eval-tdz.ts",
     "docs:snapshot": "bash scripts/snapshot-docs.sh",
+    "docs:lifecycles": "npx tsx scripts/generate-feature-lifecycle-views.ts",
     "verify:release": "npx tsx scripts/verify-post-release.ts",
     "test:manual": "npx tsx scripts/manual-test-checklist.ts",
     "test:manual:verify": "npx tsx scripts/manual-test-checklist.ts --verify",
