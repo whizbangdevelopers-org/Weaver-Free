@@ -63,6 +63,7 @@ interface Stage {
   surface?: string
   adds?: string
   pricing?: string
+  tier?: string
   decision?: number
 }
 
@@ -74,6 +75,14 @@ interface Feature {
   progressive?: Stage[]
   devPreview?: Stage
   skuLaunch?: Stage
+  // Tier-inclusion delivery event (alternative to skuLaunch). A feature
+  // has exactly one of skuLaunch or generalAvailability. GA-only features
+  // are deliberately omitted from both partner and investor views: they
+  // open no revenue line (excluded from investor timeline) and typically
+  // ship without a preview stage (excluded from partner roadmap).
+  // Their lifecycle entry exists so TIER-MANAGEMENT.md and tier matrix
+  // citations can resolve to a canonical version.
+  generalAvailability?: Stage
   postLaunch?: Stage[]
 }
 
