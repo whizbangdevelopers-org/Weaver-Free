@@ -87,9 +87,15 @@ export const EXTENSIONS = {
   complianceExport: {
     name: 'Compliance Export',
     price: '$4,000/yr',
+    fmPrice: '$2,800/yr',
+    fmCap: 100,
     description: 'Automated evidence packages for HIPAA, SOC 2, PCI-DSS, NIST 800-53, CMMC, 21 CFR Part 11',
     tier: 'fabrick',
-    version: 'v2.2+',
+    // SKU launch version — this is when the extension becomes purchasable.
+    // Lifecycle stages (foundation v2.1, progressive v2.2–v2.5, dev preview
+    // v2.5) tracked in plans/cross-version/FEATURE-LIFECYCLES.md#compliance-export.
+    // FM window closes when this version ships.
+    version: 'v3.1',
   },
 } as const
 
