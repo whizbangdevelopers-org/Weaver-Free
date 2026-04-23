@@ -38,55 +38,96 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 const CODE_ROOT = resolve(__dirname, '..')
 
-// Registered auditors — order preserved (some depend on TUI built before
-// the TUI-parity auditor runs, etc.). Add new entries here; no other file
-// needs to change.
-const AUDITORS: string[] = [
-  'audit:vocabulary',
-  'audit:forms',
-  'audit:routes',
-  'audit:e2e-coverage',
-  'audit:e2e-selectors',
-  'audit:legal',
-  'audit:doc-freshness',
-  'audit:tier-parity',
-  'audit:tui-parity',
-  'build:tui',
-  'audit:cli-args',
-  'audit:contrast',
-  'audit:ws-codes',
-  'audit:bundle',
-  'audit:license',
-  'audit:lockfile',
-  'audit:sast',
-  'audit:doc-parity',
-  'audit:demo-parity',
-  'audit:demo-guards',
-  'audit:decision-parity',
-  'audit:compliance-parity',
-  'audit:compliance-matrix-parity',
-  'audit:attribution',
-  'audit:compatibility',
-  'audit:license-parity',
-  'audit:test-coverage',
-  'audit:docs-links',
-  'audit:nixos-version',
-  'audit:project-parity',
-  'audit:runbooks',
-  'audit:eager-eval-tdz',
-  'audit:excluded-imports',
-  'audit:openssf-baseline',
-  'audit:mcp-coverage',
-  'audit:nix-deps-hash',
-  'audit:sync-exclude-cruft',
-  'audit:release-rsync-paths',
-  'audit:nur-dispatch-completeness',
-  'audit:engineering-discipline-parity',
-  'audit:feature-lifecycle-parity',
-  'audit:generated-artifact-freshness',
-  'audit:agent-knowledge-coverage',
-  'audit:skill-parity',
+// Registered auditors — grouped into phases. Phases run sequentially;
+// auditors within a phase run in parallel. Split points honor real
+// ordering constraints:
+//
+//   Phase 1 (prerequisites) — build:tui produces artifacts some later
+//     auditors read. MUST complete before phase 2 starts.
+//
+//   Phase 2 (parallel-safe static auditors) — each reads files and
+//     writes a report. No shared mutable state. Order within phase
+//     doesn't matter.
+//
+//   Phase 3 (generator-adjacent) — audit:generated-artifact-freshness
+//     runs generators that write to the working tree. Running alongside
+//     other auditors could race on the output files if both read the
+//     same artifact. Isolated to its own phase.
+//
+//   Phase 4 (tail) — audits that depend on phase-3 output being stable,
+//     or that are themselves slow + self-contained. Run in parallel.
+//
+// Build steps (build:tui) live in phase 1 even though they're not
+// auditors; listing them here keeps the orchestration simple.
+interface Phase {
+  parallel: boolean
+  entries: string[]
+}
+
+const PHASES: Phase[] = [
+  // Phase 1 — prerequisites. Must complete before downstream parity checks.
+  {
+    parallel: false,
+    entries: ['build:tui'],
+  },
+  // Phase 2 — bulk of static auditors. Independent reads; run parallel.
+  {
+    parallel: true,
+    entries: [
+      'audit:vocabulary',
+      'audit:forms',
+      'audit:routes',
+      'audit:e2e-coverage',
+      'audit:e2e-selectors',
+      'audit:legal',
+      'audit:doc-freshness',
+      'audit:tier-parity',
+      'audit:tui-parity',
+      'audit:cli-args',
+      'audit:contrast',
+      'audit:ws-codes',
+      'audit:bundle',
+      'audit:license',
+      'audit:lockfile',
+      'audit:sast',
+      'audit:doc-parity',
+      'audit:demo-parity',
+      'audit:demo-guards',
+      'audit:decision-parity',
+      'audit:compliance-parity',
+      'audit:compliance-matrix-parity',
+      'audit:attribution',
+      'audit:compatibility',
+      'audit:license-parity',
+      'audit:test-coverage',
+      'audit:docs-links',
+      'audit:nixos-version',
+      'audit:project-parity',
+      'audit:runbooks',
+      'audit:eager-eval-tdz',
+      'audit:excluded-imports',
+      'audit:openssf-baseline',
+      'audit:mcp-coverage',
+      'audit:nix-deps-hash',
+      'audit:sync-exclude-cruft',
+      'audit:release-rsync-paths',
+      'audit:nur-dispatch-completeness',
+      'audit:engineering-discipline-parity',
+      'audit:feature-lifecycle-parity',
+      'audit:agent-knowledge-coverage',
+      'audit:skill-parity',
+      'audit:mcp-parser-baseline',
+    ],
+  },
+  // Phase 3 — generators that write to the working tree. Isolated.
+  {
+    parallel: false,
+    entries: ['audit:generated-artifact-freshness'],
+  },
 ]
+
+// Flat view for --list and older call sites.
+const AUDITORS: string[] = PHASES.flatMap((p) => p.entries)
 
 // build:tui is a build step embedded in the chain (historical — TUI must
 // build before audit:tui-parity can inspect bundle output). Count only
@@ -138,26 +179,70 @@ function runOne(name: string): Result {
   return { name, ok: r.status === 0, ms: Date.now() - start }
 }
 
-function main(): void {
+// Run a list of auditors in parallel using async spawn. Returns once all
+// complete; does NOT short-circuit within a phase (all parallel auditors
+// run to completion even if one fails — matches the useful "see all the
+// broken things at once" property of test suites). Between phases,
+// we still honor --continue for the overall sequential flow.
+async function runParallel(names: string[]): Promise<Result[]> {
+  const { spawn } = await import('child_process')
+  const tasks = names.map(
+    (name) =>
+      new Promise<Result>((resolveTask) => {
+        const start = Date.now()
+        // Serialize stdout/stderr per-auditor so parallel output doesn't
+        // interleave unreadably. Each auditor's output prints as a block
+        // after it completes.
+        const chunks: Buffer[] = []
+        const child = spawn('npm', ['run', name], {
+          cwd: CODE_ROOT,
+          stdio: ['ignore', 'pipe', 'pipe'],
+        })
+        child.stdout?.on('data', (d: Buffer) => chunks.push(d))
+        child.stderr?.on('data', (d: Buffer) => chunks.push(d))
+        child.on('close', (code: number | null) => {
+          const header = `\n\x1b[2m──── ${name} (${Date.now() - start}ms) ────\x1b[0m\n`
+          process.stdout.write(header + Buffer.concat(chunks).toString('utf8'))
+          resolveTask({ name, ok: code === 0, ms: Date.now() - start })
+        })
+      }),
+  )
+  return Promise.all(tasks)
+}
+
+async function main(): Promise<void> {
   const opts = parseArgs(process.argv.slice(2))
 
   if (opts.list) {
     console.log(`${AUDITORS.length} entries (${countAuditorsOnly()} auditors + ${AUDITORS.length - countAuditorsOnly()} build step(s)):`)
-    for (const a of AUDITORS) console.log(`  ${a}`)
+    for (const phase of PHASES) {
+      console.log(`\n  ${phase.parallel ? 'parallel' : 'sequential'}:`)
+      for (const a of phase.entries) console.log(`    ${a}`)
+    }
     process.exit(0)
   }
 
-  const selected = AUDITORS.filter(
-    (a) => (opts.only ? opts.only.has(a) : true) && !opts.skip.has(a),
-  )
+  const isSelected = (name: string) =>
+    (opts.only ? opts.only.has(name) : true) && !opts.skip.has(name)
 
   const results: Result[] = []
   const startAll = Date.now()
 
-  for (const name of selected) {
-    const r = runOne(name)
-    results.push(r)
-    if (!r.ok && !opts.continue) break
+  outer: for (const phase of PHASES) {
+    const entries = phase.entries.filter(isSelected)
+    if (entries.length === 0) continue
+
+    if (phase.parallel && entries.length > 1) {
+      const phaseResults = await runParallel(entries)
+      results.push(...phaseResults)
+      if (phaseResults.some((r) => !r.ok) && !opts.continue) break outer
+    } else {
+      for (const name of entries) {
+        const r = runOne(name)
+        results.push(r)
+        if (!r.ok && !opts.continue) break outer
+      }
+    }
   }
 
   const totalMs = Date.now() - startAll
@@ -192,4 +277,4 @@ function main(): void {
   process.exit(failed.length === 0 ? 0 : 1)
 }
 
-main()
+void main()

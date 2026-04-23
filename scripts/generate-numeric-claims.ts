@@ -32,6 +32,7 @@
 import { readFileSync, writeFileSync, existsSync, readdirSync, statSync } from 'fs'
 import { resolve, dirname } from 'path'
 import { fileURLToPath } from 'url'
+import { execFileSync } from 'child_process'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -64,42 +65,78 @@ function countAuditors(): number {
 }
 
 // ─── Test counts ────────────────────────────────────────────────────────────
+//
+// Methodology (important for investor-deck claims):
+//
+//   Unit / Backend / TUI — run `vitest run --reporter=json` in each suite
+//     directory. Vitest emits numTotalTests, which is the authoritative
+//     runtime count (includes dynamically-generated tests from
+//     describe.each / it.each). This is the correct number for the deck.
+//     Adds ~30-60s per suite to generator invocation; acceptable — the
+//     generator only fires when package.json or test files are staged.
+//
+//   E2E — regex-counted by scanning testing/e2e/*.spec.ts for
+//     `test(` / `it(` declarations. Playwright's `--list --reporter=json`
+//     would give the authoritative number but is blocked by a project
+//     hook (E2E tests must run via Docker only). Docker invocation is too
+//     heavy for a pre-commit generator. Grep confirms no `describe.each`
+//     / `it.each` in E2E specs, so the regex count is exact for the
+//     current codebase. If `.each` patterns enter E2E, the generator
+//     should gain a Docker-based authoritative path.
+//
+//   Fallback — if vitest fails for any reason (dependency issue,
+//     environment state), fall back to the same regex method used for
+//     E2E. Reported with a `fallback: true` flag in the JSON output.
+//     Approximate numbers beat no numbers when a release ships.
+//
+// --measure flag re-runs vitest even if the cached JSON exists; without
+// it, the generator runs vitest every time (no caching) because test
+// files change often and caching would lie.
 
 interface SuiteSpec {
   name: string
-  roots: string[]
-  pattern: RegExp
+  authoritative?: { cwd: string } // cwd for `vitest run --reporter=json`
+  regexFallback: { roots: string[]; pattern: RegExp } // used for E2E + failure fallback
 }
 
 const SUITES: SuiteSpec[] = [
   {
     name: 'unit',
-    roots: [resolve(CODE_ROOT, 'src'), resolve(CODE_ROOT, 'testing', 'unit')],
-    pattern: /\.(spec|test)\.(ts|tsx|js|mjs)$/,
+    authoritative: { cwd: CODE_ROOT },
+    regexFallback: {
+      roots: [resolve(CODE_ROOT, 'src'), resolve(CODE_ROOT, 'testing', 'unit')],
+      pattern: /\.(spec|test)\.(ts|tsx|js|mjs)$/,
+    },
   },
   {
     name: 'backend',
-    roots: [resolve(CODE_ROOT, 'backend', 'tests')],
-    pattern: /\.(spec|test)\.(ts|js)$/,
+    authoritative: { cwd: resolve(CODE_ROOT, 'backend') },
+    regexFallback: {
+      roots: [resolve(CODE_ROOT, 'backend', 'tests')],
+      pattern: /\.(spec|test)\.(ts|js)$/,
+    },
   },
   {
     name: 'tui',
-    roots: [resolve(CODE_ROOT, 'tui', 'src'), resolve(CODE_ROOT, 'tui', 'tests')],
-    pattern: /\.(spec|test)\.(ts|tsx)$/,
+    authoritative: { cwd: resolve(CODE_ROOT, 'tui') },
+    regexFallback: {
+      roots: [resolve(CODE_ROOT, 'tui', 'src'), resolve(CODE_ROOT, 'tui', 'tests')],
+      pattern: /\.(spec|test)\.(ts|tsx)$/,
+    },
   },
   {
     name: 'e2e',
-    roots: [resolve(CODE_ROOT, 'testing', 'e2e')],
-    pattern: /\.spec\.ts$/,
+    // Playwright --list is hook-blocked; Docker invocation too heavy for
+    // a pre-commit generator. Regex is authoritative here.
+    regexFallback: {
+      roots: [resolve(CODE_ROOT, 'testing', 'e2e')],
+      pattern: /\.spec\.ts$/,
+    },
   },
 ]
 
-// Count `it(` / `test(` declarations in a spec file. Tolerates `it.skip(`,
-// `it.only(`, `test.skip(`, `test.only(`, `it.each(`. Ignores occurrences
-// inside block comments (approximate — won't catch cleverly nested cases).
 function countTestsInFile(path: string): number {
   const text = readFileSync(path, 'utf8')
-  // Strip /* ... */ block comments (simple pass; doesn't handle all edge cases).
   const stripped = text.replace(/\/\*[\s\S]*?\*\//g, '')
   const matches = stripped.match(/^\s*(it|test)(?:\.(?:skip|only|each|todo|concurrent|sequential))*\s*\(/gm) ?? []
   return matches.length
@@ -119,12 +156,40 @@ function walkForSpecs(dir: string, pattern: RegExp, out: string[]): void {
   }
 }
 
-function countSuite(spec: SuiteSpec): number {
+function countSuiteRegex(spec: SuiteSpec): number {
   const files: string[] = []
-  for (const root of spec.roots) walkForSpecs(root, spec.pattern, files)
+  for (const root of spec.regexFallback.roots)
+    walkForSpecs(root, spec.regexFallback.pattern, files)
   let total = 0
   for (const f of files) total += countTestsInFile(f)
   return total
+}
+
+interface SuiteResult {
+  count: number
+  method: 'vitest-json' | 'regex-fallback' | 'regex-authoritative'
+}
+
+function countSuite(spec: SuiteSpec): SuiteResult {
+  if (!spec.authoritative) {
+    // Regex is authoritative (E2E today).
+    return { count: countSuiteRegex(spec), method: 'regex-authoritative' }
+  }
+  try {
+    const out = execFileSync('npx', ['vitest', 'run', '--reporter=json'], {
+      cwd: spec.authoritative.cwd,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+      maxBuffer: 64 * 1024 * 1024,
+    })
+    const data = JSON.parse(out) as { numTotalTests?: number }
+    if (typeof data.numTotalTests === 'number') {
+      return { count: data.numTotalTests, method: 'vitest-json' }
+    }
+    throw new Error('vitest JSON missing numTotalTests')
+  } catch {
+    return { count: countSuiteRegex(spec), method: 'regex-fallback' }
+  }
 }
 
 // ─── PITCH-DECK substitution ────────────────────────────────────────────────
@@ -151,11 +216,13 @@ function main(): void {
   const auditorCount = countAuditors()
 
   const breakdown: Record<string, number> = {}
+  const methods: Record<string, string> = {}
   let testCount = 0
   for (const suite of SUITES) {
-    const n = countSuite(suite)
-    breakdown[suite.name] = n
-    testCount += n
+    const result = countSuite(suite)
+    breakdown[suite.name] = result.count
+    methods[suite.name] = result.method
+    testCount += result.count
   }
 
   const testCountFormatted = testCount.toLocaleString('en-US')
@@ -172,17 +239,25 @@ function main(): void {
   // make the freshness auditor fail even when the substantive values are
   // unchanged. Git log records when the file was last touched; that's the
   // canonical "generated when" answer.
+  //
+  // `methods` records per-suite methodology (vitest-json = authoritative
+  // runtime count; regex-fallback = vitest failed, approximate count;
+  // regex-authoritative = the only available method, exact here because
+  // no .each() patterns). Investor-facing narratives should cite
+  // "authoritative count" only when every suite reports vitest-json or
+  // regex-authoritative.
   const jsonOut = {
     source: 'code/scripts/generate-numeric-claims.ts',
     auditorCount,
     testCount,
     testBreakdown: breakdown,
+    methods,
   }
   writeFileSync(CLAIMS_JSON, JSON.stringify(jsonOut, null, 2) + '\n')
   console.log(`Wrote ${CLAIMS_JSON}`)
   console.log(`  auditors: ${auditorCount}`)
   console.log(
-    `  tests: ${testCount} (${breakdown.unit} unit + ${breakdown.backend} backend + ${breakdown.tui} TUI + ${breakdown.e2e} E2E)`,
+    `  tests: ${testCount} (${breakdown.unit} unit [${methods.unit}] + ${breakdown.backend} backend [${methods.backend}] + ${breakdown.tui} TUI [${methods.tui}] + ${breakdown.e2e} E2E [${methods.e2e}])`,
   )
 
   if (existsSync(PITCH_DECK)) {
