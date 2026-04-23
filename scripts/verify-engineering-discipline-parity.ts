@@ -71,12 +71,15 @@ interface Violation {
 }
 
 function auditorCountFromPackageJson(): number {
-  const pkg = JSON.parse(readFileSync(PKG, 'utf8')) as { scripts?: Record<string, string> }
-  const compliance = pkg.scripts?.['test:compliance']
-  if (!compliance) {
-    throw new Error('package.json has no test:compliance script — auditor cannot run')
+  // Compliance chain moved from package.json test:compliance (1400-char
+  // chained npm script) to scripts/run-compliance.ts — the AUDITORS array
+  // is the source of truth. Parse 'audit:*' string literals from its source.
+  const runCompliancePath = resolve(dirname(PKG), 'scripts', 'run-compliance.ts')
+  if (!existsSync(runCompliancePath)) {
+    throw new Error('scripts/run-compliance.ts not found — auditor cannot run')
   }
-  const matches = compliance.match(/npm run audit:[\w-]+/g) ?? []
+  const src = readFileSync(runCompliancePath, 'utf8')
+  const matches = src.match(/'audit:[\w-]+'/g) ?? []
   const unique = new Set(matches)
   return unique.size
 }
