@@ -136,7 +136,7 @@ Non-NixOS open-source dependencies used in this repository. For NixOS-specific i
 - **Backend**: Fastify + SQLite + JWT — no ORM, direct SQL via better-sqlite3
 - **TUI**: React + Ink for composable terminal UI (mirrors web UI feature set)
 - **Validation**: Zod on all API boundaries (backend request/response + TUI)
-- **Testing**: 3-tier pyramid — lint/unit (Vitest) → compliance (44 static auditors) → E2E (Playwright in Docker)
+- **Testing**: 3-tier pyramid — lint/unit (Vitest) → compliance (<!-- auditor-count:begin -->46<!-- auditor-count:end --> static auditors) → E2E (Playwright in Docker)
 - **AI**: Claude SDK with BYOK/BYOV pattern — mock mode auto-activates when no API key configured
 
 *This inventory covers runtime and development dependencies. For license compliance status of each package, see [SOFTWARE-LICENSE-EVALUATION.md](../../business/legal/SOFTWARE-LICENSE-EVALUATION.md).*

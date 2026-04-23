@@ -1,0 +1,17 @@
+{
+  "_comment": "MCP parser baseline thresholds. Guards against silent section-drop drift when LESSONS-LEARNED / KNOWN-GOTCHAS undergo structural edits. Auditor: scripts/verify-mcp-parser-baseline.ts. Refresh: npm run baseline:mcp-parser:refresh (writes current-minus-buffer values). Raise-from-drift: commit a human-reviewed refresh with justification in the message.",
+  "_lastRefreshed": "2026-04-23",
+  "_currentMeasurements": {
+    "lessonsSections": 135,
+    "lessonsEntries": 636,
+    "gotchasSections": 9,
+    "gotchasEntries": 127
+  },
+  "thresholds": {
+    "minLessonsSections": 128,
+    "minLessonsEntries": 600,
+    "minGotchasSections": 8,
+    "minGotchasEntries": 115
+  },
+  "growthWarnRatio": 1.15
+}
