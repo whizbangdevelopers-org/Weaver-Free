@@ -100,6 +100,19 @@ const GENERATORS: Generator[] = [
     artifacts: ['code/src/config/delivery-versions.ts'],
     sources: ['forge/DELIVERY.json'],
   },
+  {
+    name: 'numeric claims (generate-numeric-claims.ts)',
+    command: ['npx', 'tsx', 'scripts/generate-numeric-claims.ts'],
+    cwd: 'code',
+    artifacts: [
+      'business/investor/numeric-claims.json',
+      'business/investor/PITCH-DECK.md',
+    ],
+    sources: [
+      'code/package.json',
+      'code/scripts/generate-numeric-claims.ts',
+    ],
+  },
 ]
 
 interface Violation {
