@@ -42,20 +42,36 @@
 
 import { resolve, dirname } from 'path'
 import { fileURLToPath } from 'url'
+import { readFileSync } from 'fs'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 const CODE_ROOT = resolve(__dirname, '..')
 const PROJECT_ROOT = resolve(CODE_ROOT, '..')
 
-// Baselines — tuned below current counts as of 2026-04-23.
-// Current measurements (update when raising):
-//   getLessonsLearned: ~20 sections, ~140 lessons
-//   getKnownGotchas: ~15 sections, ~90 gotchas
-const MIN_LESSONS_SECTIONS = 15
-const MIN_LESSONS_ENTRIES = 100
-const MIN_GOTCHAS_SECTIONS = 8
-const MIN_GOTCHAS_ENTRIES = 60
+// Thresholds are externalized to scripts/baselines/mcp-parser.json so that
+// refreshing the baseline is a JSON edit (reviewable diff, obvious history)
+// rather than a source-code change. Refresh with:
+//   npm run baseline:mcp-parser:refresh
+// The refresh script writes current-minus-buffer values; the resulting diff
+// must be human-reviewed and committed with a justification.
+interface MCPParserBaseline {
+  thresholds: {
+    minLessonsSections: number
+    minLessonsEntries: number
+    minGotchasSections: number
+    minGotchasEntries: number
+  }
+  growthWarnRatio: number
+}
+
+const baselinePath = resolve(__dirname, 'baselines', 'mcp-parser.json')
+const baseline: MCPParserBaseline = JSON.parse(readFileSync(baselinePath, 'utf8'))
+const MIN_LESSONS_SECTIONS = baseline.thresholds.minLessonsSections
+const MIN_LESSONS_ENTRIES = baseline.thresholds.minLessonsEntries
+const MIN_GOTCHAS_SECTIONS = baseline.thresholds.minGotchasSections
+const MIN_GOTCHAS_ENTRIES = baseline.thresholds.minGotchasEntries
+const GROWTH_WARN_RATIO = baseline.growthWarnRatio
 
 // Sections that must always parse — these are the domain categories
 // agents cite most often. If these disappear from parser output, the
@@ -166,6 +182,39 @@ async function main(): Promise<void> {
   }
 
   if (violations.length === 0) {
+    // Growth advisory — when actual exceeds threshold by the configured
+    // ratio, nudge the human to refresh the baseline. This is not a
+    // failure; it's an in-band signal that content has grown enough that
+    // the threshold is no longer catching small drops.
+    const growthWarnings: string[] = []
+    if (lessonsSections.length > MIN_LESSONS_SECTIONS * GROWTH_WARN_RATIO) {
+      growthWarnings.push(
+        `lessons sections: ${lessonsSections.length} actual vs ${MIN_LESSONS_SECTIONS} threshold (${(lessonsSections.length / MIN_LESSONS_SECTIONS).toFixed(2)}× — refresh to tighten drift detection)`,
+      )
+    }
+    if (lessonsEntries > MIN_LESSONS_ENTRIES * GROWTH_WARN_RATIO) {
+      growthWarnings.push(
+        `lessons entries: ${lessonsEntries} actual vs ${MIN_LESSONS_ENTRIES} threshold (${(lessonsEntries / MIN_LESSONS_ENTRIES).toFixed(2)}× — refresh to tighten drift detection)`,
+      )
+    }
+    if (gotchasSections.length > MIN_GOTCHAS_SECTIONS * GROWTH_WARN_RATIO) {
+      growthWarnings.push(
+        `gotchas sections: ${gotchasSections.length} actual vs ${MIN_GOTCHAS_SECTIONS} threshold (${(gotchasSections.length / MIN_GOTCHAS_SECTIONS).toFixed(2)}× — refresh to tighten drift detection)`,
+      )
+    }
+    if (gotchasEntries > MIN_GOTCHAS_ENTRIES * GROWTH_WARN_RATIO) {
+      growthWarnings.push(
+        `gotchas entries: ${gotchasEntries} actual vs ${MIN_GOTCHAS_ENTRIES} threshold (${(gotchasEntries / MIN_GOTCHAS_ENTRIES).toFixed(2)}× — refresh to tighten drift detection)`,
+      )
+    }
+    if (growthWarnings.length > 0) {
+      console.log()
+      console.log(`${DIM}Advisory — baseline lagging current content:${RESET}`)
+      for (const w of growthWarnings) {
+        console.log(`  ${DIM}· ${w}${RESET}`)
+      }
+      console.log(`  ${DIM}Run: npm run baseline:mcp-parser:refresh${RESET}`)
+    }
     console.log()
     console.log(`${GREEN}${BOLD}RESULT: PASS${RESET} — MCP parser baseline intact`)
     process.exit(0)

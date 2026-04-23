@@ -128,7 +128,9 @@ function audit(): Violation[] {
     return violations
   }
 
-  const content = readFileSync(DOC, 'utf8')
+  // Strip marker-sync HTML comments so the regex can match "46 auditors"
+  // in doc occurrences now wrapped as "<!-- auditor-count:begin -->46<!-- auditor-count:end --> auditors".
+  const content = readFileSync(DOC, 'utf8').replace(/<!-- auditor-count:(?:begin|end) -->/g, '')
   const actualCount = auditorCountFromPackageJson()
   const claims = countsInDoc(content)
 

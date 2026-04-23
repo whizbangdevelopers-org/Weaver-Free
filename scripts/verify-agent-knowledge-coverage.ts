@@ -292,12 +292,60 @@ function checkPlanVersionMatch(specPath: string, content: string): Violation[] {
 // Freshness-marker check. Specs that don't yet carry real MCP tool
 // citations may instead carry a `<!-- knowledge-freshness: YYYY-MM-DD -->`
 // stub documenting that MCP retrofit is pending and when it was last
-// reviewed. If the stub is older than STALE_DAYS, warn — reviewer should
-// retrofit with real MCP citations before this spec enters the Forge
-// queue. Not a hard error: the stub itself means "acknowledged pending
+// reviewed. Two gates:
+//
+//   (a) Ready-aware HARD ERROR — if the spec's version is marked
+//       `ready: true` in forge/STATUS.json (= about to be executed),
+//       retrofit is required before execution; a stub is a blocker.
+//       Narrowed from "blocked-by-current" to "ready:true" so the
+//       entire future queue doesn't block compliance today — only
+//       specs being actively prepared for execution.
+//
+//   (b) Calendar WARN — if the stub is older than STALE_DAYS regardless
+//       of queue position, warn. Forces periodic review even for
+//       distant-version specs so they don't rot silently.
+//
+// Not a hard error in case (b): the stub means "acknowledged pending
 // work"; staleness is a reminder, not a regression.
-const STALE_DAYS = 180
+//
+// Threshold tuning: set to 45 days on 2026-04-23 (was 180) to match the
+// real release cadence. Revisit at v1.3 release with actual stub-churn
+// data to see whether this cadence generates the right signal/noise mix.
+const STALE_DAYS = 45
 const FRESHNESS_RE = /<!--\s*knowledge-freshness:\s*(\d{4}-\d{2}-\d{2})\s*-->/
+
+interface StatusJson {
+  currentVersion: string
+  queue?: Array<{ version: string; blockedBy?: string; ready?: boolean }>
+}
+
+let readyVersions: Set<string> | null = null
+
+function loadReadyVersions(): Set<string> {
+  if (readyVersions) return readyVersions
+  const statusPath = resolve(PROJECT_ROOT, 'forge', 'STATUS.json')
+  try {
+    const status = JSON.parse(readFileSync(statusPath, 'utf8')) as StatusJson
+    const ready = new Set<string>()
+    for (const item of status.queue ?? []) {
+      if (item.ready === true) {
+        ready.add(item.version)
+      }
+    }
+    readyVersions = ready
+  } catch {
+    // STATUS.json missing or malformed — treat as "no known ready
+    // items," fall back to calendar-only behavior.
+    readyVersions = new Set()
+  }
+  return readyVersions
+}
+
+function extractSpecVersion(specPath: string): string | null {
+  // agents/vX.Y.Z/agent-name.md → X.Y.Z
+  const match = specPath.match(/agents\/v(\d+\.\d+\.\d+)\//)
+  return match ? match[1]! : null
+}
 
 function checkFreshnessMarker(specPath: string, content: string): Violation[] {
   const match = content.match(FRESHNESS_RE)
@@ -313,18 +361,37 @@ function checkFreshnessMarker(specPath: string, content: string): Violation[] {
       },
     ]
   }
+
+  const violations: Violation[] = []
+
+  // Gate (a) — ready-aware hard error. Fires only when the spec's
+  // version is marked `ready: true` in forge/STATUS.json (= about to be
+  // executed), not just queued. This narrows the block to the moment
+  // retrofit actually matters.
+  const specVersion = extractSpecVersion(specPath)
+  if (specVersion) {
+    const ready = loadReadyVersions()
+    if (ready.has(specVersion)) {
+      violations.push({
+        spec: relative(PROJECT_ROOT, specPath),
+        check: 'freshness-marker-ready-blocker',
+        detail: `spec's version v${specVersion} is marked ready:true in forge/STATUS.json — knowledge-freshness stubs must be replaced with real MCP tool citations before execution. Retrofit the spec to cite resolvable paths + decisions + MCP tools, then remove the stub.`,
+      })
+    }
+  }
+
+  // Gate (b) — calendar warning.
   const ageMs = Date.now() - stamp.getTime()
   const ageDays = Math.floor(ageMs / (1000 * 60 * 60 * 24))
   if (ageDays > STALE_DAYS) {
-    return [
-      {
-        spec: relative(PROJECT_ROOT, specPath),
-        check: 'freshness-marker',
-        detail: `knowledge-freshness stub is ${ageDays} days old (threshold ${STALE_DAYS}) — retrofit MCP tool citations before this spec enters the Forge queue, then update the stub date or remove the stub`,
-      },
-    ]
+    violations.push({
+      spec: relative(PROJECT_ROOT, specPath),
+      check: 'freshness-marker',
+      detail: `knowledge-freshness stub is ${ageDays} days old (threshold ${STALE_DAYS}) — retrofit MCP tool citations before this spec enters the Forge queue, then update the stub date or remove the stub`,
+    })
   }
-  return []
+
+  return violations
 }
 
 function checkCitedMcpTools(

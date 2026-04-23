@@ -4,7 +4,7 @@
 
 **How Weaver's internal CI compares to Enterprise-grade CI practices.**
 
-Weaver ships with engineering discipline you can verify, not just claim. Every commit passes 44 static auditors. Every release passes a pre-flight simulation of downstream build contexts. Every public artifact carries provenance you can audit.
+Weaver ships with engineering discipline you can verify, not just claim. Every commit passes <!-- auditor-count:begin -->46<!-- auditor-count:end --> static auditors. Every release passes a pre-flight simulation of downstream build contexts. Every public artifact carries provenance you can audit.
 
 This page describes the *coverage shape* of our CI. The exact list of auditors is kept machine-readable in [`package.json`](../../package.json) (`test:compliance` chain) — readers who want to verify the inventory can do so there. This page communicates what the coverage protects against, not the script-by-script plumbing.
 
@@ -14,9 +14,9 @@ This page describes the *coverage shape* of our CI. The exact list of auditors i
 
 | Practice | Enterprise-CI norm (industry baseline) | Weaver internal CI |
 |---|---|---|
-| Static analyzers per push | 1–2 generic tools (ESLint, tsc) | **44** domain-specific auditors across 4 coverage categories |
+| Static analyzers per push | 1–2 generic tools (ESLint, tsc) | **<!-- auditor-count:begin -->46<!-- auditor-count:end -->** domain-specific auditors across 4 coverage categories |
 | Release-build pre-flight | None (release failures surface in user reports) | **Simulated downstream build contexts** before tag push |
-| Compliance framework mapping | Maintained manually, drifts between releases | **Single-source data + generator + parity auditor** across 13 verticals |
+| Compliance framework mapping | Maintained manually, drifts between releases | **Single-source data + generator + parity auditor** across <!-- vertical-count:begin -->14<!-- vertical-count:end --> verticals |
 | Supply-chain pinning | Latest major tags (`@v4`) | **All GitHub Actions SHA-pinned**, verified on every push |
 | Vulnerability scanning | Dependabot PRs only | **npm audit in test:prepush** (every push) + Dependabot |
 | OpenSSF Scorecard | Published once, rarely re-checked | **Pre-OpenSSF baseline auditor** catches regressions before the weekly scan |
@@ -35,7 +35,7 @@ The industry baseline numbers come from the Google Research *Accelerate* enginee
 
 ## Coverage categories
 
-Every push exercises the full set — failure anywhere blocks the merge. The 44 auditors group into four coverage categories:
+Every push exercises the full set — failure anywhere blocks the merge. The <!-- auditor-count:begin -->46<!-- auditor-count:end --> auditors group into four coverage categories:
 
 ### Source-code discipline
 
@@ -47,7 +47,7 @@ Lockfile integrity, every transitive dependency's license checked against an all
 
 ### Release & distribution discipline
 
-Every release mechanism that touches the public Free mirror or downstream registries is gated at compile time. Parity checks verify that MASTER-PLAN decisions carry ascending numbers, compliance-framework mappings stay in sync with shipped code, 13 vertical sales documents stay in sync with a single-source data module, license claims match the canonical tier matrix, and attribution reflects actual dependencies. Two auditors added after v1.0.2 harden the release pipeline specifically: one verifies every rsync in the release + sync workflows sources only from the intended subtree (never the whole Dev repo), closing the content-leak class that was caught and contained before public indexing. The other verifies that every repository-dispatch the release produces carries the full payload shape its receiver expects, closing the silent-stale-field class where a receiver tolerates a missing field indefinitely.
+Every release mechanism that touches the public Free mirror or downstream registries is gated at compile time. Parity checks verify that MASTER-PLAN decisions carry ascending numbers, compliance-framework mappings stay in sync with shipped code, <!-- vertical-count:begin -->14<!-- vertical-count:end --> vertical sales documents stay in sync with a single-source data module, license claims match the canonical tier matrix, and attribution reflects actual dependencies. Two auditors added after v1.0.2 harden the release pipeline specifically: one verifies every rsync in the release + sync workflows sources only from the intended subtree (never the whole Dev repo), closing the content-leak class that was caught and contained before public indexing. The other verifies that every repository-dispatch the release produces carries the full payload shape its receiver expects, closing the silent-stale-field class where a receiver tolerates a missing field indefinitely.
 
 ### Documentation discipline
 
@@ -158,7 +158,7 @@ For compliance framework mappings (NIST 800-171, HIPAA, PCI-DSS, ISO 27001, etc.
 
 | Claim | How to verify |
 |---|---|
-| 44 auditors on every push | [.github/workflows/test.yml](../../.github/workflows/test.yml) compliance-suite job, or grep `audit:` in [package.json](../../package.json) `test:compliance` script |
+| <!-- auditor-count:begin -->46<!-- auditor-count:end --> auditors on every push | [.github/workflows/test.yml](../../.github/workflows/test.yml) compliance-suite job, or grep `audit:` in [package.json](../../package.json) `test:compliance` script |
 | SHA-pinned GitHub Actions | `grep "uses:" .github/workflows/*.yml` — every line ends with a 40-char SHA |
 | OpenSSF Scorecard score | [scorecard.dev/viewer](https://scorecard.dev/viewer/?uri=github.com/whizbangdevelopers-org/Weaver-Free) |
 | SBOM present on each release | [github.com/whizbangdevelopers-org/Weaver-Free/releases](https://github.com/whizbangdevelopers-org/Weaver-Free/releases) — `sbom.cdx.json` + `sbom-backend.cdx.json` |

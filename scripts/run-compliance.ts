@@ -64,7 +64,7 @@ interface Phase {
   entries: string[]
 }
 
-const PHASES: Phase[] = [
+export const PHASES: Phase[] = [
   // Phase 1 — prerequisites. Must complete before downstream parity checks.
   {
     parallel: false,
@@ -117,6 +117,8 @@ const PHASES: Phase[] = [
       'audit:agent-knowledge-coverage',
       'audit:skill-parity',
       'audit:mcp-parser-baseline',
+      'audit:e2e-docs',
+      'audit:marker-sync',
     ],
   },
   // Phase 3 — generators that write to the working tree. Isolated.
@@ -277,4 +279,10 @@ async function main(): Promise<void> {
   process.exit(failed.length === 0 ? 0 : 1)
 }
 
-void main()
+// Only run when invoked as CLI. Prevents side effects (notably
+// triggering build:tui) when this module is imported for its PHASES
+// export from sync-markers and similar tooling.
+const invokedAsCli = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+if (invokedAsCli) {
+  void main()
+}
