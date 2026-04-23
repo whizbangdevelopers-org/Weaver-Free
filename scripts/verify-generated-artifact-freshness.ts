@@ -100,19 +100,14 @@ const GENERATORS: Generator[] = [
     artifacts: ['code/src/config/delivery-versions.ts'],
     sources: ['forge/DELIVERY.json'],
   },
-  {
-    name: 'numeric claims (generate-numeric-claims.ts)',
-    command: ['npx', 'tsx', 'scripts/generate-numeric-claims.ts'],
-    cwd: 'code',
-    artifacts: [
-      'business/investor/numeric-claims.json',
-      'business/investor/PITCH-DECK.md',
-    ],
-    sources: [
-      'code/package.json',
-      'code/scripts/generate-numeric-claims.ts',
-    ],
-  },
+  // numeric-claims generator intentionally NOT registered here. It shells
+  // out to `vitest run --reporter=json` for each of 3 suites to get
+  // authoritative test counts (~60s total), which would dominate the
+  // compliance critical path. The pre-commit hook is the canonical
+  // freshness guard — regenerates when package.json or any test spec is
+  // staged. Push-time freshness verification is out-of-scope for the
+  // fast-compliance principle; if claims drift despite the hook, the
+  // next legitimate package/test edit will catch it.
 ]
 
 interface Violation {

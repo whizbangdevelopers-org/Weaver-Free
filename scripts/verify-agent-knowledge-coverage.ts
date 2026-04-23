@@ -248,6 +248,85 @@ function checkCitedDecisions(
   return vs
 }
 
+// Plan-reference version-match check. When an agent spec sits at
+// agents/vX.Y.0/<name>.md, its **Plan:** link should point at
+// plans/vX.Y.0/EXECUTION-ROADMAP.md (matching parent-dir version) OR
+// at a cross-version plan under plans/cross-version/. Anything else is
+// a renumbering-drift smell — agent-extract.md cited v2.3 after the
+// 2026-04-14 renumbering when it lives at agents/v2.4.0/.
+//
+// Exemption: cross-version plans are always allowed (they span
+// releases by design). Multiple Plan: lines are allowed; at least one
+// must satisfy the match.
+function checkPlanVersionMatch(specPath: string, content: string): Violation[] {
+  const m = specPath.match(/agents\/v(\d+\.\d+\.\d+)\//)
+  if (!m) return []
+  const specVersion = m[1]!
+  // Extract all **Plan:** line targets — usually one, allow many.
+  const planLines = content
+    .split('\n')
+    .filter((l) => /^\s*\*\*Plan(?:s)?:\*\*/i.test(l))
+  if (planLines.length === 0) return [] // header-refs check handles missing Plan
+  // Find the first link pointing at a plans/... path on any Plan line.
+  const pathRe = /plans\/(?:cross-version|v\d+\.\d+\.\d+)\/[A-Za-z0-9_\-.]+\.md/g
+  const cited: string[] = []
+  for (const line of planLines) {
+    for (const pm of line.matchAll(pathRe)) cited.push(pm[0])
+  }
+  if (cited.length === 0) return []
+  const hasMatch = cited.some(
+    (p) =>
+      p.startsWith('plans/cross-version/') ||
+      p.startsWith(`plans/v${specVersion}/`),
+  )
+  if (hasMatch) return []
+  return [
+    {
+      spec: relative(PROJECT_ROOT, specPath),
+      check: 'plan-version-match',
+      detail: `spec lives at agents/v${specVersion}/ but **Plan:** cites ${cited.join(', ')} — likely a renumbering-drift artifact. Expected plans/v${specVersion}/ or plans/cross-version/`,
+    },
+  ]
+}
+
+// Freshness-marker check. Specs that don't yet carry real MCP tool
+// citations may instead carry a `<!-- knowledge-freshness: YYYY-MM-DD -->`
+// stub documenting that MCP retrofit is pending and when it was last
+// reviewed. If the stub is older than STALE_DAYS, warn — reviewer should
+// retrofit with real MCP citations before this spec enters the Forge
+// queue. Not a hard error: the stub itself means "acknowledged pending
+// work"; staleness is a reminder, not a regression.
+const STALE_DAYS = 180
+const FRESHNESS_RE = /<!--\s*knowledge-freshness:\s*(\d{4}-\d{2}-\d{2})\s*-->/
+
+function checkFreshnessMarker(specPath: string, content: string): Violation[] {
+  const match = content.match(FRESHNESS_RE)
+  if (!match) return [] // no stub; either the spec has real MCP citations (fine) or it's pre-convention (also fine — no regression)
+  const stampStr = match[1]!
+  const stamp = new Date(stampStr + 'T00:00:00Z')
+  if (isNaN(stamp.getTime())) {
+    return [
+      {
+        spec: relative(PROJECT_ROOT, specPath),
+        check: 'freshness-marker',
+        detail: `knowledge-freshness marker has invalid date '${stampStr}' — expected YYYY-MM-DD`,
+      },
+    ]
+  }
+  const ageMs = Date.now() - stamp.getTime()
+  const ageDays = Math.floor(ageMs / (1000 * 60 * 60 * 24))
+  if (ageDays > STALE_DAYS) {
+    return [
+      {
+        spec: relative(PROJECT_ROOT, specPath),
+        check: 'freshness-marker',
+        detail: `knowledge-freshness stub is ${ageDays} days old (threshold ${STALE_DAYS}) — retrofit MCP tool citations before this spec enters the Forge queue, then update the stub date or remove the stub`,
+      },
+    ]
+  }
+  return []
+}
+
 function checkCitedMcpTools(
   specPath: string,
   content: string,
@@ -328,6 +407,8 @@ function main(): void {
     violations.push(...checkCitedPathsResolve(specPath, content))
     violations.push(...checkCitedDecisions(specPath, content, decisions))
     violations.push(...checkCitedMcpTools(specPath, content, tools))
+    violations.push(...checkFreshnessMarker(specPath, content))
+    violations.push(...checkPlanVersionMatch(specPath, content))
   }
 
   console.log(

@@ -91,6 +91,7 @@
     "audit:keyboard-reachability": "testing/e2e-docker/scripts/run-single.sh testing/e2e/keyboard-reachability.spec.ts",
     "audit:agent-knowledge-coverage": "npx tsx scripts/verify-agent-knowledge-coverage.ts",
     "audit:skill-parity": "npx tsx scripts/verify-skill-parity.ts",
+    "audit:mcp-parser-baseline": "npx tsx scripts/verify-mcp-parser-baseline.ts",
     "skills:sync": "npx tsx scripts/sync-skills.ts",
     "skills:check": "npx tsx scripts/sync-skills.ts --check",
     "generate:numeric-claims": "npx tsx scripts/generate-numeric-claims.ts",
