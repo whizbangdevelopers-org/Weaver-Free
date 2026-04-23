@@ -635,8 +635,8 @@ The reason for two is that Weaver supports both flake-based and traditional-chan
       "https://github.com/nix-community/NUR/archive/main.tar.gz"
     ) { inherit pkgs; };
   };
-  environment.systemPackages = [ pkgs.nur.repos.whizbangdevelopers.weaver-free ];
-  # Or use the module if shipped: imports = [ pkgs.nur.repos.whizbangdevelopers.weaver-module ];
+  environment.systemPackages = [ pkgs.nur.repos.whizbangdevelopers.weaver ];
+  # Or use the module if shipped: imports = [ pkgs.nur.repos.whizbangdevelopers.weaver ];
 }
 ```
 
