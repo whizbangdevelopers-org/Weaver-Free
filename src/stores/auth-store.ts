@@ -106,6 +106,8 @@ export const useAuthStore = defineStore('auth', {
       this.user = user
       this.token = token
       this.refreshToken = refreshToken
+      // Registration IS session verification — no need for fetchMe() in the router guard
+      this.sessionVerified = true
       // Reset wizard so Getting Started dialog shows after fresh install
       useSettingsStore().resetWizard()
     },
