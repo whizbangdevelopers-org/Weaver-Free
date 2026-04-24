@@ -24,7 +24,7 @@
             </div>
             <div class="text-body2 text-grey-8 q-mb-md">
               When provisioning is enabled, Weaver automatically provisions a
-              lightweight <strong>CirOS</strong> test VM (~20 MB) after your first
+              lightweight <strong>CirrOS</strong> test VM (~20 MB) after your first
               admin login. You can start, stop, restart, and delete it like any
               other VM — it's a real provisioned VM, not a special case.
             </div>

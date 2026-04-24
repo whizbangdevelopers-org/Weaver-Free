@@ -39,7 +39,10 @@ const RESET = '\x1b[0m'
 // ---------------------------------------------------------------------------
 
 const BUDGET_CHUNK_KB = 500
-const BUDGET_TOTAL_JS_KB = 2000
+// Budget breakdown: core app ~1750 KB + live docs ~240 KB + v1.0 snapshot ~240 KB = ~2230 KB.
+// Versioned doc snapshots (docs/v*/**) are demo-only lazy chunks; each release cycle adds ~240 KB.
+// Budget covers through v1.1 snapshot. Revisit at v1.2 when total will approach 2480 KB.
+const BUDGET_TOTAL_JS_KB = 2500
 // mdi-v7 webfont CSS alone is ~408 KB; 600 KB gives headroom for Quasar components + app CSS
 const BUDGET_TOTAL_CSS_KB = 600
 

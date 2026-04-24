@@ -148,7 +148,7 @@ const NIX_KEYWORDS = /\b(let|in|with|import|if|then|else|true|false|null|rec|inh
 const NIX_STRINGS_DQ = /"(?:[^"\\]|\\.)*"/g
 const NIX_STRINGS_SQ = /''\s[\s\S]*?''/g
 const NIX_COMMENTS = /#[^\n]*/g
-const NIX_ATTR_PATH = /\b([\w-]+(?:\.[\w-]+)+)\s*(?==)/g
+const NIX_ATTR_PATH = /\b([\w][\w.-]*[\w])(?=\s*=)/g
 
 function escapeHtml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')

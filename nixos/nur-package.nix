@@ -17,7 +17,7 @@
 
 buildNpmPackage rec {
   pname = "weaver";
-  version = "1.0.2";
+  version = "1.0.3";
 
   src = fetchFromGitHub {
     owner = "whizbangdevelopers-org";
@@ -26,8 +26,8 @@ buildNpmPackage rec {
     hash = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
   };
 
-  npmDepsHash = "sha256-iKvLuBk0RxDDGqJ1FrNgqhpkDURdt0Nbx7nIEZa2GFY=";
-  # lockfile-marker: e028f925a01849a4
+  npmDepsHash = "sha256-Fm+NfFiCrNW6rxYg1Sy12p/Mxl02uZ+I6jTnuWFm85c=";
+  # lockfile-marker: abe51da0103a4558
 
   makeCacheWritable = true;
   nodejs = nodejs_24;

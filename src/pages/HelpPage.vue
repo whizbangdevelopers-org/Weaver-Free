@@ -199,7 +199,7 @@ const helpSections = computed<HelpSection[]>(() => [
       },
       {
         question: 'How do I create my first VM?',
-        answer: 'Weaver supports two approaches to MicroVMs. On all tiers, you can define MicroVMs in your NixOS configuration and use Weaver to monitor and control them — this path offers lighter hypervisors and declarative reproducibility. On Weaver Solo+, Live Provisioning lets you create MicroVMs with any guest OS directly from the Shed page — no rebuild, no terminal. With a Solo or higher license, a lightweight CirOS example VM (~20 MB) is auto-provisioned after your first admin login. See the Admin Guide in the Docs tab for details on both approaches.',
+        answer: 'Weaver supports two approaches to MicroVMs. On all tiers, you can define MicroVMs in your NixOS configuration and use Weaver to monitor and control them — this path offers lighter hypervisors and declarative reproducibility. On Weaver Solo+, Live Provisioning lets you create MicroVMs with any guest OS directly from the Shed page — no rebuild, no terminal. With a Solo or higher license, a lightweight CirrOS example VM (~20 MB) is auto-provisioned after your first admin login. See the Admin Guide in the Docs tab for details on both approaches.',
         link: '/shed',
         linkLabel: 'Go to Shed',
         linkIcon: 'mdi-door-open',
@@ -816,9 +816,9 @@ const helpSections = computed<HelpSection[]>(() => [
       {
         question: 'How do I test that distro images can provision and boot?',
         answer:
-          'Weaver includes a distro catalog test agent that validates images end-to-end. You can test from the CLI (all modes) or from the Settings UI ("Test" button per distro). The CLI supports smoke tests (CirOS only), filtered tests, full catalog, and dry-run modes.',
+          'Weaver includes a distro catalog test agent that validates images end-to-end. You can test from the CLI (all modes) or from the Settings UI ("Test" button per distro). The CLI supports smoke tests (CirrOS only), filtered tests, full catalog, and dry-run modes.',
         steps: [
-          'Quick smoke test (CirOS ~20 MB): npm run test:distros',
+          'Quick smoke test (CirrOS ~20 MB): npm run test:distros',
           'Full catalog test: npm run test:distros:all',
           'Dry-run (check URLs + readiness): npm run test:distros:dry',
           'Pre-cache images: npm run test:distros:preload',

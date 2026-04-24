@@ -404,6 +404,8 @@ Weaver manages VM lifecycle operations on NixOS hosts. Security is not an aftert
 
 See [SECURITY.md](SECURITY.md) for the full security policy and vulnerability reporting.
 
+**OpenSSF Scorecard:** The Security tab shows Scorecard findings alongside CodeQL results. Scorecard findings are supply-chain posture grades, not code bugs. See [docs/security/SCORECARD-FINDINGS-EXPLAINED.md](docs/security/SCORECARD-FINDINGS-EXPLAINED.md) for what each finding means and our roadmap to address the gaps.
+
 ## Software Quality
 
 Weaver is tested to enterprise standards from day one:

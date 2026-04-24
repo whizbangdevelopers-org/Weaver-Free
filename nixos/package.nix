@@ -9,7 +9,7 @@
 
 pkgs.buildNpmPackage rec {
   pname = "weaver";
-  version = "1.0.2";
+  version = "1.0.3";
 
   src = ./..;
 
@@ -19,8 +19,8 @@ pkgs.buildNpmPackage rec {
   # on every push. Remediation when it fails: `npm run nix:refresh-deps-hash`
   # (or manually: nix-shell -p prefetch-npm-deps --run 'prefetch-npm-deps
   # package-lock.json' → copy sha256 to npmDepsHash → update marker below).
-  npmDepsHash = "sha256-iKvLuBk0RxDDGqJ1FrNgqhpkDURdt0Nbx7nIEZa2GFY=";
-  # lockfile-marker: e028f925a01849a4
+  npmDepsHash = "sha256-Fm+NfFiCrNW6rxYg1Sy12p/Mxl02uZ+I6jTnuWFm85c=";
+  # lockfile-marker: abe51da0103a4558
 
   makeCacheWritable = true;
   nodejs = pkgs.nodejs_24;

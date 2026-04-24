@@ -20,6 +20,10 @@ export const useWorkloadStore = defineStore('vm', {
     selectedWorkload: null as string | null,
     lastUpdate: null as string | null,
     presetTags: [] as string[],
+    // Names removed via removeWorkload() but not yet confirmed absent by the
+    // backend WebSocket. Guards against stale vm-status broadcasts re-adding
+    // a just-deleted VM before the next clean broadcast arrives.
+    _pendingDeletes: [] as string[],
   }),
 
   getters: {
@@ -90,8 +94,21 @@ export const useWorkloadStore = defineStore('vm', {
 
   actions: {
     updateWorkloads(workloads: WorkloadInfo[]) {
-      this.workloads = workloads
+      // Filter out names that were optimistically removed but haven't been
+      // confirmed absent by the backend yet — prevents stale WS broadcasts
+      // from re-adding a just-deleted VM (race: WS broadcast pre-computed
+      // before DELETE landed on the backend).
+      const filtered = this._pendingDeletes.length > 0
+        ? workloads.filter(w => !this._pendingDeletes.includes(w.name))
+        : workloads
+      this.workloads = filtered
       this.lastUpdate = new Date().toISOString()
+      // Clear names the backend now confirms are gone
+      if (this._pendingDeletes.length > 0) {
+        this._pendingDeletes = this._pendingDeletes.filter(
+          name => workloads.some(w => w.name === name)
+        )
+      }
     },
     selectWorkload(name: string | null) {
       this.selectedWorkload = name
@@ -109,6 +126,9 @@ export const useWorkloadStore = defineStore('vm', {
     /** Optimistically remove a workload from the local store (e.g. after successful DELETE) */
     removeWorkload(name: string) {
       this.workloads = this.workloads.filter(v => v.name !== name)
+      if (!this._pendingDeletes.includes(name)) {
+        this._pendingDeletes.push(name)
+      }
     },
     /** Demo replay: clear all workloads so the empty state is shown */
     clearWorkloadsForDemo() {

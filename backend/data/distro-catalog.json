@@ -22,10 +22,10 @@
     {
       "name": "cirros",
       "label": "CirrOS 0.6.3",
-      "description": "Minimal cloud test image (~20 MB). Ideal for testing provisioning.",
+      "description": "Minimal cloud test image (~20 MB). Ideal for testing provisioning. Boots without cloud-init.",
       "url": "https://download.cirros-cloud.net/0.6.3/cirros-0.6.3-x86_64-disk.img",
       "format": "qcow2",
-      "cloudInit": true,
+      "cloudInit": false,
       "license": "GPL-2.0-only"
     },
     {

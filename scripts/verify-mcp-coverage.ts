@@ -30,6 +30,7 @@ import {
   KNOWLEDGE_SOURCES,
   INTENTIONALLY_UNCOVERED,
   KNOWLEDGE_SCAN_GLOBS,
+  SOURCE_TO_TOOL,
 } from '../mcp-server/src/coverage-manifest.js'
 
 const __filename = fileURLToPath(import.meta.url)
@@ -197,6 +198,68 @@ function checkReaderPattern(): void {
   )
 }
 
+/**
+ * Check 4: Source-to-tool mapping.
+ *
+ * For each source explicitly mapped in SOURCE_TO_TOOL, verify:
+ *   a. The mapped tool file exists in mcp-server/src/tools/
+ *   b. The tool source contains the expected path hint — confirming it
+ *      actually reaches the source at runtime, not just reads something else.
+ *
+ * Sources in KNOWLEDGE_SOURCES without a SOURCE_TO_TOOL entry emit a WARNING
+ * (not a failure) — they're acknowledged but not yet precisely mapped.
+ * Sources WITH a mapping that fails either check cause a FAILURE.
+ */
+function checkSourceToToolMapping(): void {
+  if (!existsSync(MCP_TOOLS_DIR)) {
+    warn('Source→tool mapping', 'mcp-server/src/tools/ not found — skipping')
+    return
+  }
+
+  const failures_local: string[] = []
+  const warnings_local: string[] = []
+
+  // Check that all KNOWLEDGE_SOURCES have a SOURCE_TO_TOOL entry
+  for (const source of KNOWLEDGE_SOURCES) {
+    if (!SOURCE_TO_TOOL[source]) {
+      warnings_local.push(`No SOURCE_TO_TOOL entry for "${source}" — add to coverage-manifest.ts to enforce runtime reading`)
+    }
+  }
+
+  // For each mapped source, verify the tool exists and contains the hint
+  for (const [source, { tool, hint }] of Object.entries(SOURCE_TO_TOOL)) {
+    const toolPath = join(MCP_TOOLS_DIR, tool)
+    if (!existsSync(toolPath)) {
+      failures_local.push(`"${source}" maps to tool "${tool}" which does not exist at ${relative(PROJECT_ROOT, toolPath)}`)
+      continue
+    }
+    const toolSource = readFileSync(toolPath, 'utf-8')
+    if (!toolSource.includes(hint)) {
+      failures_local.push(
+        `"${source}" maps to "${tool}" but the tool source does not contain the expected path hint "${hint}" — the tool may not actually read this source`
+      )
+    }
+  }
+
+  if (failures_local.length > 0) {
+    fail(
+      'Source→tool mapping',
+      `${failures_local.length} source(s) mapped to tools that don't read them:\n     ${failures_local.join('\n     ')}`
+    )
+  } else if (warnings_local.length > 0) {
+    pass(
+      'Source→tool mapping',
+      `all ${Object.keys(SOURCE_TO_TOOL).length} explicitly mapped source(s) verified`
+    )
+    for (const w of warnings_local) warn('Source→tool gap', w)
+  } else {
+    pass(
+      'Source→tool mapping',
+      `all ${Object.keys(SOURCE_TO_TOOL).length} explicitly mapped source(s) verified, all ${KNOWLEDGE_SOURCES.length} sources mapped`
+    )
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
@@ -211,6 +274,7 @@ function main(): void {
   checkCoverage()
   checkManifestFreshness()
   checkReaderPattern()
+  checkSourceToToolMapping()
 
   console.log()
   if (failures > 0) {

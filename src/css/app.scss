@@ -78,6 +78,15 @@ $shed-color: #2A9D8F;
   transition: background-color 0.3s ease;
 }
 
+// Accessibility: restore keyboard focus indicators suppressed by Quasar's global stylesheet.
+// Quasar removes outline on all interactive components (.q-btn, .q-field__native, etc.)
+// unconditionally. :focus-visible limits the ring to keyboard navigation only; mouse
+// users are unaffected. !important is required because Quasar's reset also uses !important.
+:focus-visible {
+  outline: 2px solid currentColor !important;
+  outline-offset: 2px !important;
+}
+
 // Scrollbar styling for dark mode
 .body--dark {
   ::-webkit-scrollbar {

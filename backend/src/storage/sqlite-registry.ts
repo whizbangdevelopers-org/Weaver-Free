@@ -38,7 +38,7 @@ export class SqliteWorkloadRegistry implements WorkloadRegistry {
     }
 
     // Seed sample VMs only when explicitly requested (E2E, demo).
-    // Production and dev start empty — CirOS example VM is provisioned separately.
+    // Production and dev start empty — CirrOS example VM is provisioned separately.
     const count = this.db.prepare('SELECT COUNT(*) as count FROM vms').get() as { count: number }
     if (count.count === 0 && process.env.SEED_SAMPLE_VMS === 'true') {
       const insert = this.db.prepare(

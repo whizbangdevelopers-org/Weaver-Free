@@ -92,7 +92,7 @@ let mockUserRole: UserRole = 'admin'
 describe('Distro Routes', () => {
   const distroStore = createMockDistroStore()
   const catalogStore = createMockCatalogStore({
-    cirros: { name: 'cirros', label: 'CirrOS 0.6.3', description: 'Tiny test image', url: 'https://example.com/cirros.qcow2', format: 'qcow2', cloudInit: true },
+    opensuse: { name: 'opensuse', label: 'openSUSE Leap 15.6', description: 'Enterprise-grade Linux', url: 'https://example.com/opensuse.qcow2', format: 'qcow2', cloudInit: true },
     rocky: { name: 'rocky', label: 'Rocky Linux 9', url: 'https://example.com/rocky.qcow2', format: 'qcow2', cloudInit: true },
   })
   const imageManager = createMockImageManager()
@@ -146,8 +146,9 @@ describe('Distro Routes', () => {
       expect(response.statusCode).toBe(200)
       const body = response.json()
       const builtins = body.filter((d: { category: string }) => d.category === 'builtin')
-      expect(builtins.length).toBe(5)
+      expect(builtins.length).toBe(6)
       const names = builtins.map((d: { name: string }) => d.name)
+      expect(names).toContain('cirros')
       expect(names).toContain('arch')
       expect(names).toContain('fedora')
       expect(names).toContain('ubuntu')
@@ -172,12 +173,12 @@ describe('Distro Routes', () => {
       const catalogEntries = body.filter((d: { category: string }) => d.category === 'catalog')
       expect(catalogEntries.length).toBe(2)
 
-      const cirros = catalogEntries.find((d: { name: string }) => d.name === 'cirros')
-      expect(cirros).toBeDefined()
-      expect(cirros.label).toBe('CirrOS 0.6.3')
-      expect(cirros.description).toBe('Tiny test image')
-      expect(cirros.builtin).toBe(true) // backward compat
-      expect(cirros.category).toBe('catalog')
+      const opensuse = catalogEntries.find((d: { name: string }) => d.name === 'opensuse')
+      expect(opensuse).toBeDefined()
+      expect(opensuse.label).toBe('openSUSE Leap 15.6')
+      expect(opensuse.description).toBe('Enterprise-grade Linux')
+      expect(opensuse.builtin).toBe(true) // backward compat
+      expect(opensuse.category).toBe('catalog')
     })
 
     it('should include custom distros', async () => {
@@ -200,7 +201,7 @@ describe('Distro Routes', () => {
 
     it('should show catalog distro with hasOverride when custom override exists', async () => {
       distroStore.getAll.mockReturnValue({
-        cirros: { name: 'cirros', label: 'My CirrOS', url: 'https://example.com/override.qcow2', format: 'qcow2', cloudInit: true }
+        rocky: { name: 'rocky', label: 'My Rocky', url: 'https://example.com/override.qcow2', format: 'qcow2', cloudInit: true }
       })
 
       const response = await fastify.inject({
@@ -209,11 +210,11 @@ describe('Distro Routes', () => {
       })
 
       const body = response.json()
-      const cirrosEntries = body.filter((d: { name: string }) => d.name === 'cirros')
-      expect(cirrosEntries.length).toBe(1)
-      expect(cirrosEntries[0].category).toBe('catalog')
-      expect(cirrosEntries[0].hasOverride).toBe(true)
-      expect(cirrosEntries[0].effectiveUrl).toBe('https://example.com/override.qcow2')
+      const rockyEntries = body.filter((d: { name: string }) => d.name === 'rocky')
+      expect(rockyEntries.length).toBe(1)
+      expect(rockyEntries[0].category).toBe('catalog')
+      expect(rockyEntries[0].hasOverride).toBe(true)
+      expect(rockyEntries[0].effectiveUrl).toBe('https://example.com/override.qcow2')
     })
 
     it('should include effectiveUrl and hasOverride in response', async () => {
@@ -305,9 +306,9 @@ describe('Distro Routes', () => {
         method: 'POST',
         url: '/api/distros',
         payload: {
-          name: 'cirros',
-          label: 'My CirrOS',
-          url: 'https://example.com/cirros.qcow2',
+          name: 'rocky',
+          label: 'My Rocky',
+          url: 'https://example.com/rocky.qcow2',
           format: 'qcow2',
           cloudInit: true
         }
@@ -441,7 +442,7 @@ describe('Distro Routes', () => {
     it('should reject deleting catalog distro', async () => {
       const response = await fastify.inject({
         method: 'DELETE',
-        url: '/api/distros/cirros'
+        url: '/api/distros/rocky'
       })
 
       expect(response.statusCode).toBe(400)
@@ -477,7 +478,7 @@ describe('Distro Routes', () => {
     it('should refresh catalog when remote URL is configured', async () => {
       catalogStore.hasRemoteUrl.mockReturnValue(true)
       catalogStore.refresh.mockResolvedValue(true)
-      catalogStore.names.mockReturnValue(['cirros', 'rocky'])
+      catalogStore.names.mockReturnValue(['opensuse', 'rocky'])
 
       const response = await fastify.inject({
         method: 'POST',
@@ -506,7 +507,7 @@ describe('Distro Routes', () => {
       mockUserRole = 'operator'
       catalogStore.hasRemoteUrl.mockReturnValue(true)
       catalogStore.refresh.mockResolvedValue(true)
-      catalogStore.names.mockReturnValue(['cirros', 'rocky'])
+      catalogStore.names.mockReturnValue(['opensuse', 'rocky'])
 
       const response = await fastify.inject({
         method: 'POST',

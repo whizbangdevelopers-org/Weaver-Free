@@ -33,6 +33,7 @@ interface DistroEntry {
 
 /** Built-in distro labels (for display) */
 const BUILTIN_LABELS: Record<string, string> = {
+  cirros: 'CirrOS',
   arch: 'Arch Linux',
   fedora: 'Fedora',
   ubuntu: 'Ubuntu',
@@ -104,8 +105,8 @@ export const distroRoutes: FastifyPluginAsync<DistroRouteOptions> = async (fasti
 
     // Built-in distros
     for (const name of builtins) {
-      const builtinUrl = ImageManager.builtinUrl(name) ?? ''
-      // Check if there's a custom override for this built-in
+      const src = ImageManager.builtinSource(name)
+      const builtinUrl = src?.url ?? ''
       const customOverride = customs[name]
       const hasOverride = !!customOverride
       const effectiveUrl = hasOverride ? customOverride.url : builtinUrl
@@ -115,9 +116,9 @@ export const distroRoutes: FastifyPluginAsync<DistroRouteOptions> = async (fasti
         label: BUILTIN_LABELS[name] ?? name,
         url: builtinUrl,
         effectiveUrl,
-        format: 'qcow2',
-        cloudInit: true,
-        guestOs: 'linux',
+        format: src?.format ?? 'qcow2',
+        cloudInit: src?.cloudInit ?? true,
+        guestOs: src?.guestOs ?? 'linux',
         builtin: true,
         hasOverride,
         category: 'builtin',
