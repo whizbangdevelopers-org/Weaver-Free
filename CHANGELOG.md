@@ -9,6 +9,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.3] - 2026-04-23
+
+Closes the last open item from the NOTES.md #365 SAST roadmap (ReDoS detection), adds a local release-workflow simulator that would have caught all five failures from the v1.0.2 five-attempt release streak before the first tag push, and explains the OpenSSF Scorecard Security-tab meta-findings that first-time visitors sometimes read as code bugs. No user-visible product changes.
+
+### Added
+
+- **New auditor `audit:redos`** — ReDoS (regular expression denial of service) detection using `safe-regex`. Scans `src/`, `backend/src/`, and `tui/src/` for regex literals and `new RegExp()` constructions with catastrophic backtracking potential (star-height ≥ 2). Found and fixed one real star-height-2 pattern in `HostConfigViewer.vue` (NIX_ATTR_PATH syntax-highlighting regex). Closes NOTES.md #365 PR 3. Wired into `test:compliance`.
+- **New auditor `audit:release-workflow-dry-run`** — local simulator for the `release.yml` release pipeline. 11 static YAML assertions (workflow permissions posture, cosign version pin, attestation soft-fail guards, rsync source safety, NUR dispatch payload completeness) plus 8 runtime rsync assertions (no Dev-root content leak, `flake.nix`/`flake.lock` present, core files present, CLAUDE.md and `testing/` excluded). Each assertion maps to a class of failure from the v1.0.2 five-attempt release streak. Wired into `test:prerelease`.
+- **`docs/security/SCORECARD-FINDINGS-EXPLAINED.md`** — public explainer for the 5 findings shown as "errors" on Weaver-Free's Security tab (Code-ReviewID, FuzzingID, MaintainedID, SASTID, VulnerabilitiesID). Documents what each measures, our current state, and the roadmap to address gaps. Linked from README Security section.
+
+### Fixed
+
+- **`HostConfigViewer.vue` NIX_ATTR_PATH regex** — replaced `/\b([\w-]+(?:\.[\w-]+)+)\s*(?==)/g` (star-height 2: `[\w-]+` inside `(?:...)+`) with `/\b([\w][\w.-]*[\w])(?=\s*=)/g` (star-height 1). The original pattern could exhibit super-linear backtracking on pathological NixOS config content; the replacement matches the same attribute-path-before-`=` patterns with no nested quantifiers. Surfaced by the new `audit:redos` auditor.
+- **`nixos/package.nix` and `nixos/nur-package.nix` `npmDepsHash`** — updated to `sha256-Fm+NfFiCrNW6rxYg1Sy12p/Mxl02uZ+I6jTnuWFm85c=` after adding `safe-regex` and `regexp-tree` as devDependencies.
+- **`src/css/app.scss` `:focus-visible` rule** — Quasar's global stylesheet removes `outline` from all interactive components (`.q-btn`, `.q-field__native`, etc.) unconditionally. Added a `:focus-visible` override that restores a 2 px `currentColor` outline for keyboard-navigated elements only; mouse users are unaffected. Required to pass the new `keyboard-reachability.spec.ts` Gate 1 auditor.
+- **`testing/e2e/keyboard-reachability.spec.ts` ARIA role detection** — the interactive-element check now recognizes ARIA interactive roles (`tab`, `button`, `link`, `menuitem`, `option`, `radio`, `checkbox`, `switch`, and others). Previously, Quasar `q-tab` components (rendered as `<div role="tab">` using the roving-tabindex pattern) were misclassified as non-interactive because the check only looked at HTML element names and explicit `tabindex` attributes.
+- **CirrOS added to `DISTRO_IMAGES` (`backend/src/services/image-manager.ts`)** — CirrOS was referenced throughout the codebase (release checklist, `test-distro-catalog.ts` smoke test, CLAUDE.md, docs) as the default fast lifecycle validation image but was never added to `DISTRO_IMAGES`. The smoke test exited with "CirrOS distro not found in catalog" on every run. Added entry: `http://download.cirros-cloud.net/0.6.2/cirros-0.6.2-x86_64-disk.img`, format `qcow2`, `cloudInit: false` (~20 MB, designed for rapid boot testing with no cloud-init overhead). Also fixed `/api/distros` list endpoint to use actual source metadata (format, cloudInit, guestOs) rather than hardcoded `qcow2`/`true`/`linux` for all builtins; updated `BUILTIN_LABELS` map; added `ImageManager.builtinSource()` static accessor. Distros backend tests updated to reflect cirros as builtin (count 5 → 6).
+- **`scripts/test-distros-live.sh`** — new orchestration script for release checklist step 5 (`npm run test:distros:live`). Automates the 5-step distro catalog smoke test: br-microvm pre-flight, dev:provision backend startup on port 3110 with a `mktemp` data directory (fresh DB → autoLogin register works on first boot), health-wait loop, dry-run readiness check, and CirrOS smoke test with cleanup. Fixed `autoLogin()` password in `test-distro-catalog.ts` from `TestAdmin1` (10 chars, no special character — fails 14-char security policy) to `TestAdmin1!@#$` (14 chars, meets policy). The `mktemp` data directory sidesteps the "existing DB with unknown password" problem that caused `Distros: 0` on repeat runs.
+- **`backend/data/distro-catalog.json` CirrOS entry `cloudInit: true → false`** — the shipped default catalog had CirrOS marked as `cloudInit: true`, which caused `getAllSources()` to override the `DISTRO_IMAGES` builtin entry (which correctly had `cloudInit: false`) and triggered a failed `genisoimage`/`mkisofs` call during every CirrOS provision. CirrOS boots and passes smoke tests without cloud-init; smoke-testing provisioning does not require IP configuration inside the guest. Fixed `backend/src/services/weaver/provisioner.ts` `provisionCloudVm()` to check `distroSrc?.cloudInit !== false` before calling `generateCloudInit()`, and `startCloudVm()` to skip attaching the cloud-init ISO when `needsCloudInit` is false — so future catalog entries with `cloudInit: false` are handled correctly at runtime, not just at the catalog level.
+
 ## [1.0.2] - 2026-04-21
 
 Closes a Free-tier monetization gap (unlimited VM control), tightens the release/sync machinery (root cause: a parallel broken copy of sync logic in release.yml leaked Dev-root content to the public Free mirror during a v1.0.2 attempted release — contained before public indexing), and sweeps through the CodeQL code-scanning backlog on Weaver-Free. End-to-end upgrade path validated on a live non-flake NixOS VM, plus a fresh NixOS 25.11 flake-install smoke test.
@@ -145,7 +165,7 @@ Initial public release. Production-ready NixOS MicroVM management dashboard.
 
 **Distribution Catalog**
 - Three-tier distro system: built-in, curated catalog, and custom user-defined
-- Shipped catalog: NixOS, Arch, Fedora, Ubuntu, Debian, Alpine, Rocky, Alma, openSUSE, CirOS, Windows
+- Shipped catalog: NixOS, Arch, Fedora, Ubuntu, Debian, Alpine, Rocky, Alma, openSUSE, CirrOS, Windows
 - URL health monitoring with HEAD-request validation and admin override
 - "Will it boot?" smoke test from Settings UI and CLI
 - Remote catalog refresh endpoint

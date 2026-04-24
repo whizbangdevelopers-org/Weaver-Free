@@ -8,7 +8,7 @@ export const EXAMPLE_VM_NAME = 'example-cirros'
 const EXAMPLE_VM_IP = '10.10.0.100'
 
 /**
- * Auto-provision a lightweight CirOS example VM after first admin creation.
+ * Auto-provision a lightweight CirrOS example VM after first admin creation.
  *
  * Guards (idempotent — safe to call from multiple trigger points):
  * - Provisioning must be enabled
@@ -31,7 +31,7 @@ export async function provisionExampleVm(
     return
   }
 
-  log.info('Auto-provisioning example CirOS VM...')
+  log.info('Auto-provisioning example CirrOS VM...')
 
   const added = await registry.add({
     name: EXAMPLE_VM_NAME,
@@ -44,7 +44,7 @@ export async function provisionExampleVm(
     vmType: 'server',
     autostart: true,
     provisioningState: 'provisioning',
-    description: 'Example CirOS VM — lightweight test image (~20 MB). Safe to delete anytime.',
+    description: 'Example CirrOS VM — lightweight test image (~20 MB). Safe to delete anytime.',
     bridge: config.bridgeInterface,
   })
 
@@ -57,9 +57,9 @@ export async function provisionExampleVm(
   provisioner.provision(EXAMPLE_VM_NAME)
     .then(() => provisioner.startCloudVm(EXAMPLE_VM_NAME))
     .then(result => {
-      if (result.success) log.info('Example CirOS VM started')
+      if (result.success) log.info('Example CirrOS VM started')
     })
     .catch(err => {
-      log.error(err, 'Failed to provision/start example CirOS VM')
+      log.error(err, 'Failed to provision/start example CirrOS VM')
     })
 }

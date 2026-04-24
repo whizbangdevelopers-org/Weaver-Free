@@ -313,7 +313,7 @@ if (loadedAdapters.length > 0) {
 }
 fastify.log.info('Notification service initialized')
 
-// Helper: auto-provision example CirOS VM (fire-and-forget, idempotent)
+// Helper: auto-provision example CirrOS VM (fire-and-forget, idempotent)
 const triggerExampleVm = provisioner
   ? () => {
       import('./services/example-vm.js').then(({ provisionExampleVm }) => {

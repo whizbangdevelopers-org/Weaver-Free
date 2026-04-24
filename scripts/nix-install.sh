@@ -109,6 +109,72 @@ if [[ ! -d "$WEAVER_SRC" ]] || [[ ! -f "$WEAVER_SRC/nixos/default.nix" ]]; then
   exit 1
 fi
 
+# KVM pre-flight — VM provisioning requires /dev/kvm.
+# Diagnose in layers so the fix matches the actual cause.
+if [[ -r /dev/kvm && -w /dev/kvm ]]; then
+  ok "/dev/kvm accessible — KVM acceleration available"
+elif [[ -e /dev/kvm ]]; then
+  # Device exists but current user can't access it — group membership issue.
+  fail "/dev/kvm exists but is not accessible to the current user"
+  echo ""
+  echo "  Fix: add your user to the kvm group, then log out and back in."
+  echo ""
+  echo "    sudo usermod -aG kvm \$SUDO_USER"
+  echo ""
+  echo "  Or in NixOS configuration.nix:"
+  echo "    users.users.<youruser>.extraGroups = [ \"kvm\" ];"
+  echo "  then: nixos-rebuild switch"
+  echo ""
+  exit 1
+else
+  # /dev/kvm does not exist at all — determine why.
+  VIRT_TYPE=$(systemd-detect-virt 2>/dev/null | head -1 | tr -d '[:space:]' || echo "none")
+  CPU_VIRT=$(grep -cE 'vmx|svm' /proc/cpuinfo 2>/dev/null || echo 0)
+  CPU_TYPE=$(grep -m1 'vmx' /proc/cpuinfo &>/dev/null && echo "intel" || echo "amd")
+
+  if [[ "$VIRT_TYPE" != "none" && -n "$VIRT_TYPE" ]]; then
+    # Inside a VM — nested virtualization is not enabled on the host.
+    fail "/dev/kvm not available — running inside $VIRT_TYPE without nested virtualization"
+    echo ""
+    echo "  Enable nested virtualization on the host hypervisor:"
+    echo ""
+    echo "    KVM host (Intel, one-time):  echo 1 | sudo tee /sys/module/kvm_intel/parameters/nested"
+    echo "    KVM host (AMD, one-time):    echo 1 | sudo tee /sys/module/kvm_amd/parameters/nested"
+    echo ""
+    echo "  Permanently (NixOS host) — add both options:"
+    echo "    boot.extraModprobeConfig = \"options kvm_intel nested=1\";  # or kvm_amd"
+    echo "    hardware.cpu.intel.updateMicrocode = true;  # Intel"
+    echo "    hardware.cpu.amd.updateMicrocode = true;    # AMD (use whichever matches your host CPU)"
+    echo "  then: nixos-rebuild switch on the host, then restart this VM"
+    echo ""
+  elif [[ "$CPU_VIRT" -gt 0 ]]; then
+    # CPU exposes vmx/svm but the kernel module is not loaded.
+    fail "CPU supports virtualization but the KVM kernel module is not loaded"
+    echo ""
+    echo "  Add to /etc/nixos/configuration.nix:"
+    if [[ "$CPU_TYPE" == "intel" ]]; then
+      echo "    boot.kernelModules = [ \"kvm-intel\" ];"
+    else
+      echo "    boot.kernelModules = [ \"kvm-amd\" ];"
+    fi
+    echo "  then: nixos-rebuild switch, then re-run this installer"
+    echo ""
+  else
+    # vmx/svm not in /proc/cpuinfo — BIOS disabled or hypervisor not exposing flags.
+    fail "CPU virtualization extensions (VT-x / AMD-V) not detected"
+    echo ""
+    echo "  If this is bare metal: enable VT-x (Intel) or AMD-V (AMD) in BIOS/UEFI,"
+    echo "  then add to /etc/nixos/configuration.nix:"
+    echo "    boot.kernelModules = [ \"kvm-intel\" ];  # or kvm-amd"
+    echo "  then: nixos-rebuild switch, then re-run this installer"
+    echo ""
+    echo "  If this is a VM: enable nested virtualization on the host (see above)."
+    echo "  See docs/COMPATIBILITY.md for BIOS configuration by vendor."
+    echo ""
+  fi
+  exit 1
+fi
+
 # Detect mode: flake if flake.nix exists, traditional otherwise
 MODE="traditional"
 if [[ -f "$FLAKE_NIX" ]]; then

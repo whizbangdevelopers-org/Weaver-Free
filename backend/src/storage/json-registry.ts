@@ -20,7 +20,7 @@ export class JsonWorkloadRegistry implements WorkloadRegistry {
     } catch {
       await mkdir(dirname(this.filePath), { recursive: true })
       // Seed sample VMs only when explicitly requested (E2E, demo).
-      // Production and dev start empty — CirOS example VM is provisioned separately.
+      // Production and dev start empty — CirrOS example VM is provisioned separately.
       if (process.env.SEED_SAMPLE_VMS === 'true') {
         for (const vm of DEFAULT_VMS) {
           this.vms[vm.name] = vm

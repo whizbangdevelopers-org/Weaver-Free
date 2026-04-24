@@ -24,6 +24,12 @@ export interface DistroImageSource {
 }
 
 const DISTRO_IMAGES: Record<string, DistroImageSource> = {
+  // CirrOS is listed first — it's the default smoke test distro (~20 MB, no cloud-init)
+  cirros: {
+    url: 'http://download.cirros-cloud.net/0.6.2/cirros-0.6.2-x86_64-disk.img',
+    format: 'qcow2',
+    cloudInit: false,
+  },
   arch: {
     url: 'https://geo.mirror.pkgbuild.com/images/latest/Arch-Linux-x86_64-cloudimg.qcow2',
     format: 'qcow2',
@@ -91,6 +97,11 @@ export class ImageManager {
   /** Get the built-in URL for a distro (ignoring catalog/custom overrides) */
   static builtinUrl(distro: string): string | null {
     return DISTRO_IMAGES[distro]?.url ?? null
+  }
+
+  /** Get the full built-in source metadata for a distro */
+  static builtinSource(distro: string): DistroImageSource | null {
+    return DISTRO_IMAGES[distro] ?? null
   }
 
   /** Get built-in non-NixOS distro names */

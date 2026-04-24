@@ -44,8 +44,13 @@
         </span>
       </q-banner>
 
+      <!-- Loading state -->
+      <div v-if="docLoading" class="flex flex-center q-pa-xl">
+        <q-spinner-dots color="primary" size="md" />
+      </div>
+
       <!-- Rendered markdown -->
-      <div class="docs-content" v-html="renderedHtml" @click="handleContentClick" />
+      <div v-else class="docs-content" v-html="renderedHtml" @click="handleContentClick" />
 
       <!-- Back to help -->
       <div class="q-mt-xl q-pt-md">
@@ -68,40 +73,45 @@
 <script setup lang="ts">
 // Copyright (c) 2026 whizBANG Developers LLC. All rights reserved.
 // Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE.
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAppStore } from 'src/stores/app'
 import { isDemoMode } from 'src/config/demo-mode'
 import MarkdownIt from 'markdown-it'
 
-// Raw markdown imports — bundled at build time
-import adminGuideRaw from '../../docs/ADMIN-GUIDE.md?raw'
-import userGuideRaw from '../../docs/USER-GUIDE.md?raw'
-import upgradeGuideRaw from '../../docs/UPGRADE.md?raw'
-import uninstallGuideRaw from '../../docs/UNINSTALL.md?raw'
-import securityBaselinesRaw from '../../docs/security/SECURITY-BASELINES.md?raw'
-import nist800171Raw from '../../docs/security/compliance/NIST-800-171-MAPPING.md?raw'
-import hipaa164312Raw from '../../docs/security/compliance/HIPAA-164-312-MAPPING.md?raw'
-import pciDssRaw from '../../docs/security/compliance/PCI-DSS-MAPPING.md?raw'
-import cisBenchmarksRaw from '../../docs/security/compliance/CIS-BENCHMARK-ALIGNMENT.md?raw'
-import cisControlsRaw from '../../docs/security/compliance/CIS-CONTROLS-MAPPING.md?raw'
-import soc2ReadinessRaw from '../../docs/security/compliance/SOC2-READINESS.md?raw'
-import engineeringDisciplineRaw from '../../docs/security/ENGINEERING-DISCIPLINE.md?raw'
-import compensatingControlsRaw from '../../docs/security/COMPENSATING-CONTROLS.md?raw'
-// Operations docs live in a sync-excluded directory (internal-only). Use
-// import.meta.glob so the Free build doesn't fail when the directory is
-// absent — glob resolves to {} and we fall back to empty strings.
-const operationsDocs = import.meta.glob<string>('../../docs/operations/*.md', {
-  query: '?raw',
-  import: 'default',
-  eager: true,
-})
-const runbookCacheKeyCompromiseRaw = operationsDocs['../../docs/operations/cache-key-compromise-runbook.md'] ?? ''
-const policyCacheKeyRetirementRaw = operationsDocs['../../docs/operations/cache-key-retirement-policy.md'] ?? ''
-import attributionRaw from '../../ATTRIBUTION.md?raw'
-import termsOfServiceRaw from '../../docs/legal/TERMS-OF-SERVICE.md?raw'
-import productionDeploymentRaw from '../../docs/PRODUCTION-DEPLOYMENT.md?raw'
-import compatibilityRaw from '../../docs/COMPATIBILITY.md?raw'
+// Lazy glob — each doc is a separate chunk loaded on demand.
+// eager: true was the root cause of the 650 KB DocsPage chunk: all docs were
+// bundled regardless of which page the user visited.
+// Deliberately specific patterns — docs/**/*.md would pull in dev-only files
+// (LESSONS-LEARNED, KNOWN-GOTCHAS, DEVELOPER-GUIDE) that are not served in the app.
+const docLoaders = import.meta.glob<string>(
+  [
+    '../../docs/ADMIN-GUIDE.md',
+    '../../docs/USER-GUIDE.md',
+    '../../docs/UPGRADE.md',
+    '../../docs/UNINSTALL.md',
+    '../../docs/PRODUCTION-DEPLOYMENT.md',
+    '../../docs/COMPATIBILITY.md',
+    '../../docs/security/SECURITY-BASELINES.md',
+    '../../docs/security/ENGINEERING-DISCIPLINE.md',
+    '../../docs/security/COMPENSATING-CONTROLS.md',
+    '../../docs/security/compliance/NIST-800-171-MAPPING.md',
+    '../../docs/security/compliance/HIPAA-164-312-MAPPING.md',
+    '../../docs/security/compliance/PCI-DSS-MAPPING.md',
+    '../../docs/security/compliance/CIS-BENCHMARK-ALIGNMENT.md',
+    '../../docs/security/compliance/CIS-CONTROLS-MAPPING.md',
+    '../../docs/security/compliance/SOC2-READINESS.md',
+    '../../docs/legal/TERMS-OF-SERVICE.md',
+    '../../docs/operations/cache-key-compromise-runbook.md',
+    '../../docs/operations/cache-key-retirement-policy.md',
+    '../../ATTRIBUTION.md',
+  ],
+  { query: '?raw', import: 'default', eager: false }
+)
+const versionedDocLoaders = import.meta.glob<string>(
+  '../../docs/v*/**/*.md',
+  { query: '?raw', import: 'default', eager: false }
+)
 
 const route = useRoute()
 const router = useRouter()
@@ -111,27 +121,49 @@ const appVersion = computed(() =>
   isDemoMode() ? appStore.demoVersion + '.0' : __APP_VERSION__
 )
 
-/** Current (living) docs — used in production and as fallback when no version snapshot exists. */
-const currentDocs: Record<string, { title: string; content: string }> = {
-  'admin-guide': { title: 'Admin Guide', content: adminGuideRaw },
-  'user-guide': { title: 'User Guide', content: userGuideRaw },
-  'upgrade': { title: 'Upgrade Guide', content: upgradeGuideRaw },
-  'uninstall': { title: 'Uninstall Guide', content: uninstallGuideRaw },
-  'security-baselines': { title: 'Security Baselines', content: securityBaselinesRaw },
-  'nist-800-171': { title: 'NIST 800-171 Mapping', content: nist800171Raw },
-  'hipaa-164-312': { title: 'HIPAA §164.312 Mapping', content: hipaa164312Raw },
-  'pci-dss': { title: 'PCI DSS v4.0 Mapping', content: pciDssRaw },
-  'cis-benchmarks': { title: 'CIS Benchmark Alignment', content: cisBenchmarksRaw },
-  'cis-controls': { title: 'CIS Controls v8.1 Mapping', content: cisControlsRaw },
-  'soc2-readiness': { title: 'SOC 2 Readiness', content: soc2ReadinessRaw },
-  'engineering-discipline': { title: 'Engineering Discipline', content: engineeringDisciplineRaw },
-  'compensating-controls': { title: 'Compensating Controls', content: compensatingControlsRaw },
-  'runbook-cache-key-compromise': { title: 'Runbook: Cache Key Compromise Response', content: runbookCacheKeyCompromiseRaw },
-  'policy-cache-key-retirement': { title: 'Policy: Cache Key Retirement', content: policyCacheKeyRetirementRaw },
-  'attribution': { title: 'Open Source Dependencies', content: attributionRaw },
-  'terms-of-service': { title: 'Terms of Service', content: termsOfServiceRaw },
-  'production-deployment': { title: 'Production Deployment', content: productionDeploymentRaw },
-  'compatibility': { title: 'Compatibility Matrix', content: compatibilityRaw },
+const slugToTitle: Record<string, string> = {
+  'admin-guide': 'Admin Guide',
+  'user-guide': 'User Guide',
+  'upgrade': 'Upgrade Guide',
+  'uninstall': 'Uninstall Guide',
+  'security-baselines': 'Security Baselines',
+  'nist-800-171': 'NIST 800-171 Mapping',
+  'hipaa-164-312': 'HIPAA §164.312 Mapping',
+  'pci-dss': 'PCI DSS v4.0 Mapping',
+  'cis-benchmarks': 'CIS Benchmark Alignment',
+  'cis-controls': 'CIS Controls v8.1 Mapping',
+  'soc2-readiness': 'SOC 2 Readiness',
+  'engineering-discipline': 'Engineering Discipline',
+  'compensating-controls': 'Compensating Controls',
+  'runbook-cache-key-compromise': 'Runbook: Cache Key Compromise Response',
+  'policy-cache-key-retirement': 'Policy: Cache Key Retirement',
+  'attribution': 'Open Source Dependencies',
+  'terms-of-service': 'Terms of Service',
+  'production-deployment': 'Production Deployment',
+  'compatibility': 'Compatibility Matrix',
+}
+
+/** Slug → glob key for current (living) docs. */
+const slugToGlobKey: Record<string, string> = {
+  'admin-guide': '../../docs/ADMIN-GUIDE.md',
+  'user-guide': '../../docs/USER-GUIDE.md',
+  'upgrade': '../../docs/UPGRADE.md',
+  'uninstall': '../../docs/UNINSTALL.md',
+  'security-baselines': '../../docs/security/SECURITY-BASELINES.md',
+  'nist-800-171': '../../docs/security/compliance/NIST-800-171-MAPPING.md',
+  'hipaa-164-312': '../../docs/security/compliance/HIPAA-164-312-MAPPING.md',
+  'pci-dss': '../../docs/security/compliance/PCI-DSS-MAPPING.md',
+  'cis-benchmarks': '../../docs/security/compliance/CIS-BENCHMARK-ALIGNMENT.md',
+  'cis-controls': '../../docs/security/compliance/CIS-CONTROLS-MAPPING.md',
+  'soc2-readiness': '../../docs/security/compliance/SOC2-READINESS.md',
+  'engineering-discipline': '../../docs/security/ENGINEERING-DISCIPLINE.md',
+  'compensating-controls': '../../docs/security/COMPENSATING-CONTROLS.md',
+  'runbook-cache-key-compromise': '../../docs/operations/cache-key-compromise-runbook.md',
+  'policy-cache-key-retirement': '../../docs/operations/cache-key-retirement-policy.md',
+  'attribution': '../../ATTRIBUTION.md',
+  'terms-of-service': '../../docs/legal/TERMS-OF-SERVICE.md',
+  'production-deployment': '../../docs/PRODUCTION-DEPLOYMENT.md',
+  'compatibility': '../../docs/COMPATIBILITY.md',
 }
 
 /** Slug → relative file path within a version snapshot directory. */
@@ -158,16 +190,6 @@ const slugToPath: Record<string, string> = {
 }
 
 /**
- * Versioned doc snapshots — lazy glob import of all docs/v*\/**\/*.md files.
- * Vite resolves this at build time. At runtime, each entry is a lazy loader.
- * Key format: "../../docs/v1.0/ADMIN-GUIDE.md"
- */
-const versionedDocs = import.meta.glob<string>(
-  '../../docs/v*/**/*.md',
-  { query: '?raw', import: 'default', eager: true }
-)
-
-/**
  * Map from markdown filenames (as they appear in cross-doc links) to SPA slugs.
  * Covers all registered docs — both bare filenames and relative paths.
  */
@@ -192,40 +214,57 @@ const fileToSlug: Record<string, string> = {
 
 const slug = computed(() => (route.params.slug as string) || '')
 
-/** Check if a version snapshot exists for the current slug + demo version. */
-const snapshotContent = computed<string | undefined>(() => {
-  if (!isDemoMode()) return undefined
-  const s = slug.value
-  const relPath = s ? slugToPath[s] : undefined
-  if (!relPath) return undefined
-  const globKey = `../../docs/v${appStore.demoVersion}/${relPath}`
-  return versionedDocs[globKey]
-})
+// Reactive state for the lazily-loaded doc content
+const docContent = ref<string | null>(null)
+const docLoading = ref(false)
+const docFromSnapshot = ref(false)
 
-const hasSnapshot = computed(() => !!snapshotContent.value)
+// Watch slug + demo version together so switching demo version reloads content
+watch(
+  [slug, () => (isDemoMode() ? appStore.demoVersion : null)],
+  async ([s]) => {
+    if (!s) {
+      docContent.value = null
+      docFromSnapshot.value = false
+      return
+    }
 
-/**
- * Resolve the doc for the current slug.
- * Demo mode: use version snapshot if available, fall back to current.
- * Production: always current.
- */
-const doc = computed(() => {
-  const s = slug.value
-  if (!s) return undefined
+    docLoading.value = true
+    docFromSnapshot.value = false
+    try {
+      // Demo mode: try version snapshot first
+      if (isDemoMode()) {
+        const relPath = slugToPath[s]
+        if (relPath) {
+          const globKey = `../../docs/v${appStore.demoVersion}/${relPath}`
+          const loader = versionedDocLoaders[globKey]
+          if (loader) {
+            docContent.value = await loader()
+            docFromSnapshot.value = true
+            return
+          }
+        }
+      }
 
-  if (snapshotContent.value) {
-    return { title: currentDocs[s]?.title ?? s, content: snapshotContent.value }
-  }
+      // Current (living) doc
+      const globKey = slugToGlobKey[s]
+      const loader = globKey ? docLoaders[globKey] : undefined
+      docContent.value = loader ? await loader() : null
+    } finally {
+      docLoading.value = false
+    }
+  },
+  { immediate: true }
+)
 
-  return currentDocs[s]
-})
-const pageTitle = computed(() => doc.value?.title ?? 'Not Found')
+const hasSnapshot = computed(() => docFromSnapshot.value)
+const pageTitle = computed(() => slugToTitle[slug.value] ?? 'Not Found')
 
 const complianceSlugs = new Set(['security-baselines', 'nist-800-171', 'hipaa-164-312', 'pci-dss', 'cis-benchmarks', 'cis-controls', 'soc2-readiness', 'engineering-discipline', 'compensating-controls', 'attribution', 'terms-of-service'])
 const guideSlugs = new Set(['admin-guide', 'user-guide'])
 const isComplianceDoc = computed(() => complianceSlugs.has(slug.value))
 const isGuide = computed(() => guideSlugs.has(slug.value))
-const hasVersionGating = computed(() => doc.value?.content.includes('*Available:') ?? false)
+const hasVersionGating = computed(() => docContent.value?.includes('*Available:') ?? false)
 
 function printPage(): void {
   window.print()
@@ -384,11 +423,11 @@ function handleContentClick(event: MouseEvent) {
 }
 
 const renderedHtml = computed(() => {
-  if (!doc.value) {
+  if (!docContent.value) {
     return '<p>Document not found. <a href="/help">Return to Help</a>.</p>'
   }
   // Strip all copyright header comments at the top of the file
-  const stripped = doc.value.content.replace(/^(\s*<!--[\s\S]*?-->\s*)+/, '')
+  const stripped = docContent.value.replace(/^(\s*<!--[\s\S]*?-->\s*)+/, '')
   // Filter sections by version — only show content for installed/demo version
   const content = filterByVersion(stripped)
   return md.render(content)
