@@ -388,10 +388,8 @@ async function onSubmit() {
       await authStore.register(username.value, password.value, sector.value || undefined)
     } else {
       await authStore.login(username.value, password.value)
+      attempts.value = 0
     }
-
-    attempts.value = 0
-    await router.push('/weaver')
   } catch (err: unknown) {
     if (!isSetup.value) {
       attempts.value++
@@ -416,9 +414,13 @@ async function onSubmit() {
         errorMessage.value = data?.error ?? 'An error occurred. Please try again.'
       }
     }
+    return
   } finally {
     loading.value = false
   }
+
+  // Auth succeeded — navigate outside the catch so router errors don't surface as auth errors
+  await router.push('/weaver')
 }
 </script>
 
