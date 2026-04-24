@@ -101,8 +101,11 @@ fi
 step "2/5  Backend"
 
 if lsof -ti ":${PORT}" &>/dev/null; then
-  ok "Port ${PORT} already in use — assuming provisioning backend is running"
-else
+  warn "Port ${PORT} already in use — killing existing process to ensure fresh DB with known credentials..."
+  kill "$(lsof -ti ":${PORT}")" 2>/dev/null || true
+  sleep 2
+fi
+if true; then
   warn "Port ${PORT} free — starting dev:provision backend..."
   # Use a temp data dir so we always get a fresh DB with known credentials.
   # The persistent ./data dir may have a user from a prior run whose password
