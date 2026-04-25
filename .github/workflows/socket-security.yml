@@ -10,6 +10,8 @@
 #      (handles PR comments automatically — no secret needed for that path)
 #   2. Add SOCKET_SECURITY_API_KEY to repo secrets (from https://socket.dev/dashboard)
 #      The key is the full API key string shown in the dashboard (not the fingerprint hash).
+#   3. Add SOCKET_ORG_SLUG to repo secrets — your Socket.dev organization slug.
+#      Find it at: https://socket.dev/dashboard → org settings → slug in the URL.
 #
 # Threat model: Socket.dev catches supply chain attacks that CodeQL and npm audit miss:
 #   - CodeQL  = taint analysis (code logic bugs, injection flaws)
@@ -68,6 +70,7 @@ jobs:
       - name: Run Socket scan
         run: |
           npx --yes @socketsecurity/cli scan create \
+            --org "${{ secrets.SOCKET_ORG_SLUG }}" \
             --repo "${{ github.repository }}" \
             --branch "${{ github.ref_name }}" \
             --commit-hash "${{ github.sha }}" \
