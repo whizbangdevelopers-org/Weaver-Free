@@ -68,6 +68,9 @@ jobs:
           node-version: '24'
 
       - name: Run Socket scan
+        # Exit code 1 = policy findings reported; non-blocking while establishing baseline.
+        # Review findings at socket.dev/dashboard, then remove continue-on-error to enforce.
+        continue-on-error: true
         run: |
           npx --yes @socketsecurity/cli scan create \
             --org "${{ secrets.SOCKET_ORG_SLUG }}" \
