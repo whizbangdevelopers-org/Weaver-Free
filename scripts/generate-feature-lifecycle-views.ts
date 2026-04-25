@@ -45,6 +45,7 @@ import { readFileSync, writeFileSync, existsSync } from 'fs'
 import { resolve, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import { load as parseYaml } from 'js-yaml'
+import { execFileSync } from 'child_process'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -52,6 +53,19 @@ const CODE_ROOT = resolve(__dirname, '..')
 const PROJECT_ROOT = resolve(CODE_ROOT, '..')
 
 const SCHEMA = resolve(PROJECT_ROOT, 'plans', 'cross-version', 'FEATURE-LIFECYCLES.md')
+
+// Use the schema file's last git-commit date so generated output is deterministic
+// (no per-run timestamps that drift daily and trigger false audit failures).
+function schemaLastModified(): string {
+  try {
+    return execFileSync('git', ['log', '-1', '--format=%cs', '--', SCHEMA], {
+      cwd: PROJECT_ROOT,
+      encoding: 'utf-8',
+    }).trim() || new Date().toISOString().slice(0, 10)
+  } catch {
+    return new Date().toISOString().slice(0, 10)
+  }
+}
 
 const PARTNER_OUT = resolve(PROJECT_ROOT, 'business', 'sales', 'partners', 'ROADMAP.md')
 const INVESTOR_OUT = resolve(PROJECT_ROOT, 'business', 'investor', 'LIFECYCLE-REVENUE-TIMELINE.md')
@@ -129,7 +143,7 @@ function loadFeatures(): Feature[] {
 // ─── View: Partner Roadmap ────────────────────────────────────────────────
 
 function renderPartnerRoadmap(features: Feature[]): string {
-  const today = new Date().toISOString().slice(0, 10)
+  const today = schemaLastModified()
   const lines: string[] = []
   lines.push('<!-- Copyright (c) 2026 whizBANG Developers LLC. All rights reserved. -->')
   lines.push('<!-- Proprietary and confidential. Do not distribute. -->')
@@ -191,7 +205,7 @@ function renderPartnerRoadmap(features: Feature[]): string {
 // ─── View: Investor Revenue Timeline ──────────────────────────────────────
 
 function renderInvestorTimeline(features: Feature[]): string {
-  const today = new Date().toISOString().slice(0, 10)
+  const today = schemaLastModified()
   const lines: string[] = []
   lines.push('<!-- Copyright (c) 2026 whizBANG Developers LLC. All rights reserved. -->')
   lines.push('<!-- Proprietary and confidential. Do not distribute. -->')
