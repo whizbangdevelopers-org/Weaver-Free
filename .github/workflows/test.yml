@@ -298,15 +298,15 @@ jobs:
       - name: Run compliance suite
         run: npm run test:compliance
 
-      # Derive the auditor count from package.json's test:compliance script
-      # (single source of truth — same logic audit:doc-parity uses to verify
-      # reference sites). Runs after the suite passes so a failing compliance
-      # run never writes a "green" badge.
+      # Derive the auditor count from PHASES in scripts/run-compliance.ts
+      # (single source of truth — same value audit:marker-sync verifies in
+      # CLAUDE.md). Runs after the suite passes so a failing compliance run
+      # never writes a "green" badge.
       - name: Compute auditor count
         id: auditors
         if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
         run: |
-          COUNT=$(node -e "const p = require('./package.json'); const s = p.scripts['test:compliance']; console.log((s.match(/npm run audit:[\w-]+/g) || []).length);")
+          COUNT=$(npx tsx -e "import { PHASES } from './scripts/run-compliance.ts'; const all = PHASES.flatMap(p => p.entries).filter(e => e !== 'build:tui'); process.stdout.write(String(all.length));")
           echo "count=$COUNT" >> $GITHUB_OUTPUT
           echo "Auditors: $COUNT"
 
