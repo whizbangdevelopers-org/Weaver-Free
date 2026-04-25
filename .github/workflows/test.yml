@@ -268,10 +268,14 @@ jobs:
 
   compliance:
     name: Compliance Auditors
+    # Many compliance scripts are sync-excluded (tier-parity, route-auth, doc-parity, etc.).
+    # Running the suite on Free would fail on missing scripts. Compliance is authoritative
+    # on Dev; skip entirely on the Free mirror.
+    if: github.repository == 'whizbangdevelopers-org/Weaver-Dev'
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: ${{ github.repository == 'whizbangdevelopers-org/Weaver-Dev' && 'code' || '.' }}
+        working-directory: code
 
     steps:
       - name: Checkout code
@@ -320,11 +324,14 @@ jobs:
 
   build:
     name: Build
+    # Quasar build runs an embedded typecheck pass. On Free, excluded shim files
+    # cause type errors that fail the build. Build correctness is verified on Dev.
+    if: github.repository == 'whizbangdevelopers-org/Weaver-Dev'
     runs-on: ubuntu-latest
     needs: [unit-tests]
     defaults:
       run:
-        working-directory: ${{ github.repository == 'whizbangdevelopers-org/Weaver-Dev' && 'code' || '.' }}
+        working-directory: code
 
     steps:
       - name: Checkout code
