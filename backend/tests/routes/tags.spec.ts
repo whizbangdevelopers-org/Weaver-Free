@@ -43,10 +43,10 @@ describe('Tag Routes', () => {
     await fastify.register(tagRoutes, { prefix: '/api/tags', presetTagStore })
     await fastify.ready()
 
-    const adminResult = await authService.register('admin', 'adminpass123', 'admin')
+    const adminResult = await authService.register('admin', 'T3stP@ssw0rd!X', 'admin')
     adminToken = adminResult.token
 
-    const viewerResult = await authService.register('viewer', 'viewerpass123', 'viewer')
+    const viewerResult = await authService.register('viewer', 'T3stP@ssw0rd!X', 'viewer')
     viewerToken = viewerResult.token
   })
 

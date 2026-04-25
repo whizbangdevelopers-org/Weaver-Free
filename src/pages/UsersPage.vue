@@ -197,6 +197,7 @@
               (v: string) => /[a-z]/.test(v) || 'Needs a lowercase letter',
               (v: string) => /[0-9]/.test(v) || 'Needs a digit',
               (v: string) => /[^A-Za-z0-9]/.test(v) || 'Needs a special character',
+              (v: string) => !containsUsernameInPassword(v, newUser.username) || 'Password must not contain the username',
             ]"
             hint="Min 14 chars, uppercase + lowercase + digit + special character"
             lazy-rules
@@ -503,6 +504,11 @@ async function deleteUser(user: UserEntry) {
   }
 }
 
+function containsUsernameInPassword(pwd: string, user: string): boolean {
+  if (!pwd || !user || user.length < 3) return false
+  return pwd.toLowerCase().includes(user.toLowerCase())
+}
+
 // Add user form
 const isAddFormValid = computed(() => {
   const u = newUser.value
@@ -513,7 +519,8 @@ const isAddFormValid = computed(() => {
     /[A-Z]/.test(u.password) &&
     /[a-z]/.test(u.password) &&
     /[0-9]/.test(u.password) &&
-    /[^A-Za-z0-9]/.test(u.password)
+    /[^A-Za-z0-9]/.test(u.password) &&
+    !containsUsernameInPassword(u.password, u.username)
   )
 })
 

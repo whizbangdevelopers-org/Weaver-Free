@@ -85,13 +85,13 @@ describe('Audit Routes', () => {
     await fastify.ready()
 
     // Create test users and get tokens
-    const adminResult = await authService.register('admin', 'adminpass123', 'admin')
+    const adminResult = await authService.register('admin', 'T3stP@ssw0rd!X', 'admin')
     adminToken = adminResult.token
 
-    const operatorResult = await authService.register('operator', 'operatorpass123', 'operator')
+    const operatorResult = await authService.register('operator', 'T3stP@ssw0rd!X', 'operator')
     operatorToken = operatorResult.token
 
-    const viewerResult = await authService.register('viewer', 'viewerpass123', 'viewer')
+    const viewerResult = await authService.register('viewer', 'T3stP@ssw0rd!X', 'viewer')
     viewerToken = viewerResult.token
   })
 
@@ -243,7 +243,7 @@ describe('Audit Routes — Tier Gating', () => {
     await premiumFastify.register(auditRoutes, { prefix: '/api/audit', auditService, config: makeConfig('weaver') })
     await premiumFastify.ready()
 
-    const result = await authService.register('admin', 'adminpass123', 'admin')
+    const result = await authService.register('admin', 'T3stP@ssw0rd!X', 'admin')
     adminToken = result.token
   })
 

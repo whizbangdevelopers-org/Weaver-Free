@@ -102,6 +102,7 @@ const docLoaders = import.meta.glob<string>(
     '../../docs/security/compliance/CIS-CONTROLS-MAPPING.md',
     '../../docs/security/compliance/SOC2-READINESS.md',
     '../../docs/legal/TERMS-OF-SERVICE.md',
+    '../../docs/legal/TERMS-OF-SERVICE-COMMERCIAL.md',
     '../../docs/operations/cache-key-compromise-runbook.md',
     '../../docs/operations/cache-key-retirement-policy.md',
     '../../ATTRIBUTION.md',
@@ -143,8 +144,8 @@ const slugToTitle: Record<string, string> = {
   'compatibility': 'Compatibility Matrix',
 }
 
-/** Slug → glob key for current (living) docs. */
-const slugToGlobKey: Record<string, string> = {
+/** Slug → glob key for current (living) docs. Terms of Service varies by tier. */
+const slugToGlobKey = computed<Record<string, string>>(() => ({
   'admin-guide': '../../docs/ADMIN-GUIDE.md',
   'user-guide': '../../docs/USER-GUIDE.md',
   'upgrade': '../../docs/UPGRADE.md',
@@ -161,10 +162,12 @@ const slugToGlobKey: Record<string, string> = {
   'runbook-cache-key-compromise': '../../docs/operations/cache-key-compromise-runbook.md',
   'policy-cache-key-retirement': '../../docs/operations/cache-key-retirement-policy.md',
   'attribution': '../../ATTRIBUTION.md',
-  'terms-of-service': '../../docs/legal/TERMS-OF-SERVICE.md',
+  'terms-of-service': (appStore.isWeaver || appStore.isFabrick)
+    ? '../../docs/legal/TERMS-OF-SERVICE-COMMERCIAL.md'
+    : '../../docs/legal/TERMS-OF-SERVICE.md',
   'production-deployment': '../../docs/PRODUCTION-DEPLOYMENT.md',
   'compatibility': '../../docs/COMPATIBILITY.md',
-}
+}))
 
 /** Slug → relative file path within a version snapshot directory. */
 const slugToPath: Record<string, string> = {
@@ -219,9 +222,9 @@ const docContent = ref<string | null>(null)
 const docLoading = ref(false)
 const docFromSnapshot = ref(false)
 
-// Watch slug + demo version together so switching demo version reloads content
+// Watch slug + demo version + commercial tier flag so tier changes reload the ToS correctly
 watch(
-  [slug, () => (isDemoMode() ? appStore.demoVersion : null)],
+  [slug, () => (isDemoMode() ? appStore.demoVersion : null), () => appStore.isWeaver || appStore.isFabrick],
   async ([s]) => {
     if (!s) {
       docContent.value = null
@@ -247,7 +250,7 @@ watch(
       }
 
       // Current (living) doc
-      const globKey = slugToGlobKey[s]
+      const globKey = slugToGlobKey.value[s]
       const loader = globKey ? docLoaders[globKey] : undefined
       docContent.value = loader ? await loader() : null
     } finally {

@@ -25,9 +25,13 @@ describe('AuthService', () => {
     authService = new AuthService(userStore, sessionStore, JWT_SECRET)
   })
 
+  // Compliant test passwords — meet all strength rules (14+ chars, upper+lower+digit+special, no username)
+  const PWD = 'T3stP@ssw0rd!X'
+  const PWD2 = 'T3stP@ssw0rd!Y'
+
   describe('register', () => {
     it('should register a new user', async () => {
-      const result = await authService.register('admin', 'password123', 'admin')
+      const result = await authService.register('admin', PWD, 'admin')
 
       expect(result.user.username).toBe('admin')
       expect(result.user.role).toBe('admin')
@@ -39,26 +43,26 @@ describe('AuthService', () => {
     })
 
     it('should reject duplicate username', async () => {
-      await authService.register('admin', 'password123', 'admin')
+      await authService.register('admin', PWD, 'admin')
 
       await expect(
-        authService.register('admin', 'other-password', 'viewer')
+        authService.register('admin', PWD2, 'viewer')
       ).rejects.toThrow(AuthError)
     })
 
     it('should default role to admin', async () => {
-      const result = await authService.register('testuser', 'password123')
+      const result = await authService.register('testuser', PWD)
       expect(result.user.role).toBe('admin')
     })
   })
 
   describe('login', () => {
     beforeEach(async () => {
-      await authService.register('admin', 'correctpassword', 'admin')
+      await authService.register('admin', PWD, 'admin')
     })
 
     it('should login with correct credentials', async () => {
-      const result = await authService.login('admin', 'correctpassword')
+      const result = await authService.login('admin', PWD)
 
       expect(result.user.username).toBe('admin')
       expect(result.token).toBeDefined()
@@ -87,7 +91,7 @@ describe('AuthService', () => {
 
   describe('verifyToken', () => {
     it('should verify a valid access token', async () => {
-      const { token } = await authService.register('admin', 'password123', 'admin')
+      const { token } = await authService.register('admin', PWD, 'admin')
       const payload = await authService.verifyToken(token)
 
       expect(payload.username).toBe('admin')
@@ -102,7 +106,7 @@ describe('AuthService', () => {
     })
 
     it('should reject a token after session is revoked', async () => {
-      const { token, user } = await authService.register('admin', 'password123', 'admin')
+      const { token, user } = await authService.register('admin', PWD, 'admin')
 
       // Verify token works
       await authService.verifyToken(token)
@@ -117,7 +121,7 @@ describe('AuthService', () => {
 
   describe('refreshToken', () => {
     it('should issue new tokens from a refresh token', async () => {
-      const initial = await authService.register('admin', 'password123', 'admin')
+      const initial = await authService.register('admin', PWD, 'admin')
       const newTokens = await authService.refreshToken(initial.refreshToken)
 
       expect(newTokens.token).toBeDefined()
@@ -132,7 +136,7 @@ describe('AuthService', () => {
     })
 
     it('should reject an access token used as refresh token', async () => {
-      const { token } = await authService.register('admin', 'password123', 'admin')
+      const { token } = await authService.register('admin', PWD, 'admin')
 
       await expect(
         authService.refreshToken(token)
@@ -142,32 +146,32 @@ describe('AuthService', () => {
 
   describe('changePassword', () => {
     it('should change password with correct current password', async () => {
-      const { user } = await authService.register('admin', 'oldpassword', 'admin')
+      const { user } = await authService.register('admin', PWD, 'admin')
 
-      await authService.changePassword(user.id, 'oldpassword', 'newpassword')
+      await authService.changePassword(user.id, PWD, PWD2)
 
       // Old password should no longer work
       await expect(
-        authService.login('admin', 'oldpassword')
+        authService.login('admin', PWD)
       ).rejects.toThrow(AuthError)
 
       // New password should work
-      const result = await authService.login('admin', 'newpassword')
+      const result = await authService.login('admin', PWD2)
       expect(result.user.username).toBe('admin')
     })
 
     it('should reject wrong current password', async () => {
-      const { user } = await authService.register('admin', 'password123', 'admin')
+      const { user } = await authService.register('admin', PWD, 'admin')
 
       await expect(
-        authService.changePassword(user.id, 'wrong', 'newpassword')
+        authService.changePassword(user.id, 'wrong', PWD2)
       ).rejects.toThrow(AuthError)
     })
 
     it('should invalidate all sessions after password change', async () => {
-      const { user, token } = await authService.register('admin', 'password123', 'admin')
+      const { user, token } = await authService.register('admin', PWD, 'admin')
 
-      await authService.changePassword(user.id, 'password123', 'newpassword')
+      await authService.changePassword(user.id, PWD, PWD2)
 
       // Old token should be invalid
       await expect(authService.verifyToken(token)).rejects.toThrow(AuthError)
@@ -180,10 +184,10 @@ describe('AuthService', () => {
     })
 
     it('should return correct count after registration', async () => {
-      await authService.register('user1', 'password123', 'admin')
+      await authService.register('user1', PWD, 'admin')
       expect(authService.getUserCount()).toBe(1)
 
-      await authService.register('user2', 'password123', 'viewer')
+      await authService.register('user2', PWD, 'viewer')
       expect(authService.getUserCount()).toBe(2)
     })
   })
