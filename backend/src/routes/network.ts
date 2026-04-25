@@ -5,6 +5,7 @@ import { listVms } from '../services/microvm.js'
 import type { DashboardConfig } from '../config.js'
 import { requireRole } from '../middleware/rbac.js'
 import { ROLES } from '../constants/vocabularies.js'
+import { createRateLimit } from '../middleware/rate-limit.js'
 
 interface NetworkRouteOptions {
   config: DashboardConfig
@@ -25,6 +26,7 @@ export const networkRoutes: FastifyPluginAsync<NetworkRouteOptions> = async (fas
 
   fastify.get('/topology', {
     preHandler: [requireRole(ROLES.ADMIN, ROLES.OPERATOR)],
+    config: { rateLimit: createRateLimit(60) },
   }, async () => {
     const vms = await listVms()
 

@@ -1,6 +1,7 @@
 // Copyright (c) 2026 whizBANG Developers LLC. All rights reserved.
 // Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE.
-import { readFile, writeFile, mkdir } from 'node:fs/promises'
+import { readFile, mkdir } from 'node:fs/promises'
+import { atomicWriteJson } from './lib/atomic-write.js'
 import { dirname } from 'node:path'
 import { z } from 'zod'
 import type { DistroImageSource } from '../services/image-manager.js'
@@ -120,9 +121,6 @@ export class CatalogStore {
 
     // Parse + validate against the schema. Invalid shape throws with a
     // useful message; caller sees a structured error, not a coerced-null.
-    // CodeQL's js/http-to-file-access previously flagged the subsequent
-    // writeFile because `as CatalogData` made the value opaque to flow
-    // analysis; after schema.parse() the value is provably-shaped.
     let data: CatalogData
     try {
       data = catalogDataSchema.parse(JSON.parse(raw))
@@ -148,7 +146,7 @@ export class CatalogStore {
 
     // Persist to local file
     await mkdir(dirname(this.persistPath), { recursive: true })
-    await writeFile(this.persistPath, JSON.stringify(data, null, 2), 'utf-8')
+    await atomicWriteJson(this.persistPath, data)
 
     return changed
   }

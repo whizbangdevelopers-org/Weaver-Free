@@ -1,7 +1,8 @@
 // Copyright (c) 2026 whizBANG Developers LLC. All rights reserved.
 // Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE.
 import { readFileSync } from 'node:fs'
-import { readFile, writeFile, mkdtemp, rm, mkdir } from 'node:fs/promises'
+import { readFile, writeFile, rename, unlink, mkdtemp, rm, mkdir } from 'node:fs/promises'
+import { randomBytes } from 'node:crypto'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { execFile } from 'node:child_process'
@@ -102,7 +103,11 @@ export async function generateCompliancePdf(options: PdfOptions): Promise<Buffer
 
     // Write to cache (fire-and-forget — serve even if caching fails)
     await mkdir(cacheDir, { recursive: true }).catch(() => {})
-    await writeFile(cachePath, pdfBuffer).catch(() => {})
+    // Atomic cache write: write to temp first, then rename — prevents partial reads on concurrent requests.
+    const tmpCachePath = `${cachePath}.tmp-${randomBytes(4).toString('hex')}`
+    await writeFile(tmpCachePath, pdfBuffer)
+      .then(() => rename(tmpCachePath, cachePath))
+      .catch(() => { unlink(tmpCachePath).catch(() => {}) })
 
     return pdfBuffer
   } finally {

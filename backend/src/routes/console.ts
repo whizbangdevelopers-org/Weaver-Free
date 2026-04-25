@@ -8,6 +8,7 @@ import { verifyWsToken } from '../middleware/auth.js'
 import { requireTier } from '../license.js'
 import type { DashboardConfig } from '../config.js'
 import { TIERS, ROLES } from '../constants/vocabularies.js'
+import { createRateLimit } from '../middleware/rate-limit.js'
 
 const VM_NAME_RE = /^[a-z][a-z0-9-]*$/
 
@@ -20,7 +21,10 @@ interface ConsoleRouteOptions {
 export const consoleRoutes: FastifyPluginAsync<ConsoleRouteOptions> = async (fastify, opts) => {
   const { provisioner, authService, config } = opts
 
-  fastify.get('/ws/console/:vmName', { websocket: true }, async (socket, request) => {
+  fastify.get('/ws/console/:vmName', {
+    websocket: true,
+    config: { rateLimit: createRateLimit(10) },
+  }, async (socket, request) => {
     // Authenticate via query-param token (same pattern as /ws/status)
     if (authService) {
       const url = new URL(request.url, `http://${request.hostname}`)

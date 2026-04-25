@@ -1,6 +1,7 @@
 // Copyright (c) 2026 whizBANG Developers LLC. All rights reserved.
 // Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE.
-import { readFile, writeFile, mkdir } from 'node:fs/promises'
+import { readFile, mkdir } from 'node:fs/promises'
+import { atomicWriteJson } from './lib/atomic-write.js'
 import { dirname } from 'node:path'
 import type { WorkloadDefinition, WorkloadRegistry } from './workload-registry.js'
 import { DEFAULT_VMS } from './seed-data.js'
@@ -64,6 +65,6 @@ export class JsonWorkloadRegistry implements WorkloadRegistry {
   }
 
   private async persist(): Promise<void> {
-    await writeFile(this.filePath, JSON.stringify(this.vms, null, 2), 'utf-8')
+    await atomicWriteJson(this.filePath, this.vms)
   }
 }

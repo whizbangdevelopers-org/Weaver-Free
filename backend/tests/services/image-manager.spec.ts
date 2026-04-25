@@ -12,6 +12,8 @@ vi.mock('node:child_process', () => ({
 vi.mock('node:fs/promises', () => ({
   mkdir: vi.fn(async () => {}),
   writeFile: vi.fn(async () => {}),
+  rename: vi.fn(async () => {}),
+  unlink: vi.fn(async () => {}),
   access: vi.fn(async () => { throw new Error('ENOENT') }),
   stat: vi.fn(async () => ({ size: 0 })),
 }))
