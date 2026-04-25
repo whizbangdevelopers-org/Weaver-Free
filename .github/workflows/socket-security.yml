@@ -7,13 +7,19 @@
 #
 # Setup required (one-time):
 #   1. Install Socket Security GitHub App: https://github.com/apps/socket-security
+#      (handles PR comments automatically — no secret needed for that path)
 #   2. Add SOCKET_SECURITY_API_KEY to repo secrets (from https://socket.dev/dashboard)
+#      The key is the full API key string shown in the dashboard (not the fingerprint hash).
 #
 # Threat model: Socket.dev catches supply chain attacks that CodeQL and npm audit miss:
 #   - CodeQL  = taint analysis (code logic bugs, injection flaws)
 #   - npm audit = CVE database (known vulnerabilities in published versions)
 #   - Socket  = behavioral analysis (malicious packages, typosquats, dep confusion,
 #               install scripts, obfuscated code, high-entropy strings, network calls)
+#
+# Note: SocketDev/action v1.3.2 documents 'cli' mode but does not implement it in the
+# compiled action (only 'firewall' and 'patch' modes work). We run @socketsecurity/cli
+# directly instead.
 
 name: Socket Security
 
@@ -52,10 +58,14 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
 
-      - name: Socket Security scan
-        uses: SocketDev/action@ba6de6cc0565af1f42295590380973573297e31f  # v1.3.2
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
         with:
-          mode: cli
-          socket-token: ${{ secrets.SOCKET_SECURITY_API_KEY }}
+          node-version: '24'
+
+      - name: Run Socket scan
+        run: npx --yes @socketsecurity/cli scan --json
+        env:
+          SOCKET_SECURITY_API_KEY: ${{ secrets.SOCKET_SECURITY_API_KEY }}
