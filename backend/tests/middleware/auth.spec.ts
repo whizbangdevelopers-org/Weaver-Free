@@ -67,7 +67,7 @@ describe('Auth Middleware', () => {
     await fastify.ready()
 
     // Create admin user and get token
-    const result = await authService.register('admin', 'password123', 'admin')
+    const result = await authService.register('admin', 'T3stP@ssw0rd!X', 'admin')
     adminToken = result.token
   })
 
@@ -114,7 +114,7 @@ describe('Auth Middleware', () => {
 
   it('should return 401 for expired/revoked token', async () => {
     // Get fresh token then invalidate it
-    const result = await authService.login('admin', 'password123')
+    const result = await authService.login('admin', 'T3stP@ssw0rd!X')
     await authService.logout(result.user.id, result.user.id)
 
     const response = await fastify.inject({
@@ -140,7 +140,7 @@ describe('Auth Middleware', () => {
     const response = await fastify.inject({
       method: 'POST',
       url: '/api/auth/login',
-      payload: { username: 'admin', password: 'password123' },
+      payload: { username: 'admin', password: 'T3stP@ssw0rd!X' },
     })
 
     expect(response.statusCode).toBe(200)

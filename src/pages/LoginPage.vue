@@ -141,6 +141,20 @@
             You can change this later in Settings.
           </div>
 
+          <div v-if="isSetup" class="row items-center q-gutter-sm" style="margin-top: 4px">
+            <q-checkbox
+              v-model="tosAccepted"
+              :disable="!hasScrolledToBottom"
+              color="primary"
+              data-testid="tos-checkbox"
+            />
+            <span class="text-caption">
+              I have read and agree to the
+              <a class="text-primary cursor-pointer" data-testid="tos-link" @click="openTosDialog">Terms of Service</a>
+              <span v-if="!hasScrolledToBottom" class="text-grey-6"> (please open and read first)</span>
+            </span>
+          </div>
+
           <q-banner v-if="errorMessage" class="bg-negative text-white" rounded dense>
             <template #avatar>
               <q-icon name="mdi-alert-circle" />
@@ -154,7 +168,7 @@
             :label="isLockedOut ? `Locked (${lockoutRemaining}s)` : isSetup ? 'Create Admin Account' : 'Sign In'"
             class="full-width"
             :loading="loading"
-            :disable="isLockedOut"
+            :disable="isLockedOut || (isSetup && !tosAccepted)"
             data-testid="submit-btn"
           />
 
@@ -171,6 +185,37 @@
           This is the first-time setup. The account you create will have admin privileges.
         </div>
       </q-card-section>
+
+      <q-dialog v-model="showTosDialog">
+        <q-card style="width: 640px; max-width: 95vw">
+          <q-toolbar>
+            <q-toolbar-title class="text-subtitle1">Terms of Service</q-toolbar-title>
+            <q-btn flat round dense icon="mdi-close" v-close-popup data-testid="tos-dialog-close" />
+          </q-toolbar>
+          <q-separator />
+          <div
+            ref="tosScrollRef"
+            style="max-height: 55vh; overflow-y: auto; padding: 16px"
+            data-testid="tos-scroll-area"
+            @scroll="onTosScroll"
+          >
+            <pre style="white-space: pre-wrap; font-family: inherit; font-size: 13px; margin: 0">{{ tosText }}</pre>
+            <div style="height: 1px" data-testid="tos-sentinel" />
+          </div>
+          <q-separator />
+          <q-card-actions align="right">
+            <span v-if="!hasScrolledToBottom" class="text-caption text-grey-6 q-mr-sm">Scroll to read all terms</span>
+            <q-btn flat label="Close" v-close-popup />
+            <q-btn
+              label="I Agree"
+              color="primary"
+              :disable="!hasScrolledToBottom"
+              data-testid="tos-agree-btn"
+              @click="tosAccepted = true; showTosDialog = false"
+            />
+          </q-card-actions>
+        </q-card>
+      </q-dialog>
 
       <q-dialog v-model="showForgotPassword">
         <q-card style="max-width: 420px">
@@ -209,6 +254,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import tosText from '../../docs/legal/TERMS-OF-SERVICE.md?raw'
 import { useAuthStore, SECTOR_OPTIONS, type SectorId } from 'src/stores/auth-store'
 import { api } from 'src/boot/axios'
 import { isDemoMode } from 'src/config/demo-mode'
@@ -230,6 +276,10 @@ const showPassword = ref(false)
 const loading = ref(false)
 const errorMessage = ref('')
 const isSetup = ref(false)
+const tosAccepted = ref(false)
+const showTosDialog = ref(false)
+const hasScrolledToBottom = ref(false)
+const tosScrollRef = ref<HTMLDivElement | null>(null)
 const attempts = ref(0)
 const lockedUntil = ref<number | null>(null)
 const lockoutRemaining = ref(0)
@@ -311,6 +361,19 @@ const usernameChecklist = computed(() => {
   ]
 })
 
+function openTosDialog() {
+  hasScrolledToBottom.value = false
+  showTosDialog.value = true
+}
+
+function onTosScroll() {
+  const el = tosScrollRef.value
+  if (!el) return
+  if (el.scrollTop + el.clientHeight >= el.scrollHeight - 20) {
+    hasScrolledToBottom.value = true
+  }
+}
+
 onMounted(async () => {
   // If already authenticated, redirect to dashboard
   if (authStore.isAuthenticated) {
@@ -371,6 +434,10 @@ const isLockedOut = computed(() => !!lockedUntil.value)
 
 async function onSubmit() {
   if (isLockedOut.value) return
+  if (isSetup.value && !tosAccepted.value) {
+    errorMessage.value = 'You must agree to the Terms of Service to continue'
+    return
+  }
 
   loading.value = true
   errorMessage.value = ''

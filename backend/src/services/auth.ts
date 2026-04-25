@@ -55,6 +55,19 @@ interface LockoutRecord {
   firstAt: number
 }
 
+function validatePasswordStrength(password: string, username: string): string[] {
+  const errors: string[] = []
+  if (password.length < 14) errors.push('Password must be at least 14 characters')
+  if (!/[A-Z]/.test(password)) errors.push('Password must contain at least one uppercase letter')
+  if (!/[a-z]/.test(password)) errors.push('Password must contain at least one lowercase letter')
+  if (!/[0-9]/.test(password)) errors.push('Password must contain at least one digit')
+  if (!/[^A-Za-z0-9]/.test(password)) errors.push('Password must contain at least one special character')
+  if (username.length >= 3 && password.toLowerCase().includes(username.toLowerCase())) {
+    errors.push('Password must not contain the username')
+  }
+  return errors
+}
+
 export class AuthService {
   private failedAttempts = new Map<string, LockoutRecord>()
   private lockoutFilePath: string | null
@@ -91,6 +104,12 @@ export class AuthService {
     const existing = this.userStore.getByUsername(username)
     if (existing) {
       throw new AuthError('Username already exists', 409)
+    }
+
+    // Password strength — enforced server-side so crafted API calls can't bypass frontend checks
+    const pwdErrors = validatePasswordStrength(password, username)
+    if (pwdErrors.length > 0) {
+      throw new AuthError(pwdErrors[0]!, 400)
     }
 
     const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS)
@@ -197,6 +216,11 @@ export class AuthService {
     const valid = await bcrypt.compare(currentPassword, user.passwordHash)
     if (!valid) {
       throw new AuthError('Current password is incorrect', 401)
+    }
+
+    const pwdErrors = validatePasswordStrength(newPassword, user.username)
+    if (pwdErrors.length > 0) {
+      throw new AuthError(pwdErrors[0]!, 400)
     }
 
     const passwordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS)

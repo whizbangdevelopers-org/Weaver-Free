@@ -40,8 +40,10 @@ When Weaver starts for the first time with no existing user accounts, the login 
 
 1. Open your browser and navigate to `http://<host>:3100` (default port). The port is configured via `services.weaver.port` in the NixOS module. See [PRODUCTION-DEPLOYMENT.md](PRODUCTION-DEPLOYMENT.md) for configuration options.
 2. The login page displays a "Create Admin Account" form when no users exist.
-3. Enter a username (lowercase, starts with a letter, 3+ characters) and password (14+ characters, must include uppercase, lowercase, digit, and special character).
-4. Click "Create Account". You are logged in as the admin.
+3. Enter a username (lowercase, starts with a letter, 3+ characters) and password (14+ characters, must include uppercase, lowercase, digit, and special character, and must not contain your username).
+4. Select a sector (used to personalise the experience; stored locally only).
+5. Click the **Terms of Service** link, scroll to the bottom of the document, then click **I Agree**. The acceptance checkbox unlocks once you have read to the end.
+6. Click **Create Admin Account**. You are logged in as the admin.
 
 ### Verifying the Installation
 
@@ -90,7 +92,7 @@ The dashboard hides actions you do not have permission to perform. Viewers do no
 
 1. Navigate to Users from the sidebar.
 2. Click "Add User" in the top-right corner.
-3. Enter a username (lowercase, starts with a letter), password (14+ characters with uppercase, lowercase, digit, and special character), and select a role.
+3. Enter a username (lowercase, starts with a letter), password (14+ characters with uppercase, lowercase, digit, and special character; must not contain the username), and select a role.
 4. Click "Create User".
 
 ### Changing Roles
@@ -456,7 +458,7 @@ The backend sets a Content Security Policy via Helmet. If you add external resou
 
 ### Password Requirements
 
-All passwords must be 14-128 characters with at least one uppercase letter, one lowercase letter, one digit, and one special character.
+All passwords must be 14-128 characters with at least one uppercase letter, one lowercase letter, one digit, and one special character. Passwords must not contain the account's username (case-insensitive).
 
 ### Password Reset
 

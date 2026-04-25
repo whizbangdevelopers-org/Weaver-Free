@@ -102,5 +102,3 @@ We may update these Terms from time to time. The "Last updated" date at the top 
 For questions about these Terms, contact whizBANG Developers LLC at the address listed on the product website.
 
 ---
-
-*These Terms are subject to attorney review. See `business/legal/BYOK-LIABILITY-CLAUSE-DRAFT.md` for detailed legal review notes.*

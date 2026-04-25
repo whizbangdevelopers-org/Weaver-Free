@@ -75,13 +75,13 @@ describe('RBAC Middleware', () => {
     await fastify.ready()
 
     // Create users with different roles
-    const adminResult = await authService.register('admin', 'password123', 'admin')
+    const adminResult = await authService.register('admin', 'T3stP@ssw0rd!X', 'admin')
     adminToken = adminResult.token
 
-    const operatorResult = await authService.register('operator', 'password123', 'operator')
+    const operatorResult = await authService.register('operator', 'T3stP@ssw0rd!X', 'operator')
     operatorToken = operatorResult.token
 
-    const viewerResult = await authService.register('viewer', 'password123', 'viewer')
+    const viewerResult = await authService.register('viewer', 'T3stP@ssw0rd!X', 'viewer')
     viewerToken = viewerResult.token
   })
 

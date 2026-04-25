@@ -47,6 +47,8 @@ Navigate to your Weaver instance in a browser (for example, `http://your-host:31
 
 When no user accounts exist, the login page automatically switches to a "Create Admin Account" form. The first account created always receives admin privileges. After setup, subsequent users must be created by an admin from the Users page.
 
+The setup form requires you to scroll through and accept the Terms of Service before creating the account. Click the **Terms of Service** link, read to the bottom, then click **I Agree** — the acceptance checkbox and the submit button are disabled until you have scrolled through the full document.
+
 ### Session Management
 
 Access tokens expire after 15 minutes. Weaver refreshes your session automatically in the background — you will not be interrupted unless the refresh token itself expires (7 days) or you have been idle too long. **Single-session enforcement** is active at all tiers — logging in from a new browser or TUI revokes your previous session. Only one active session per user is allowed.

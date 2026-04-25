@@ -76,10 +76,10 @@ describe('Host Config Routes', () => {
     await fastify.register(hostConfigRoutes, { prefix: '/api/config', config })
     await fastify.ready()
 
-    const adminResult = await authService.register('admin', 'adminpass123', 'admin')
+    const adminResult = await authService.register('admin', 'T3stP@ssw0rd!X', 'admin')
     adminToken = adminResult.token
 
-    const viewerResult = await authService.register('viewer', 'viewerpass123', 'viewer')
+    const viewerResult = await authService.register('viewer', 'T3stP@ssw0rd!X', 'viewer')
     viewerToken = viewerResult.token
   })
 
@@ -156,7 +156,7 @@ describe('Host Config Routes', () => {
     await nonExistentFastify.register(hostConfigRoutes, { prefix: '/api/config', config })
     await nonExistentFastify.ready()
 
-    const { token } = await authService2.register('admin2', 'adminpass123', 'admin')
+    const { token } = await authService2.register('admin2', 'T3stP@ssw0rd!X', 'admin')
 
     const res = await nonExistentFastify.inject({
       method: 'GET',

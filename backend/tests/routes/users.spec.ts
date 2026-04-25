@@ -35,13 +35,13 @@ describe('Users Routes', () => {
 
   /** Get a fresh admin token (re-login). Use when prior tests may have invalidated sessions. */
   async function freshAdminToken(): Promise<string> {
-    const result = await authService.login('admin', 'AdminPass123!')
+    const result = await authService.login('admin', 'T3stP@ssw0rd!X')
     return result.token
   }
 
   /** Get a fresh operator token. */
   async function freshOperatorToken(): Promise<string> {
-    const result = await authService.login('operator', 'OperatorPass123!')
+    const result = await authService.login('operator', 'T3stP@ssw0rd!X')
     return result.token
   }
 
@@ -75,13 +75,13 @@ describe('Users Routes', () => {
     await fastify.ready()
 
     // Create core test users
-    const adminResult = await authService.register('admin', 'AdminPass123!', 'admin')
+    const adminResult = await authService.register('admin', 'T3stP@ssw0rd!X', 'admin')
     adminId = adminResult.user.id
 
-    const operatorResult = await authService.register('operator', 'OperatorPass123!', 'operator')
+    const operatorResult = await authService.register('operator', 'T3stP@ssw0rd!X', 'operator')
     operatorId = operatorResult.user.id
 
-    const viewerResult = await authService.register('viewer', 'ViewerPass123!', 'viewer')
+    const viewerResult = await authService.register('viewer', 'T3stP@ssw0rd!X', 'viewer')
     viewerId = viewerResult.user.id
   })
 
@@ -132,7 +132,7 @@ describe('Users Routes', () => {
     })
 
     it('should return 403 for viewer', async () => {
-      const viewerLogin = await authService.login('viewer', 'ViewerPass123!')
+      const viewerLogin = await authService.login('viewer', 'T3stP@ssw0rd!X')
       const response = await fastify.inject({
         method: 'GET',
         url: '/api/users',
@@ -297,7 +297,7 @@ describe('Users Routes', () => {
 
     it('should invalidate sessions on role change', async () => {
       // Get operator token before role change
-      const opLogin = await authService.login('operator', 'OperatorPass123!')
+      const opLogin = await authService.login('operator', 'T3stP@ssw0rd!X')
       const opToken = opLogin.token
 
       // Verify the token is valid (operator gets 403 on /api/users — correct, not admin)
@@ -348,7 +348,7 @@ describe('Users Routes', () => {
 
     it('should allow admin to delete another user', async () => {
       // Create a throwaway user
-      const throwaway = await authService.register('throwaway', 'ThrowPass123!', 'viewer')
+      const throwaway = await authService.register('throwaway', 'ThrowPass123!x', 'viewer')
 
       const token = await freshAdminToken()
       const response = await fastify.inject({
@@ -381,13 +381,13 @@ describe('Users Routes', () => {
 
     it('should prevent deleting the last admin', async () => {
       // Create a second admin
-      const admin2 = await authService.register('admin2', 'Admin2Pass123!', 'admin')
+      const admin2 = await authService.register('admin2', 'T3stP@ssw0rd!X', 'admin')
 
       // Demote the original admin so admin2 is the only admin
       await userStore.update(adminId, { role: 'operator' })
 
       // Login as admin2
-      const admin2Login = await authService.login('admin2', 'Admin2Pass123!')
+      const admin2Login = await authService.login('admin2', 'T3stP@ssw0rd!X')
 
       // admin2 can't delete themselves (self-delete rule)
       const selfResponse = await fastify.inject({
@@ -411,8 +411,8 @@ describe('Users Routes', () => {
     it('should prevent deleting the last admin account (non-self)', async () => {
       // Create a second admin, then try to delete the original admin from admin2
       // when both are admin — this should succeed (2 admins)
-      const admin3 = await authService.register('admin3', 'Admin3Pass123!', 'admin')
-      const admin3Login = await authService.login('admin3', 'Admin3Pass123!')
+      const admin3 = await authService.register('admin3', 'T3stP@ssw0rd!X', 'admin')
+      const admin3Login = await authService.login('admin3', 'T3stP@ssw0rd!X')
 
       // Delete admin from admin3 — should succeed (2 admins remaining)
       const deleteResp = await fastify.inject({
@@ -423,7 +423,7 @@ describe('Users Routes', () => {
       expect(deleteResp.statusCode).toBe(200)
 
       // Re-create the admin for subsequent tests
-      const newAdmin = await authService.register('admin', 'AdminPass123!', 'admin')
+      const newAdmin = await authService.register('admin', 'T3stP@ssw0rd!X', 'admin')
       adminId = newAdmin.user.id
 
       // Clean up admin3
@@ -448,7 +448,7 @@ describe('Users Routes', () => {
 
     it('should invalidate sessions of deleted user', async () => {
       // Create a user and get their token
-      const temp = await authService.register('tempuser', 'TempPass123!', 'viewer')
+      const temp = await authService.register('tempuser', 'TempPass123!xx', 'viewer')
       const tempToken = temp.token
 
       // Verify the token works (viewer can't access /api/users — gets 403, but token is valid)
