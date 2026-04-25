@@ -13,6 +13,7 @@ import { get as httpGet } from 'node:http'
 import type { IncomingMessage } from 'node:http'
 import type { WorkloadDefinition } from '../storage/workload-registry.js'
 import type { DashboardConfig } from '../config.js'
+import { validateExternalUrl } from '../validate-url.js'
 
 const execFileAsync = promisify(execFile)
 
@@ -183,6 +184,9 @@ export class ImageManager {
       // File doesn't exist, download it
     }
 
+    // Validate before downloading — prevents SSRF via user-supplied URL in workload definition.
+    // file:// is rejected by validateExternalUrl (http/https only) but handled separately above.
+    validateExternalUrl(url)
     await this.downloadImage(url, imagePath)
     return imagePath
   }

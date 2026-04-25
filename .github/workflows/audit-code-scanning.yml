@@ -1,0 +1,65 @@
+# Copyright (c) 2026 whizBANG Developers LLC. All rights reserved.
+# Proprietary and confidential. Do not distribute.
+# Code Scanning Audit
+# CREATED IN: Weaver-Dev (synced to Weaver-Free)
+# USED BY: Security posture — classifies CodeQL alerts into production failures vs. warnings
+# TRIGGERS: After CodeQL Analysis completes on main, release tags, manual dispatch
+
+name: Code Scanning Audit
+
+on:
+  workflow_run:
+    workflows: ["CodeQL Analysis"]
+    types: [completed]
+    branches: [main]
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+# Minimal permissions: read code scanning alerts, read repo content
+permissions:
+  contents: read
+  security-events: read
+
+jobs:
+  audit:
+    name: Audit CodeQL Findings
+    # Only meaningful on the public repo where CodeQL runs
+    if: github.event.repository.visibility != 'private' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Run code scanning audit
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          npx tsx scripts/audit-code-scanning.ts 2>&1 | tee /tmp/audit-output.txt
+          echo "AUDIT_EXIT=${PIPESTATUS[0]}" >> $GITHUB_ENV
+
+      - name: Post job summary
+        if: always()
+        run: |
+          echo "## Code Scanning Audit" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          cat /tmp/audit-output.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Fail if production security findings exist
+        if: env.AUDIT_EXIT != '0'
+        run: |
+          echo "::error::Production security findings detected. See job summary for details."
+          exit 1

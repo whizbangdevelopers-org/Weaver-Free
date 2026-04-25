@@ -1,6 +1,7 @@
 // Copyright (c) 2026 whizBANG Developers LLC. All rights reserved.
 // Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE.
-import { readFile, writeFile, mkdir } from 'node:fs/promises'
+import { readFile, mkdir } from 'node:fs/promises'
+import { atomicWriteJson } from './lib/atomic-write.js'
 import { dirname } from 'node:path'
 import type { DistroImageSource } from '../services/image-manager.js'
 
@@ -80,6 +81,6 @@ export class DistroStore {
   }
 
   private async persist(): Promise<void> {
-    await writeFile(this.filePath, JSON.stringify(this.distros, null, 2), 'utf-8')
+    await atomicWriteJson(this.filePath, this.distros)
   }
 }

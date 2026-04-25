@@ -1,0 +1,24 @@
+{
+  "_comment": "Accepted false positives for Weaver-Free GitHub code scanning alerts. Auditor: scripts/audit-code-scanning.ts. Add entries only for confirmed false positives — not for accepted risks. Accepted risks must be tracked in business/legal/SECURITY-AUDIT.md instead.",
+  "_lastReviewed": "2026-04-25",
+  "dismissed": [
+    {
+      "rule": "js/syntax-error",
+      "path": "backend/src/services/stripe.ts",
+      "reason": "CodeQL does not parse TypeScript 5.x cast syntax (as unknown as {...} on line 139). File typechecks clean with vue-tsc. Not a real syntax error.",
+      "addedDate": "2026-04-25"
+    },
+    {
+      "rule": "js/http-to-file-access",
+      "path": "backend/src/storage/catalog-store.ts",
+      "reason": "HTTP response is (1) size-bounded at MAX_REMOTE_CATALOG_BYTES, (2) Zod-schema-validated before any write, and (3) written to a config-controlled path, not a user-supplied one. CodeQL taint analysis cannot reason through schema.parse() so this fires as a false positive.",
+      "addedDate": "2026-04-25"
+    },
+    {
+      "rule": "js/file-system-race",
+      "path": "backend/src/services/compliance-pdf.ts",
+      "reason": "The cache read already uses the readFile-with-ENOENT-fallthrough pattern that CodeQL's rule prescribes. The slug is validated against the COMPLIANCE_DOCS whitelist before any path construction. CodeQL cannot reason through the whitelist check so this fires as a false positive.",
+      "addedDate": "2026-04-25"
+    }
+  ]
+}

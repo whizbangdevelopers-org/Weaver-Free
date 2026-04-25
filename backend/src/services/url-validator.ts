@@ -1,6 +1,7 @@
 // Copyright (c) 2026 whizBANG Developers LLC. All rights reserved.
 // Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE.
-import { readFile, writeFile, mkdir, access, stat } from 'node:fs/promises'
+import { readFile, mkdir, access, stat } from 'node:fs/promises'
+import { atomicWriteJson } from '../storage/lib/atomic-write.js'
 import { dirname, resolve } from 'node:path'
 import { get as httpsGet } from 'node:https'
 import { get as httpGet, type IncomingMessage } from 'node:http'
@@ -211,6 +212,6 @@ export class UrlValidationService {
   }
 
   private async persist(): Promise<void> {
-    await writeFile(this.filePath, JSON.stringify(this.data, null, 2), 'utf-8')
+    await atomicWriteJson(this.filePath, this.data)
   }
 }
