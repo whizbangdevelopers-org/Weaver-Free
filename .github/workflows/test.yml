@@ -37,7 +37,8 @@ jobs:
       failed: ${{ steps.vitest.outputs.failed }}
     defaults:
       run:
-        working-directory: code
+        # Dev repo: code lives in code/. Free repo: sync flattens code/ → root.
+        working-directory: ${{ github.repository == 'whizbangdevelopers-org/Weaver-Dev' && 'code' || '.' }}
 
     steps:
       - name: Checkout code
@@ -112,7 +113,7 @@ jobs:
       failed: ${{ steps.backend-vitest.outputs.failed }}
     defaults:
       run:
-        working-directory: code
+        working-directory: ${{ github.repository == 'whizbangdevelopers-org/Weaver-Dev' && 'code' || '.' }}
 
     steps:
       - name: Checkout code
@@ -176,7 +177,7 @@ jobs:
       failed: ${{ steps.tui-vitest.outputs.failed }}
     defaults:
       run:
-        working-directory: code
+        working-directory: ${{ github.repository == 'whizbangdevelopers-org/Weaver-Dev' && 'code' || '.' }}
 
     steps:
       - name: Checkout code
@@ -264,7 +265,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: code
+        working-directory: ${{ github.repository == 'whizbangdevelopers-org/Weaver-Dev' && 'code' || '.' }}
 
     steps:
       - name: Checkout code
@@ -317,7 +318,7 @@ jobs:
     needs: [unit-tests]
     defaults:
       run:
-        working-directory: code
+        working-directory: ${{ github.repository == 'whizbangdevelopers-org/Weaver-Dev' && 'code' || '.' }}
 
     steps:
       - name: Checkout code
