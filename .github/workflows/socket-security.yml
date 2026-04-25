@@ -66,6 +66,12 @@ jobs:
           node-version: '24'
 
       - name: Run Socket scan
-        run: npx --yes @socketsecurity/cli scan --json
+        run: |
+          npx --yes @socketsecurity/cli scan create \
+            --repo "${{ github.repository }}" \
+            --branch "${{ github.ref_name }}" \
+            --commit-hash "${{ github.sha }}" \
+            --report \
+            --no-interactive
         env:
           SOCKET_SECURITY_API_KEY: ${{ secrets.SOCKET_SECURITY_API_KEY }}
