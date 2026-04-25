@@ -446,6 +446,11 @@ jobs:
           fi
           echo "Licensing gate OK: dispatching Free-tier source from $EXPECTED"
 
+      - name: Checkout Dev repo (needed to read nixos/package.nix for npmDepsHash)
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          path: dev
+
       - name: Install Nix
         uses: cachix/install-nix-action@e4f4bde15728394ded896ef07491a85f2eb24956  # v31
         with:
@@ -506,9 +511,9 @@ jobs:
           #
           # audit:nur-dispatch-completeness (scripts/verify-nur-dispatch-completeness.ts)
           # static-checks that the dispatch payload below carries BOTH hashes.
-          NPM_HASH=$(grep -oP 'npmDepsHash = "\Ksha256-[^"]+' code/nixos/package.nix)
+          NPM_HASH=$(grep -oP 'npmDepsHash = "\Ksha256-[^"]+' dev/code/nixos/package.nix)
           if [ -z "$NPM_HASH" ]; then
-            echo "::error::Could not extract npmDepsHash from code/nixos/package.nix"
+            echo "::error::Could not extract npmDepsHash from dev/code/nixos/package.nix"
             exit 1
           fi
           echo "npm_hash=$NPM_HASH" >> $GITHUB_OUTPUT
