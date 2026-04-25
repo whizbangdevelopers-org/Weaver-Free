@@ -95,8 +95,13 @@ function main(): void {
   const DIM = '\x1b[2m'
   const RESET = '\x1b[0m'
 
+  // CI runners have no ~/.claude/skills/ — only verify the project side.
+  // User-copy checks are dev-only; omitting them in CI is correct, not a skip.
+  const inCI = process.env['GITHUB_ACTIONS'] === 'true'
+
   console.log(`${BOLD}Skill Parity Audit${RESET}`)
   console.log(`${DIM}Enforces scope contract between user and project skills.${RESET}`)
+  if (inCI) console.log(`${DIM}CI mode: user-directory checks skipped (no ~/.claude/skills/ on runner).${RESET}`)
   console.log()
 
   const userSkills = listSkills(USER_SKILLS)
@@ -164,11 +169,18 @@ function main(): void {
       }
     } else if (declared === 'both') {
       if (!u || !p) {
-        const missing = !u ? 'user copy (~/.claude/skills/)' : 'project copy (.claude/skills/)'
-        violations.push({
-          name,
-          detail: `scope: both but ${missing} is missing. Run 'npm run skills:sync' to mirror.`,
-        })
+        const missingUser = !u
+        // In CI there is no ~/.claude/skills/ — skip the user-copy-missing check.
+        // The project copy is the only half CI can verify.
+        if (missingUser && inCI) {
+          // acceptable in CI
+        } else {
+          const missing = missingUser ? 'user copy (~/.claude/skills/)' : 'project copy (.claude/skills/)'
+          violations.push({
+            name,
+            detail: `scope: both but ${missing} is missing. Run 'npm run skills:sync' to mirror.`,
+          })
+        }
       } else if (u.sha !== p.sha) {
         violations.push({
           name,
