@@ -56,6 +56,10 @@ jobs:
         run: npm run lint
 
       - name: Run typecheck
+        # Shim files (demo.ts, useDemoContainerState.ts) use `typeof import('./excluded-data')`
+        # to derive types. On Free those files don't exist → tsc falls back to any → implicit-any
+        # errors in components. Typecheck is authoritative on Dev; skip on Free mirror.
+        if: github.repository == 'whizbangdevelopers-org/Weaver-Dev'
         run: npm run typecheck
 
       - name: Run unit tests
@@ -131,6 +135,7 @@ jobs:
         run: cd backend && npm run lint
 
       - name: Run backend typecheck
+        if: github.repository == 'whizbangdevelopers-org/Weaver-Dev'
         run: cd backend && npm run typecheck
 
       - name: Run backend tests
@@ -192,6 +197,7 @@ jobs:
         run: npm ci
 
       - name: Run TUI typecheck
+        if: github.repository == 'whizbangdevelopers-org/Weaver-Dev'
         run: cd tui && npm run typecheck
 
       - name: Run TUI tests
