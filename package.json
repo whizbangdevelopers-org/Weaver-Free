@@ -84,6 +84,7 @@
     "audit:license": "npx tsx scripts/audit-licenses.ts",
     "audit:lockfile": "npx tsx scripts/verify-lockfile.ts",
     "audit:sast": "npx tsx scripts/audit-sast.ts",
+    "audit:taint": "npx tsx scripts/audit-taint.ts",
     "audit:code-scanning": "npx tsx scripts/audit-code-scanning.ts",
     "audit:redos": "npx tsx scripts/audit-redos.ts",
     "audit:demo-parity": "npx tsx scripts/verify-demo-parity.ts",

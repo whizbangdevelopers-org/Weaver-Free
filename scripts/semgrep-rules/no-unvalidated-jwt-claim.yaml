@@ -1,0 +1,45 @@
+# Copyright (c) 2026 whizBANG Developers LLC. All rights reserved.
+# Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE.
+rules:
+  - id: no-unvalidated-jwt-claim
+    message: >
+      JWT payload decoded without signature verification. Use jwt.verify() or
+      request.jwtVerify() — never jwt.decode() or manual base64 parsing to
+      extract claims used for authentication or authorization decisions.
+      An unverified payload can be forged by any client.
+    severity: ERROR
+    languages: [typescript]
+    mode: taint
+    pattern-sources:
+      - patterns:
+          - pattern: jwt.decode($TOKEN)
+      - patterns:
+          - pattern: |
+              JSON.parse(Buffer.from($PART, 'base64').toString())
+      - patterns:
+          - pattern: |
+              JSON.parse(atob($PART))
+    pattern-sinks:
+      - patterns:
+          - pattern: |
+              $OBJ.role
+      - patterns:
+          - pattern: |
+              $OBJ.sub
+      - patterns:
+          - pattern: |
+              $OBJ.username
+      - patterns:
+          - pattern: requireRole(...)
+      - patterns:
+          - pattern: requireTier(...)
+      - patterns:
+          - pattern: |
+              if ($OBJ.role === ...) { ... }
+      - patterns:
+          - pattern: |
+              if ($OBJ.sub === ...) { ... }
+    metadata:
+      category: security
+      cwe: CWE-347
+      owasp: A02:2021
