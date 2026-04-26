@@ -81,7 +81,7 @@
             </q-card>
           </div>
 
-          <!-- Custom MicroVM — available from v1.0 via CreateVmDialog -->
+          <!-- Custom MicroVM — Weaver Solo+ (Live Provisioning) -->
           <div class="col-12 col-sm-6 col-md-4">
             <q-card flat bordered class="shed-card">
               <q-card-section class="row items-center no-wrap q-pb-xs">
@@ -93,10 +93,14 @@
               </q-card-section>
               <q-separator />
               <q-card-actions class="q-pa-sm">
-                <q-btn
-                  flat dense color="primary" label="Create" icon="mdi-plus" size="sm"
-                  @click="openCreateVmDialog"
-                />
+                <TierGate
+                  :required-tier="TIERS.SOLO"
+                  feature-name="Live Provisioning"
+                  feature-description="Create and manage VMs from the browser — no nixos-rebuild required."
+                  :features="['Custom distro, resources, and cloud-init', 'No host rebuild on every change', 'Full lifecycle from the UI or API']"
+                >
+                  <q-btn flat dense color="primary" label="Create" icon="mdi-plus" size="sm" @click="openCreateVmDialog" />
+                </TierGate>
               </q-card-actions>
             </q-card>
           </div>
@@ -124,20 +128,26 @@
             </q-card>
           </div>
 
-          <!-- GPU Workload — v1.2+ (Weaver) -->
-          <div v-if="atLeast('1.2') && appStore.isWeaver" class="col-12 col-sm-6 col-md-4">
+          <!-- GPU Workload — v1.2+ (Weaver Solo+) -->
+          <div v-if="atLeast('1.2')" class="col-12 col-sm-6 col-md-4">
             <q-card flat bordered class="shed-card">
               <q-card-section class="row items-center no-wrap q-pb-xs">
                 <q-icon name="mdi-expansion-card" color="deep-purple" size="28px" class="q-mr-sm" />
                 <div class="text-subtitle2 text-weight-bold">GPU Workload</div>
-                <q-badge color="amber-9" label="Weaver Solo" class="q-ml-sm" />
               </q-card-section>
               <q-card-section class="q-pt-xs q-pb-sm">
                 <div class="text-caption text-grey-7">VFIO-PCI passthrough — VM or container with dedicated GPU. NVIDIA, AMD, Intel.</div>
               </q-card-section>
               <q-separator />
               <q-card-actions class="q-pa-sm">
-                <q-btn flat dense color="deep-purple" label="Create" icon="mdi-plus" size="sm" />
+                <TierGate
+                  :required-tier="TIERS.SOLO"
+                  feature-name="GPU Workloads"
+                  feature-description="VFIO-PCI passthrough gives a VM or container exclusive access to a dedicated GPU."
+                  :features="['NVIDIA, AMD, and Intel GPU support', 'Full VFIO-PCI passthrough isolation', 'VM or container target']"
+                >
+                  <q-btn flat dense color="deep-purple" label="Create" icon="mdi-plus" size="sm" />
+                </TierGate>
               </q-card-actions>
             </q-card>
           </div>
@@ -279,6 +289,7 @@ import { isDemoMode } from 'src/config/demo-mode'
 import AddVmDialog from 'src/components/AddVmDialog.vue'
 import CreateVmDialog from 'src/components/CreateVmDialog.vue'
 import VersionNag from 'src/components/demo/VersionNag.vue'
+import TierGate from 'src/components/nag/TierGate.vue'
 import { TIERS, TIER_LABELS, type TierName } from 'src/constants/vocabularies'
 
 const appStore = useAppStore()

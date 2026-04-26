@@ -120,14 +120,18 @@
             @click="handleAction('restart')"
           />
           <q-btn
-            v-if="authStore.canDeleteVms && appStore.isWeaver"
+            v-if="authStore.canDeleteVms"
             outline
-            color="negative"
+            :color="appStore.isWeaver ? 'negative' : 'grey-5'"
+            :text-color="appStore.isWeaver ? undefined : 'grey-6'"
             icon="mdi-delete"
             label="Delete"
+            :disable="!appStore.isWeaver"
             :loading="deleteLoading"
             @click="handleDelete"
-          />
+          >
+            <q-tooltip v-if="!appStore.isWeaver">Deleting Live-Provisioned VMs requires Weaver Solo. Declarative NixOS VMs: remove the definition from your NixOS configuration.</q-tooltip>
+          </q-btn>
           <q-btn
             v-if="isDemoMode() && appStore.isDemoVersionAtLeast('1.1') && appStore.isWeaver"
             outline
