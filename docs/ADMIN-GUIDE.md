@@ -580,6 +580,20 @@ sudo nix flake update nur
 sudo nixos-rebuild switch
 ```
 
+**Flake + direct input (air-gapped or pinned-release installs):**
+
+Edit `flake.nix` to point at the new release tag:
+```nix
+inputs.weaver.url = "github:whizbangdevelopers-org/Weaver-Free/v1.0.4";
+```
+Then apply:
+```bash
+cd /etc/nixos
+sudo nix flake update weaver   # re-resolves the pinned tag
+sudo nixos-rebuild switch
+```
+On air-gapped hosts, fetch the tarball on a connected machine first, transfer it, and use an absolute `path:` input or a local mirror URL instead of the GitHub reference.
+
 **Traditional channels + NUR (unpinned mainline):**
 ```bash
 sudo nix-channel --update
