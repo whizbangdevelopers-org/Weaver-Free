@@ -9,6 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.5] - 2026-04-26
+
+UX and free-tier gate polish pass. No backend changes.
+
+### Fixed
+
+- **ToS dialog renders markdown** — first-run Terms of Service dialog was displaying raw markdown instead of rendered HTML. Now uses `markdown-it` (already bundled for DocsPage) with scoped styles for headings, tables, lists, and separators.
+- **ToS checkbox UX** — replaced the sentence-embedded link with a clean `[ ] Read Terms of Service` link pattern. Checkbox auto-fills on "I Agree" as intended.
+- **Free-tier silent hides replaced with visible gates** — three features were silently absent for Free users with no explanation: GPU Workload card in Shed (now shows `TierGate` nag), Create VM button on Weaver page (now visible but disabled with tooltip), Delete VM button on workload detail (now visible but disabled with tooltip explaining the declarative NixOS alternative).
+- **Pre-commit hook over-triggering** — hook blocked any `:disable=` change in page files. Scoped to only fire when `submit-btn` is also in the diff, which is the actual contract-breaking case.
+- **CIS Controls v8.1 / CIS Benchmarks colors** — `orange` and `brown` replaced with `cyan-8` and `blue-grey-7` on the Compliance page cards and badges.
+
+### Added
+
+- **`TierGate` component** (`src/components/nag/TierGate.vue`) — wraps slot content for allowed tiers, renders `UpgradeNag` automatically for insufficient tiers. Eliminates the "forgot the v-else nag" failure mode. Shed Custom MicroVM and GPU Workload cards are the first migrations.
+- **ADMIN-GUIDE: flake+direct-input upgrade path** — documents how to pin a specific release tag in `flake.nix` and apply it, with air-gapped host guidance.
+
 ## [1.0.4] - 2026-04-26
 
 Closes the security hardening backlog for the v1.0 series: username-in-password check, Terms of Service scroll-to-accept gate on first-run setup, Semgrep taint analysis for the four highest-priority injection classes, and a CodeQL ↔ Semgrep coverage gap detector that keeps the two tools honest against each other. No user-visible product changes beyond the ToS gate.
