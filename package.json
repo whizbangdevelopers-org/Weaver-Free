@@ -1,6 +1,6 @@
 {
   "name": "weaver",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "NixOS MicroVM Management Dashboard",
   "productName": "Weaver",
   "author": "whizBANG Developers LLC <dev@whizbangdevelopers.com>",
