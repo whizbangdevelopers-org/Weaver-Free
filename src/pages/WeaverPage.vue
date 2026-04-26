@@ -173,14 +173,18 @@
           @click="runScan"
         />
         <q-btn
-          v-if="authStore.canManageVms && canProvision && appStore.isWeaver"
-          color="primary"
+          v-if="authStore.canManageVms && canProvision"
+          :color="appStore.isWeaver ? 'primary' : 'grey-5'"
+          :text-color="appStore.isWeaver ? undefined : 'grey-7'"
           icon="mdi-plus"
           label="Create VM"
+          :disable="!appStore.isWeaver"
           @click="showCreateDialog"
-        />
+        >
+          <q-tooltip v-if="!appStore.isWeaver">Live Provisioning requires Weaver Solo — upgrade at weaver-dev.github.io/pricing</q-tooltip>
+        </q-btn>
         <q-btn
-          v-else-if="authStore.canManageVms"
+          v-if="authStore.canManageVms"
           color="primary"
           icon="mdi-server-plus"
           label="Register VM"

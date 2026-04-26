@@ -148,11 +148,7 @@
               color="primary"
               data-testid="tos-checkbox"
             />
-            <span class="text-caption">
-              I have read and agree to the
-              <a class="text-primary cursor-pointer" data-testid="tos-link" @click="openTosDialog">Terms of Service</a>
-              <span v-if="!hasScrolledToBottom" class="text-grey-6"> (please open and read first)</span>
-            </span>
+            <a class="text-primary cursor-pointer text-caption" data-testid="tos-link" @click="openTosDialog">Read Terms of Service</a>
           </div>
 
           <q-banner v-if="errorMessage" class="bg-negative text-white" rounded dense>
@@ -199,7 +195,7 @@
             data-testid="tos-scroll-area"
             @scroll="onTosScroll"
           >
-            <pre style="white-space: pre-wrap; font-family: inherit; font-size: 13px; margin: 0">{{ tosText }}</pre>
+            <div class="tos-content" v-html="tosHtml" />
             <div style="height: 1px" data-testid="tos-sentinel" />
           </div>
           <q-separator />
@@ -254,6 +250,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import MarkdownIt from 'markdown-it'
 import tosText from '../../docs/legal/TERMS-OF-SERVICE.md?raw'
 import { useAuthStore, SECTOR_OPTIONS, type SectorId } from 'src/stores/auth-store'
 import { api } from 'src/boot/axios'
@@ -277,6 +274,7 @@ const loading = ref(false)
 const errorMessage = ref('')
 const isSetup = ref(false)
 const tosAccepted = ref(false)
+const tosHtml = computed(() => new MarkdownIt({ html: false, linkify: true, typographer: true }).render(tosText))
 const showTosDialog = ref(false)
 const hasScrolledToBottom = ref(false)
 const tosScrollRef = ref<HTMLDivElement | null>(null)
@@ -495,5 +493,24 @@ async function onSubmit() {
 .login-card {
   width: 100%;
   max-width: 420px;
+}
+
+.tos-content {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--q-dark, #1d1d1d);
+
+  :deep(h1), :deep(h2) { font-size: 1.1em; font-weight: 600; margin: 1em 0 0.4em; }
+  :deep(h3) { font-size: 1em; font-weight: 600; margin: 0.8em 0 0.3em; }
+  :deep(p) { margin: 0 0 0.6em; }
+  :deep(ul), :deep(ol) { margin: 0 0 0.6em 1.2em; padding: 0; }
+  :deep(li) { margin-bottom: 0.2em; }
+  :deep(hr) { border: none; border-top: 1px solid rgba(0,0,0,0.1); margin: 1em 0; }
+  :deep(table) {
+    width: 100%; border-collapse: collapse; margin: 0.6em 0;
+    th, td { border: 1px solid rgba(0,0,0,0.15); padding: 4px 8px; text-align: left; }
+    th { background: rgba(0,0,0,0.04); font-weight: 600; }
+  }
+  :deep(strong) { font-weight: 600; }
 }
 </style>
