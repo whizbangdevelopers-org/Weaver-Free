@@ -91,6 +91,7 @@ export const PHASES: Phase[] = [
       'audit:lockfile',
       'audit:sast',
       'audit:taint',
+      'audit:codeql-coverage',
       'audit:redos',
       'audit:doc-parity',
       'audit:demo-parity',

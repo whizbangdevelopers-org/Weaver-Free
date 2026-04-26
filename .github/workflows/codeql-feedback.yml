@@ -1,0 +1,72 @@
+# Copyright (c) 2026 whizBANG Developers LLC. All rights reserved.
+# Proprietary and confidential. Do not distribute.
+# CodeQL → Semgrep Coverage Feedback
+# CREATED IN: Weaver-Dev (NOT synced to Weaver-Free — uses WEAVER_FREE_CODEQL_READ PAT)
+# USED BY: Security posture — keeps codeql-semgrep-map.json current, flags unknown rules
+# TRIGGERS: After CodeQL Analysis completes on Free, daily cron, manual dispatch
+
+name: CodeQL Coverage Feedback
+
+on:
+  workflow_run:
+    workflows: ["CodeQL Analysis"]
+    types: [completed]
+  schedule:
+    - cron: '0 6 * * *'  # 06:00 UTC daily
+  workflow_dispatch:
+
+permissions:
+  contents: write     # to commit updated map
+  issues: write       # to open tracking issues for unknown rules
+  pull-requests: read
+
+jobs:
+  feedback:
+    name: Refresh Coverage Map
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          ref: main
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: code/package-lock.json
+
+      - name: Install dependencies
+        working-directory: code
+        run: npm ci --ignore-scripts
+
+      - name: Fetch CodeQL alerts and update coverage map
+        env:
+          WEAVER_FREE_CODEQL_READ: ${{ secrets.WEAVER_FREE_CODEQL_READ }}
+          GH_TOKEN: ${{ secrets.WEAVER_FREE_CODEQL_READ }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        working-directory: code
+        run: |
+          npx tsx scripts/refresh-codeql-coverage-map.ts \
+            --repo whizbangdevelopers-org/Weaver-Free \
+            --map scripts/data/codeql-semgrep-map.json \
+            --open-issues
+
+      - name: Run coverage auditor
+        working-directory: code
+        run: npx tsx scripts/verify-codeql-semgrep-coverage.ts
+
+      - name: Commit updated map if changed
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add code/scripts/data/codeql-semgrep-map.json
+          if git diff --cached --quiet; then
+            echo "Map unchanged — nothing to commit."
+          else
+            git commit -m "chore(security): refresh codeql-semgrep-map.json [skip ci]"
+            git push origin main
+          fi
