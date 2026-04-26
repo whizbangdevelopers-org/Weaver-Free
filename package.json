@@ -1,6 +1,6 @@
 {
   "name": "weaver",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "NixOS MicroVM Management Dashboard",
   "productName": "Weaver",
   "author": "whizBANG Developers LLC <dev@whizbangdevelopers.com>",
@@ -100,6 +100,7 @@
     "baseline:mcp-parser:refresh": "npx tsx scripts/refresh-mcp-parser-baseline.ts",
     "audit:e2e-docs": "npx tsx scripts/verify-e2e-docs.ts",
     "generate:e2e-coverage": "npx tsx scripts/generate-e2e-coverage.ts",
+    "audit:submit-gate-coverage": "npx tsx scripts/verify-submit-gate-coverage.ts",
     "audit:marker-sync": "npx tsx scripts/verify-marker-sync.ts",
     "sync:markers": "npx tsx scripts/sync-markers.ts",
     "skills:sync": "npx tsx scripts/sync-skills.ts",

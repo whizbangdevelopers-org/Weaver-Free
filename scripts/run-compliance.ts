@@ -122,6 +122,7 @@ export const PHASES: Phase[] = [
       'audit:mcp-parser-baseline',
       'audit:e2e-docs',
       'audit:marker-sync',
+      'audit:submit-gate-coverage',
     ],
   },
   // Phase 3 — generators that write to the working tree. Isolated.

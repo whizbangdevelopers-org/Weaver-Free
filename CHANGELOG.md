@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.4] - 2026-04-26
+
+Closes the security hardening backlog for the v1.0 series: username-in-password check, Terms of Service scroll-to-accept gate on first-run setup, Semgrep taint analysis for the four highest-priority injection classes, and a CodeQL ↔ Semgrep coverage gap detector that keeps the two tools honest against each other. No user-visible product changes beyond the ToS gate.
+
+### Added
+
+- **Username-in-password validation** — backend `validatePasswordStrength()` now rejects passwords that contain the account username (case-insensitive substring match). Applied at register and `POST /api/auth/change-password`. Frontend mirrors the check in real-time on the `UsersPage` and `LoginPage` first-run forms. All test fixtures updated to `T3stP@ssw0rd!X` (a role-independent constant that satisfies every constraint including the new rule).
+- **Terms of Service scroll-to-accept gate** — first-run admin setup now requires the user to scroll to the bottom of the Terms of Service before the acceptance checkbox is enabled and the submit button becomes active. Uses a native scroll event (`scrollTop + clientHeight >= scrollHeight - 20`) on the dialog's overflow container; more reliable than `v-intersection` inside `overflow:auto`. `TERMS-OF-SERVICE.md` and new `TERMS-OF-SERVICE-COMMERCIAL.md` (BSL-1.1, for Solo/Team/Fabrick tiers) are both loaded raw and rendered in the dialog. Tier-gated routing in `DocsPage` routes commercial-tier users to the correct ToS via a reactive `slugToGlobKey` computed map. ADMIN-GUIDE and USER-GUIDE updated with the new setup step and password rule.
+- **Semgrep taint analysis (`audit:taint`, auditor #49)** — four custom Semgrep YAML rules scan `backend/src/` for the highest-priority injection classes: `no-raw-execfile-args` (CWE-78, user input → shell command args), `no-user-input-in-path` (CWE-22, user input → filesystem paths), `no-unvalidated-jwt-claim` (CWE-347, unverified JWT payload in auth decisions), `no-ssrf-in-fetch` (CWE-918, user input → outbound HTTP URLs). Exits 0 with a warning when `semgrep` is not in PATH so CI on the Free repo stays green without a semgrep runner. Baseline: 0 findings on 99 backend source files. Wired into `test:compliance`.
+- **CodeQL ↔ Semgrep coverage gap detector (`audit:codeql-coverage`, auditor #50)** — `scripts/data/codeql-semgrep-map.json` maps all 21 CodeQL rules active on Weaver-Free against their Semgrep equivalents (4 covered, 1 partially-covered, 5 known-missing, 10 tool-handled, 1 not-applicable). `verify-codeql-semgrep-coverage.ts` reads the map locally (no network), reports coverage % against a committed baseline (current 50%, baseline 45%), and fails on unknown rules or coverage regression. `refresh-codeql-coverage-map.ts` + `codeql-feedback.yml` (daily cron + post-CodeQL trigger) keep the map current using `WEAVER_FREE_CODEQL_READ` and auto-open tracking issues for newly detected unknown rules. Wired into `test:compliance`.
+
 ## [1.0.3] - 2026-04-23
 
 Closes the last open item from the NOTES.md #365 SAST roadmap (ReDoS detection), adds a local release-workflow simulator that would have caught all five failures from the v1.0.2 five-attempt release streak before the first tag push, and explains the OpenSSF Scorecard Security-tab meta-findings that first-time visitors sometimes read as code bugs. No user-visible product changes.

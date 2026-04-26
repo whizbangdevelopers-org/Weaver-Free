@@ -1,6 +1,6 @@
 {
   "name": "weaver-backend",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Weaver - Backend API",
   "license": "SEE LICENSE IN LICENSE",
   "type": "module",
