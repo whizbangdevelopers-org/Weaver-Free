@@ -60,7 +60,6 @@ jobs:
         run: npx tsx scripts/verify-codeql-semgrep-coverage.ts
 
       - name: Commit updated map if changed
-        continue-on-error: true  # Dev main is branch-protected; map updates committed manually
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -69,5 +68,7 @@ jobs:
             echo "Map unchanged — nothing to commit."
           else
             git commit -m "chore(security): refresh codeql-semgrep-map.json [skip ci]"
-            git push origin main
+            # Dev main is branch-protected — push may be blocked; map updates
+            # are committed by developers. Failure here is non-fatal.
+            git push origin main || echo "Push blocked by branch protection — commit map manually."
           fi
