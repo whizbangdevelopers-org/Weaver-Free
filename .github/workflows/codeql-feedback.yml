@@ -60,6 +60,7 @@ jobs:
         run: npx tsx scripts/verify-codeql-semgrep-coverage.ts
 
       - name: Commit updated map if changed
+        continue-on-error: true  # Dev main is branch-protected; map updates committed manually
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
