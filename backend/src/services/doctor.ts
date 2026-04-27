@@ -190,7 +190,7 @@ export class DoctorService {
         } catch { /* ignore */ }
         checks.push({ check: 'IOMMU', status: 'pass', detail: `Active (${groupCount} groups)`, remediation: null })
       } else {
-        checks.push({ check: 'IOMMU', status: 'warn', detail: 'Not detected (device passthrough unavailable)', remediation: 'Enable VT-d/AMD-Vi in BIOS, add intel_iommu=on to kernel params' })
+        checks.push({ check: 'IOMMU', status: 'warn', detail: 'Not detected (device passthrough unavailable)', remediation: 'Enable VT-d/AMD-Vi in BIOS, add intel_iommu=on to kernel params, then reboot' })
       }
     } catch {
       checks.push({ check: 'IOMMU', status: 'warn', detail: 'Cannot check /sys/class/iommu', remediation: 'Not required for basic VM provisioning' })

@@ -329,7 +329,7 @@ function slugify(text: string): string {
 const md = new MarkdownIt({
   html: false,
   linkify: true,
-  typographer: true,
+  typographer: false, // legal docs use (a)/(b)/(c) enumeration — typographer converts (c)→©
 })
 
 // Add id attributes to headings so in-page anchor links work

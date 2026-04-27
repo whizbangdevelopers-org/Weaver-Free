@@ -495,7 +495,7 @@ const DEMO_DOCTOR_RESULT: DoctorResult = {
     { check: 'CPU virtualization', status: 'pass', detail: 'Intel VT-x detected', remediation: null },
     { check: 'KVM module', status: 'pass', detail: 'Loaded (kvm_intel, kvm)', remediation: null },
     { check: '/dev/kvm', status: 'pass', detail: 'Accessible (read/write)', remediation: null },
-    { check: 'IOMMU', status: 'warn', detail: 'Not detected (device passthrough unavailable)', remediation: 'Enable VT-d in BIOS' },
+    { check: 'IOMMU', status: 'warn', detail: 'Not detected (device passthrough unavailable)', remediation: 'Enable VT-d/AMD-Vi in BIOS, add intel_iommu=on to kernel params, then reboot' },
     { check: 'RAM', status: 'pass', detail: '32768 MB (minimum: 2048 MB)', remediation: null },
     { check: 'Disk space', status: 'pass', detail: '58000 MB available on /', remediation: null },
     { check: 'NixOS version', status: 'pass', detail: '25.11.717285 (demo)', remediation: null },
