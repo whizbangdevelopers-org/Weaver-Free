@@ -3,7 +3,10 @@
 # CodeQL Analysis
 # CREATED IN: All repos (Dev, Public, Premium, Enterprise, Plugins)
 # USED BY: GitHub security scanning
-# TRIGGERS: push, pull_request, weekly schedule, manual
+# TRIGGERS: push/PR to main, weekly schedule, manual
+# NOTE: push trigger is required for OpenSSF Scorecard SAST check (10/10 vs 9/10).
+#       Workflow skips on private Dev repo via visibility check — runner startup cost is
+#       unavoidable without maintaining separate workflow files per repo.
 
 name: CodeQL Analysis
 
