@@ -54,6 +54,14 @@ After first login, confirm:
 - The WebSocket connection is active (VM status updates in real time without page refresh).
 - The health endpoint responds: `curl -s http://localhost:3100/api/health | jq .`
 
+#### Check System Health (Solo+)
+
+Open **Settings → Host Information** and expand the **System Health** section. The doctor runs pre-flight checks on KVM, IOMMU, RAM, disk, and kernel modules. All checks should be green for a fully capable host.
+
+Common warning to address after install:
+
+- **IOMMU: Not detected** — Required only for GPU passthrough. If you plan to use GPU workloads, see [System Health Checks](#system-health-checks-doctor) for the full enablement steps. Key point: after adding the kernel parameter, a **reboot is required** — `nixos-rebuild switch` alone is not sufficient.
+
 #### Weaver Solo+ — Auto-Provisioning
 
 With a Solo or higher license and provisioning enabled, a lightweight CirrOS example VM (~20 MB) is auto-provisioned after your first admin login. Look for "example-cirros" on the Weaver page — it should appear and transition to "running" status within a few seconds.
@@ -556,6 +564,27 @@ Set `LOG_LEVEL` to control verbosity: `fatal`, `error`, `warn`, `info` (default/
 - Disk usage on the data directory (especially if running many VMs)
 - Journal error rate: `journalctl -u weaver -p err --since "1 hour ago" | wc -l`
 - WebSocket connectivity (client-side reconnection events)
+
+### System Health Checks (Doctor)
+
+Settings → Host Information runs a pre-flight doctor that checks KVM, IOMMU, RAM, disk, and kernel modules. Warnings include remediation steps.
+
+**IOMMU — "Not detected (device passthrough unavailable)"**
+
+Required for GPU passthrough (VFIO-PCI). If you see this warning:
+
+1. Enable VT-d (Intel) or AMD-Vi (AMD) in your BIOS/UEFI firmware settings.
+2. Add the kernel parameter to your NixOS configuration:
+   ```nix
+   boot.kernelParams = [ "intel_iommu=on" ];  # Intel
+   # or
+   boot.kernelParams = [ "amd_iommu=on" ];    # AMD
+   ```
+3. Apply the config: `sudo nixos-rebuild switch`
+4. **Reboot** — kernel parameters do not take effect until the system restarts. `nixos-rebuild switch` alone is not sufficient.
+5. After reboot, return to Settings → Host Information. The check should show **IOMMU: Active (N groups)**.
+
+IOMMU is not required for standard VM provisioning — only for GPU passthrough workloads.
 
 For full monitoring guidance, see [PRODUCTION-DEPLOYMENT.md](PRODUCTION-DEPLOYMENT.md) § Monitoring.
 

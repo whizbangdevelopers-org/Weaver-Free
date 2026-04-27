@@ -82,7 +82,11 @@ $shed-color: #2A9D8F;
 // Quasar removes outline on all interactive components (.q-btn, .q-field__native, etc.)
 // unconditionally. :focus-visible limits the ring to keyboard navigation only; mouse
 // users are unaffected. !important is required because Quasar's reset also uses !important.
-:focus-visible {
+//
+// Exclude .q-field__native / .q-field__input: Quasar's q-field wrapper already signals
+// focus by shifting label color and border — adding a raw currentColor outline on top
+// produces a black box on focused inputs (currentColor = text color = black on white bg).
+:focus-visible:not(.q-field__native):not(.q-field__input) {
   outline: 2px solid currentColor !important;
   outline-offset: 2px !important;
 }
