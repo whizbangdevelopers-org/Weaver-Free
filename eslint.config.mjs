@@ -20,6 +20,7 @@ export default [
       'test-results/',
       'testing/e2e-docker/output/',
       'testing/e2e-docker/scripts/',
+      'coverage-free/',
       'mcp-server/',
       'backend/',
       'tui/dist/',

@@ -3,7 +3,7 @@
 # Socket.dev supply chain security scan
 # CREATED IN: Dev repo
 # USED BY: Supply chain security (malicious packages, typosquatting, dependency confusion)
-# TRIGGERS: PRs to main that touch package files, push to main, weekly schedule
+# TRIGGERS: weekly schedule, manual (push/PR triggers removed — skips on private Dev repo anyway)
 #
 # Setup required (one-time):
 #   1. Install Socket Security GitHub App: https://github.com/apps/socket-security
@@ -26,20 +26,6 @@
 name: Socket Security
 
 on:
-  pull_request:
-    branches: [main]
-    paths:
-      - 'package.json'
-      - 'package-lock.json'
-      - 'backend/package.json'
-      - 'backend/package-lock.json'
-  push:
-    branches: [main]
-    paths:
-      - 'package.json'
-      - 'package-lock.json'
-      - 'backend/package.json'
-      - 'backend/package-lock.json'
   schedule:
     - cron: '0 7 * * 1'   # Weekly Monday 7am UTC
   workflow_dispatch:
