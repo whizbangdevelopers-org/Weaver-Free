@@ -14,10 +14,11 @@
  *      Catches stale entries left behind after a rename or delete.
  *
  *   3. Reader pattern — every MCP tool file at mcp-server/src/tools/*.ts
- *      uses a file-reading primitive (safeReadFile, readFileSync, readFile,
- *      or import.meta.glob). A tool that bakes content into code violates
- *      single-source-of-truth; source docs become authoritative only if
- *      tools read them at runtime.
+ *      reads from an external source at runtime. File-reader tools use
+ *      safeReadFile, readFileSync, or readFile. HTTP-client tools (e.g. cognee
+ *      sidecar proxies) use fetch() and are equally valid — they delegate to
+ *      a live source rather than baking content into code.
+ *      A tool that bakes content into code violates single-source-of-truth.
  *
  * On failure: update the manifest, add a tool via `/umcp`, or explicitly
  * catalog the file under INTENTIONALLY_UNCOVERED with a reason.
@@ -161,11 +162,12 @@ function checkReaderPattern(): void {
     .filter((f) => f.endsWith('.ts'))
     .map((f) => join(MCP_TOOLS_DIR, f))
 
-  // A tool that reads source docs at runtime uses at least one of:
-  //   - safeReadFile (project helper)
-  //   - readFileSync / readFile (node:fs)
+  // A tool that reads from an external source at runtime uses at least one of:
+  //   - safeReadFile (project helper) — file-reader tools
+  //   - readFileSync / readFile (node:fs) — file-reader tools
   //   - import.meta.glob (Vite build-time, used in some adapters)
   //   - execSync/spawnSync (for tools that shell out — e.g. git log queries)
+  //   - fetch (HTTP-client tools that proxy to a live sidecar, e.g. cognee)
   const READER_PATTERNS = [
     /safeReadFile\b/,
     /\breadFileSync\b/,
@@ -174,6 +176,7 @@ function checkReaderPattern(): void {
     /\bexecSync\b/,
     /\bexecFileSync\b/,
     /\bspawnSync\b/,
+    /\bfetch\b/,
   ]
 
   const bakers: string[] = []
@@ -188,13 +191,13 @@ function checkReaderPattern(): void {
   if (bakers.length === 0) {
     pass(
       'Reader pattern',
-      `all ${toolFiles.length} tool(s) read source docs at runtime`
+      `all ${toolFiles.length} tool(s) read from external sources at runtime`
     )
     return
   }
   fail(
     'Reader pattern',
-    `${bakers.length} tool(s) do not read source docs at runtime — content may be baked into code, violating single-source-of-truth:\n     ${bakers.join('\n     ')}\n\n     Refactor to import safeReadFile from ../utils/file-reader.js and read the canonical markdown source.`
+    `${bakers.length} tool(s) do not read from external sources at runtime — content may be baked into code, violating single-source-of-truth:\n     ${bakers.join('\n     ')}\n\n     File-reader tools: import safeReadFile from ../utils/file-reader.js and read the canonical markdown source.\n     HTTP-client tools: use fetch() to proxy to a live sidecar; add fetch() call.`
   )
 }
 
