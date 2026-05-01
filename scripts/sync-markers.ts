@@ -95,7 +95,7 @@ registerMarker({
   ],
 })
 
-// MCP tool count. Source: `.ts` files in code/mcp-server/src/tools/
+// MCP tool count. Source: `.ts` files in code/codebase-mcp/src/tools/
 // (each file registers one tool). Does not exclude any — tool count
 // equals file count by convention.
 registerMarker({

@@ -13,7 +13,7 @@
  *   2. Manifest freshness — every path in KNOWLEDGE_SOURCES exists on disk.
  *      Catches stale entries left behind after a rename or delete.
  *
- *   3. Reader pattern — every MCP tool file at mcp-server/src/tools/*.ts
+ *   3. Reader pattern — every MCP tool file at codebase-mcp/src/tools/*.ts
  *      reads from an external source at runtime. File-reader tools use
  *      safeReadFile, readFileSync, or readFile. HTTP-client tools (e.g. cognee
  *      sidecar proxies) use fetch() and are equally valid — they delegate to
@@ -32,7 +32,7 @@ import {
   INTENTIONALLY_UNCOVERED,
   KNOWLEDGE_SCAN_GLOBS,
   SOURCE_TO_TOOL,
-} from '../mcp-server/src/coverage-manifest.js'
+} from '../codebase-mcp/src/coverage-manifest.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -155,7 +155,7 @@ function checkManifestFreshness(): void {
 
 function checkReaderPattern(): void {
   if (!existsSync(MCP_TOOLS_DIR)) {
-    warn('Reader pattern', 'mcp-server/src/tools/ not found — skipping')
+    warn('Reader pattern', 'codebase-mcp/src/tools/ not found — skipping')
     return
   }
   const toolFiles = readdirSync(MCP_TOOLS_DIR)
@@ -205,7 +205,7 @@ function checkReaderPattern(): void {
  * Check 4: Source-to-tool mapping.
  *
  * For each source explicitly mapped in SOURCE_TO_TOOL, verify:
- *   a. The mapped tool file exists in mcp-server/src/tools/
+ *   a. The mapped tool file exists in codebase-mcp/src/tools/
  *   b. The tool source contains the expected path hint — confirming it
  *      actually reaches the source at runtime, not just reads something else.
  *
@@ -215,7 +215,7 @@ function checkReaderPattern(): void {
  */
 function checkSourceToToolMapping(): void {
   if (!existsSync(MCP_TOOLS_DIR)) {
-    warn('Source→tool mapping', 'mcp-server/src/tools/ not found — skipping')
+    warn('Source→tool mapping', 'codebase-mcp/src/tools/ not found — skipping')
     return
   }
 
