@@ -69,7 +69,7 @@ step "Removing node_modules and lockfiles"
 # Quasar dev server leaves root-owned .q-cache when run under sudo.
 # Detect this early and fail with a clear message instead of hanging on sudo.
 has_root_files=false
-for dir in node_modules backend/node_modules tui/node_modules mcp-server/node_modules; do
+for dir in node_modules backend/node_modules tui/node_modules codebase-mcp/node_modules; do
     if [ -d "$dir" ] && [ -n "$(find "$dir" -maxdepth 3 -user root -print -quit 2>/dev/null)" ]; then
         has_root_files=true
         break
@@ -85,7 +85,7 @@ fi
 # (backend, tui) — there are no per-workspace lockfiles anymore.
 # To force a lockfile regeneration (dep-drift testing), delete
 # package-lock.json manually before running this script.
-rm -rf node_modules backend/node_modules tui/node_modules mcp-server/node_modules
+rm -rf node_modules backend/node_modules tui/node_modules codebase-mcp/node_modules
 ok "node_modules removed (lockfile preserved for deterministic reinstall)"
 
 # ── 2. Clear caches ──────────────────────────────────────────────────────────

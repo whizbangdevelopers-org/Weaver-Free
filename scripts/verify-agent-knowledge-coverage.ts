@@ -29,7 +29,7 @@
  *      must exist as a row in MASTER-PLAN Decisions Resolved.
  *   5. CITED MCP TOOLS RESOLVE — every getLessonsLearned(...),
  *      getKnownGotchas(...), etc. named in the knowledge section must
- *      match a real tool in code/mcp-server/src/tools/.
+ *      match a real tool in code/codebase-mcp/src/tools/.
  *
  * Enforcement mode:
  *   - Default: errors on all specs missing sections or with broken refs.
@@ -144,7 +144,7 @@ function loadDecisions(): Set<number> {
   return decisions
 }
 
-// Parse MCP tool names from mcp-server/src/tools/.
+// Parse MCP tool names from codebase-mcp/src/tools/.
 function loadMcpTools(): Set<string> {
   const tools = new Set<string>()
   if (!existsSync(MCP_TOOLS_DIR)) return tools
@@ -416,7 +416,7 @@ function checkCitedMcpTools(
       vs.push({
         spec: relative(PROJECT_ROOT, specPath),
         check: 'cited-mcp-tools',
-        detail: `cited MCP tool ${name}() does not exist in code/mcp-server/src/tools/`,
+        detail: `cited MCP tool ${name}() does not exist in code/codebase-mcp/src/tools/`,
       })
     }
   }

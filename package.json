@@ -101,7 +101,7 @@
     "audit:e2e-docs": "npx tsx scripts/verify-e2e-docs.ts",
     "generate:e2e-coverage": "npx tsx scripts/generate-e2e-coverage.ts",
     "audit:submit-gate-coverage": "npx tsx scripts/verify-submit-gate-coverage.ts",
-    "mcp:http": "npx tsx mcp-server/src/index.ts --http",
+    "mcp:http": "npx tsx codebase-mcp/src/index.ts --http",
     "audit:inference-node-parity": "npx tsx scripts/audit-inference-node-parity.ts",
     "audit:marker-sync": "npx tsx scripts/verify-marker-sync.ts",
     "sync:markers": "npx tsx scripts/sync-markers.ts",
