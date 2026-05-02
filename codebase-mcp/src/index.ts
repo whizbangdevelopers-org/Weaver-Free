@@ -391,32 +391,28 @@ if (process.argv.includes('--http')) {
   )
   const { createServer } = await import('node:http')
   const MCP_HTTP_PORT = parseInt(process.env.MCP_HTTP_PORT ?? '4110', 10)
-  const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined })
+  // Stateless mode: a new transport is created per request because
+  // StreamableHTTPServerTransport._hasHandledRequest gates single-use.
+  // server (McpServer) is shared; only the transport is per-request.
   const httpServer = createServer(async (req, res) => {
-    console.error(`[mcp:debug] ${req.method} ${req.url}`)
-    console.error(`[mcp:debug] headers: ${JSON.stringify(req.headers)}`)
+    const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined })
     try {
+      await server.connect(transport)
       await transport.handleRequest(req, res)
-      console.error(`[mcp:debug] handleRequest returned OK, response status=${res.statusCode}`)
     } catch (err) {
-      console.error('[mcp:debug] handleRequest threw:', err)
-      if (err instanceof Error && err.stack) {
-        console.error(err.stack)
-      }
       if (!res.headersSent) {
         res.writeHead(500, { 'Content-Type': 'application/json' })
         res.end(JSON.stringify({ jsonrpc: '2.0', id: null, error: { code: -32603, message: String(err) } }))
       }
+    } finally {
+      await transport.close().catch(() => {})
     }
   })
   httpServer.listen(MCP_HTTP_PORT, '127.0.0.1', () => {
     console.error(`[mcp] Weaver MCP HTTP server listening on http://127.0.0.1:${MCP_HTTP_PORT}`)
-    console.error('[mcp] Claude Desktop: use this URL directly')
-    console.error('[mcp] LAN / air-gapped: put nginx in front for HTTPS — see docs/DEVELOPER-GUIDE.md § MCP HTTP Transport')
-    console.error('[mcp] claude.ai web: requires a public tunnel (ngrok / Cloudflare) — not air-gap safe')
-    console.error('[mcp] Claude Code (stdio): stop this process and use .mcp.json instead')
+    console.error('[mcp] Claude Desktop → https://weaver-mcp.local/mcp (via nginx)')
+    console.error('[mcp] Claude Code (stdio) → use .mcp.json instead')
   })
-  await server.connect(transport)
 } else {
   const transport = new StdioServerTransport()
   await server.connect(transport)
