@@ -102,8 +102,8 @@ registerMarker({
   name: 'mcp-tool-count',
   description: 'Number of MCP tools in the Weaver MCP server',
   source: () => {
-    const dir = resolve(PROJECT_ROOT, 'code', 'mcp-server', 'src', 'tools')
-    const files = readdirSync(dir).filter((f) => f.endsWith('.ts'))
+    const dir = resolve(PROJECT_ROOT, 'code', 'codebase-mcp', 'src', 'tools')
+    const files = readdirSync(dir).filter((f) => f.endsWith('.ts') && !f.endsWith('.test.ts'))
     return String(files.length)
   },
   docs: [

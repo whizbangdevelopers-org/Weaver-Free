@@ -110,8 +110,8 @@ async function main(): Promise<void> {
   // Dynamic import — the MCP tools ship as ES modules with .js import
   // extensions. tsx handles the TypeScript-with-.js-imports pattern at
   // runtime.
-  const lessonsMod = await import(resolve(CODE_ROOT, 'mcp-server', 'src', 'tools', 'lessons-learned.ts'))
-  const gotchasMod = await import(resolve(CODE_ROOT, 'mcp-server', 'src', 'tools', 'known-gotchas.ts'))
+  const lessonsMod = await import(resolve(CODE_ROOT, 'codebase-mcp', 'src', 'tools', 'lessons-learned.ts'))
+  const gotchasMod = await import(resolve(CODE_ROOT, 'codebase-mcp', 'src', 'tools', 'known-gotchas.ts'))
 
   // MCP tools expect the directory containing docs/development/ —
   // that's CODE_ROOT for Weaver, not the project root.
