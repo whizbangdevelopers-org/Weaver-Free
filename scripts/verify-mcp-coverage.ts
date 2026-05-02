@@ -38,7 +38,7 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 const CODE_ROOT = resolve(__dirname, '..')
 const PROJECT_ROOT = resolve(CODE_ROOT, '..')
-const MCP_TOOLS_DIR = resolve(CODE_ROOT, 'mcp-server', 'src', 'tools')
+const MCP_TOOLS_DIR = resolve(CODE_ROOT, 'codebase-mcp', 'src', 'tools')
 
 const GREEN = '\x1b[32m'
 const RED = '\x1b[31m'

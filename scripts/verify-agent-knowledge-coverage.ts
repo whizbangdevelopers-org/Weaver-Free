@@ -58,7 +58,7 @@ const CODE_ROOT = resolve(__dirname, '..')
 const PROJECT_ROOT = resolve(CODE_ROOT, '..')
 const AGENTS_DIR = resolve(PROJECT_ROOT, 'agents')
 const MASTER_PLAN = resolve(PROJECT_ROOT, 'MASTER-PLAN.md')
-const MCP_TOOLS_DIR = resolve(CODE_ROOT, 'mcp-server', 'src', 'tools')
+const MCP_TOOLS_DIR = resolve(CODE_ROOT, 'codebase-mcp', 'src', 'tools')
 
 const KNOWLEDGE_SECTION_RE = /^##\s+(Context\s+to\s+Read\s+Before\s+Starting|Knowledge\s+Sources)\s*$/mi
 

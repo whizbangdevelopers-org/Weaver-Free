@@ -35,7 +35,7 @@ import { getWorkflowImportChecklist } from './tools/workflow-import-checklist.js
 import { getCogneeIntegration } from './tools/cognee-integration.js'
 import { cogStatus, cogRecall, cogRemember } from './tools/cognee-memory.js'
 
-// Resolve paths relative to this file: mcp-server/src/index.ts -> ../../
+// Resolve paths relative to this file: codebase-mcp/src/index.ts -> ../../
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const PROJECT_ROOT = resolve(__dirname, '..', '..')
 // Parent project directory where MASTER-PLAN.md and plans/ live
