@@ -1,7 +1,7 @@
 // Copyright (c) 2026 whizBANG Developers LLC. All rights reserved.
 // Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE.
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { cogStatus, cogRecall, cogRemember } from './cognee-memory.js'
+import { cogStatus, cogRecall, cogRemember, cogImprove, cogForget } from './cognee-memory.js'
 
 // Helper: build a minimal Response-like object for stubbing globalThis.fetch.
 // cogStatus makes two sequential fetch calls (health, then datasets), so callers
@@ -247,5 +247,110 @@ describe('cogRemember', () => {
 
     expect(result.available).toBe(true)
     expect(result.status).toBe('ok')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// cogImprove
+// ---------------------------------------------------------------------------
+
+describe('cogImprove', () => {
+  it('returns available=true with entitiesExtracted on success', async () => {
+    vi.stubGlobal('fetch', makeFetch({ ok: true, body: { status: 'ok', entitiesExtracted: 12 } }))
+
+    const result = await cogImprove('op-uuid-1234')
+
+    expect(result.available).toBe(true)
+    expect(result.entitiesExtracted).toBe(12)
+    expect(result.error).toBeUndefined()
+  })
+
+  it('sends sessionId in request body', async () => {
+    const fetchMock = makeFetch({ ok: true, body: { entitiesExtracted: 5 } })
+    vi.stubGlobal('fetch', fetchMock)
+
+    await cogImprove('my-session-id')
+
+    const body = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string)
+    expect(body.sessionId).toBe('my-session-id')
+  })
+
+  it('returns available=true with error on non-OK response', async () => {
+    vi.stubGlobal('fetch', makeFetch({ ok: false, status: 500, text: 'graph error' }))
+
+    const result = await cogImprove('sid')
+
+    expect(result.available).toBe(true)
+    expect(result.error).toMatch(/500/)
+  })
+
+  it('returns available=false on network error', async () => {
+    vi.stubGlobal('fetch', makeNetworkError('ECONNREFUSED'))
+
+    const result = await cogImprove('sid')
+
+    expect(result.available).toBe(false)
+    expect(result.error).toMatch(/not reachable/)
+  })
+
+  it('handles missing entitiesExtracted field gracefully', async () => {
+    vi.stubGlobal('fetch', makeFetch({ ok: true, body: { status: 'ok' } }))
+
+    const result = await cogImprove('sid')
+
+    expect(result.available).toBe(true)
+    expect(result.entitiesExtracted).toBeUndefined()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// cogForget
+// ---------------------------------------------------------------------------
+
+describe('cogForget', () => {
+  it('returns available=true on success', async () => {
+    vi.stubGlobal('fetch', makeFetch({ ok: true, body: { status: 'ok' } }))
+
+    const result = await cogForget('workload_web-nginx_behavior')
+
+    expect(result.available).toBe(true)
+    expect(result.error).toBeUndefined()
+  })
+
+  it('sends dataset name in request body', async () => {
+    const fetchMock = makeFetch({ ok: true, body: { status: 'ok' } })
+    vi.stubGlobal('fetch', fetchMock)
+
+    await cogForget('my_dataset')
+
+    const body = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string)
+    expect(body.dataset).toBe('my_dataset')
+  })
+
+  it('uses DELETE method', async () => {
+    const fetchMock = makeFetch({ ok: true, body: { status: 'ok' } })
+    vi.stubGlobal('fetch', fetchMock)
+
+    await cogForget('ds')
+
+    expect((fetchMock.mock.calls[0][1] as RequestInit).method).toBe('DELETE')
+  })
+
+  it('returns available=true with error on non-OK response', async () => {
+    vi.stubGlobal('fetch', makeFetch({ ok: false, status: 404, text: 'dataset not found' }))
+
+    const result = await cogForget('missing_dataset')
+
+    expect(result.available).toBe(true)
+    expect(result.error).toMatch(/404/)
+  })
+
+  it('returns available=false on network error', async () => {
+    vi.stubGlobal('fetch', makeNetworkError('timeout'))
+
+    const result = await cogForget('ds')
+
+    expect(result.available).toBe(false)
+    expect(result.error).toMatch(/not reachable/)
   })
 })
