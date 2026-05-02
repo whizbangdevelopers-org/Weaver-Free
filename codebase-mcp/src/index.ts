@@ -441,7 +441,7 @@ if (process.argv.includes('--http')) {
   })
   httpServer.listen(MCP_HTTP_PORT, '127.0.0.1', () => {
     console.error(`[mcp] Codebase MCP HTTP server listening on http://127.0.0.1:${MCP_HTTP_PORT}`)
-    console.error('[mcp] Claude Desktop → https://weaver-mcp.local/mcp (via nginx)')
+    console.error('[mcp] Claude Desktop → https://codebase-mcp.local/mcp (via nginx)')
     console.error('[mcp] Claude Code (stdio) → use .mcp.json instead')
   })
 } else {
