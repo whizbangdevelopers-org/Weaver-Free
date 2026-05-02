@@ -41,10 +41,14 @@ const PROJECT_ROOT = resolve(__dirname, '..', '..')
 // Parent project directory where MASTER-PLAN.md and plans/ live
 const PROJECT_PARENT = resolve(PROJECT_ROOT, '..', '..')
 
-const server = new McpServer({
-  name: 'weaver',
-  version: '0.1.0',
-})
+// Factory: creates a fresh McpServer + tool registrations per HTTP request.
+// McpServer._transport is 1:1 with a transport — stateless HTTP needs a new
+// instance per request so server.connect() doesn't throw "Already connected".
+function createCodebaseMcpServer() {
+  const server = new McpServer({
+    name: 'codebase',
+    version: '0.1.0',
+  })
 
 // --- Tools ---
 
@@ -376,6 +380,9 @@ server.tool(
   }
 )
 
+  return server
+}
+
 // --- Start server ---
 // Default: stdio (Claude Code). Pass --http for HTTP transport (local MCP clients).
 //
@@ -391,10 +398,10 @@ if (process.argv.includes('--http')) {
   )
   const { createServer } = await import('node:http')
   const MCP_HTTP_PORT = parseInt(process.env.MCP_HTTP_PORT ?? '4110', 10)
-  // Stateless mode: a new transport is created per request because
-  // StreamableHTTPServerTransport._hasHandledRequest gates single-use.
-  // server (McpServer) is shared; only the transport is per-request.
+  // Stateless: fresh server+transport per request — McpServer._transport is 1:1
+  // with a transport; reusing across requests throws "Already connected".
   const httpServer = createServer(async (req, res) => {
+    const server = createCodebaseMcpServer()
     const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined })
     try {
       await server.connect(transport)
@@ -405,16 +412,17 @@ if (process.argv.includes('--http')) {
         res.end(JSON.stringify({ jsonrpc: '2.0', id: null, error: { code: -32603, message: String(err) } }))
       }
     } finally {
-      await transport.close().catch(() => {})
+      await server.close().catch(() => {})
     }
   })
   httpServer.listen(MCP_HTTP_PORT, '127.0.0.1', () => {
-    console.error(`[mcp] Weaver MCP HTTP server listening on http://127.0.0.1:${MCP_HTTP_PORT}`)
+    console.error(`[mcp] Codebase MCP HTTP server listening on http://127.0.0.1:${MCP_HTTP_PORT}`)
     console.error('[mcp] Claude Desktop → https://weaver-mcp.local/mcp (via nginx)')
     console.error('[mcp] Claude Code (stdio) → use .mcp.json instead')
   })
 } else {
+  const server = createCodebaseMcpServer()
   const transport = new StdioServerTransport()
   await server.connect(transport)
-  console.error('[mcp] Weaver MCP server started (stdio)')
+  console.error('[mcp] Codebase MCP server started (stdio)')
 }
