@@ -44,6 +44,17 @@ export interface CogneeRememberResult {
   error?: string
 }
 
+export interface CogneeImproveResult {
+  available: boolean
+  entitiesExtracted?: number
+  error?: string
+}
+
+export interface CogneeForgetResult {
+  available: boolean
+  error?: string
+}
+
 async function fetchWithTimeout(url: string, init?: RequestInit): Promise<Response> {
   return fetch(url, { ...init, signal: AbortSignal.timeout(TIMEOUT_MS) })
 }
@@ -127,6 +138,44 @@ export async function cogRecall(
       results: [],
       error: `cognee sidecar not reachable at ${COGNEE_URL}: ${msg}`,
     }
+  }
+}
+
+export async function cogImprove(sessionId: string): Promise<CogneeImproveResult> {
+  try {
+    const res = await fetchWithTimeout(`${COGNEE_URL}/api/v1/cognify/improve`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sessionId }),
+    })
+    if (!res.ok) {
+      return { available: true, error: `improve returned HTTP ${res.status}: ${await res.text()}` }
+    }
+    const body = await res.json() as Record<string, unknown>
+    return {
+      available: true,
+      entitiesExtracted: typeof body.entitiesExtracted === 'number' ? body.entitiesExtracted : undefined,
+    }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    return { available: false, error: `cognee sidecar not reachable at ${COGNEE_URL}: ${msg}` }
+  }
+}
+
+export async function cogForget(dataset: string): Promise<CogneeForgetResult> {
+  try {
+    const res = await fetchWithTimeout(`${COGNEE_URL}/api/v1/datasets`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dataset }),
+    })
+    if (!res.ok) {
+      return { available: true, error: `forget returned HTTP ${res.status}: ${await res.text()}` }
+    }
+    return { available: true }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    return { available: false, error: `cognee sidecar not reachable at ${COGNEE_URL}: ${msg}` }
   }
 }
 

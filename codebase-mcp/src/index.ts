@@ -33,7 +33,7 @@ import { getProjectRules } from './tools/project-rules.js'
 import { getAgentCatalog } from './tools/agent-catalog.js'
 import { getWorkflowImportChecklist } from './tools/workflow-import-checklist.js'
 import { getCogneeIntegration } from './tools/cognee-integration.js'
-import { cogStatus, cogRecall, cogRemember } from './tools/cognee-memory.js'
+import { cogStatus, cogRecall, cogRemember, cogImprove, cogForget } from './tools/cognee-memory.js'
 
 // Resolve paths relative to this file: codebase-mcp/src/index.ts -> ../../
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -376,6 +376,30 @@ server.tool(
   },
   async ({ text, dataset }) => {
     const result = await cogRemember(text, dataset)
+    return { content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }] }
+  }
+)
+
+server.tool(
+  'cogImprove',
+  'Promote session cache entries to the permanent cognee graph via LLM entity extraction. Call at operation close with the sessionId (operationId). Returns { available: false } if sidecar not running.',
+  {
+    sessionId: z.string().describe('Session identifier — use the operationId (UUID) for the operation being closed'),
+  },
+  async ({ sessionId }) => {
+    const result = await cogImprove(sessionId)
+    return { content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }] }
+  }
+)
+
+server.tool(
+  'cogForget',
+  'Reset a named dataset in the cognee graph, removing all stored knowledge for that dataset. Returns { available: false } if sidecar not running.',
+  {
+    dataset: z.string().describe('Dataset name to reset (e.g. "workload_web-nginx_behavior")'),
+  },
+  async ({ dataset }) => {
+    const result = await cogForget(dataset)
     return { content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }] }
   }
 )

@@ -16,7 +16,7 @@ Overridable via `COGNEE_URL` environment variable. Port 8765 is reserved in `POR
 
 ## REST API Endpoints
 
-### POST /v1/cognify — Remember
+### POST /api/v1/cognify — Remember
 
 Store text or structured data in the permanent knowledge graph.
 
@@ -33,7 +33,7 @@ Store text or structured data in the permanent knowledge graph.
 { "status": "ok" }
 ```
 
-### POST /v1/search — Recall
+### POST /api/v1/search — Recall
 
 Query the permanent knowledge graph or session cache.
 
@@ -55,7 +55,7 @@ Query the permanent knowledge graph or session cache.
 
 Use `GRAPH_COMPLETION` for structured recall (LLM-synthesised answer from the graph). Use `SUMMARIES` for pre-computed summaries. Use `CHUNKS` for raw stored text fragments.
 
-### POST /v1/cognify/improve — Improve
+### POST /api/v1/cognify/improve — Improve
 
 Promote session cache entries to the permanent graph via LLM entity extraction. Called at operation close with the operationId as the session identifier.
 
@@ -69,7 +69,7 @@ Promote session cache entries to the permanent graph via LLM entity extraction. 
 { "status": "ok", "entitiesExtracted": 12 }
 ```
 
-### DELETE /v1/datasets — Forget
+### DELETE /api/v1/datasets — Forget
 
 Reset a named dataset (removes all stored knowledge for that dataset).
 
@@ -83,7 +83,7 @@ Reset a named dataset (removes all stored knowledge for that dataset).
 { "status": "ok" }
 ```
 
-### GET /v1/datasets — List Datasets
+### GET /api/v1/datasets — List Datasets
 
 Return all dataset names with entry counts.
 
@@ -162,9 +162,9 @@ This lifecycle describes the **Fleet Operational Memory (FOM)** pattern — used
 
 | Hook file | Event | What it does |
 |-----------|-------|-------------|
-| `csm-post-tool-use.sh` | PostToolUse | Fire-and-forget `POST /v1/cognify` — stores tool name + input + output (truncated) to `claude_sessions`. Skips self-referential cognee calls. Triggers on: `Bash\|Agent\|Read\|Write\|Edit\|Grep\|Glob`. |
-| `csm-user-prompt-submit.sh` | UserPromptSubmit | `POST /v1/search` with `searchType: SUMMARIES` (fast, no LLM) against `claude_sessions`. Injects top-3 results as `systemPromptSuffix` via `hookSpecificOutput`. Timeout: 3s. |
-| `csm-pre-compact.sh` | PreCompact | `POST /v1/cognify/improve` before context window compaction — promotes active session cache to permanent graph so nothing is lost. Timeout: 10s. |
+| `csm-post-tool-use.sh` | PostToolUse | Fire-and-forget `POST /api/v1/cognify` — stores tool name + input + output (truncated) to `claude_sessions`. Skips self-referential cognee calls. Triggers on: `Bash\|Agent\|Read\|Write\|Edit\|Grep\|Glob`. |
+| `csm-user-prompt-submit.sh` | UserPromptSubmit | `POST /api/v1/search` with `searchType: SUMMARIES` (fast, no LLM) against `claude_sessions`. Injects top-3 results as `systemPromptSuffix` via `hookSpecificOutput`. Timeout: 3s. |
+| `csm-pre-compact.sh` | PreCompact | `POST /api/v1/cognify/improve` before context window compaction — promotes active session cache to permanent graph so nothing is lost. Timeout: 10s. |
 
 All three hooks exit 0 when the sidecar is unreachable — they never block Claude.
 
