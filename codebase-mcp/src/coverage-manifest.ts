@@ -22,7 +22,7 @@
 /**
  * Paths the MCP server is expected to surface as queryable knowledge.
  *
- * Paths are project-root-relative (NOT mcp-server-relative). The auditor
+ * Paths are project-root-relative (NOT codebase-mcp-relative). The auditor
  * runs from project root, matching the rest of the compliance chain.
  */
 export const KNOWLEDGE_SOURCES: readonly string[] = [
@@ -91,7 +91,7 @@ export const KNOWLEDGE_SOURCES: readonly string[] = [
 ] as const
 
 /**
- * Maps each knowledge source to the tool file (basename of mcp-server/src/tools/<name>.ts)
+ * Maps each knowledge source to the tool file (basename of codebase-mcp/src/tools/<name>.ts)
  * that covers it. The auditor uses this to enforce that each source is actually read at
  * runtime — not just acknowledged in the manifest.
  *

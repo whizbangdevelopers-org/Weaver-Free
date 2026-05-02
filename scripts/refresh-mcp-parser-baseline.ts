@@ -35,8 +35,8 @@ const baselinePath = resolve(__dirname, 'baselines', 'mcp-parser.json')
 async function main(): Promise<void> {
   console.log('Measuring current MCP parser output…')
 
-  const lessonsMod = await import(resolve(CODE_ROOT, 'mcp-server', 'src', 'tools', 'lessons-learned.ts'))
-  const gotchasMod = await import(resolve(CODE_ROOT, 'mcp-server', 'src', 'tools', 'known-gotchas.ts'))
+  const lessonsMod = await import(resolve(CODE_ROOT, 'codebase-mcp', 'src', 'tools', 'lessons-learned.ts'))
+  const gotchasMod = await import(resolve(CODE_ROOT, 'codebase-mcp', 'src', 'tools', 'known-gotchas.ts'))
 
   const lessons = await lessonsMod.getLessonsLearned(CODE_ROOT)
   const gotchas = await gotchasMod.getKnownGotchas(CODE_ROOT)
