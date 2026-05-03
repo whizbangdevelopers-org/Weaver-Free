@@ -1,6 +1,7 @@
 // Copyright (c) 2026 whizBANG Developers LLC. All rights reserved.
 // Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE.
 import { resolve, basename, relative } from 'node:path'
+import { homedir } from 'node:os'
 import { safeReadFile, listFiles, listDirs } from '../utils/file-reader.js'
 
 interface RuleFrontmatter {
@@ -13,12 +14,13 @@ interface RuleFile {
   /** Project-root-relative path, e.g. '.claude/rules/testing.md' */
   sourcePath: string
   /**
+   * 'global'  = ~/.claude/CLAUDE.md (cross-project vocabulary, engineering principles)
    * 'project' = fabrick-weaver-project/.claude/rules
    * 'code'    = code/.claude/rules
    * 'claude'  = code/CLAUDE.md (top-level project instructions)
    * 'skill'   = fabrick-weaver-project/.claude/skills/<name>/SKILL.md
    */
-  scope: 'project' | 'code' | 'claude' | 'skill'
+  scope: 'global' | 'project' | 'code' | 'claude' | 'skill'
   /** Filename without .md, e.g. 'testing' */
   name: string
   frontmatter: RuleFrontmatter
@@ -101,11 +103,12 @@ async function loadRulesDir(
 
 /**
  * Read all .claude/rules/*.md files from both the project root and code/ levels,
- * plus code/CLAUDE.md (the top-level project instructions file).
+ * plus code/CLAUDE.md (project instructions) and ~/.claude/CLAUDE.md (global
+ * vocabulary, engineering principles, Forge/Foundry definitions).
  *
  * @param codeRoot      Absolute path to the code/ directory (PROJECT_ROOT in index.ts)
  * @param projectParent Absolute path to the project root (PROJECT_PARENT in index.ts)
- * @param file          Optional filter — rule name fragment, e.g. 'testing', 'security', 'CLAUDE'
+ * @param file          Optional filter — rule name fragment, e.g. 'testing', 'security', 'global'
  */
 export async function getProjectRules(
   codeRoot: string,
@@ -122,6 +125,27 @@ export async function getProjectRules(
 
   const allFiles = [...projectResult.files, ...codeResult.files]
   const warnings = [...projectResult.warnings, ...codeResult.warnings]
+
+  // Include ~/.claude/CLAUDE.md as scope 'global' — cross-project vocabulary,
+  // engineering principles, Forge/Foundry definitions, decision-making style.
+  // Claude Desktop does not load this automatically (only Claude Code CLI does).
+  const globalClaudeMdPath = resolve(homedir(), '.claude', 'CLAUDE.md')
+  const globalMatch = !file || 'global'.includes(file.toLowerCase()) || 'CLAUDE'.toLowerCase().includes(file.toLowerCase())
+  if (globalMatch) {
+    const raw = await safeReadFile(globalClaudeMdPath)
+    if (raw) {
+      const { frontmatter, body } = parseFrontmatter(raw)
+      allFiles.unshift({
+        sourcePath: '~/.claude/CLAUDE.md',
+        scope: 'global',
+        name: 'global-CLAUDE',
+        frontmatter,
+        content: body.trim(),
+      })
+    } else {
+      warnings.push('Could not read ~/.claude/CLAUDE.md')
+    }
+  }
 
   // Also include code/CLAUDE.md as scope 'claude' — top-level project instructions
   const claudeMdPath = resolve(codeRoot, 'CLAUDE.md')
@@ -170,6 +194,7 @@ export async function getProjectRules(
   const allProjectFiles = await listFiles(projectRulesDir, '.md')
   const allCodeFiles = await listFiles(codeRulesDir, '.md')
   const availableFiles = [
+    'global: global-CLAUDE',
     ...allProjectFiles.map(f => `project: ${basename(f, '.md')}`),
     ...allCodeFiles.map(f => `code: ${basename(f, '.md')}`),
     'claude: CLAUDE',
