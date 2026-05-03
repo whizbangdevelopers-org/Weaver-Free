@@ -33,6 +33,7 @@ import { getProjectRules } from './tools/project-rules.js'
 import { getAgentCatalog } from './tools/agent-catalog.js'
 import { getWorkflowImportChecklist } from './tools/workflow-import-checklist.js'
 import { getCogneeIntegration } from './tools/cognee-integration.js'
+import { getGlobalVocabulary } from './tools/global-vocabulary.js'
 import { cogStatus, cogRecall, cogRemember, cogImprove, cogForget } from './tools/cognee-memory.js'
 
 // Resolve paths relative to this file: codebase-mcp/src/index.ts -> ../../
@@ -312,8 +313,18 @@ server.tool(
 )
 
 server.tool(
+  'getGlobalVocabulary',
+  'Return the cross-project vocabulary table, engineering principles, decision-making style, and Forge/Foundry definitions from ~/.claude/CLAUDE.md. Claude Desktop does not load this automatically (only Claude Code CLI does). Call this at session start in Desktop to establish shared vocabulary — especially Forge vs Foundry, WBD product terms, and engineering principles.',
+  {},
+  async () => {
+    const result = await getGlobalVocabulary()
+    return { content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }] }
+  }
+)
+
+server.tool(
   'getProjectRules',
-  'Read all .claude/rules/*.md files from both the project root and code/ levels. Returns rule content, frontmatter (paths:, description:), and scope. Use to surface the Universal Rule, security rules, testing conventions, terminology, and any other behavioral rules to sub-agents that lack Claude Code context.',
+  'Read all .claude/rules/*.md files from both the project root and code/ levels, plus code/CLAUDE.md and ~/.claude/CLAUDE.md (global vocabulary). Returns rule content, frontmatter (paths:, description:), and scope. Use to surface the Universal Rule, security rules, testing conventions, terminology, and any other behavioral rules to sub-agents that lack Claude Code context.',
   {
     file: z.string().optional().describe('Filter to a specific rule file name fragment (e.g. "testing", "security", "terminology"). Omit for all rules.'),
   },
