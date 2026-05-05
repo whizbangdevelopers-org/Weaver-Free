@@ -366,11 +366,11 @@ server.tool(
 
 server.tool(
   'cogRecall',
-  'Query the cognee knowledge graph for fleet-memory context. Returns { available: false } if sidecar not running. Use GRAPH_COMPLETION for structured recall (LLM-synthesised answer); SUMMARIES or CHUNKS for raw data.',
+  'Query the cognee knowledge base for semantic context. Returns { available: false } if sidecar not running. Default CHUNKS searches LanceDB embeddings (fast, works without graph extraction). GRAPH_COMPLETION returns LLM-synthesised answers from the knowledge graph — only available if cognify graph extraction succeeded.',
   {
     query: z.string().describe('What to recall — e.g. "deployment patterns for web-nginx workload"'),
     dataset: z.string().optional().describe('Dataset name (e.g. "workload_web-nginx_behavior"). Omit to search all.'),
-    searchType: z.enum(['GRAPH_COMPLETION', 'SUMMARIES', 'CHUNKS']).optional().describe('Default: GRAPH_COMPLETION'),
+    searchType: z.enum(['GRAPH_COMPLETION', 'SUMMARIES', 'CHUNKS']).optional().describe('Default: CHUNKS'),
   },
   async ({ query, dataset, searchType }) => {
     const result = await cogRecall(query, dataset, searchType)

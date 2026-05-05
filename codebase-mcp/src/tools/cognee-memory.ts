@@ -96,7 +96,11 @@ export async function cogRecall(
   dataset?: string,
   searchType?: string
 ): Promise<CogneeRecallResult> {
-  const resolvedType = searchType ?? 'GRAPH_COMPLETION'
+  // Default CHUNKS — GRAPH_COMPLETION requires KuzuDB graph data which cognee's
+  // extract_graph_and_summarize pipeline fails to produce with Anthropic models
+  // at max_tokens=2048 (KnowledgeGraph JSON consistently exceeds output budget).
+  // CHUNKS searches LanceDB embeddings only — works without successful graph extraction.
+  const resolvedType = searchType ?? 'CHUNKS'
   try {
     const body: Record<string, unknown> = {
       query,
