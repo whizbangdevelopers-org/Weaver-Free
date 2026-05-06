@@ -1,0 +1,30 @@
+{
+  "name": "cognee-ui",
+  "version": "1.0.0",
+  "description": "Cognee knowledge graph developer UI — Quasar replacement for the React UI at port 8766",
+  "private": true,
+  "scripts": {
+    "dev": "quasar dev",
+    "build": "quasar build",
+    "lint": "eslint --ext .js,.ts,.vue src",
+    "typecheck": "vue-tsc --noEmit"
+  },
+  "dependencies": {
+    "@quasar/extras": "^1.16.9",
+    "quasar": "^2.14.0",
+    "v-network-graph": "^0.9.22",
+    "vue": "^3.5.27"
+  },
+  "devDependencies": {
+    "@quasar/app-vite": "^2.4.0",
+    "@types/node": "^22.0.0",
+    "@vitejs/plugin-vue": "^6.0.3",
+    "typescript": "^5.3.3",
+    "vue-tsc": "^2.0.0"
+  },
+  "engines": {
+    "node": ">= 18.0.0",
+    "npm": ">= 6.13.4",
+    "yarn": ">= 1.21.1"
+  }
+}
