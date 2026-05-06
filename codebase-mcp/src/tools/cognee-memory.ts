@@ -13,7 +13,8 @@
  */
 
 const COGNEE_URL = process.env.COGNEE_URL ?? 'http://localhost:8765'
-const TIMEOUT_MS = 2000
+const TIMEOUT_MS = 2000        // health / lightweight calls
+const SEARCH_TIMEOUT_MS = 10000 // vector search — cold LanceDB index load can take a few seconds
 
 export interface CogneeStatusResult {
   available: boolean
@@ -108,10 +109,11 @@ export async function cogRecall(
     }
     if (dataset) body.datasets = [dataset]
 
-    const res = await fetchWithTimeout(`${COGNEE_URL}/api/v1/search`, {
+    const res = await fetch(`${COGNEE_URL}/api/v1/search`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
+      signal: AbortSignal.timeout(SEARCH_TIMEOUT_MS),
     })
 
     if (!res.ok) {
