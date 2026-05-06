@@ -861,3 +861,18 @@ npm run start:tui -- --export
 | d | Open workload detail |
 | a | Invoke AI agent |
 | q | Quit |
+
+---
+
+## NUR Registry Maintenance
+
+Weaver Free is published to the [Nix User Repository](https://github.com/nix-community/NUR)
+so NixOS users can install it via `pkgs.nur.repos.whizbangdevelopers-org.weaver-free`.
+
+Package updates are **fully automatic** — `build.yml` fires the NUR update webhook
+after every successful build. No manual intervention is needed for routine releases.
+
+The one-time registration PR (adding `whizbangdevelopers-org` to `nix-community/NUR:repos.json`)
+and its maintenance procedure — including rebase steps and troubleshooting — are documented in:
+
+**[docs/operations/NUR-PUBLISHING.md](operations/NUR-PUBLISHING.md)**
