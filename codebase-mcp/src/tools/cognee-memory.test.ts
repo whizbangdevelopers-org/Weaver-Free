@@ -1,7 +1,7 @@
 // Copyright (c) 2026 whizBANG Developers LLC. All rights reserved.
 // Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE.
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { cogStatus, cogRecall, cogRemember, cogImprove, cogForget } from './cognee-memory.js'
+import { cogStatus, cogRecall, cogRemember, cogImprove, cogForget, setAuthToken } from './cognee-memory.js'
 
 // Helper: build a minimal Response-like object for stubbing globalThis.fetch.
 // cogStatus makes two sequential fetch calls (health, then datasets), so callers
@@ -26,10 +26,14 @@ function makeNetworkError(msg = 'fetch failed') {
 
 beforeEach(() => {
   vi.stubGlobal('fetch', vi.fn())
+  // Pre-set auth token to bypass the login fetch in every test.
+  // Tests that want to exercise auth flows should call setAuthToken(null) first.
+  setAuthToken('test-token')
 })
 
 afterEach(() => {
   vi.unstubAllGlobals()
+  setAuthToken(null)
 })
 
 // ---------------------------------------------------------------------------
@@ -120,17 +124,42 @@ describe('cogRecall', () => {
     expect(result.results[1].metadata).toBeUndefined()
     expect(result.query).toBe('stabilisation window for web-nginx')
     expect(result.dataset).toBe('workload_web-nginx_behavior')
-    expect(result.searchType).toBe('GRAPH_COMPLETION')
+    expect(result.searchType).toBe('CHUNKS')
   })
 
-  it('defaults searchType to GRAPH_COMPLETION', async () => {
+  it('defaults searchType to CHUNKS', async () => {
     const fetchMock = makeFetch({ ok: true, body: [] })
     vi.stubGlobal('fetch', fetchMock)
 
     await cogRecall('anything')
 
     const body = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string)
-    expect(body.searchType).toBe('GRAPH_COMPLETION')
+    expect(body.searchType).toBe('CHUNKS')
+  })
+
+  it('sends Authorization header when token is cached', async () => {
+    const fetchMock = makeFetch({ ok: true, body: [] })
+    vi.stubGlobal('fetch', fetchMock)
+
+    await cogRecall('q')
+
+    const headers = (fetchMock.mock.calls[0][1] as RequestInit).headers as Record<string, string>
+    expect(headers['Authorization']).toBe('Bearer test-token')
+  })
+
+  it('performs lazy login and retries search when no token is cached', async () => {
+    setAuthToken(null) // clear the pre-set token
+    const fetchMock = makeFetch(
+      { ok: true, body: { access_token: 'fresh-token' } },  // login
+      { ok: true, body: [{ text: 'result', score: 0.9 }] }, // search
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await cogRecall('q')
+
+    expect(fetchMock.mock.calls).toHaveLength(2)
+    expect(result.available).toBe(true)
+    expect(result.results[0].text).toBe('result')
   })
 
   it('includes dataset in request body when provided', async () => {
