@@ -71,6 +71,17 @@ export interface PipelineRun {
   pipeline_run_id: string | null
 }
 
+export interface DataFile {
+  id: string
+  name: string
+  extension: string
+  mime_type: string
+  raw_data_location: string
+  created_at: string
+  updated_at: string | null
+  dataset_id: string
+}
+
 // Terminal statuses — polling stops when all runs are terminal
 const TERMINAL = new Set([
   'DATASET_PROCESSING_COMPLETED',
@@ -127,8 +138,11 @@ export function useCognee() {
   const settings = ref<Settings | null>(null)
   const apiKeys = ref<ApiKey[]>([])
   const pipelineRuns = ref<PipelineRun[]>([])
+  const datasetFiles = ref<DataFile[]>([])
+  const currentUser = ref<string | null>(null)
   const loading = ref(false)
   const activityLoading = ref(false)
+  const filesLoading = ref(false)
   const error = ref<string | null>(null)
 
   let pollTimer: ReturnType<typeof setInterval> | null = null
@@ -382,6 +396,28 @@ export function useCognee() {
     }
   }
 
+  async function listDatasetFiles(datasetId: string) {
+    filesLoading.value = true
+    datasetFiles.value = []
+    try {
+      datasetFiles.value = await apiFetch<DataFile[]>(`/api/v1/datasets/${datasetId}/data`)
+    } catch (err) {
+      error.value = extractError(err, 'Failed to load dataset files')
+    } finally {
+      filesLoading.value = false
+    }
+  }
+
+  async function deleteDatasetFile(datasetId: string, dataId: string) {
+    try {
+      await apiFetch(`/api/v1/datasets/${datasetId}/data/${dataId}`, { method: 'DELETE' })
+      datasetFiles.value = datasetFiles.value.filter((f) => f.id !== dataId)
+    } catch (err) {
+      error.value = extractError(err, 'Failed to delete file')
+      throw err
+    }
+  }
+
   return {
     status,
     statusDetail,
@@ -392,8 +428,10 @@ export function useCognee() {
     settings,
     apiKeys,
     pipelineRuns,
+    datasetFiles,
     loading,
     activityLoading,
+    filesLoading,
     error,
     checkStatus,
     listDatasets,
@@ -410,5 +448,7 @@ export function useCognee() {
     listApiKeys,
     createApiKey,
     deleteApiKey,
+    listDatasetFiles,
+    deleteDatasetFile,
   }
 }
