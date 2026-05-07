@@ -42,6 +42,7 @@
               {{ inFlightCount }}
             </q-badge>
           </q-tab>
+          <q-tab name="files"    icon="mdi-file-multiple-outline" label="Files" />
           <q-tab name="settings" icon="mdi-cog"            label="Settings" />
           <q-tab name="keys"     icon="mdi-key-variant"    label="API Keys" />
         </q-tabs>
@@ -75,6 +76,17 @@
               :loading="activityLoading"
               @refresh="loadActivity"
               @cognify="onCognifyDataset"
+            />
+          </q-tab-panel>
+
+          <q-tab-panel name="files" class="q-pa-none" style="height: 100%">
+            <DatasetFilesPanel
+              :datasetFiles="datasetFiles"
+              :activeDatasetId="activeDatasetId"
+              :activeDatasetName="activeDatasetName"
+              :loading="filesLoading"
+              @refresh="onRefreshFiles"
+              @delete="onDeleteFile"
             />
           </q-tab-panel>
 
@@ -133,6 +145,7 @@ import GraphPanel from '../components/GraphPanel.vue'
 import ActivityPanel from '../components/ActivityPanel.vue'
 import SettingsPanel from '../components/SettingsPanel.vue'
 import ApiKeysPanel from '../components/ApiKeysPanel.vue'
+import DatasetFilesPanel from '../components/DatasetFilesPanel.vue'
 
 const $q = useQuasar()
 const {
@@ -145,7 +158,9 @@ const {
   settings,
   apiKeys,
   pipelineRuns,
+  datasetFiles,
   activityLoading,
+  filesLoading,
   checkStatus,
   listDatasets,
   recall,
@@ -155,6 +170,8 @@ const {
   listPipelineRuns,
   startActivityPolling,
   stopActivityPolling,
+  listDatasetFiles,
+  deleteDatasetFile,
   fetchGraph,
   getSettings,
   saveSettings,
@@ -345,9 +362,31 @@ async function onDeleteKey(id: string) {
   }
 }
 
+// ── Files ─────────────────────────────────────────────────────────────────────
+
+async function onRefreshFiles() {
+  if (activeDatasetId.value) await listDatasetFiles(activeDatasetId.value)
+}
+
+async function onDeleteFile(datasetId: string, fileId: string) {
+  try {
+    await deleteDatasetFile(datasetId, fileId)
+    $q.notify({ type: 'positive', message: 'File removed', timeout: 2000 })
+  } catch (e) {
+    $q.notify({
+      type: 'negative',
+      message: e instanceof Error ? e.message : 'Delete failed',
+      timeout: 3000,
+    })
+  }
+}
+
 // ── Lazy-load tabs ───────────────────────────────────────────────────────────
 
 watch(activeTab, async (tab) => {
+  if (tab === 'files' && activeDatasetId.value) {
+    await listDatasetFiles(activeDatasetId.value)
+  }
   if (tab === 'settings' && !settings.value) {
     settingsLoading.value = true
     try { await getSettings() }
@@ -357,6 +396,13 @@ watch(activeTab, async (tab) => {
     keysLoading.value = true
     try { await listApiKeys() }
     finally { keysLoading.value = false }
+  }
+})
+
+// Reload files when active dataset changes while on the files tab
+watch(activeDatasetId, async (id) => {
+  if (activeTab.value === 'files' && id) {
+    await listDatasetFiles(id)
   }
 })
 </script>
