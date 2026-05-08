@@ -26,7 +26,7 @@
     <q-scroll-area v-else class="col">
       <q-list separator>
         <q-item
-          v-for="run in pipelineRuns"
+          v-for="run in groupedRuns"
           :key="run.id"
           class="q-pa-sm run-item"
         >
@@ -34,14 +34,14 @@
           <q-item-section avatar style="min-width: 36px">
             <q-icon
               v-if="isRunning(run)"
-              name="mdi-loading"
-              :color="run.pipeline_name === 'cognify_pipeline' ? 'primary' : 'grey-6'"
+              :name="run.pipeline_name === 'cognify_pipeline' ? 'mdi-brain' : 'mdi-file-upload-outline'"
+              :color="run.pipeline_name === 'cognify_pipeline' ? 'primary' : 'teal'"
               size="20px"
               class="spin"
             />
             <q-icon
               v-else-if="isCompleted(run)"
-              name="mdi-check-circle"
+              :name="run.pipeline_name === 'cognify_pipeline' ? 'mdi-brain' : 'mdi-file-check-outline'"
               color="positive"
               size="20px"
             />
@@ -51,6 +51,14 @@
               color="negative"
               size="20px"
             />
+            <q-icon
+              v-else-if="isStale(run)"
+              name="mdi-clock-alert-outline"
+              color="grey-5"
+              size="20px"
+            >
+              <q-tooltip>Job was interrupted (sidecar restarted)</q-tooltip>
+            </q-icon>
             <q-icon
               v-else
               name="mdi-clock-outline"
@@ -72,6 +80,17 @@
                 class="q-ml-xs"
               >
                 {{ run.dataset_name }}
+              </q-chip>
+              <q-chip
+                v-if="run.pipeline_name === 'add_pipeline' && run.fileCount > 1"
+                dense
+                size="xs"
+                color="teal-1"
+                text-color="teal-8"
+                icon="mdi-file-multiple-outline"
+                class="q-ml-xs"
+              >
+                {{ run.fileCount }} files
               </q-chip>
             </q-item-label>
             <q-item-label caption>
@@ -104,6 +123,10 @@
 import { computed } from 'vue'
 import type { PipelineRun } from '../composables/useCognee'
 
+interface GroupedRun extends PipelineRun {
+  fileCount: number
+}
+
 const props = defineProps<{
   pipelineRuns: PipelineRun[]
   loading: boolean
@@ -114,18 +137,98 @@ const emit = defineEmits<{
   cognify: [datasetName: string, datasetId: string]
 }>()
 
+const STALE_MS: Record<string, number> = {
+  add_pipeline:     5 * 60 * 1000,
+  cognify_pipeline: 2 * 60 * 60 * 1000,
+}
+const DEFAULT_STALE_MS = 30 * 60 * 1000
+
+function isStale(r: PipelineRun): boolean {
+  if (!r.created_at) return false
+  const age = Date.now() - new Date(r.created_at).getTime()
+  const threshold = STALE_MS[r.pipeline_name ?? ''] ?? DEFAULT_STALE_MS
+  return !isNaN(age) && age >= threshold
+}
+
 const hasInFlight = computed(() =>
   props.pipelineRuns.some(
     (r) =>
-      r.status === 'DATASET_PROCESSING_INITIATED' ||
-      r.status === 'DATASET_PROCESSING_STARTED',
+      (r.status === 'DATASET_PROCESSING_INITIATED' ||
+        r.status === 'DATASET_PROCESSING_STARTED') &&
+      !isStale(r),
   ),
 )
 
+// Cognee emits multiple status-update rows per logical run (INITIATED→STARTED→COMPLETED).
+// Step 1: deduplicate by pipeline_run_id, keeping the final/terminal status per logical run.
+// Step 2: group deduplicated runs for the same add_pipeline dataset within a 60-second window.
+const GROUP_WINDOW_MS = 60 * 1000
+
+// Used in Step 2: for a group of files, surface the most-active status
+// (if any file is still running, show the group as running).
+const groupRank = (r: PipelineRun): number => {
+  if (isRunning(r))   return 4
+  if (r.status === 'DATASET_PROCESSING_INITIATED') return 3
+  if (isErrored(r))   return 2
+  if (isStale(r))     return 1
+  return 0
+}
+
+// Used in Step 1: for sequential status events on the SAME logical run,
+// terminal states win — completed/errored must not be overwritten by running.
+const dedupeRank = (r: PipelineRun): number => {
+  if (isCompleted(r)) return 3
+  if (isErrored(r))   return 2
+  if (isRunning(r))   return 1
+  return 0
+}
+
+const groupedRuns = computed((): GroupedRun[] => {
+  // Step 1: deduplicate by pipeline_run_id (null pipeline_run_id = treat as unique)
+  const deduped: PipelineRun[] = []
+  for (const run of props.pipelineRuns) {
+    if (!run.pipeline_run_id) {
+      deduped.push(run)
+      continue
+    }
+    const prev = deduped.find((r) => r.pipeline_run_id === run.pipeline_run_id)
+    if (prev) {
+      if (dedupeRank(run) > dedupeRank(prev)) prev.status = run.status
+    } else {
+      deduped.push({ ...run })
+    }
+  }
+
+  // Step 2: group add_pipeline runs by dataset + 60-second window
+  const result: GroupedRun[] = []
+  for (const run of deduped) {
+    if (run.pipeline_name !== 'add_pipeline') {
+      result.push({ ...run, fileCount: 1 })
+      continue
+    }
+    const ts = run.created_at ? new Date(run.created_at).getTime() : NaN
+    const existing = result.find(
+      (g) =>
+        g.pipeline_name === 'add_pipeline' &&
+        g.dataset_id === run.dataset_id &&
+        Math.abs((g.created_at ? new Date(g.created_at).getTime() : NaN) - ts) < GROUP_WINDOW_MS,
+    )
+    if (existing) {
+      existing.fileCount++
+      // Surface the most active status; anchor timestamp stays fixed
+      if (groupRank(run) > groupRank(existing)) existing.status = run.status
+    } else {
+      result.push({ ...run, fileCount: 1 })
+    }
+  }
+  return result
+})
+
 function isRunning(r: PipelineRun) {
   return (
-    r.status === 'DATASET_PROCESSING_INITIATED' ||
-    r.status === 'DATASET_PROCESSING_STARTED'
+    (r.status === 'DATASET_PROCESSING_INITIATED' ||
+      r.status === 'DATASET_PROCESSING_STARTED') &&
+    !isStale(r)
   )
 }
 function isCompleted(r: PipelineRun) {
@@ -142,9 +245,11 @@ function pipelineLabel(name: string | null): string {
 }
 
 function statusLabel(r: PipelineRun): string {
+  if (isStale(r)) return 'Interrupted'
+  const isCognify = r.pipeline_name === 'cognify_pipeline'
   switch (r.status) {
-    case 'DATASET_PROCESSING_INITIATED': return 'Queued'
-    case 'DATASET_PROCESSING_STARTED':   return 'Running…'
+    case 'DATASET_PROCESSING_INITIATED': return isCognify ? 'Graph queued' : 'Upload queued'
+    case 'DATASET_PROCESSING_STARTED':   return isCognify ? 'Building graph…' : 'Uploading…'
     case 'DATASET_PROCESSING_COMPLETED': return 'Completed'
     case 'DATASET_PROCESSING_ERRORED':   return 'Errored'
     default: return r.status ?? 'Unknown'
@@ -152,20 +257,27 @@ function statusLabel(r: PipelineRun): string {
 }
 
 function statusColor(r: PipelineRun): string {
+  if (isStale(r))     return 'text-grey-5'
   if (isRunning(r))   return 'text-primary'
   if (isCompleted(r)) return 'text-positive'
   if (isErrored(r))   return 'text-negative'
   return 'text-warning'
 }
 
-function timeAgo(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime()
+function timeAgo(iso: string | null | undefined): string {
+  if (!iso) return '—'
+  const ms = new Date(iso).getTime()
+  if (isNaN(ms)) return '—'
+  const diff = Date.now() - ms
+  if (diff < 0) return 'just now'
   const s = Math.floor(diff / 1000)
-  if (s < 60)   return `${s}s ago`
+  if (s < 60)  return `${s}s ago`
   const m = Math.floor(s / 60)
-  if (m < 60)   return `${m}m ago`
+  if (m < 60)  return `${m}m ago`
   const h = Math.floor(m / 60)
-  return `${h}h ago`
+  if (h < 24)  return `${h}h ago`
+  const d = Math.floor(h / 24)
+  return `${d}d ago`
 }
 </script>
 
@@ -188,6 +300,6 @@ function timeAgo(iso: string): string {
   to { transform: rotate(360deg); }
 }
 .spin {
-  animation: spin 1s linear infinite;
+  animation: spin 2s linear infinite;
 }
 </style>

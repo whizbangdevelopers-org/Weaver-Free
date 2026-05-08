@@ -88,8 +88,26 @@ const TERMINAL = new Set([
   'DATASET_PROCESSING_ERRORED',
 ])
 
+// Per-pipeline stale thresholds. Add is fast (seconds); cognify is slow (up to 2h).
+// Runs older than their threshold in a non-terminal state are zombie records —
+// the sidecar was killed before writing terminal status. They don't drive polling.
+const STALE_MS: Record<string, number> = {
+  add_pipeline:     5 * 60 * 1000,        // 5 min
+  cognify_pipeline: 2 * 60 * 60 * 1000,   // 2 h
+}
+const DEFAULT_STALE_MS = 30 * 60 * 1000   // 30 min fallback for unknown pipelines
+
+function staleMsFor(pipelineName: string | null): number {
+  return STALE_MS[pipelineName ?? ''] ?? DEFAULT_STALE_MS
+}
+
 function isInFlight(runs: PipelineRun[]): boolean {
-  return runs.some((r) => r.status !== null && !TERMINAL.has(r.status))
+  return runs.some((r) => {
+    if (r.status === null || TERMINAL.has(r.status)) return false
+    if (!r.created_at) return false
+    const age = Date.now() - new Date(r.created_at).getTime()
+    return !isNaN(age) && age < staleMsFor(r.pipeline_name)
+  })
 }
 
 function extractError(err: unknown, fallback: string): string {
@@ -144,8 +162,10 @@ export function useCognee() {
   const activityLoading = ref(false)
   const filesLoading = ref(false)
   const error = ref<string | null>(null)
+  const graphStatus = ref<string | null>(null)
 
   let pollTimer: ReturnType<typeof setInterval> | null = null
+  let graphController: AbortController | null = null
 
   // ── Activity polling ──────────────────────────────────────────────────────
 
@@ -306,16 +326,56 @@ export function useCognee() {
     }
   }
 
+  // Two-phase timeout: 10s to get first byte, then 1s per 20KB for body transfer.
+  // Graph payloads vary wildly with dataset size — a fixed timeout is either too short
+  // for large graphs or masks hangs on small ones. Content-Length lets us set the
+  // transfer window proportionally once we know the server is responding.
+  function cancelGraph() {
+    graphController?.abort()
+    graphController = null
+  }
+
   async function fetchGraph(datasetId: string) {
+    cancelGraph() // abort any in-flight request
     loading.value = true
     error.value = null
     graphData.value = null
+    graphStatus.value = 'Connecting…'
+    graphController = new AbortController()
+    const signal = graphController.signal
+    let timerId: ReturnType<typeof setTimeout> | null = null
+    const arm = (ms: number) => {
+      if (timerId) clearTimeout(timerId)
+      timerId = setTimeout(() => graphController?.abort(), ms)
+    }
     try {
-      graphData.value = await apiFetch<GraphData>(`/api/v1/datasets/${datasetId}/graph`)
+      arm(10_000) // connection timeout
+      const res = await fetch(`/api/v1/datasets/${datasetId}/graph`, { signal })
+      if (!res.ok) {
+        const text = await res.text().catch(() => '')
+        let msg = `HTTP ${res.status}`
+        try { const j = JSON.parse(text); msg = j.error || j.detail || msg } catch { if (text) msg += `: ${text}` }
+        throw new Error(msg)
+      }
+      // Transfer timeout: 1s per 20KB, min 15s, max 120s
+      const cl = res.headers.get('content-length')
+      const bytes = cl ? parseInt(cl, 10) : NaN
+      const transferMs = isNaN(bytes) ? 60_000 : Math.min(120_000, Math.max(15_000, Math.ceil(bytes / 20_000) * 1_000))
+      arm(transferMs)
+      graphStatus.value = isNaN(bytes)
+        ? 'Transferring…'
+        : `Transferring ${Math.round(bytes / 1024)} KB…`
+      const raw = (await res.json()) as GraphData
+      graphStatus.value = 'Rendering…'
+      graphData.value = raw
     } catch (err) {
       error.value = extractError(err, 'Failed to load graph')
+      throw err
     } finally {
+      if (timerId) clearTimeout(timerId)
+      graphController = null
       loading.value = false
+      graphStatus.value = null
     }
   }
 
@@ -396,6 +456,44 @@ export function useCognee() {
     }
   }
 
+  async function fetchCurrentUser() {
+    try {
+      const data = await apiFetch<{ email: string }>('/api/v1/auth/me')
+      currentUser.value = data.email
+    } catch {
+      currentUser.value = null
+    }
+  }
+
+  async function login(email: string, password: string) {
+    const form = new URLSearchParams()
+    form.append('username', email)
+    form.append('password', password)
+    const res = await fetch('/api/v1/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: form.toString(),
+    })
+    if (!res.ok) {
+      const text = await res.text().catch(() => '')
+      let msg = 'Login failed'
+      try { msg = JSON.parse(text).detail ?? msg } catch { /* ignore */ }
+      throw new Error(msg)
+    }
+    currentUser.value = email
+  }
+
+  async function logout() {
+    await fetch('/api/v1/auth/logout', { method: 'POST' }).catch(() => {})
+    currentUser.value = null
+    datasets.value = []
+    activeDatasetId.value = null
+    results.value = []
+    graphData.value = null
+    datasetFiles.value = []
+    pipelineRuns.value = []
+  }
+
   async function listDatasetFiles(datasetId: string) {
     filesLoading.value = true
     datasetFiles.value = []
@@ -429,11 +527,16 @@ export function useCognee() {
     apiKeys,
     pipelineRuns,
     datasetFiles,
+    currentUser,
     loading,
     activityLoading,
     filesLoading,
     error,
+    graphStatus,
     checkStatus,
+    fetchCurrentUser,
+    login,
+    logout,
     listDatasets,
     recall,
     remember,
@@ -443,6 +546,7 @@ export function useCognee() {
     startActivityPolling,
     stopActivityPolling,
     fetchGraph,
+    cancelGraph,
     getSettings,
     saveSettings,
     listApiKeys,

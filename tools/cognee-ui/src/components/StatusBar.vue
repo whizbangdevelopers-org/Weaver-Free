@@ -25,6 +25,16 @@
     <q-btn flat dense icon="mdi-upload" label="Add files" class="q-mr-xs" @click="emit('add')" />
     <q-btn flat dense icon="mdi-plus-circle-outline" label="Remember" @click="emit('remember')" />
     <q-btn flat dense round icon="mdi-refresh" class="q-ml-xs" @click="emit('refresh')" />
+
+    <template v-if="currentUser">
+      <q-chip dense color="white" text-color="primary" class="q-ml-sm" icon="mdi-account-circle">
+        {{ currentUser }}
+      </q-chip>
+      <q-btn flat dense round icon="mdi-logout" class="q-ml-xs" @click="emit('logout')">
+        <q-tooltip>Sign out</q-tooltip>
+      </q-btn>
+    </template>
+    <q-btn v-else flat dense icon="mdi-login" label="Sign in" class="q-ml-sm" @click="emit('login')" />
   </q-toolbar>
 </template>
 
@@ -34,11 +44,14 @@ import type { SidecarStatus } from '../composables/useCognee'
 defineProps<{
   status: SidecarStatus
   statusDetail: { version: string; llmBackend: string } | null
+  currentUser: string | null
 }>()
 
 const emit = defineEmits<{
   add: []
   remember: []
   refresh: []
+  login: []
+  logout: []
 }>()
 </script>

@@ -123,8 +123,12 @@ function fileIcon(ext: string): string {
   return map[ext?.toLowerCase() ?? ''] ?? 'mdi-file-outline'
 }
 
-function timeAgo(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime()
+function timeAgo(iso: string | null | undefined): string {
+  if (!iso) return '—'
+  const ms = new Date(iso).getTime()
+  if (isNaN(ms)) return '—'
+  const diff = Date.now() - ms
+  if (diff < 0) return 'just now'
   const s = Math.floor(diff / 1000)
   if (s < 60)  return `${s}s ago`
   const m = Math.floor(s / 60)

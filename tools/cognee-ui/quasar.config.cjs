@@ -31,6 +31,16 @@ module.exports = configure(function (/* ctx */) {
         strict: true,
         vueShim: true,
       },
+      extendViteConf(viteConf) {
+        viteConf.optimizeDeps = viteConf.optimizeDeps ?? {}
+        viteConf.optimizeDeps.include = [
+          ...(viteConf.optimizeDeps.include ?? []),
+          'd3-force',
+          'd3-dispatch',
+          'd3-quadtree',
+          'd3-timer',
+        ]
+      },
     },
 
     devServer: {
