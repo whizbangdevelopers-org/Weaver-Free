@@ -45,7 +45,7 @@ module.exports = configure(function (/* ctx */) {
 
     devServer: {
       open: false,
-      port: 8766,
+      port: 8768,
       proxy: {
         '/api': {
           target: 'http://localhost:8765',
