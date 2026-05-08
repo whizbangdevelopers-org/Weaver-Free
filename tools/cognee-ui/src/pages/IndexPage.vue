@@ -7,9 +7,12 @@
       <StatusBar
         :status="status"
         :statusDetail="statusDetail"
+        :currentUser="currentUser"
         @add="addOpen = true"
         @remember="rememberOpen = true"
         @refresh="onRefresh"
+        @login="loginOpen = true"
+        @logout="onLogout"
       />
     </q-header>
 
@@ -65,8 +68,10 @@
               :activeDatasetId="activeDatasetId"
               :activeDatasetName="activeDatasetName"
               :loading="graphLoading"
+              :loadingStatus="graphStatus"
               :error="graphError"
               @load="onLoadGraph"
+              @cancel="onCancelGraph"
             />
           </q-tab-panel>
 
@@ -121,6 +126,14 @@
       @submit="onAddData"
     />
 
+    <!-- Login dialog -->
+    <LoginDialog
+      v-model="loginOpen"
+      :loading="loginLoading"
+      @submit="onLogin"
+      @skip="loginOpen = false"
+    />
+
     <!-- Remember dialog -->
     <RememberDialog
       v-model="rememberOpen"
@@ -146,6 +159,7 @@ import ActivityPanel from '../components/ActivityPanel.vue'
 import SettingsPanel from '../components/SettingsPanel.vue'
 import ApiKeysPanel from '../components/ApiKeysPanel.vue'
 import DatasetFilesPanel from '../components/DatasetFilesPanel.vue'
+import LoginDialog from '../components/LoginDialog.vue'
 
 const $q = useQuasar()
 const {
@@ -155,13 +169,18 @@ const {
   activeDatasetId,
   results,
   graphData,
+  graphStatus,
   settings,
   apiKeys,
   pipelineRuns,
   datasetFiles,
+  currentUser,
   activityLoading,
   filesLoading,
   checkStatus,
+  fetchCurrentUser,
+  login,
+  logout,
   listDatasets,
   recall,
   remember,
@@ -173,6 +192,7 @@ const {
   listDatasetFiles,
   deleteDatasetFile,
   fetchGraph,
+  cancelGraph,
   getSettings,
   saveSettings,
   listApiKeys,
@@ -196,6 +216,8 @@ const keysLoading = ref(false)
 const keysError = ref<string | null>(null)
 const rememberLoading = ref(false)
 const addLoading = ref(false)
+const loginOpen = ref(false)
+const loginLoading = ref(false)
 
 const activeDatasetName = computed(
   () => datasets.value.find((d) => d.id === activeDatasetId.value)?.name ?? null,
@@ -213,7 +235,7 @@ const inFlightCount = computed(
 // ── Lifecycle ────────────────────────────────────────────────────────────────
 
 onMounted(async () => {
-  await checkStatus()
+  await Promise.all([checkStatus(), fetchCurrentUser()])
   await Promise.all([loadDatasets(), loadActivity()])
 })
 
@@ -226,6 +248,31 @@ onUnmounted(() => {
 async function onRefresh() {
   await checkStatus()
   await loadDatasets()
+}
+
+// ── Auth ─────────────────────────────────────────────────────────────────────
+
+async function onLogin(email: string, password: string) {
+  loginLoading.value = true
+  try {
+    await login(email, password)
+    loginOpen.value = false
+    $q.notify({ type: 'positive', message: `Signed in as ${email}`, timeout: 2000 })
+    await Promise.all([loadDatasets(), loadActivity()])
+  } catch (e) {
+    $q.notify({
+      type: 'negative',
+      message: e instanceof Error ? e.message : 'Login failed',
+      timeout: 3000,
+    })
+  } finally {
+    loginLoading.value = false
+  }
+}
+
+async function onLogout() {
+  await logout()
+  $q.notify({ type: 'info', message: 'Signed out', timeout: 1500 })
 }
 
 async function loadDatasets() {
@@ -262,6 +309,12 @@ async function onLoadGraph() {
   try { await fetchGraph(activeDatasetId.value) }
   catch (e) { graphError.value = e instanceof Error ? e.message : 'Graph load failed' }
   finally { graphLoading.value = false }
+}
+
+function onCancelGraph() {
+  cancelGraph()
+  graphLoading.value = false
+  graphError.value = null
 }
 
 // ── Remember (text → add + cognify, synchronous) ─────────────────────────────
@@ -384,8 +437,12 @@ async function onDeleteFile(datasetId: string, fileId: string) {
 // ── Lazy-load tabs ───────────────────────────────────────────────────────────
 
 watch(activeTab, async (tab) => {
-  if (tab === 'files' && activeDatasetId.value) {
-    await listDatasetFiles(activeDatasetId.value)
+  if (tab === 'files') {
+    // Auto-select first dataset if none selected
+    if (!activeDatasetId.value && datasets.value.length > 0) {
+      activeDatasetId.value = datasets.value[0]!.id
+    }
+    if (activeDatasetId.value) await listDatasetFiles(activeDatasetId.value)
   }
   if (tab === 'settings' && !settings.value) {
     settingsLoading.value = true

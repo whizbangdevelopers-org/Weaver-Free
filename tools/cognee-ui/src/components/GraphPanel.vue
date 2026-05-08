@@ -12,11 +12,20 @@
       </q-chip>
       <q-space />
       <q-btn
+        v-if="loading"
+        flat
+        dense
+        icon="mdi-close"
+        label="Cancel"
+        color="grey-6"
+        @click="emit('cancel')"
+      />
+      <q-btn
+        v-else
         flat
         dense
         icon="mdi-refresh"
         label="Load graph"
-        :loading="loading"
         :disable="!activeDatasetId"
         @click="emit('load')"
       />
@@ -35,8 +44,9 @@
     </div>
 
     <!-- Loading -->
-    <div v-else-if="loading" class="flex flex-center col">
+    <div v-else-if="loading" class="flex flex-center col column items-center q-gutter-sm">
       <q-spinner-dots color="primary" size="40px" />
+      <div v-if="loadingStatus" class="text-caption text-grey-6">{{ loadingStatus }}</div>
     </div>
 
     <!-- Empty graph -->
@@ -46,30 +56,32 @@
     </div>
 
     <!-- Graph -->
-    <div v-else-if="graphData" class="col" style="position: relative; min-height: 400px">
-      <!-- Legend -->
-      <div class="row q-gutter-xs q-mb-sm flex-wrap">
+    <div v-else-if="graphData" class="col column" style="position: relative; min-height: 400px">
+      <!-- Stats + legend row -->
+      <div class="row items-center q-mb-xs q-gutter-xs flex-wrap">
+        <span class="text-caption text-grey-6 q-mr-xs">
+          {{ graphData.nodes.length }} nodes · {{ graphData.edges.length }} edges
+          <span v-if="truncated" class="text-warning"> · showing first {{ NODE_LIMIT }}</span>
+        </span>
         <q-badge
-          v-for="(color, type) in nodeColors"
+          v-for="(color, type) in activeNodeColors"
           :key="type"
           :style="`background: ${color}`"
           class="text-white"
-        >
-          {{ type }}
-        </q-badge>
+        >{{ type }}</q-badge>
       </div>
 
+      <q-banner v-if="truncated" dense rounded class="bg-warning text-white q-mb-xs text-caption">
+        Graph has {{ graphData.nodes.length }} nodes — showing first {{ NODE_LIMIT }} for performance.
+      </q-banner>
+
       <v-network-graph
+        class="col"
         :nodes="vNodes"
         :edges="vEdges"
         :layouts="layouts"
         :configs="configs"
-        style="width: 100%; height: calc(100% - 36px)"
       />
-
-      <div class="text-caption text-grey-6 q-mt-xs">
-        {{ graphData.nodes.length }} nodes · {{ graphData.edges.length }} edges
-      </div>
     </div>
 
     <!-- Initial -->
@@ -83,6 +95,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { defineConfigs } from 'v-network-graph'
+import { ForceLayout } from 'v-network-graph/lib/force-layout'
 import type { GraphData } from '../composables/useCognee'
 
 const props = defineProps<{
@@ -90,21 +103,25 @@ const props = defineProps<{
   activeDatasetId: string | null
   activeDatasetName: string | null
   loading: boolean
+  loadingStatus: string | null
   error: string | null
 }>()
 
 const emit = defineEmits<{
   load: []
+  cancel: []
 }>()
 
-// Node type → color mapping (from cognee source)
+const NODE_LIMIT = 500
+
+// Node type → color (from cognee source)
 const nodeColors: Record<string, string> = {
-  Entity: '#6510F4',
-  EntityType: '#A550FF',
-  DocumentChunk: '#0DFF00',
-  TextSummary: '#6510F4',
-  TableRow: '#A550FF',
-  TableType: '#6510F4',
+  Entity:        '#6510F4',
+  EntityType:    '#A550FF',
+  DocumentChunk: '#21ba45',
+  TextSummary:   '#FF9800',
+  TableRow:      '#00BCD4',
+  TableType:     '#E91E63',
 }
 const defaultNodeColor = '#7c3aed'
 
@@ -112,29 +129,49 @@ function nodeColor(type: string): string {
   return nodeColors[type] ?? defaultNodeColor
 }
 
-// Convert cognee GraphNode[] → v-network-graph nodes map
-const vNodes = computed(() => {
-  if (!props.graphData) return {}
-  return Object.fromEntries(
-    props.graphData.nodes.map((n) => [
-      n.id,
-      {
-        name: n.label || n.id,
-        color: nodeColor(n.type),
-        type: n.type,
-      },
-    ]),
+// Truncated node list — cap at NODE_LIMIT to protect the browser
+const cappedNodes = computed(() => {
+  if (!props.graphData) return []
+  return props.graphData.nodes.slice(0, NODE_LIMIT)
+})
+
+const truncated = computed(() =>
+  !!props.graphData && props.graphData.nodes.length > NODE_LIMIT,
+)
+
+const cappedNodeIds = computed(() => new Set(cappedNodes.value.map((n) => n.id)))
+
+// Only include edges where both endpoints are in the capped node set
+const cappedEdges = computed(() => {
+  if (!props.graphData) return []
+  return props.graphData.edges.filter(
+    (e) => cappedNodeIds.value.has(e.source) && cappedNodeIds.value.has(e.target),
   )
 })
 
-// Convert cognee GraphEdge[] → v-network-graph edges map
-const vEdges = computed(() => {
-  if (!props.graphData) return {}
-  return Object.fromEntries(
-    props.graphData.edges.map((e, i) => [
+const vNodes = computed(() =>
+  Object.fromEntries(
+    cappedNodes.value.map((n) => [
+      n.id,
+      { name: n.label || n.id, color: nodeColor(n.type), type: n.type },
+    ]),
+  ),
+)
+
+const vEdges = computed(() =>
+  Object.fromEntries(
+    cappedEdges.value.map((e, i) => [
       `e${i}`,
       { source: e.source, target: e.target, label: e.label },
     ]),
+  ),
+)
+
+// Only show legend colors for types actually present in the capped set
+const activeNodeColors = computed(() => {
+  const types = new Set(cappedNodes.value.map((n) => n.type))
+  return Object.fromEntries(
+    Object.entries(nodeColors).filter(([t]) => types.has(t)),
   )
 })
 
@@ -144,30 +181,32 @@ type ColorNode = { color: string }
 
 const configs = defineConfigs<ColorNode>({
   node: {
-    normal: {
-      color: (n) => n.color,
-      radius: 16,
-    },
-    label: {
-      visible: true,
-      fontSize: 11,
-      color: '#333',
-    },
-    hover: {
-      color: (n) => n.color,
-    },
+    normal: { color: (n) => n.color, radius: 12 },
+    label: { visible: true, fontSize: 10, color: '#444' },
+    hover: { color: (n) => n.color },
   },
   edge: {
-    normal: {
-      color: '#aaa',
-      width: 1.5,
-    },
-    label: {
-      fontSize: 10,
-    },
+    normal: { color: '#bbb', width: 1 },
+    label: { fontSize: 9, color: '#888' },
   },
   view: {
     autoPanAndZoomOnLoad: 'fit-content',
+    layoutHandler: new ForceLayout({
+      positionFixedByDrag: true,
+      positionFixedByClickWithAltKey: true,
+      createSimulation: (d3, nodes, edges) => {
+        const forceLink = d3.forceLink<typeof nodes[number], typeof edges[number]>(edges)
+          .id((d: { id: string }) => d.id)
+          .distance(60)
+        return d3
+          .forceSimulation(nodes)
+          .force('edge', forceLink)
+          .force('charge', d3.forceManyBody().strength(-80))
+          .force('center', d3.forceCenter())
+          .force('collide', d3.forceCollide(20))
+          .alphaMin(0.01)
+      },
+    }),
   },
 })
 </script>
