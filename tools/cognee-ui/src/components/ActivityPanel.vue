@@ -122,6 +122,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { PipelineRun } from '../composables/useCognee'
+import { STALE_MS, DEFAULT_STALE_MS } from '../composables/useCognee'
 
 interface GroupedRun extends PipelineRun {
   fileCount: number
@@ -136,12 +137,6 @@ const emit = defineEmits<{
   refresh: []
   cognify: [datasetName: string, datasetId: string]
 }>()
-
-const STALE_MS: Record<string, number> = {
-  add_pipeline:     5 * 60 * 1000,
-  cognify_pipeline: 2 * 60 * 60 * 1000,
-}
-const DEFAULT_STALE_MS = 30 * 60 * 1000
 
 function isStale(r: PipelineRun): boolean {
   if (!r.created_at) return false

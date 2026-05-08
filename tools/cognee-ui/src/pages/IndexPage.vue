@@ -147,7 +147,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useQuasar } from 'quasar'
-import { useCognee } from '../composables/useCognee'
+import { useCognee, STALE_MS, DEFAULT_STALE_MS } from '../composables/useCognee'
 import type { Settings, SearchType } from '../composables/useCognee'
 import StatusBar from '../components/StatusBar.vue'
 import DatasetList from '../components/DatasetList.vue'
@@ -223,12 +223,20 @@ const activeDatasetName = computed(
   () => datasets.value.find((d) => d.id === activeDatasetId.value)?.name ?? null,
 )
 
+function isRunStale(r: { status: string | null; pipeline_name: string | null; created_at: string | null }) {
+  if (!r.created_at) return false
+  const age = Date.now() - new Date(r.created_at).getTime()
+  const threshold = STALE_MS[r.pipeline_name ?? ''] ?? DEFAULT_STALE_MS
+  return !isNaN(age) && age >= threshold
+}
+
 const inFlightCount = computed(
   () =>
     pipelineRuns.value.filter(
       (r) =>
-        r.status === 'DATASET_PROCESSING_INITIATED' ||
-        r.status === 'DATASET_PROCESSING_STARTED',
+        (r.status === 'DATASET_PROCESSING_INITIATED' ||
+          r.status === 'DATASET_PROCESSING_STARTED') &&
+        !isRunStale(r),
     ).length,
 )
 
