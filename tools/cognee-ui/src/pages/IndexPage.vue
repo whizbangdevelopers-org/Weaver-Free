@@ -255,7 +255,10 @@ onUnmounted(() => {
 
 async function onRefresh() {
   await checkStatus()
-  await loadDatasets()
+  await Promise.all([loadDatasets(), loadActivity()])
+  if (activeTab.value === 'files' && activeDatasetId.value) {
+    await listDatasetFiles(activeDatasetId.value)
+  }
 }
 
 // ── Auth ─────────────────────────────────────────────────────────────────────
@@ -266,7 +269,23 @@ async function onLogin(email: string, password: string) {
     await login(email, password)
     loginOpen.value = false
     $q.notify({ type: 'positive', message: `Signed in as ${email}`, timeout: 2000 })
+    // Clear cached panel data so tabs re-fetch for the new user
+    settings.value = null
+    apiKeys.value = []
+    graphData.value = null
+    datasetFiles.value = []
     await Promise.all([loadDatasets(), loadActivity()])
+    if (activeTab.value === 'files' && activeDatasetId.value) {
+      await listDatasetFiles(activeDatasetId.value)
+    }
+    if (activeTab.value === 'settings') {
+      settingsLoading.value = true
+      try { await getSettings() } finally { settingsLoading.value = false }
+    }
+    if (activeTab.value === 'keys') {
+      keysLoading.value = true
+      try { await listApiKeys() } finally { keysLoading.value = false }
+    }
   } catch (e) {
     $q.notify({
       type: 'negative',
@@ -359,6 +378,9 @@ async function onAddData(files: File[], datasetName: string, cognifyAfter: boole
     })
     addOpen.value = false
     await Promise.all([loadDatasets(), loadActivity()])
+    if (activeTab.value === 'files' && activeDatasetId.value) {
+      await listDatasetFiles(activeDatasetId.value)
+    }
     if (cognifyAfter) await onCognifyDataset(datasetName, '')
   } catch (e) {
     $q.notify({
@@ -464,8 +486,10 @@ watch(activeTab, async (tab) => {
   }
 })
 
-// Reload files when active dataset changes while on the files tab
+// Reload files when active dataset changes while on the files tab; clear stale recall results
 watch(activeDatasetId, async (id) => {
+  results.value = []
+  recallError.value = null
   if (activeTab.value === 'files' && id) {
     await listDatasetFiles(id)
   }
