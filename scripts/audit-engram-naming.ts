@@ -164,9 +164,9 @@ const PATH_EXEMPTIONS: RegExp[] = [
 // tool references in code are always correct usage.
 // ---------------------------------------------------------------------------
 
-function getFilesToScan(): string[] {
+function getFilesToScan(root: string): string[] {
   return globSync('**/*.md', {
-    cwd: PROJECT_ROOT,
+    cwd: root,
     absolute: true,
     ignore: [
       '**/node_modules/**',
@@ -249,7 +249,9 @@ function scanFile(filePath: string): Finding[] {
 
 function main() {
   const jsonMode = process.argv.includes('--json')
-  const files = getFilesToScan()
+  const rootIdx = process.argv.indexOf('--root')
+  const scanRoot = rootIdx !== -1 ? resolve(process.argv[rootIdx + 1]) : PROJECT_ROOT
+  const files = getFilesToScan(scanRoot)
   const allFindings: Finding[] = []
 
   for (const file of files) {
@@ -262,7 +264,7 @@ function main() {
     process.exit(allFindings.length > 0 ? 1 : 0)
   }
 
-  const relPath = (f: string) => relative(PROJECT_ROOT, f)
+  const relPath = (f: string) => relative(scanRoot, f)
 
   if (allFindings.length === 0) {
     console.log(`${GREEN}✓ audit:engram-naming — PASS${RESET}`)
