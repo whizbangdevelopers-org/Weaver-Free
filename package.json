@@ -113,6 +113,7 @@
     "gen:compliance-matrix": "npx tsx scripts/gen-compliance-matrix.ts",
     "audit:attribution": "npx tsx scripts/verify-attribution-parity.ts",
     "audit:vocabulary": "npx tsx scripts/verify-vocabulary-sync.ts",
+    "audit:engram-naming": "npx tsx scripts/audit-engram-naming.ts",
     "audit:compatibility": "npx tsx scripts/verify-compatibility-sync.ts",
     "audit:license-parity": "npx tsx scripts/verify-license-parity.ts",
     "audit:test-coverage": "npx tsx scripts/verify-test-coverage.ts",
