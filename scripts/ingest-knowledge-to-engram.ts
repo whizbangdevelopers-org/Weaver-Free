@@ -29,6 +29,7 @@ import { createHash } from 'crypto'
 import {
   openEngramDb, logIngestionRun, resolveEngramDbPath,
   getAllIngestedEntries, upsertIngestedEntry, deleteIngestedEntry, clearIngestedEntries,
+  getLastIngestionRun,
 } from '../codebase-mcp/src/utils/engram-db.js'
 
 const __filename = fileURLToPath(import.meta.url)
@@ -230,13 +231,14 @@ async function forgetDataset(): Promise<void> {
   }
 }
 
-/** Run knowledge graph construction on the dataset (called once after all adds). */
+/** Run knowledge graph construction on the dataset (called once after all adds).
+ *  Allow up to 10 minutes — local llama-cpp processes each entry sequentially. */
 async function cognifyDataset(): Promise<boolean> {
   const res = await fetch(`${COGNEE_URL}/api/v1/cognify`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ datasets: [DATASET] }),
-    signal: AbortSignal.timeout(120000),
+    signal: AbortSignal.timeout(600000),
   })
   return res.ok
 }
@@ -386,11 +388,14 @@ async function main(): Promise<void> {
 
   console.log()
 
-  // Cognify (graph construction) — only if anything changed
+  // Cognify (graph construction) — run if anything changed OR if the previous
+  // run failed cognify (entries are in the registry but graph is incomplete).
   let improved = false
   const anyChange = added + updated + deleted > 0
-  if (anyChange) {
-    process.stdout.write(`Building knowledge graph… `)
+  const lastRun = getLastIngestionRun(db, DATASET)
+  const needsRebuild = anyChange || (lastRun !== null && !lastRun.improved && lastRun.successCount > 0)
+  if (needsRebuild) {
+    process.stdout.write(`Building knowledge graph (may take several minutes)… `)
     try {
       improved = await cognifyDataset()
       console.log(improved ? `${GREEN}done${RESET}` : `${RED}✗ cognify returned error${RESET}`)
@@ -399,7 +404,7 @@ async function main(): Promise<void> {
       failed++
     }
   } else {
-    console.log(`${DIM}Graph unchanged — skipping cognify.${RESET}`)
+    console.log(`${DIM}Graph up to date — skipping cognify.${RESET}`)
     improved = true
   }
 
