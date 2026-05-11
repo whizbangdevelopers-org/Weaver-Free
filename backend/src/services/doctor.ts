@@ -125,8 +125,8 @@ export class DoctorService {
     const a = arch() === 'x64' ? 'x86_64' : arch()
     if (a === 'x86_64') {
       checks.push({ check: 'Architecture', status: 'pass', detail: a, remediation: null })
-    } else if (a === 'arm64' || a === 'aarch64') {
-      checks.push({ check: 'Architecture', status: 'warn', detail: `${a} (experimental)`, remediation: 'aarch64 dashboard works; MicroVM provisioning is experimental' })
+    } else if (a === 'arm64') {
+      checks.push({ check: 'Architecture', status: 'warn', detail: `${a} (experimental)`, remediation: 'arm64 dashboard works; MicroVM provisioning is experimental' })
     } else {
       checks.push({ check: 'Architecture', status: 'fail', detail: `${a} (unsupported)`, remediation: 'Weaver requires x86_64 or aarch64' })
     }
