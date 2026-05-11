@@ -28,6 +28,7 @@
 import { readFileSync, readdirSync } from 'fs'
 import { resolve, dirname } from 'path'
 import { fileURLToPath } from 'url'
+import { openEngramDb, logIngestionRun, resolveEngramDbPath } from '../codebase-mcp/src/utils/engram-db.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -220,6 +221,7 @@ async function improveDataset(_sessionId: string): Promise<void> {
 // ── Main ──────────────────────────────────────────────────────────────────────
 
 async function main(): Promise<void> {
+  const ingestStart = Date.now()
   console.log(`${BOLD}Engram Knowledge Ingestion${RESET}`)
   console.log(`${DIM}Dataset: ${DATASET}  ·  Sidecar: ${COGNEE_URL}${DRY_RUN ? '  ·  DRY RUN' : ''}${RESET}`)
   console.log()
@@ -293,16 +295,29 @@ async function main(): Promise<void> {
   console.log()
 
   // Entity extraction (improve)
+  let improved = false
   if (ingested > 0) {
     process.stdout.write(`Promoting ${ingested} entr${ingested === 1 ? 'y' : 'ies'} to knowledge graph… `)
     try {
       await improveDataset(sessionId)
+      improved = true
       console.log(`${GREEN}done${RESET}`)
     } catch (err) {
       console.log(`${RED}✗ ${String(err)}${RESET}`)
       failed++
     }
   }
+
+  const db = openEngramDb(resolveEngramDbPath(CODE_ROOT))
+  logIngestionRun(db, {
+    dataset: DATASET,
+    entryCount: entries.length,
+    successCount: ingested,
+    failureCount: failed,
+    improved,
+    durationMs: Date.now() - ingestStart,
+    flags: { dryRun: DRY_RUN, noReset: NO_RESET },
+  })
 
   console.log()
   if (failed === 0) {
