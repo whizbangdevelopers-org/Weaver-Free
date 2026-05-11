@@ -1,12 +1,12 @@
 {
-  "name": "cognee-ui",
+  "name": "engram-ui",
   "version": "1.0.0",
-  "description": "Cognee knowledge graph developer UI — Quasar replacement for the React UI at port 8766",
+  "description": "Engram developer UI — Cognee sidecar interaction and operational monitoring",
   "private": true,
   "scripts": {
     "dev": "quasar dev",
     "build": "quasar build",
-    "deploy:king": "quasar build && rsync -rl --delete --no-times --no-perms dist/spa/ king:/var/www/cognee-quasar-ui/",
+    "deploy:king": "quasar build && rsync -rl --delete --no-times --no-perms dist/spa/ king:/var/www/engram-ui/",
     "lint": "eslint --ext .js,.ts,.vue src",
     "typecheck": "vue-tsc --noEmit"
   },

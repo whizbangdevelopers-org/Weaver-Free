@@ -1,0 +1,430 @@
+<!-- Copyright (c) 2026 whizBANG Developers LLC. All rights reserved. -->
+<!-- Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE. -->
+<template>
+  <div style="height: 100%; overflow-y: auto;" class="q-pa-md">
+
+    <!-- ── Login gate ─────────────────────────────────────────────────────── -->
+    <div v-if="!weaverAuthed" class="column items-center justify-center" style="min-height: 300px; max-width: 360px; margin: 0 auto;">
+      <q-icon name="mdi-brain" size="48px" color="grey-5" class="q-mb-md" />
+      <div class="text-h6 q-mb-xs">Connect to Weaver</div>
+      <div class="text-caption text-grey-7 q-mb-lg text-center">
+        Sign in with your Weaver admin account to view the Engram monitoring data.
+      </div>
+
+      <q-banner v-if="loginError" dense rounded class="bg-negative text-white q-mb-md full-width">
+        {{ loginError }}
+      </q-banner>
+
+      <q-input
+        v-model="loginUsername"
+        label="Username / Email"
+        dense outlined
+        class="full-width q-mb-sm"
+        autofocus
+        @keyup.enter="loginPassword ? onLogin() : undefined"
+      />
+      <q-input
+        v-model="loginPassword"
+        label="Password"
+        type="password"
+        dense outlined
+        class="full-width q-mb-md"
+        @keyup.enter="onLogin"
+      />
+      <q-btn
+        color="primary"
+        label="Connect"
+        icon="mdi-login"
+        :loading="loginLoading"
+        :disable="!loginUsername || !loginPassword"
+        class="full-width"
+        @click="onLogin"
+      />
+    </div>
+
+    <!-- ── Monitor panels ─────────────────────────────────────────────────── -->
+    <template v-else>
+      <!-- Header -->
+      <div class="row items-center q-mb-md">
+        <div class="text-subtitle1 text-weight-medium">
+          <q-icon name="mdi-gauge" class="q-mr-xs" />
+          Engram Monitor
+        </div>
+        <q-space />
+        <q-btn flat dense icon="mdi-refresh" label="Refresh" :loading="refreshing" @click="onRefreshAll" />
+        <q-btn flat dense icon="mdi-logout" color="grey-7" class="q-ml-xs" @click="weaverLogout">
+          <q-tooltip>Disconnect from Weaver</q-tooltip>
+        </q-btn>
+      </div>
+
+      <!-- Error banner -->
+      <q-banner v-if="statusError" dense rounded class="bg-negative text-white q-mb-md">
+        {{ statusError }}
+        <template #action><q-btn flat dense label="Retry" @click="onRefreshAll" /></template>
+      </q-banner>
+
+      <!-- Sub-tabs -->
+      <q-tabs v-model="monitorTab" align="left" dense class="q-mb-md" active-color="primary" indicator-color="primary">
+        <q-tab name="status"    icon="mdi-gauge"           label="Status" />
+        <q-tab name="queries"   icon="mdi-format-list-bulleted" label="Query Log" />
+        <q-tab name="ingestion" icon="mdi-database-import" label="Ingestion" />
+      </q-tabs>
+
+      <!-- ── Status ────────────────────────────────────────────────────────── -->
+      <q-tab-panels v-model="monitorTab" animated>
+        <q-tab-panel name="status" class="q-pa-none">
+          <div v-if="statusLoading && !status" class="text-center q-pa-xl">
+            <q-spinner size="40px" />
+          </div>
+          <template v-else-if="status">
+            <div class="row q-gutter-md q-mb-md">
+              <q-card flat bordered class="col-auto">
+                <q-card-section class="q-pa-md">
+                  <div class="text-caption text-grey-7">DB Status</div>
+                  <q-badge :color="status.dbExists ? 'positive' : 'grey'" :label="status.dbExists ? 'online' : 'not created'" class="q-mt-xs" />
+                </q-card-section>
+              </q-card>
+              <q-card flat bordered class="col-auto">
+                <q-card-section class="q-pa-md">
+                  <div class="text-caption text-grey-7">DB Size</div>
+                  <div class="text-body1 q-mt-xs">{{ formatBytes(status.dbSizeBytes) }}</div>
+                </q-card-section>
+              </q-card>
+              <q-card flat bordered class="col-auto">
+                <q-card-section class="q-pa-md">
+                  <div class="text-caption text-grey-7">Total MCP Queries</div>
+                  <div class="text-body1 q-mt-xs">{{ status.totalQueries.toLocaleString() }}</div>
+                </q-card-section>
+              </q-card>
+            </div>
+
+            <div class="text-subtitle2 q-mb-sm">Last Ingestion Run</div>
+            <q-card flat bordered class="q-mb-md">
+              <q-card-section v-if="!status.lastIngestion" class="text-grey-7 text-caption">
+                No ingestion runs recorded yet.
+              </q-card-section>
+              <q-card-section v-else>
+                <div class="row q-gutter-md flex-wrap">
+                  <div>
+                    <div class="text-caption text-grey-7">Time</div>
+                    <div class="text-body2">{{ formatTs(status.lastIngestion.ts) }}</div>
+                  </div>
+                  <div>
+                    <div class="text-caption text-grey-7">Dataset</div>
+                    <div class="text-body2 text-mono">{{ status.lastIngestion.dataset }}</div>
+                  </div>
+                  <div>
+                    <div class="text-caption text-grey-7">Entries</div>
+                    <div class="text-body2">{{ status.lastIngestion.entry_count }}</div>
+                  </div>
+                  <div>
+                    <div class="text-caption text-grey-7">OK / Fail</div>
+                    <div class="text-body2">
+                      <span class="text-positive">{{ status.lastIngestion.success_count }}</span>
+                      /
+                      <span :class="status.lastIngestion.failure_count > 0 ? 'text-negative' : 'text-grey-7'">{{ status.lastIngestion.failure_count }}</span>
+                    </div>
+                  </div>
+                  <div>
+                    <div class="text-caption text-grey-7">Graph</div>
+                    <q-icon
+                      :name="status.lastIngestion.improved ? 'mdi-check-circle' : 'mdi-close-circle'"
+                      :color="status.lastIngestion.improved ? 'positive' : 'grey-5'"
+                      size="20px"
+                    />
+                  </div>
+                  <div>
+                    <div class="text-caption text-grey-7">Duration</div>
+                    <div class="text-body2">{{ (status.lastIngestion.duration_ms / 1000).toFixed(1) }}s</div>
+                  </div>
+                </div>
+              </q-card-section>
+            </q-card>
+
+            <div class="text-subtitle2 q-mb-sm">MCP Tool Usage (90-day window)</div>
+            <q-card flat bordered>
+              <q-card-section v-if="status.queryCountsByTool.length === 0" class="text-grey-7 text-caption">
+                No queries recorded yet.
+              </q-card-section>
+              <q-table
+                v-else
+                flat
+                :rows="status.queryCountsByTool"
+                :columns="toolStatColumns"
+                row-key="tool"
+                hide-pagination
+                :rows-per-page-options="[0]"
+              >
+                <template #body-cell-tool="props">
+                  <q-td :props="props"><span class="text-mono text-caption">{{ props.row.tool }}</span></q-td>
+                </template>
+                <template #body-cell-avg_latency_ms="props">
+                  <q-td :props="props">{{ Math.round(props.row.avg_latency_ms) }} ms</q-td>
+                </template>
+                <template #body-cell-last_called="props">
+                  <q-td :props="props"><span class="text-caption">{{ formatTs(props.row.last_called) }}</span></q-td>
+                </template>
+              </q-table>
+            </q-card>
+          </template>
+        </q-tab-panel>
+
+        <!-- ── Query Log ─────────────────────────────────────────────────── -->
+        <q-tab-panel name="queries" class="q-pa-none">
+          <div class="row items-center q-gutter-sm q-mb-md">
+            <q-select
+              v-model="queryToolFilter"
+              dense outlined clearable
+              :options="toolOptions"
+              label="Tool"
+              emit-value map-options
+              style="min-width: 220px"
+            />
+            <q-btn color="primary" dense label="Apply" icon="mdi-filter" @click="fetchQueries(0)" />
+          </div>
+
+          <q-table
+            flat bordered
+            :rows="queries"
+            :columns="queryColumns"
+            row-key="id"
+            :loading="queriesLoading"
+            hide-pagination
+            :rows-per-page-options="[0]"
+          >
+            <template #body-cell-ts="props">
+              <q-td :props="props"><span class="text-caption">{{ formatTs(props.row.ts) }}</span></q-td>
+            </template>
+            <template #body-cell-tool="props">
+              <q-td :props="props"><q-badge color="blue-7" outline :label="props.row.tool" class="text-mono" /></q-td>
+            </template>
+            <template #body-cell-params="props">
+              <q-td :props="props"><span class="text-mono text-caption">{{ summariseParams(props.row.params) }}</span></q-td>
+            </template>
+            <template #body-cell-result_count="props">
+              <q-td :props="props" class="text-center">{{ props.row.result_count }}</q-td>
+            </template>
+            <template #body-cell-latency_ms="props">
+              <q-td :props="props" class="text-right">{{ props.row.latency_ms }} ms</q-td>
+            </template>
+            <template #no-data>
+              <div class="text-center q-pa-xl full-width">
+                <q-icon name="mdi-database-search" size="48px" color="grey-5" />
+                <div class="text-body1 q-mt-md text-grey-7">No queries recorded yet</div>
+              </div>
+            </template>
+          </q-table>
+
+          <div class="row items-center justify-between q-mt-sm">
+            <div class="text-caption text-grey-7">
+              {{ queries.length > 0 ? `${queriesOffset + 1}–${Math.min(queriesOffset + LIMIT, queriesTotal)} of ${queriesTotal}` : '' }}
+            </div>
+            <div class="row q-gutter-sm">
+              <q-btn flat dense icon="mdi-chevron-left" :disable="queriesOffset === 0" @click="fetchQueries(queriesOffset - LIMIT)" />
+              <q-btn flat dense icon="mdi-chevron-right" :disable="queriesOffset + LIMIT >= queriesTotal" @click="fetchQueries(queriesOffset + LIMIT)" />
+            </div>
+          </div>
+        </q-tab-panel>
+
+        <!-- ── Ingestion History ─────────────────────────────────────────── -->
+        <q-tab-panel name="ingestion" class="q-pa-none">
+          <q-table
+            flat bordered
+            :rows="runs"
+            :columns="runColumns"
+            row-key="id"
+            :loading="runsLoading"
+            hide-pagination
+            :rows-per-page-options="[0]"
+          >
+            <template #body-cell-ts="props">
+              <q-td :props="props"><span class="text-caption">{{ formatTs(props.row.ts) }}</span></q-td>
+            </template>
+            <template #body-cell-dataset="props">
+              <q-td :props="props"><span class="text-mono text-caption">{{ props.row.dataset }}</span></q-td>
+            </template>
+            <template #body-cell-counts="props">
+              <q-td :props="props">
+                <span class="text-positive">{{ props.row.success_count }}</span>
+                <span class="text-grey-7"> / </span>
+                <span :class="props.row.failure_count > 0 ? 'text-negative' : 'text-grey-7'">{{ props.row.failure_count }}</span>
+                <span class="text-grey-7 text-caption"> of {{ props.row.entry_count }}</span>
+              </q-td>
+            </template>
+            <template #body-cell-improved="props">
+              <q-td :props="props" class="text-center">
+                <q-icon
+                  :name="props.row.improved ? 'mdi-check-circle' : 'mdi-close-circle'"
+                  :color="props.row.improved ? 'positive' : 'grey-5'"
+                  size="18px"
+                >
+                  <q-tooltip>{{ props.row.improved ? 'Graph promotion succeeded' : 'Skipped or failed' }}</q-tooltip>
+                </q-icon>
+              </q-td>
+            </template>
+            <template #body-cell-duration_ms="props">
+              <q-td :props="props" class="text-right">{{ (props.row.duration_ms / 1000).toFixed(1) }}s</q-td>
+            </template>
+            <template #body-cell-flags="props">
+              <q-td :props="props"><span class="text-mono text-caption">{{ summariseFlags(props.row.flags) }}</span></q-td>
+            </template>
+            <template #no-data>
+              <div class="text-center q-pa-xl full-width">
+                <q-icon name="mdi-database-import" size="48px" color="grey-5" />
+                <div class="text-body1 q-mt-md text-grey-7">No ingestion runs yet</div>
+                <div class="text-caption text-grey-7 q-mt-xs">
+                  Run <span class="text-mono">npm run engram:ingest-knowledge</span>
+                </div>
+              </div>
+            </template>
+          </q-table>
+
+          <div class="row items-center justify-between q-mt-sm">
+            <div class="text-caption text-grey-7">
+              {{ runs.length > 0 ? `${runsOffset + 1}–${Math.min(runsOffset + LIMIT, runsTotal)} of ${runsTotal}` : '' }}
+            </div>
+            <div class="row q-gutter-sm">
+              <q-btn flat dense icon="mdi-chevron-left" :disable="runsOffset === 0" @click="fetchIngestionHistory(runsOffset - LIMIT)" />
+              <q-btn flat dense icon="mdi-chevron-right" :disable="runsOffset + LIMIT >= runsTotal" @click="fetchIngestionHistory(runsOffset + LIMIT)" />
+            </div>
+          </div>
+        </q-tab-panel>
+      </q-tab-panels>
+    </template>
+
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, watch } from 'vue'
+import type { QTableColumn } from 'quasar'
+import { useEngramMonitor } from '../composables/useEngramMonitor'
+
+const {
+  weaverAuthed,
+  loginLoading,
+  loginError,
+  status,
+  statusLoading,
+  statusError,
+  queries,
+  queriesTotal,
+  queriesOffset,
+  queriesLoading,
+  queryToolFilter,
+  runs,
+  runsTotal,
+  runsOffset,
+  runsLoading,
+  LIMIT,
+  weaverLogin,
+  weaverLogout,
+  fetchStatus,
+  fetchQueries,
+  fetchIngestionHistory,
+  checkAuthAndLoad,
+} = useEngramMonitor()
+
+const loginUsername = ref('')
+const loginPassword = ref('')
+const monitorTab = ref<'status' | 'queries' | 'ingestion'>('status')
+const refreshing = ref(false)
+
+const toolOptions = computed(() =>
+  status.value?.queryCountsByTool.map((s) => ({ label: s.tool, value: s.tool })) ?? [],
+)
+
+// ── Auth ──────────────────────────────────────────────────────────────────────
+
+async function onLogin() {
+  await weaverLogin(loginUsername.value, loginPassword.value)
+  if (weaverAuthed.value) {
+    loginPassword.value = ''
+    await checkAuthAndLoad()
+  }
+}
+
+// ── Refresh ───────────────────────────────────────────────────────────────────
+
+async function onRefreshAll() {
+  refreshing.value = true
+  await Promise.all([fetchStatus(), fetchQueries(0), fetchIngestionHistory(0)])
+  refreshing.value = false
+}
+
+// ── Lazy-load sub-tabs ────────────────────────────────────────────────────────
+
+watch(monitorTab, (t) => {
+  if (t === 'queries' && queries.value.length === 0) void fetchQueries(0)
+  if (t === 'ingestion' && runs.value.length === 0) void fetchIngestionHistory(0)
+})
+
+// ── Probe on mount (pick up existing session) ────────────────────────────────
+
+void checkAuthAndLoad()
+
+// ── Formatters ────────────────────────────────────────────────────────────────
+
+function formatTs(ms: number): string {
+  return new Date(ms).toLocaleString(undefined, {
+    year: 'numeric', month: 'short', day: 'numeric',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+  })
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`
+}
+
+function summariseParams(json: string): string {
+  try {
+    const obj = JSON.parse(json) as Record<string, unknown>
+    const parts = Object.entries(obj)
+      .filter(([, v]) => v !== undefined && v !== null)
+      .map(([k, v]) => `${k}=${JSON.stringify(v)}`)
+    return parts.length ? parts.join(' ') : '—'
+  } catch { return json }
+}
+
+function summariseFlags(json: string): string {
+  try {
+    const obj = JSON.parse(json) as Record<string, unknown>
+    const active = Object.entries(obj).filter(([, v]) => v).map(([k]) => k)
+    return active.length ? active.join(', ') : '—'
+  } catch { return json }
+}
+
+// ── Column definitions ────────────────────────────────────────────────────────
+
+const toolStatColumns: QTableColumn[] = [
+  { name: 'tool',           label: 'Tool',        field: 'tool',           align: 'left'  },
+  { name: 'count',          label: 'Calls',       field: 'count',          align: 'right', sortable: true },
+  { name: 'avg_latency_ms', label: 'Avg Latency', field: 'avg_latency_ms', align: 'right', sortable: true },
+  { name: 'last_called',    label: 'Last Called', field: 'last_called',    align: 'left'  },
+]
+
+const queryColumns: QTableColumn[] = [
+  { name: 'ts',           label: 'Time',    field: 'ts',           align: 'left',   style: 'width: 170px' },
+  { name: 'tool',         label: 'Tool',    field: 'tool',         align: 'left'  },
+  { name: 'params',       label: 'Params',  field: 'params',       align: 'left'  },
+  { name: 'result_count', label: 'Results', field: 'result_count', align: 'center', style: 'width: 80px' },
+  { name: 'latency_ms',   label: 'Latency', field: 'latency_ms',   align: 'right',  style: 'width: 100px' },
+]
+
+const runColumns: QTableColumn[] = [
+  { name: 'ts',          label: 'Time',     field: 'ts',          align: 'left',  style: 'width: 170px' },
+  { name: 'dataset',     label: 'Dataset',  field: 'dataset',     align: 'left'  },
+  { name: 'counts',      label: 'OK / Fail', field: 'success_count', align: 'left' },
+  { name: 'improved',    label: 'Graph',    field: 'improved',    align: 'center', style: 'width: 72px' },
+  { name: 'duration_ms', label: 'Duration', field: 'duration_ms', align: 'right',  style: 'width: 90px' },
+  { name: 'flags',       label: 'Flags',    field: 'flags',       align: 'left'  },
+]
+</script>
+
+<style scoped>
+.text-mono {
+  font-family: 'Roboto Mono', monospace;
+}
+</style>

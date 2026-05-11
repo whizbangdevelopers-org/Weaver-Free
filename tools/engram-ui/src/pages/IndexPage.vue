@@ -48,6 +48,7 @@
           <q-tab name="files"    icon="mdi-file-multiple-outline" label="Files" />
           <q-tab name="settings" icon="mdi-cog"            label="Settings" />
           <q-tab name="keys"     icon="mdi-key-variant"    label="API Keys" />
+          <q-tab name="monitor"  icon="mdi-gauge"          label="Monitor" />
         </q-tabs>
 
         <q-separator />
@@ -113,6 +114,10 @@
               @delete="onDeleteKey"
             />
           </q-tab-panel>
+
+          <q-tab-panel name="monitor" class="q-pa-none" style="height: 100%">
+            <MonitorPanel />
+          </q-tab-panel>
         </q-tab-panels>
       </q-page>
     </q-page-container>
@@ -160,6 +165,7 @@ import SettingsPanel from '../components/SettingsPanel.vue'
 import ApiKeysPanel from '../components/ApiKeysPanel.vue'
 import DatasetFilesPanel from '../components/DatasetFilesPanel.vue'
 import LoginDialog from '../components/LoginDialog.vue'
+import MonitorPanel from '../components/MonitorPanel.vue'
 
 const $q = useQuasar()
 const {

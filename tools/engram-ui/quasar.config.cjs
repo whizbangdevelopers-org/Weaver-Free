@@ -55,6 +55,11 @@ module.exports = configure(function (/* ctx */) {
           target: 'http://localhost:8765',
           changeOrigin: true,
         },
+        '/weaver': {
+          target: 'http://localhost:3110',
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/weaver/, ''),
+        },
       },
     },
 
