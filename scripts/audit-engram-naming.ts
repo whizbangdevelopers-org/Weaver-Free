@@ -140,6 +140,10 @@ const LINE_EXEMPTIONS: RegExp[] = [
   // The implementation note pattern we use in docs
   /Cognee\s+is\s+the\s+(?:current\s+)?implementation/i,
   /Cognee\s+(?:the\s+)?(?:open.?source|tool)\s+(?:was|is)/i,
+  // npm script names using the engram: namespace (e.g. engram:ingest-knowledge) — the colon is a
+  // word boundary so \bEngram\b would match "engram" within the script name. These correctly
+  // use "engram" as the system name (the destination), not as a running process.
+  /\bengram:[a-z]/i,
 ]
 
 // ---------------------------------------------------------------------------
