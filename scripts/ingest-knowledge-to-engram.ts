@@ -52,6 +52,7 @@ interface RawEntry {
   id: string
   type: string
   domain: string
+  scope: string        // project | transferable | transient (optional, defaults to project)
   tags: string[]
   since_version: string
   status: string
@@ -108,6 +109,7 @@ function parseEntry(id: string, blockContent: string, filePath: string): RawEntr
     id: fm['id'] ?? id,
     type: fm['type'] ?? 'lesson',
     domain: fm['domain'] ?? 'unknown',
+    scope: fm['scope'] ?? 'project',
     tags: parseYamlArray(fm['tags'] ?? '[]'),
     since_version: fm['since_version'] ?? '',
     status: fm['status'] ?? 'active',
@@ -150,7 +152,7 @@ function formatEntryForEngram(entry: RawEntry): string {
   const lines: string[] = []
 
   lines.push(`KNOWLEDGE ENTRY: ${entry.id}`)
-  lines.push(`Type: ${entry.type} | Domain: ${entry.domain} | Status: ${entry.status}`)
+  lines.push(`Type: ${entry.type} | Domain: ${entry.domain} | Scope: ${entry.scope} | Status: ${entry.status}`)
   if (entry.tags.length > 0) lines.push(`Tags: ${entry.tags.join(', ')}`)
   if (entry.since_version) lines.push(`Since version: ${entry.since_version}`)
   lines.push('')
