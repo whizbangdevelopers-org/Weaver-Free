@@ -97,6 +97,52 @@
             </q-card-section>
           </q-card>
 
+          <div class="text-subtitle2 q-mb-sm">Knowledge Registry</div>
+          <q-banner v-if="entriesError" dense rounded class="bg-negative text-white q-mb-sm">{{ entriesError }}</q-banner>
+          <q-card flat bordered class="q-mb-md">
+            <q-card-section v-if="entriesLoading && entries.length === 0" class="text-center q-pa-md">
+              <q-spinner size="24px" />
+            </q-card-section>
+            <q-card-section v-else-if="entries.length === 0" class="text-grey-7 text-caption">
+              No entries in registry yet — run <span class="text-mono">npm run engram:ingest-knowledge</span>.
+            </q-card-section>
+            <q-table
+              v-else flat
+              :rows="entries"
+              :columns="entryColumns"
+              row-key="entry_key"
+              hide-pagination
+              :rows-per-page-options="[0]"
+              dense
+            >
+              <template #body-cell-domain="props">
+                <q-td :props="props"><span class="text-mono text-caption">{{ props.row.domain }}</span></q-td>
+              </template>
+              <template #body-cell-type="props">
+                <q-td :props="props">
+                  <q-badge :color="props.row.type === 'lesson' ? 'blue-7' : 'orange-8'" outline :label="props.row.type" />
+                </q-td>
+              </template>
+              <template #body-cell-scope="props">
+                <q-td :props="props">
+                  <q-badge
+                    :color="props.row.scope === 'transferable' ? 'positive' : props.row.scope === 'transient' ? 'grey-6' : 'primary'"
+                    outline :label="props.row.scope"
+                  />
+                </q-td>
+              </template>
+              <template #body-cell-count="props">
+                <q-td :props="props" class="text-right text-weight-medium">{{ props.row.count }}</q-td>
+              </template>
+              <template #bottom-row>
+                <q-tr class="text-grey-7">
+                  <q-td colspan="3" class="text-caption">Total</q-td>
+                  <q-td class="text-right text-weight-bold">{{ entriesTotal }}</q-td>
+                </q-tr>
+              </template>
+            </q-table>
+          </q-card>
+
           <div class="text-subtitle2 q-mb-sm">MCP Tool Usage (90-day window)</div>
           <q-card flat bordered>
             <q-card-section v-if="status.queryCountsByTool.length === 0" class="text-grey-7 text-caption">
@@ -271,6 +317,10 @@ const {
   runsOffset,
   runsLoading,
   runsError,
+  entries,
+  entriesTotal,
+  entriesLoading,
+  entriesError,
   LIMIT,
   fetchQueries,
   fetchIngestionHistory,
@@ -327,6 +377,13 @@ function summariseFlags(json: string): string {
     return active.length ? active.join(', ') : '—'
   } catch { return json }
 }
+
+const entryColumns: QTableColumn[] = [
+  { name: 'domain', label: 'Domain', field: 'domain', align: 'left', sortable: true },
+  { name: 'type',   label: 'Type',   field: 'type',   align: 'left', sortable: true },
+  { name: 'scope',  label: 'Scope',  field: 'scope',  align: 'left', sortable: true },
+  { name: 'count',  label: 'Count',  field: 'count',  align: 'right', sortable: true },
+]
 
 const toolStatColumns: QTableColumn[] = [
   { name: 'tool',           label: 'Tool',        field: 'tool',           align: 'left'  },

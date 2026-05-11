@@ -88,6 +88,27 @@ export const engramRoutes: FastifyPluginAsync<EngramRouteOptions> = async (fasti
     }
   )
 
+  // GET /api/engram/entries — registry breakdown by domain/type/scope
+  app.get('/entries', {}, async (request, reply) => {
+    const handle = db()
+    if (!handle) return reply.send({ entries: [], total: 0 })
+
+    try {
+      const rows = handle.prepare(`
+        SELECT domain, type, scope, COUNT(*) as count
+        FROM ingested_entries
+        GROUP BY domain, type, scope
+        ORDER BY domain, type, scope
+      `).all() as Array<{ domain: string; type: string; scope: string; count: number }>
+
+      const total = rows.reduce((sum, r) => sum + r.count, 0)
+      return reply.send({ entries: rows, total })
+    } catch {
+      // ingested_entries table doesn't exist yet (no ingest run)
+      return reply.send({ entries: [], total: 0 })
+    }
+  })
+
   // GET /api/engram/status — summary: last ingest, call counts per tool, DB size, admin only
   app.get(
     '/status',

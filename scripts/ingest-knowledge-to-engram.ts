@@ -1,34 +1,35 @@
 // Copyright (c) 2026 whizBANG Developers LLC. All rights reserved.
 // Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE.
 /**
- * Engram Knowledge Ingestion
+ * Engram Knowledge Ingestion — incremental
  *
  * Reads every structured entry from code/docs/knowledge/{lessons,gotchas}/*.md,
- * formats each as rich prose (metadata + full body), and POSTs to the Cognee
- * sidecar's /api/v1/cognify endpoint into the `knowledge_entries` dataset.
+ * compares each against the ingested_entries registry in engram.db, and only
+ * sends entries that are new or changed to the Cognee sidecar. Deleted entries
+ * are forgotten from the graph automatically.
  *
- * Ingestion is full-replace: the dataset is reset before each run so entries
- * removed from the knowledge store are removed from Engram too.
- *
- * Cognee's LLM entity extractor builds a knowledge graph from the prose,
- * connecting entries via their ID references in `related:` and `graduated_to:`.
- *
- * Requires the Cognee sidecar to be running. Fails gracefully if unreachable.
+ * After all adds/removals, cognify is called once to rebuild the knowledge graph
+ * from the updated dataset — no per-entry graph rebuild.
  *
  * Flags:
- *   --dry-run     Print what would be ingested; do not POST to the sidecar.
- *   --no-reset    Skip dataset reset; add entries without wiping existing graph.
+ *   --dry-run      Print what would be added/skipped/deleted; do not POST.
+ *   --force-reset  Wipe dataset + registry and re-ingest everything from scratch.
  *
  * Invocation:
  *   npx tsx scripts/ingest-knowledge-to-engram.ts
  *   npm run engram:ingest-knowledge
  *   npm run engram:ingest-knowledge -- --dry-run
+ *   npm run engram:ingest-knowledge -- --force-reset
  */
 
 import { readFileSync, readdirSync } from 'fs'
 import { resolve, dirname } from 'path'
 import { fileURLToPath } from 'url'
-import { openEngramDb, logIngestionRun, resolveEngramDbPath } from '../codebase-mcp/src/utils/engram-db.js'
+import { createHash } from 'crypto'
+import {
+  openEngramDb, logIngestionRun, resolveEngramDbPath,
+  getAllIngestedEntries, upsertIngestedEntry, deleteIngestedEntry, clearIngestedEntries,
+} from '../codebase-mcp/src/utils/engram-db.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -37,14 +38,15 @@ const KNOWLEDGE_ROOT = resolve(CODE_ROOT, 'docs/knowledge')
 const COGNEE_URL = process.env.COGNEE_URL ?? 'http://localhost:8765'
 const DATASET = 'knowledge_entries'
 const DRY_RUN = process.argv.includes('--dry-run')
-const NO_RESET = process.argv.includes('--no-reset')
+const FORCE_RESET = process.argv.includes('--force-reset')
 
 // ── ANSI ─────────────────────────────────────────────────────────────────────
-const GREEN = '\x1b[32m'
-const RED   = '\x1b[31m'
-const DIM   = '\x1b[2m'
-const BOLD  = '\x1b[1m'
-const RESET = '\x1b[0m'
+const GREEN  = '\x1b[32m'
+const RED    = '\x1b[31m'
+const YELLOW = '\x1b[33m'
+const DIM    = '\x1b[2m'
+const BOLD   = '\x1b[1m'
+const RESET  = '\x1b[0m'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -52,20 +54,18 @@ interface RawEntry {
   id: string
   type: string
   domain: string
-  scope: string        // project | transferable | transient (optional, defaults to project)
+  scope: string        // project | transferable | transient (defaults to project)
   tags: string[]
   since_version: string
   status: string
   related: string[]
   graduated_to: string
   title: string
-  body: string         // full prose body after frontmatter (not stripped)
+  body: string
   sourceFile: string
 }
 
 // ── Parser ────────────────────────────────────────────────────────────────────
-
-// Not module-level: global regexes with `g` carry lastIndex state across calls.
 
 const FRONTMATTER_RE = /---\n([\s\S]+?)\n---/
 
@@ -81,10 +81,7 @@ function parseYamlLine(line: string): [string, string] | null {
 function parseYamlArray(raw: string): string[] {
   const inner = raw.replace(/^\[/, '').replace(/\]$/, '').trim()
   if (!inner) return []
-  return inner
-    .split(',')
-    .map((s) => s.trim().replace(/^["']|["']$/g, ''))
-    .filter(Boolean)
+  return inner.split(',').map((s) => s.trim().replace(/^["']|["']$/g, '')).filter(Boolean)
 }
 
 function extractTitle(body: string): string {
@@ -128,13 +125,10 @@ function collectEntries(): RawEntry[] {
     let names: string[]
     try {
       names = readdirSync(dir).filter((f) => f.endsWith('.md')).sort()
-    } catch {
-      continue
-    }
+    } catch { continue }
     for (const name of names) {
       const filePath = resolve(dir, name)
       const content = readFileSync(filePath, 'utf8')
-      // Create regex fresh per file — global `g` flag carries lastIndex state
       const entryBlockRe = /<!--\s*entry:([\w-]+)\s*-->([\s\S]*?)<!--\s*\/entry\s*-->/g
       let match: RegExpExecArray | null
       while ((match = entryBlockRe.exec(content)) !== null) {
@@ -143,31 +137,32 @@ function collectEntries(): RawEntry[] {
       }
     }
   }
-  return entries.sort((a, b) => a.body.length - b.body.length)
+  return entries
 }
 
 // ── Prose formatter ───────────────────────────────────────────────────────────
 
 function formatEntryForEngram(entry: RawEntry): string {
   const lines: string[] = []
-
   lines.push(`KNOWLEDGE ENTRY: ${entry.id}`)
   lines.push(`Type: ${entry.type} | Domain: ${entry.domain} | Scope: ${entry.scope} | Status: ${entry.status}`)
   if (entry.tags.length > 0) lines.push(`Tags: ${entry.tags.join(', ')}`)
   if (entry.since_version) lines.push(`Since version: ${entry.since_version}`)
   lines.push('')
   lines.push(entry.body)
-
   if (entry.related.length > 0) {
     lines.push('')
-    lines.push(`This entry is related to the following knowledge entries: ${entry.related.join(', ')}`)
+    lines.push(`Related knowledge entries: ${entry.related.join(', ')}`)
   }
   if (entry.graduated_to) {
     lines.push('')
-    lines.push(`This lesson has graduated to a universal rule recorded at: ${entry.graduated_to}`)
+    lines.push(`Graduated to universal rule at: ${entry.graduated_to}`)
   }
-
   return lines.join('\n')
+}
+
+function computeHash(text: string): string {
+  return createHash('sha256').update(text).digest('hex').slice(0, 16)
 }
 
 // ── Cognee API ────────────────────────────────────────────────────────────────
@@ -176,48 +171,74 @@ async function checkCognee(): Promise<boolean> {
   try {
     const res = await fetch(`${COGNEE_URL}/health`, { signal: AbortSignal.timeout(3000) })
     return res.ok
-  } catch {
-    return false
-  }
+  } catch { return false }
 }
 
-async function resetDataset(): Promise<void> {
-  const res = await fetch(`${COGNEE_URL}/api/v1/datasets`, {
-    method: 'DELETE',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ dataset: DATASET }),
-    signal: AbortSignal.timeout(10000),
+/** Add a single entry as a .txt file; returns { dataId, datasetId }. */
+async function addEntry(text: string, entryId: string): Promise<{ dataId: string; datasetId: string }> {
+  const formData = new FormData()
+  formData.append('data', new Blob([text], { type: 'text/plain' }), `${entryId}.txt`)
+  formData.append('datasetName', DATASET)
+
+  const res = await fetch(`${COGNEE_URL}/api/v1/add`, {
+    method: 'POST',
+    body: formData,
+    signal: AbortSignal.timeout(30000),
   })
   if (!res.ok) {
-    const text = await res.text().catch(() => '(no body)')
-    throw new Error(`Dataset reset failed: ${res.status} ${text}`)
+    const body = await res.text().catch(() => '(no body)')
+    throw new Error(`Add failed: ${res.status} ${body}`)
   }
+  const json = await res.json() as {
+    dataset_id?: string
+    data_ingestion_info?: Array<{ data_id: string }>
+  }
+  const dataId = json.data_ingestion_info?.[0]?.data_id
+  const datasetId = json.dataset_id ?? ''
+  if (!dataId) throw new Error('Add succeeded but no data_id in response')
+  return { dataId, datasetId }
 }
 
-async function ingestEntry(text: string): Promise<void> {
-  const res = await fetch(`${COGNEE_URL}/api/v1/cognify`, {
+/** Forget a single entry by its Cognee data_id. */
+async function forgetEntry(dataId: string): Promise<void> {
+  const res = await fetch(`${COGNEE_URL}/api/v1/forget`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ data: text, datasets: [DATASET] }),
+    body: JSON.stringify({ dataId, dataset: DATASET }),
     signal: AbortSignal.timeout(15000),
   })
   if (!res.ok) {
     const body = await res.text().catch(() => '(no body)')
-    throw new Error(`Cognify failed: ${res.status} ${body}`)
+    throw new Error(`Forget failed: ${res.status} ${body}`)
   }
 }
 
-async function improveDataset(_sessionId: string): Promise<void> {
-  const res = await fetch(`${COGNEE_URL}/api/v1/improve`, {
+/** Wipe the entire dataset from Cognee (used by --force-reset). */
+async function forgetDataset(): Promise<void> {
+  const res = await fetch(`${COGNEE_URL}/api/v1/forget`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ dataset_name: DATASET }),
-    signal: AbortSignal.timeout(60000),
+    body: JSON.stringify({ dataset: DATASET }),
+    signal: AbortSignal.timeout(15000),
   })
+  // 404 = dataset doesn't exist yet — fine
   if (!res.ok) {
-    const body = await res.text().catch(() => '(no body)')
-    throw new Error(`Improve failed: ${res.status} ${body}`)
+    const body = await res.text().catch(() => '')
+    if (!body.includes('404') && res.status !== 404) {
+      throw new Error(`Dataset reset failed: ${res.status} ${body}`)
+    }
   }
+}
+
+/** Run knowledge graph construction on the dataset (called once after all adds). */
+async function cognifyDataset(): Promise<boolean> {
+  const res = await fetch(`${COGNEE_URL}/api/v1/cognify`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ datasets: [DATASET] }),
+    signal: AbortSignal.timeout(120000),
+  })
+  return res.ok
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
@@ -225,10 +246,12 @@ async function improveDataset(_sessionId: string): Promise<void> {
 async function main(): Promise<void> {
   const ingestStart = Date.now()
   console.log(`${BOLD}Engram Knowledge Ingestion${RESET}`)
-  console.log(`${DIM}Dataset: ${DATASET}  ·  Sidecar: ${COGNEE_URL}${DRY_RUN ? '  ·  DRY RUN' : ''}${RESET}`)
+  console.log(`${DIM}Dataset: ${DATASET}  ·  Sidecar: ${COGNEE_URL}${DRY_RUN ? '  ·  DRY RUN' : FORCE_RESET ? '  ·  FORCE RESET' : '  ·  incremental'}${RESET}`)
   console.log()
 
+  const db = openEngramDb(resolveEngramDbPath(CODE_ROOT))
   const entries = collectEntries()
+
   if (entries.length === 0) {
     console.log(`${DIM}No entries found in docs/knowledge/. Nothing to ingest.${RESET}`)
     process.exit(0)
@@ -236,15 +259,45 @@ async function main(): Promise<void> {
 
   console.log(`Collected ${entries.length} entr${entries.length === 1 ? 'y' : 'ies'} from docs/knowledge/`)
 
-  if (DRY_RUN) {
-    console.log()
-    for (const entry of entries) {
-      const text = formatEntryForEngram(entry)
-      console.log(`${DIM}─── ${entry.id} (${entry.type}, ${entry.domain}) ───${RESET}`)
-      console.log(text.slice(0, 300) + (text.length > 300 ? '…' : ''))
-      console.log()
+  // Compute hashes and diff against registry
+  const existing = getAllIngestedEntries(db)
+  const currentIds = new Set(entries.map((e) => e.id))
+
+  const toAdd: RawEntry[] = []
+  const toUpdate: RawEntry[] = []
+  const toDelete: Array<{ entryId: string; dataId: string }> = []
+  const skipped: string[] = []
+
+  for (const entry of entries) {
+    const text = formatEntryForEngram(entry)
+    const hash = computeHash(text)
+    const rec = existing.get(entry.id)
+
+    if (!rec) {
+      toAdd.push(entry)
+    } else if (rec.contentHash !== hash) {
+      toUpdate.push(entry)
+    } else {
+      skipped.push(entry.id)
     }
-    console.log(`${GREEN}Dry run complete. ${entries.length} entr${entries.length === 1 ? 'y' : 'ies'} previewed.${RESET}`)
+  }
+
+  for (const [entryId, rec] of existing) {
+    if (!currentIds.has(entryId)) {
+      toDelete.push({ entryId, dataId: rec.dataId })
+    }
+  }
+
+  console.log(`  ${GREEN}new${RESET}: ${toAdd.length}  ${YELLOW}changed${RESET}: ${toUpdate.length}  ${DIM}unchanged: ${skipped.length}  deleted: ${toDelete.length}${RESET}`)
+  console.log()
+
+  if (DRY_RUN) {
+    if (FORCE_RESET) console.log(`${DIM}[force-reset] Would wipe dataset and re-ingest all ${entries.length} entries.${RESET}`)
+    for (const e of toAdd)    console.log(`  ${GREEN}+ ${e.id}${RESET} (${e.domain} ${e.type})`)
+    for (const e of toUpdate) console.log(`  ${YELLOW}~ ${e.id}${RESET} (${e.domain} ${e.type}) — changed`)
+    for (const d of toDelete) console.log(`  ${RED}- ${d.entryId}${RESET} — deleted from source`)
+    console.log()
+    console.log(`${GREEN}Dry run complete.${RESET}`)
     return
   }
 
@@ -252,41 +305,78 @@ async function main(): Promise<void> {
   const available = await checkCognee()
   if (!available) {
     console.error(`${RED}${BOLD}Cognee sidecar unreachable at ${COGNEE_URL}${RESET}`)
-    console.error(`${DIM}Start it via: systemctl start weaver-cognee  or  uvx cognee-mcp --api-url${RESET}`)
+    console.error(`${DIM}Start it via: systemctl start weaver-cognee${RESET}`)
     process.exit(1)
   }
-
   console.log(`${GREEN}✓${RESET} Cognee sidecar reachable`)
 
-  // Reset dataset
-  if (!NO_RESET) {
-    process.stdout.write(`Resetting dataset "${DATASET}"… `)
+  // Force reset: wipe dataset + registry, then treat everything as new
+  if (FORCE_RESET) {
+    process.stdout.write(`Force-resetting dataset "${DATASET}"… `)
+    await forgetDataset()
+    clearIngestedEntries(db)
+    console.log(`${GREEN}done${RESET}`)
+    toAdd.push(...toUpdate, ...entries.filter((e) => skipped.includes(e.id)))
+    toUpdate.length = 0
+    toDelete.length = 0
+    skipped.length = 0
+  }
+
+  let added = 0
+  let updated = 0
+  let deleted = 0
+  let failed = 0
+
+  // Deletions
+  for (const { entryId, dataId } of toDelete) {
+    process.stdout.write(`  ${RED}forget${RESET} ${entryId}… `)
     try {
-      await resetDataset()
-      console.log(`${GREEN}done${RESET}`)
+      await forgetEntry(dataId)
+      deleteIngestedEntry(db, entryId)
+      deleted++
+      console.log(`${GREEN}✓${RESET}`)
     } catch (err) {
-      // 404 means dataset doesn't exist yet — that's fine
-      const msg = String(err)
-      if (msg.includes('404')) {
-        console.log(`${DIM}(dataset not yet created — first run)${RESET}`)
-      } else {
-        console.error(`\n${RED}${msg}${RESET}`)
-        process.exit(1)
-      }
+      failed++
+      console.log(`${RED}✗ ${String(err)}${RESET}`)
     }
   }
 
-  // Ingest
-  let ingested = 0
-  let failed = 0
-  const sessionId = `knowledge-ingest-${Date.now()}`
-
-  for (const entry of entries) {
-    const text = formatEntryForEngram(entry)
-    process.stdout.write(`  ingesting ${entry.id}… `)
+  // Updates: forget old version then fall through to add
+  for (const entry of toUpdate) {
+    const rec = existing.get(entry.id)!
+    process.stdout.write(`  ${YELLOW}update${RESET} ${entry.id}… `)
     try {
-      await ingestEntry(text)
-      ingested++
+      await forgetEntry(rec.dataId)
+    } catch {
+      // Non-fatal: old version may already be gone; proceed with re-add
+    }
+    toAdd.push(entry)
+  }
+
+  // Adds
+  for (const entry of toAdd) {
+    const text = formatEntryForEngram(entry)
+    const hash = computeHash(text)
+    const isUpdate = toUpdate.includes(entry)
+    if (!isUpdate) process.stdout.write(`  ${GREEN}add${RESET} ${entry.id}… `)
+    try {
+      const { dataId, datasetId } = await addEntry(text, entry.id)
+      upsertIngestedEntry(db, {
+        entryId: entry.id,
+        contentHash: hash,
+        dataId,
+        datasetId,
+        domain: entry.domain,
+        type: entry.type,
+        scope: entry.scope,
+        status: entry.status,
+        tags: JSON.stringify(entry.tags),
+        sinceVersion: entry.since_version,
+        title: entry.title,
+        ingestedAt: Date.now(),
+      })
+      if (isUpdate) { updated++; console.log(`${GREEN}✓${RESET}`) }
+      else added++
       console.log(`${GREEN}✓${RESET}`)
     } catch (err) {
       failed++
@@ -296,36 +386,38 @@ async function main(): Promise<void> {
 
   console.log()
 
-  // Entity extraction (improve)
+  // Cognify (graph construction) — only if anything changed
   let improved = false
-  if (ingested > 0) {
-    process.stdout.write(`Promoting ${ingested} entr${ingested === 1 ? 'y' : 'ies'} to knowledge graph… `)
+  const anyChange = added + updated + deleted > 0
+  if (anyChange) {
+    process.stdout.write(`Building knowledge graph… `)
     try {
-      await improveDataset(sessionId)
-      improved = true
-      console.log(`${GREEN}done${RESET}`)
+      improved = await cognifyDataset()
+      console.log(improved ? `${GREEN}done${RESET}` : `${RED}✗ cognify returned error${RESET}`)
     } catch (err) {
       console.log(`${RED}✗ ${String(err)}${RESET}`)
       failed++
     }
+  } else {
+    console.log(`${DIM}Graph unchanged — skipping cognify.${RESET}`)
+    improved = true
   }
 
-  const db = openEngramDb(resolveEngramDbPath(CODE_ROOT))
   logIngestionRun(db, {
     dataset: DATASET,
     entryCount: entries.length,
-    successCount: ingested,
+    successCount: added + updated,
     failureCount: failed,
     improved,
     durationMs: Date.now() - ingestStart,
-    flags: { dryRun: DRY_RUN, noReset: NO_RESET },
+    flags: { dryRun: DRY_RUN, forceReset: FORCE_RESET },
   })
 
   console.log()
   if (failed === 0) {
-    console.log(`${GREEN}${BOLD}Ingestion complete.${RESET} ${ingested} entr${ingested === 1 ? 'y' : 'ies'} ingested into Engram dataset "${DATASET}".`)
+    console.log(`${GREEN}${BOLD}Done.${RESET} +${added} added  ~${updated} updated  -${deleted} deleted  (${skipped.length} unchanged)`)
   } else {
-    console.log(`${RED}${BOLD}Ingestion finished with ${failed} failure(s).${RESET} ${ingested} succeeded.`)
+    console.log(`${RED}${BOLD}Finished with ${failed} failure(s).${RESET} +${added} added  ~${updated} updated  -${deleted} deleted`)
     process.exit(1)
   }
 }
