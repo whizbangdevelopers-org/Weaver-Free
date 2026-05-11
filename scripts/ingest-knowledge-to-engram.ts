@@ -140,7 +140,7 @@ function collectEntries(): RawEntry[] {
       }
     }
   }
-  return entries.sort((a, b) => a.id.localeCompare(b.id))
+  return entries.sort((a, b) => a.body.length - b.body.length)
 }
 
 // ── Prose formatter ───────────────────────────────────────────────────────────
@@ -204,11 +204,11 @@ async function ingestEntry(text: string): Promise<void> {
   }
 }
 
-async function improveDataset(sessionId: string): Promise<void> {
-  const res = await fetch(`${COGNEE_URL}/api/v1/cognify/improve`, {
+async function improveDataset(_sessionId: string): Promise<void> {
+  const res = await fetch(`${COGNEE_URL}/api/v1/improve`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ sessionId }),
+    body: JSON.stringify({ dataset_name: DATASET }),
     signal: AbortSignal.timeout(60000),
   })
   if (!res.ok) {
