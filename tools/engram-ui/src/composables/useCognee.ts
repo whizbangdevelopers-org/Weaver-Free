@@ -120,6 +120,10 @@ const RECALL_TIMEOUT = 10_000
 const ADD_TIMEOUT = 30_000
 const DEFAULT_TIMEOUT = 5_000
 
+// Module-level Bearer token — shared across all useCognee() call sites.
+// Set on successful login, cleared on logout.
+let _bearerToken: string | null = null
+
 async function apiFetch<T>(
   path: string,
   options: RequestInit = {},
@@ -127,8 +131,13 @@ async function apiFetch<T>(
 ): Promise<T> {
   const controller = new AbortController()
   const id = setTimeout(() => controller.abort(), timeout)
+  const authHeader = _bearerToken ? { Authorization: `Bearer ${_bearerToken}` } : {}
   try {
-    const res = await fetch(path, { ...options, signal: controller.signal })
+    const res = await fetch(path, {
+      ...options,
+      headers: { ...authHeader, ...(options.headers ?? {}) },
+      signal: controller.signal,
+    })
     if (!res.ok) {
       const text = await res.text().catch(() => '')
       let msg = `HTTP ${res.status}`
@@ -480,11 +489,14 @@ export function useCognee() {
       try { msg = JSON.parse(text).detail ?? msg } catch { /* ignore */ }
       throw new Error(msg)
     }
+    const data = (await res.json()) as { access_token: string }
+    _bearerToken = data.access_token
     currentUser.value = email
   }
 
   async function logout() {
     await fetch('/api/v1/auth/logout', { method: 'POST' }).catch(() => {})
+    _bearerToken = null
     currentUser.value = null
     datasets.value = []
     activeDatasetId.value = null
