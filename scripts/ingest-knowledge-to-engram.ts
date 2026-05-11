@@ -37,7 +37,7 @@ const __dirname = dirname(__filename)
 const CODE_ROOT = resolve(__dirname, '..')
 const KNOWLEDGE_ROOT = resolve(CODE_ROOT, 'docs/knowledge')
 const COGNEE_URL = process.env.COGNEE_URL ?? 'http://localhost:8765'
-const DATASET = 'knowledge_entries'
+const DATASET = 'project_knowledge'
 const DRY_RUN = process.argv.includes('--dry-run')
 const FORCE_RESET = process.argv.includes('--force-reset')
 
@@ -222,10 +222,11 @@ async function forgetDataset(): Promise<void> {
     body: JSON.stringify({ dataset: DATASET }),
     signal: AbortSignal.timeout(15000),
   })
-  // 404 = dataset doesn't exist yet — fine
+  // 404 / 500 "An error occurred during deletion" = dataset doesn't exist yet — fine
   if (!res.ok) {
     const body = await res.text().catch(() => '')
-    if (!body.includes('404') && res.status !== 404) {
+    const notFound = res.status === 404 || body.includes('error occurred during deletion')
+    if (!notFound) {
       throw new Error(`Dataset reset failed: ${res.status} ${body}`)
     }
   }
