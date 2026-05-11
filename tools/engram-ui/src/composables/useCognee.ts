@@ -90,7 +90,7 @@ const TERMINAL = new Set([
 
 // Per-pipeline stale thresholds. Add is fast (seconds); cognify is slow (up to 2h).
 // Runs older than their threshold in a non-terminal state are zombie records —
-// the sidecar was killed before writing terminal status. They don't drive polling.
+// the Engram service was killed before writing terminal status. They don't drive polling.
 export const STALE_MS: Record<string, number> = {
   add_pipeline:     5 * 60 * 1000,        // 5 min
   cognify_pipeline: 2 * 60 * 60 * 1000,   // 2 h
