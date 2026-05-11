@@ -125,6 +125,9 @@ export const PHASES: Phase[] = [
       'audit:marker-sync',
       'audit:submit-gate-coverage',
       'audit:inference-node-parity',
+      'audit:knowledge-schema',
+      'audit:knowledge-index-fresh',
+      'audit:knowledge-ids-unique',
     ],
   },
   // Phase 3 — generators that write to the working tree. Isolated.

@@ -112,6 +112,7 @@ Return all dataset names with entry counts.
 | `workload_{workloadId}_behavior` | Per-workload deployment stabilisation windows, regression fingerprints | v1.4.0 | v1.4.0 |
 | `model_deployments` | Known-bad model version fingerprints for pre-shift checks | v1.4.0 | v1.4.0 |
 | `fleet_routing` | Cross-host topology routing patterns | v3.0.0 | v3.0.0 (Fabrick) |
+| `knowledge_entries` | Structured lessons and gotchas from `docs/knowledge/{lessons,gotchas}/*.md`. Populated by `npm run engram:ingest-knowledge`. Entities: knowledge entries with ID, domain, type, tags. Edges: RELATED_TO (from `related:`), GRADUATED_TO (from `graduated_to:`). Full-replace on each ingest run. | v1.0.5 | v1.0.5 (developer tool) |
 
 Dataset names are URL-safe. `hostId` and `workloadId` values are the NixOS service name strings (e.g., `foundry`, `web-nginx`).
 

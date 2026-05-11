@@ -168,6 +168,8 @@ function checkReaderPattern(): void {
   //   - import.meta.glob (Vite build-time, used in some adapters)
   //   - execSync/spawnSync (for tools that shell out — e.g. git log queries)
   //   - fetch (HTTP-client tools that proxy to a live sidecar, e.g. cognee)
+  //   - importing from ./knowledge-store — delegates file I/O to the shared
+  //     structured-knowledge reader (collectStructuredEntries uses readdir + safeReadFile)
   const READER_PATTERNS = [
     /safeReadFile\b/,
     /\breadFileSync\b/,
@@ -177,6 +179,7 @@ function checkReaderPattern(): void {
     /\bexecFileSync\b/,
     /\bspawnSync\b/,
     /\bfetch\b/,
+    /from ['"]\.\/knowledge-store/,
   ]
 
   const bakers: string[] = []

@@ -2,8 +2,8 @@
 <!-- Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE. -->
 <template>
   <q-toolbar class="bg-primary text-white">
-    <q-icon name="mdi-brain" size="24px" class="q-mr-sm" />
-    <q-toolbar-title>Cognee</q-toolbar-title>
+    <q-icon name="mdi-memory" size="24px" class="q-mr-sm" />
+    <q-toolbar-title>Engram</q-toolbar-title>
 
     <span class="status-dot" :class="status" />
 

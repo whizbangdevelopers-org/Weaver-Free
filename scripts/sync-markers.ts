@@ -52,6 +52,7 @@ registerMarker({
     'code/docs/security/ENGINEERING-DISCIPLINE.md',
     'code/docs/OPEN-SOURCE-INVENTORY.md',
     'code/docs/workflows/GAP-ANALYSIS.md',
+    'code/docs/DEVELOPER-GUIDE.md',
   ],
 })
 
