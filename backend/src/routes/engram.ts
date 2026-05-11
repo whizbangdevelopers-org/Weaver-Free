@@ -6,7 +6,7 @@ import { z } from 'zod'
 import { DatabaseSync } from 'node:sqlite'
 import { existsSync, statSync } from 'node:fs'
 import { join } from 'node:path'
-import { ROLES } from '../constants/vocabularies.js'
+// Auth deferred — RBAC gates added at Weaver Team/Fabrick integration (Decision #160).
 
 interface EngramRouteOptions {
   dataDir: string
@@ -39,8 +39,6 @@ export const engramRoutes: FastifyPluginAsync<EngramRouteOptions> = async (fasti
       },
     },
     async (request, reply) => {
-      if (!request.userId) return reply.status(401).send({ error: 'Authentication required' })
-      if (request.userRole !== ROLES.ADMIN) return reply.status(403).send({ error: 'Admin only' })
 
       const handle = db()
       if (!handle) return reply.send({ queries: [], total: 0, note: 'No query log yet' })
@@ -73,8 +71,6 @@ export const engramRoutes: FastifyPluginAsync<EngramRouteOptions> = async (fasti
       },
     },
     async (request, reply) => {
-      if (!request.userId) return reply.status(401).send({ error: 'Authentication required' })
-      if (request.userRole !== ROLES.ADMIN) return reply.status(403).send({ error: 'Admin only' })
 
       const handle = db()
       if (!handle) return reply.send({ runs: [], total: 0, note: 'No ingestion log yet' })
@@ -97,8 +93,6 @@ export const engramRoutes: FastifyPluginAsync<EngramRouteOptions> = async (fasti
     '/status',
     {},
     async (request, reply) => {
-      if (!request.userId) return reply.status(401).send({ error: 'Authentication required' })
-      if (request.userRole !== ROLES.ADMIN) return reply.status(403).send({ error: 'Admin only' })
 
       const handle = db()
       if (!handle) {

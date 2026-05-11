@@ -4,6 +4,7 @@
 import { ref } from 'vue'
 
 // Response types — mirrors backend/src/routes/engram.ts
+// Auth is handled at the RBAC layer (Weaver Team/Fabrick) on integration.
 
 export interface EngramToolStat {
   tool: string
@@ -67,23 +68,12 @@ async function weaverFetch<T>(path: string, options: RequestInit = {}): Promise<
       const j = JSON.parse(text) as Record<string, unknown>
       msg = String(j['error'] ?? j['message'] ?? msg)
     } catch { if (text) msg += `: ${text}` }
-    const err = new Error(msg)
-    ;(err as Error & { status: number }).status = res.status
-    throw err
+    throw new Error(msg)
   }
   return res.json() as Promise<T>
 }
 
-function isAuthError(err: unknown): boolean {
-  const s = (err as Error & { status?: number }).status
-  return s === 401 || s === 403
-}
-
 export function useEngramMonitor() {
-  const weaverAuthed = ref(false)
-  const loginLoading = ref(false)
-  const loginError = ref<string | null>(null)
-
   const status = ref<EngramStatus | null>(null)
   const statusLoading = ref(false)
   const statusError = ref<string | null>(null)
@@ -101,38 +91,12 @@ export function useEngramMonitor() {
   const runsLoading = ref(false)
   const runsError = ref<string | null>(null)
 
-  async function weaverLogin(username: string, password: string) {
-    loginLoading.value = true
-    loginError.value = null
-    try {
-      await weaverFetch('/weaver/api/auth/login', {
-        method: 'POST',
-        body: JSON.stringify({ username, password }),
-      })
-      weaverAuthed.value = true
-    } catch (err) {
-      loginError.value = err instanceof Error ? err.message : 'Login failed'
-    } finally {
-      loginLoading.value = false
-    }
-  }
-
-  async function weaverLogout() {
-    await fetch('/weaver/api/auth/logout', { method: 'POST', credentials: 'include' }).catch(() => {})
-    weaverAuthed.value = false
-    status.value = null
-    queries.value = []
-    runs.value = []
-  }
-
   async function fetchStatus() {
     statusLoading.value = true
     statusError.value = null
     try {
       status.value = await weaverFetch<EngramStatus>('/weaver/api/engram/status')
-      weaverAuthed.value = true
     } catch (err) {
-      if (isAuthError(err)) weaverAuthed.value = false
       statusError.value = err instanceof Error ? err.message : 'Failed to load status'
     } finally {
       statusLoading.value = false
@@ -151,9 +115,7 @@ export function useEngramMonitor() {
       )
       queries.value = data.queries
       queriesTotal.value = data.total
-      weaverAuthed.value = true
     } catch (err) {
-      if (isAuthError(err)) weaverAuthed.value = false
       queriesError.value = err instanceof Error ? err.message : 'Failed to load queries'
     } finally {
       queriesLoading.value = false
@@ -171,27 +133,18 @@ export function useEngramMonitor() {
       )
       runs.value = data.runs
       runsTotal.value = data.total
-      weaverAuthed.value = true
     } catch (err) {
-      if (isAuthError(err)) weaverAuthed.value = false
       runsError.value = err instanceof Error ? err.message : 'Failed to load ingestion history'
     } finally {
       runsLoading.value = false
     }
   }
 
-  async function checkAuthAndLoad() {
-    // Probe with status; if auth succeeds, the tab is ready
-    await fetchStatus()
-    if (weaverAuthed.value) {
-      await Promise.all([fetchQueries(0), fetchIngestionHistory(0)])
-    }
+  async function loadAll() {
+    await Promise.all([fetchStatus(), fetchQueries(0), fetchIngestionHistory(0)])
   }
 
   return {
-    weaverAuthed,
-    loginLoading,
-    loginError,
     status,
     statusLoading,
     statusError,
@@ -207,11 +160,9 @@ export function useEngramMonitor() {
     runsLoading,
     runsError,
     LIMIT,
-    weaverLogin,
-    weaverLogout,
     fetchStatus,
     fetchQueries,
     fetchIngestionHistory,
-    checkAuthAndLoad,
+    loadAll,
   }
 }
