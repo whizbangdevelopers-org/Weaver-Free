@@ -31,6 +31,13 @@ export interface EngramStatus {
   queryCountsByTool: EngramToolStat[]
 }
 
+export interface EngramEntryDomainRow {
+  domain: string
+  type: string
+  scope: string
+  count: number
+}
+
 export interface EngramQueryRow {
   id: number
   ts: number
@@ -91,6 +98,11 @@ export function useEngramMonitor() {
   const runsLoading = ref(false)
   const runsError = ref<string | null>(null)
 
+  const entries = ref<EngramEntryDomainRow[]>([])
+  const entriesTotal = ref(0)
+  const entriesLoading = ref(false)
+  const entriesError = ref<string | null>(null)
+
   async function fetchStatus() {
     statusLoading.value = true
     statusError.value = null
@@ -140,8 +152,24 @@ export function useEngramMonitor() {
     }
   }
 
+  async function fetchEntries() {
+    entriesLoading.value = true
+    entriesError.value = null
+    try {
+      const data = await weaverFetch<{ entries: EngramEntryDomainRow[]; total: number }>(
+        '/weaver/api/engram/entries',
+      )
+      entries.value = data.entries
+      entriesTotal.value = data.total
+    } catch (err) {
+      entriesError.value = err instanceof Error ? err.message : 'Failed to load registry'
+    } finally {
+      entriesLoading.value = false
+    }
+  }
+
   async function loadAll() {
-    await Promise.all([fetchStatus(), fetchQueries(0), fetchIngestionHistory(0)])
+    await Promise.all([fetchStatus(), fetchQueries(0), fetchIngestionHistory(0), fetchEntries()])
   }
 
   return {
@@ -163,6 +191,11 @@ export function useEngramMonitor() {
     fetchStatus,
     fetchQueries,
     fetchIngestionHistory,
+    fetchEntries,
+    entries,
+    entriesTotal,
+    entriesLoading,
+    entriesError,
     loadAll,
   }
 }
