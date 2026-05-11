@@ -386,6 +386,16 @@
           </q-item-section>
         </q-item>
 
+        <q-item v-if="authStore.isAdmin" clickable to="/engram" active-class="text-primary bg-weaver-active">
+          <q-item-section avatar>
+            <q-icon name="mdi-brain" />
+          </q-item-section>
+          <q-item-section>
+            <q-item-label>Engram</q-item-label>
+            <q-item-label caption>MCP query monitor</q-item-label>
+          </q-item-section>
+        </q-item>
+
         <q-item v-if="authStore.isAdmin && appStore.isFabrick" clickable to="/audit" active-class="text-primary bg-weaver-active">
           <q-item-section avatar>
             <q-icon name="mdi-text-box-search" />

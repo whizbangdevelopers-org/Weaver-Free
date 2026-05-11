@@ -519,3 +519,71 @@ export class OrganizationApiService extends ApiService {
 }
 
 export const organizationApiService = new OrganizationApiService()
+
+// ─── Engram ─────────────────────────────────────────────────────────────────
+
+export interface EngramQueryRow {
+  id: number
+  ts: number
+  tool: string
+  params: string
+  result_count: number
+  result_ids: string
+  latency_ms: number
+}
+
+export interface EngramIngestionRow {
+  id: number
+  ts: number
+  dataset: string
+  entry_count: number
+  success_count: number
+  failure_count: number
+  improved: number
+  duration_ms: number
+  flags: string
+}
+
+export interface EngramToolStat {
+  tool: string
+  count: number
+  avg_latency_ms: number
+  last_called: number
+}
+
+export interface EngramStatus {
+  dbExists: boolean
+  dbSizeBytes: number
+  lastIngestion: EngramIngestionRow | null
+  queryCountsByTool: EngramToolStat[]
+  totalQueries: number
+}
+
+export class EngramApiService extends ApiService {
+  constructor() {
+    super('/engram')
+  }
+
+  async getStatus(): Promise<EngramStatus> {
+    return this.get<EngramStatus>('/status')
+  }
+
+  async getQueries(params: { tool?: string; limit?: number; offset?: number } = {}): Promise<{ queries: EngramQueryRow[]; total: number }> {
+    const qs = new URLSearchParams()
+    if (params.tool) qs.set('tool', params.tool)
+    if (params.limit !== undefined) qs.set('limit', String(params.limit))
+    if (params.offset !== undefined) qs.set('offset', String(params.offset))
+    const q = qs.toString()
+    return this.get<{ queries: EngramQueryRow[]; total: number }>(`/queries${q ? `?${q}` : ''}`)
+  }
+
+  async getIngestionHistory(params: { limit?: number; offset?: number } = {}): Promise<{ runs: EngramIngestionRow[]; total: number }> {
+    const qs = new URLSearchParams()
+    if (params.limit !== undefined) qs.set('limit', String(params.limit))
+    if (params.offset !== undefined) qs.set('offset', String(params.offset))
+    const q = qs.toString()
+    return this.get<{ runs: EngramIngestionRow[]; total: number }>(`/ingestion-history${q ? `?${q}` : ''}`)
+  }
+}
+
+export const engramApiService = new EngramApiService()
