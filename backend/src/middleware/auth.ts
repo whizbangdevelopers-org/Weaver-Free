@@ -38,6 +38,10 @@ const PUBLIC_ROUTES = [
   '/api/health/',
   '/api/stripe/webhook',
   '/api/stripe/webhook/',
+  // Engram monitoring — auth deferred to RBAC at Team/Fabrick integration (Decision #160)
+  '/api/engram/status',
+  '/api/engram/queries',
+  '/api/engram/ingestion-history',
 ]
 
 function isPublicRoute(url: string): boolean {
