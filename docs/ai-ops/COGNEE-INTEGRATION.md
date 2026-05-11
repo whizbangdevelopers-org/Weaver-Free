@@ -10,7 +10,7 @@
 
 Default: `http://localhost:8765`
 
-Overridable via `COGNEE_URL` environment variable. Port 8765 is reserved in `PORT-ALLOCATION.md` for the cognee sidecar (Weaver-specific allocation; sidecar runs only on Foundry at v1.4.0, on customer inference node at the same version).
+Overridable via `COGNEE_URL` environment variable. Port 8765 is reserved in `PORT-ALLOCATION.md` for the Engram service (Weaver-specific allocation; sidecar runs only on Foundry at v1.4.0, on customer inference node at the same version).
 
 ---
 
@@ -188,7 +188,7 @@ Defaults to the project directory name (`fabrick-weaver-project`). Override `COG
 | Lifecycle trigger | PreCompact hook calls `improve()` | Agent operation close calls `improve()` |
 | Available from | Any dev session (hooks in `.claude/settings.json`) | v1.4.0 (Foundry + inference node) |
 
-The cognee sidecar serves both use cases simultaneously. Running `npm run dev` or starting a coding session does not start the sidecar — start it separately via the cognee-api systemd service or `uvx cognee-mcp --api-url`.
+The Engram service serves both use cases simultaneously. Running `npm run dev` or starting a coding session does not start the sidecar — start it separately via the cognee-api systemd service or `uvx cognee-mcp --api-url`.
 
 ---
 
@@ -208,7 +208,7 @@ The `weaver-inference-node` flake references this as the `cognee-nix` input. The
 
 ## Vault Integration
 
-The cognee sidecar reads its frontier model API key from the Weaver AI credential vault (Decision #73) at startup. The NixOS module injects the active key into the sidecar's environment:
+The Engram service reads its frontier model API key from the Weaver AI credential vault (Decision #73) at startup. The NixOS module injects the active key into the sidecar's environment:
 
 ```nix
 services.weaver.cognee = {

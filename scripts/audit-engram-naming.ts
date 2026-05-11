@@ -92,31 +92,28 @@ const PATTERNS: Pattern[] = [
     kind: 'cognee-as-system',
     message: 'Future capability should be attributed to Engram, not Cognee',
   },
-  // B: Engram misused as a process/tool name
+  // B: "sidecar" — wrong term for the Engram service (it's a standalone NixOS service, not a sidecar)
   {
-    regex: /\bEngram\s+sidecar\b/i,
+    regex: /\b(?:Cognee|Engram)\s+sidecar\b/i,
     kind: 'engram-as-process',
-    message: '"Engram sidecar" — the running process is the Cognee sidecar; Engram is the system concept',
+    message: '"[Cognee/Engram] sidecar" — use "Engram service" or just "Engram"; it is a standalone NixOS service, not a sidecar',
   },
+  // B2: Engram misused as a low-level process noun (server/process/daemon/port/endpoint are too implementation-specific)
+  // NOTE: "Engram service" is CORRECT — do not add "service" back to this list
   {
-    regex: /\bEngram\s+(?:server|process|daemon|service|port|endpoint)\b/i,
+    regex: /\bEngram\s+(?:server|process|daemon|port|endpoint)\b/i,
     kind: 'engram-as-process',
-    message: '"Engram <process term>" — the running process is Cognee; Engram is the system name, not the process',
-  },
-  {
-    regex: /\b(?:run|start|stop|restart|kill|launch)\s+Engram\b/i,
-    kind: 'engram-as-process',
-    message: 'Engram is a system name, not a process — "run/start/stop Cognee" for the process',
+    message: '"Engram <process term>" — use "Engram service" or "Engram" for the running instance; reserve Cognee for package/config names',
   },
   {
     regex: /\bEngram\s+(?:API|HTTP\s+API|REST\s+API)\b/i,
     kind: 'engram-as-process',
-    message: '"Engram API" — the HTTP API belongs to the Cognee tool; reference it as "Cognee API" or "Engram\'s backing API"',
+    message: '"Engram API" — the HTTP API belongs to the Cognee package; reference it as "Cognee API" or "Engram\'s API"',
   },
   {
     regex: /\bEngram\s+is\s+(?:down|up|running|crashed|unreachable|not\s+responding)\b/i,
     kind: 'engram-as-process',
-    message: 'Process health phrasing should use Cognee, not Engram',
+    message: 'Process health phrasing should use "the Engram service" (e.g. "the Engram service is unreachable"), not bare "Engram is..."',
   },
 ]
 

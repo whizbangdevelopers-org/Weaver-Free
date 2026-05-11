@@ -57,7 +57,7 @@
               color="grey-5"
               size="20px"
             >
-              <q-tooltip>Job was interrupted (sidecar restarted)</q-tooltip>
+              <q-tooltip>Job was interrupted (Engram service restarted)</q-tooltip>
             </q-icon>
             <q-icon
               v-else

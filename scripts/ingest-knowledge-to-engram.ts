@@ -5,7 +5,7 @@
  *
  * Reads every structured entry from code/docs/knowledge/{lessons,gotchas}/*.md,
  * compares each against the ingested_entries registry in engram.db, and only
- * sends entries that are new or changed to the Cognee sidecar. Deleted entries
+ * sends entries that are new or changed to the Engram service. Deleted entries
  * are forgotten from the graph automatically.
  *
  * After all adds/removals, cognify is called once to rebuild the knowledge graph
@@ -307,11 +307,11 @@ async function main(): Promise<void> {
   // Check sidecar
   const available = await checkCognee()
   if (!available) {
-    console.error(`${RED}${BOLD}Cognee sidecar unreachable at ${COGNEE_URL}${RESET}`)
+    console.error(`${RED}${BOLD}Engram service unreachable at ${COGNEE_URL}${RESET}`)
     console.error(`${DIM}Start it via: systemctl start weaver-cognee${RESET}`)
     process.exit(1)
   }
-  console.log(`${GREEN}✓${RESET} Cognee sidecar reachable`)
+  console.log(`${GREEN}✓${RESET} Engram service reachable`)
 
   // Force reset: wipe dataset + registry, then treat everything as new
   if (FORCE_RESET) {
