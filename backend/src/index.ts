@@ -69,6 +69,7 @@ import { stripeWebhookRoutes } from './routes/stripe-webhook.js'
 import { LicenseStore } from './storage/license-store.js'
 import { initStripe, initProductMap } from './services/stripe.js'
 import { EmailService } from './services/email.js'
+import { engramRoutes } from './routes/engram.js'
 
 const fastify = Fastify({
   logger: {
@@ -397,6 +398,7 @@ await fastify.register(agentRoutes, { prefix: '/api/workload', config, auditServ
 const distroTester = provisioner ? new DistroTester(vmRegistry, provisioner, config) : undefined
 await fastify.register(distroRoutes, { prefix: '/api/distros', distroStore, catalogStore, imageManager, urlValidator, config, auditService, distroTester })
 await fastify.register(auditRoutes, { prefix: '/api/audit', auditService, config })
+await fastify.register(engramRoutes, { prefix: '/api/engram', dataDir: config.dataDir })
 await fastify.register(usersRoutes, { prefix: '/api/users', userStore, sessionStore, auditService })
 await fastify.register(quotaRoutes, { prefix: '/api/users', config, quotaStore, userStore, auditService })
 await fastify.register(vmAclRoutes, { prefix: '/api/users', aclStore: vmAclStore, config, userStore, auditService })
