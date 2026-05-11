@@ -5,8 +5,8 @@
     <q-card style="min-width: 380px">
       <q-card-section class="row items-center q-pb-none">
         <div class="text-h6">
-          <q-icon name="mdi-brain" class="q-mr-xs" color="primary" />
-          Sign in to Cognee
+          <q-icon name="mdi-memory" class="q-mr-xs" color="primary" />
+          Sign in to Engram
         </div>
       </q-card-section>
 
