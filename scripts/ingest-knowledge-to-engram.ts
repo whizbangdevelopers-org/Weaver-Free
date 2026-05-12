@@ -37,8 +37,10 @@ const __dirname = dirname(__filename)
 const CODE_ROOT = resolve(__dirname, '..')
 const KNOWLEDGE_ROOT = resolve(CODE_ROOT, 'docs/knowledge')
 const COGNEE_URL = process.env.COGNEE_URL ?? 'http://localhost:8765'
-const COGNEE_USER = process.env.COGNEE_USER ?? ''
-const COGNEE_PASSWORD = process.env.COGNEE_PASSWORD ?? ''
+// Default to the weaver service account so the dataset lands in the same namespace
+// as the Engram UI and CSM hooks. Override via env vars if needed.
+const COGNEE_USER = process.env.COGNEE_USER ?? 'weaver@weaver.dev'
+const COGNEE_PASSWORD = process.env.COGNEE_PASSWORD ?? 'weaver-dev-2026'
 const DATASET = 'project_knowledge'
 const DRY_RUN = process.argv.includes('--dry-run')
 const FORCE_RESET = process.argv.includes('--force-reset')
@@ -365,11 +367,12 @@ async function main(): Promise<void> {
   // Authenticate — operations run in the weaver user namespace so CSM hooks and
   // the Engram UI (both authenticated) can reach the same datasets.
   const token = await getToken()
-  if (token) {
-    console.log(`${GREEN}✓${RESET} Authenticated as ${COGNEE_USER}`)
-  } else {
-    console.log(`${DIM}No credentials configured (COGNEE_USER/COGNEE_PASSWORD) — using anonymous namespace${RESET}`)
+  if (!token) {
+    console.error(`${RED}${BOLD}Auth failed — cannot ingest to anonymous namespace (would be invisible to Engram UI).${RESET}`)
+    console.error(`${DIM}Check COGNEE_USER / COGNEE_PASSWORD env vars or Cognee service availability.${RESET}`)
+    process.exit(1)
   }
+  console.log(`${GREEN}✓${RESET} Authenticated as ${COGNEE_USER}`)
 
   // Force reset: wipe dataset + registry, then treat everything as new
   if (FORCE_RESET) {
