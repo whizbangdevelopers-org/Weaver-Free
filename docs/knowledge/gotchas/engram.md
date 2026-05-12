@@ -52,3 +52,49 @@ graduated_to: ""
 **Rule:** Cognify completion is an async event, not an HTTP response. Always poll `pipeline-runs` to confirm — never rely on the fetch response alone.
 
 <!-- /entry -->
+
+<!-- entry:G-engram-2026-05-12-003 -->
+---
+id: G-engram-2026-05-12-003
+type: gotcha
+domain: engram
+tags: [cognee, forget, dataset-delete, graph-nodes, postgresql]
+since_version: "1.0.5"
+status: active
+scope: project
+related: []
+graduated_to: ""
+---
+
+## POST /api/v1/forget always fails for dataset-level deletion; use DELETE /api/v1/datasets/{id} — 2026-05-12 · Claude
+
+**Problem:** `POST /api/v1/forget` with `{ dataset: "name" }` (the documented way to delete an entire dataset) always returns `500 {"error":"An error occurred during deletion."}` in Cognee 1.0.3. Code that treats this error as "not found / already gone" will silently succeed while leaving all extracted graph nodes in PostgreSQL intact. Subsequent cognify runs then accumulate nodes on top of the old ones.
+
+**Fix:** Use `GET /api/v1/datasets` to find the dataset UUID by name, then `DELETE /api/v1/datasets/{id}`. This endpoint removes the dataset record AND all associated graph nodes. **Important:** Cognee returns 403 (Permission Denied) even on a completely successful deletion — treat 200, 403, and 404 all as success. Only non-403/404 error codes should be treated as failure.
+
+**Rule:** For full dataset + graph reset: look up UUID → `DELETE /api/v1/datasets/{id}`, tolerating 403. Never use `POST /api/v1/forget` for dataset-level cleanup — it is broken in Cognee 1.0.3.
+
+<!-- /entry -->
+
+<!-- entry:G-engram-2026-05-12-004 -->
+---
+id: G-engram-2026-05-12-004
+type: gotcha
+domain: engram
+tags: [cognee, cognify, graph-nodes, accumulation, idempotency]
+since_version: "1.0.5"
+status: active
+scope: project
+related: [G-engram-2026-05-12-003]
+graduated_to: ""
+---
+
+## cognify is additive — repeated runs accumulate graph nodes — 2026-05-12 · Claude
+
+**Problem:** Running `POST /api/v1/cognify` multiple times on the same dataset does NOT replace the graph — it adds to it. After 6 cognify runs on 16 entries, the graph had 1231 nodes instead of ~200. Cognee's graph store (PostgreSQL) has no built-in "replace" mode for cognify; each run extracts entities and relationships from the current documents and writes them as new rows.
+
+**Fix:** Before re-ingesting (e.g., `--force-reset`), fully delete the dataset using `DELETE /api/v1/datasets/{id}` (see G-engram-2026-05-12-003). This is the only reliable way to return to a clean graph state. The normal incremental path (add/forget individual entries) is fine since it doesn't re-cognify unchanged documents.
+
+**Rule:** Treat cognify results as append-only. If you need a clean graph, delete the dataset first — don't just re-run cognify.
+
+<!-- /entry -->
