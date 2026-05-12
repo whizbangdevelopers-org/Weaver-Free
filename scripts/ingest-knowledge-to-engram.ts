@@ -273,26 +273,62 @@ async function wipeDataset(token: string | null): Promise<void> {
   }
 }
 
-/** Run knowledge graph construction on the dataset (called once after all adds).
- *  Allow up to 10 minutes — local llama-cpp processes each entry sequentially. */
-async function cognifyDataset(token: string | null): Promise<boolean> {
-  try {
-    const res = await fetch(`${COGNEE_URL}/api/v1/cognify`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...authHeader(token) },
-      body: JSON.stringify({ datasets: [DATASET] }),
-      signal: AbortSignal.timeout(600000),
-    })
-    return res.ok
-  } catch (err) {
-    // Cognee starts the pipeline async and drops the connection before sending a
-    // response body. Node fetch throws TypeError: fetch failed on the connection
-    // drop — this is not a real failure. The pipeline runs server-side.
-    // Real errors (ECONNREFUSED before the request starts, AbortError on timeout)
-    // are not TypeError instances or don't carry "fetch failed".
-    if (err instanceof TypeError && String(err).includes('fetch failed')) return true
-    throw err
+/** Poll /api/v1/activity/pipeline-runs until cognify_pipeline reaches a terminal state.
+ *  Polls every 30 s, up to maxWaitMs. Returns true on COMPLETED, false on ERRORED,
+ *  throws on timeout. */
+async function pollCognifyCompletion(token: string | null, maxWaitMs = 45 * 60 * 1000): Promise<boolean> {
+  const pollIntervalMs = 30_000
+  const start = Date.now()
+  while (Date.now() - start < maxWaitMs) {
+    await new Promise((r) => setTimeout(r, pollIntervalMs))
+    const pollRes = await fetch(`${COGNEE_URL}/api/v1/activity/pipeline-runs`, {
+      headers: authHeader(token),
+      signal: AbortSignal.timeout(10000),
+    }).catch(() => null)
+    if (!pollRes?.ok) continue
+    const runs = await pollRes.json() as Array<{ pipeline_name: string; status: string }>
+    const run = runs.find((r) => r.pipeline_name === 'cognify_pipeline')
+    if (!run) continue
+    if (run.status === 'DATASET_PROCESSING_COMPLETED') return true
+    if (run.status === 'DATASET_PROCESSING_ERRORED') return false
+    // DATASET_PROCESSING_STARTED — still running
   }
+  throw new Error(`Cognify pipeline did not complete within ${Math.round(maxWaitMs / 60000)} minutes`)
+}
+
+/** Run knowledge graph construction on the dataset (called once after all adds).
+ *  Uses run_in_background=true so Cognee returns immediately; then polls
+ *  /api/v1/activity/pipeline-runs until cognify_pipeline COMPLETED or ERRORED.
+ *  Skips the POST if the pipeline already shows COMPLETED (prevents duplicate
+ *  accumulation when re-running after a timeout). Local llama-cpp can take
+ *  25+ minutes for ~20 entries — polls every 30 s, up to 45 min total. */
+async function cognifyDataset(token: string | null): Promise<boolean> {
+  // Skip POST if the pipeline already completed (re-run-safe guard)
+  const checkRes = await fetch(`${COGNEE_URL}/api/v1/activity/pipeline-runs`, {
+    headers: authHeader(token),
+    signal: AbortSignal.timeout(10000),
+  }).catch(() => null)
+  if (checkRes?.ok) {
+    const runs = await checkRes.json() as Array<{ pipeline_name: string; status: string }>
+    const existing = runs.find((r) => r.pipeline_name === 'cognify_pipeline')
+    if (existing?.status === 'DATASET_PROCESSING_COMPLETED') return true
+    // If STARTED, just poll — don't start a duplicate run
+    if (existing?.status === 'DATASET_PROCESSING_STARTED') return pollCognifyCompletion(token)
+  }
+
+  const res = await fetch(`${COGNEE_URL}/api/v1/cognify`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeader(token) },
+    body: JSON.stringify({ datasets: [DATASET], run_in_background: true }),
+    signal: AbortSignal.timeout(30000),
+  })
+  if (!res.ok) {
+    const body = await res.text().catch(() => '')
+    // 409 = "Dataset is already being processed" — poll for it
+    if (res.status !== 409) throw new Error(`Cognify failed: ${res.status} ${body}`)
+  }
+
+  return pollCognifyCompletion(token)
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
