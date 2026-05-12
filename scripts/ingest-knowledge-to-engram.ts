@@ -237,21 +237,37 @@ async function forgetEntry(dataId: string, token: string | null): Promise<void> 
   }
 }
 
-/** Wipe the entire dataset from Cognee (used by --force-reset). */
-async function forgetDataset(token: string | null): Promise<void> {
-  const res = await fetch(`${COGNEE_URL}/api/v1/forget`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...authHeader(token) },
-    body: JSON.stringify({ dataset: DATASET }),
+/** Look up a dataset UUID by name. Returns null if not found. */
+async function findDatasetId(name: string, token: string | null): Promise<string | null> {
+  const res = await fetch(`${COGNEE_URL}/api/v1/datasets`, {
+    headers: authHeader(token),
+    signal: AbortSignal.timeout(10000),
+  })
+  if (!res.ok) return null
+  const datasets = await res.json() as Array<{ id: string; name: string }>
+  return datasets.find((d) => d.name === name)?.id ?? null
+}
+
+/** Wipe the entire dataset from Cognee including all extracted graph nodes (used by --force-reset).
+ *
+ * Uses DELETE /api/v1/datasets/{id} which removes the dataset record AND its graph nodes.
+ * POST /api/v1/forget with {dataset} always returns 500 and leaves graph nodes intact — do not use.
+ * Cognee returns 403 on successful delete (known Cognee API bug) — treat as success.
+ */
+async function wipeDataset(token: string | null): Promise<void> {
+  const datasetId = await findDatasetId(DATASET, token)
+  if (!datasetId) return  // Dataset doesn't exist yet — nothing to wipe
+
+  const res = await fetch(`${COGNEE_URL}/api/v1/datasets/${datasetId}`, {
+    method: 'DELETE',
+    headers: authHeader(token),
     signal: AbortSignal.timeout(15000),
   })
-  // 404 / 500 "An error occurred during deletion" = dataset doesn't exist yet — fine
-  if (!res.ok) {
+  // Cognee returns 403 even on successful deletion (known Cognee API bug).
+  // 404 = already gone, which is fine.
+  if (!res.ok && res.status !== 403 && res.status !== 404) {
     const body = await res.text().catch(() => '')
-    const notFound = res.status === 404 || body.includes('error occurred during deletion')
-    if (!notFound) {
-      throw new Error(`Dataset reset failed: ${res.status} ${body}`)
-    }
+    throw new Error(`Dataset wipe failed: ${res.status} ${body}`)
   }
 }
 
@@ -358,7 +374,7 @@ async function main(): Promise<void> {
   // Force reset: wipe dataset + registry, then treat everything as new
   if (FORCE_RESET) {
     process.stdout.write(`Force-resetting dataset "${DATASET}"… `)
-    await forgetDataset(token)
+    await wipeDataset(token)
     clearIngestedEntries(db)
     console.log(`${GREEN}done${RESET}`)
     toAdd.push(...toUpdate, ...entries.filter((e) => skipped.includes(e.id)))
