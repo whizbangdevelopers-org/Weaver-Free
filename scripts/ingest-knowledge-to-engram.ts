@@ -37,6 +37,8 @@ const __dirname = dirname(__filename)
 const CODE_ROOT = resolve(__dirname, '..')
 const KNOWLEDGE_ROOT = resolve(CODE_ROOT, 'docs/knowledge')
 const COGNEE_URL = process.env.COGNEE_URL ?? 'http://localhost:8765'
+const COGNEE_USER = process.env.COGNEE_USER ?? ''
+const COGNEE_PASSWORD = process.env.COGNEE_PASSWORD ?? ''
 const DATASET = 'project_knowledge'
 const DRY_RUN = process.argv.includes('--dry-run')
 const FORCE_RESET = process.argv.includes('--force-reset')
@@ -168,6 +170,26 @@ function computeHash(text: string): string {
 
 // ── Cognee API ────────────────────────────────────────────────────────────────
 
+/** Authenticate as COGNEE_USER and return a Bearer token.
+ *  Returns null if no credentials are configured (fully open dev mode). */
+async function getToken(): Promise<string | null> {
+  if (!COGNEE_USER || !COGNEE_PASSWORD) return null
+  const body = new URLSearchParams({ username: COGNEE_USER, password: COGNEE_PASSWORD })
+  const res = await fetch(`${COGNEE_URL}/api/v1/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: body.toString(),
+    signal: AbortSignal.timeout(10000),
+  })
+  if (!res.ok) throw new Error(`Auth failed: ${res.status} ${await res.text().catch(() => '')}`)
+  const data = await res.json() as { access_token: string }
+  return data.access_token
+}
+
+function authHeader(token: string | null): Record<string, string> {
+  return token ? { Authorization: `Bearer ${token}` } : {}
+}
+
 async function checkCognee(): Promise<boolean> {
   try {
     const res = await fetch(`${COGNEE_URL}/health`, { signal: AbortSignal.timeout(3000) })
@@ -176,13 +198,14 @@ async function checkCognee(): Promise<boolean> {
 }
 
 /** Add a single entry as a .txt file; returns { dataId, datasetId }. */
-async function addEntry(text: string, entryId: string): Promise<{ dataId: string; datasetId: string }> {
+async function addEntry(text: string, entryId: string, token: string | null): Promise<{ dataId: string; datasetId: string }> {
   const formData = new FormData()
   formData.append('data', new Blob([text], { type: 'text/plain' }), `${entryId}.txt`)
   formData.append('datasetName', DATASET)
 
   const res = await fetch(`${COGNEE_URL}/api/v1/add`, {
     method: 'POST',
+    headers: authHeader(token),
     body: formData,
     signal: AbortSignal.timeout(30000),
   })
@@ -201,10 +224,10 @@ async function addEntry(text: string, entryId: string): Promise<{ dataId: string
 }
 
 /** Forget a single entry by its Cognee data_id. */
-async function forgetEntry(dataId: string): Promise<void> {
+async function forgetEntry(dataId: string, token: string | null): Promise<void> {
   const res = await fetch(`${COGNEE_URL}/api/v1/forget`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authHeader(token) },
     body: JSON.stringify({ dataId, dataset: DATASET }),
     signal: AbortSignal.timeout(15000),
   })
@@ -215,10 +238,10 @@ async function forgetEntry(dataId: string): Promise<void> {
 }
 
 /** Wipe the entire dataset from Cognee (used by --force-reset). */
-async function forgetDataset(): Promise<void> {
+async function forgetDataset(token: string | null): Promise<void> {
   const res = await fetch(`${COGNEE_URL}/api/v1/forget`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authHeader(token) },
     body: JSON.stringify({ dataset: DATASET }),
     signal: AbortSignal.timeout(15000),
   })
@@ -234,10 +257,10 @@ async function forgetDataset(): Promise<void> {
 
 /** Run knowledge graph construction on the dataset (called once after all adds).
  *  Allow up to 10 minutes — local llama-cpp processes each entry sequentially. */
-async function cognifyDataset(): Promise<boolean> {
+async function cognifyDataset(token: string | null): Promise<boolean> {
   const res = await fetch(`${COGNEE_URL}/api/v1/cognify`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authHeader(token) },
     body: JSON.stringify({ datasets: [DATASET] }),
     signal: AbortSignal.timeout(600000),
   })
@@ -313,10 +336,19 @@ async function main(): Promise<void> {
   }
   console.log(`${GREEN}✓${RESET} Engram service reachable`)
 
+  // Authenticate — operations run in the weaver user namespace so CSM hooks and
+  // the Engram UI (both authenticated) can reach the same datasets.
+  const token = await getToken()
+  if (token) {
+    console.log(`${GREEN}✓${RESET} Authenticated as ${COGNEE_USER}`)
+  } else {
+    console.log(`${DIM}No credentials configured (COGNEE_USER/COGNEE_PASSWORD) — using anonymous namespace${RESET}`)
+  }
+
   // Force reset: wipe dataset + registry, then treat everything as new
   if (FORCE_RESET) {
     process.stdout.write(`Force-resetting dataset "${DATASET}"… `)
-    await forgetDataset()
+    await forgetDataset(token)
     clearIngestedEntries(db)
     console.log(`${GREEN}done${RESET}`)
     toAdd.push(...toUpdate, ...entries.filter((e) => skipped.includes(e.id)))
@@ -334,7 +366,7 @@ async function main(): Promise<void> {
   for (const { entryId, dataId } of toDelete) {
     process.stdout.write(`  ${RED}forget${RESET} ${entryId}… `)
     try {
-      await forgetEntry(dataId)
+      await forgetEntry(dataId, token)
       deleteIngestedEntry(db, entryId)
       deleted++
       console.log(`${GREEN}✓${RESET}`)
@@ -349,7 +381,7 @@ async function main(): Promise<void> {
     const rec = existing.get(entry.id)!
     process.stdout.write(`  ${YELLOW}update${RESET} ${entry.id}… `)
     try {
-      await forgetEntry(rec.dataId)
+      await forgetEntry(rec.dataId, token)
     } catch {
       // Non-fatal: old version may already be gone; proceed with re-add
     }
@@ -363,7 +395,7 @@ async function main(): Promise<void> {
     const isUpdate = toUpdate.includes(entry)
     if (!isUpdate) process.stdout.write(`  ${GREEN}add${RESET} ${entry.id}… `)
     try {
-      const { dataId, datasetId } = await addEntry(text, entry.id)
+      const { dataId, datasetId } = await addEntry(text, entry.id, token)
       upsertIngestedEntry(db, {
         entryId: entry.id,
         contentHash: hash,
@@ -398,7 +430,7 @@ async function main(): Promise<void> {
   if (needsRebuild) {
     process.stdout.write(`Building knowledge graph (may take several minutes)… `)
     try {
-      improved = await cognifyDataset()
+      improved = await cognifyDataset(token)
       console.log(improved ? `${GREEN}done${RESET}` : `${RED}✗ cognify returned error${RESET}`)
     } catch (err) {
       console.log(`${RED}✗ ${String(err)}${RESET}`)
