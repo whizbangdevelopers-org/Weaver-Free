@@ -128,3 +128,49 @@ This wipes both the Kuzu graph and the relational SQLite DB (dataset/node owners
 **Rule:** If the graph node count looks wrong (hundreds of nodes for a small knowledge base), the graph_db has orphaned CSM nodes. The API cannot fix it — only the 4-command manual wipe above will. Mark the Kuzu path in NixOS runbooks so the correct wipe path is known for future sessions.
 
 <!-- /entry -->
+
+<!-- entry:G-engram-2026-05-12-006 -->
+---
+id: G-engram-2026-05-12-006
+type: gotcha
+domain: engram
+tags: [cognee, instructor, llama-cpp, json-schema-mode, structured-output]
+since_version: "1.0.5"
+status: active
+scope: project
+related: []
+graduated_to: ""
+---
+
+## instructor.Mode.JSON fails with llama-3.1-8b — model returns schema description instead of instance — 2026-05-12 · Claude
+
+**Problem:** With `LLM_PROVIDER=llama_cpp` and the default `instructor.Mode.JSON`, Cognee sends `response_format={"type":"json_object"}` and embeds the Pydantic model's JSON schema in the system prompt. llama-3.1-8b-instruct confuses "describe the schema" with "fill in the schema" — it returns the schema structure itself (with `"properties"`, `"required"`, `"title"`, `"type": "object"` keys) instead of a JSON instance conforming to it. This causes Pydantic validation errors: `1 validation error for SummarizedContent; summary Field required`. The cognify pipeline errored for all documents except the first, leaving pgvector nearly empty (1 doc/chunk/summary for a 19-entry knowledge base) and the knowledge graph useless.
+
+**Fix:** Set `LLM_INSTRUCTOR_MODE=json_schema_mode` in the Cognee service environment (`cognee.nix`). This selects `instructor.Mode.JSON_SCHEMA`, which sends `response_format={"type":"json_schema","json_schema":{...}}` — triggering llama-server's grammar-constrained token generation. The model is physically prevented from emitting tokens that violate the JSON schema, making structured output reliable regardless of the model's instruction-following quality.
+
+**Rule:** `instructor.Mode.JSON` (default) is unreliable for structured output extraction with local llama models that follow instructions loosely. Use `LLM_INSTRUCTOR_MODE=json_schema_mode` for any llama-cpp server deployment. After changing, rebuild the Cognee service (`sudo nixos-rebuild switch`) and re-run `npm run engram:ingest-knowledge -- --force-reset` to clear the partially-processed data.
+
+<!-- /entry -->
+
+<!-- entry:G-engram-2026-05-12-007 -->
+---
+id: G-engram-2026-05-12-007
+type: gotcha
+domain: engram
+tags: [cognee, pipeline-runs, table-cap, stale-state, polling]
+since_version: "1.0.5"
+status: active
+scope: project
+related: [G-engram-2026-05-12-002]
+graduated_to: ""
+---
+
+## pipeline-runs 50-row cap hides terminal events — STARTED looks like "still running" — 2026-05-12 · Claude
+
+**Problem:** `GET /api/v1/activity/pipeline-runs` returns at most 50 rows, newest-first. A single `npm run engram:ingest-knowledge` run writes ~60 add_pipeline events (3 rows × 19 entries). After those events, the cognify_pipeline STARTED event remains visible but its COMPLETED or ERRORED terminal event has been pushed off the end of the table. Any code that checks `status == "STARTED"` and treats it as "currently running" will poll indefinitely (up to the 45-minute timeout) for a pipeline that already finished.
+
+**Fix:** Check the `created_at` timestamp of the STARTED event. If the event is older than the poll timeout (45 min), it is definitionally stale — the pipeline finished but its terminal event is off-table. Fall through to start a fresh cognify run. Implemented in `cognifyDataset()` in `scripts/ingest-knowledge-to-engram.ts`.
+
+**Rule:** Never trust `DATASET_PROCESSING_STARTED` as proof that a pipeline is currently running. Always compare `created_at` to the poll timeout. The 50-row cap is a hard Cognee limit and cannot be configured away.
+
+<!-- /entry -->
