@@ -258,13 +258,23 @@ async function forgetDataset(token: string | null): Promise<void> {
 /** Run knowledge graph construction on the dataset (called once after all adds).
  *  Allow up to 10 minutes — local llama-cpp processes each entry sequentially. */
 async function cognifyDataset(token: string | null): Promise<boolean> {
-  const res = await fetch(`${COGNEE_URL}/api/v1/cognify`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...authHeader(token) },
-    body: JSON.stringify({ datasets: [DATASET] }),
-    signal: AbortSignal.timeout(600000),
-  })
-  return res.ok
+  try {
+    const res = await fetch(`${COGNEE_URL}/api/v1/cognify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeader(token) },
+      body: JSON.stringify({ datasets: [DATASET] }),
+      signal: AbortSignal.timeout(600000),
+    })
+    return res.ok
+  } catch (err) {
+    // Cognee starts the pipeline async and drops the connection before sending a
+    // response body. Node fetch throws TypeError: fetch failed on the connection
+    // drop — this is not a real failure. The pipeline runs server-side.
+    // Real errors (ECONNREFUSED before the request starts, AbortError on timeout)
+    // are not TypeError instances or don't carry "fetch failed".
+    if (err instanceof TypeError && String(err).includes('fetch failed')) return true
+    throw err
+  }
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
