@@ -121,8 +121,9 @@ const ADD_TIMEOUT = 30_000
 const DEFAULT_TIMEOUT = 5_000
 
 // Module-level Bearer token — shared across all useCognee() call sites.
-// Set on successful login, cleared on logout.
-let _bearerToken: string | null = null
+// Set on successful login, cleared on logout. Persisted to localStorage so
+// page refreshes don't force re-login (localhost-only service, acceptable risk).
+let _bearerToken: string | null = localStorage.getItem('engram_token')
 
 async function apiFetch<T>(
   path: string,
@@ -491,12 +492,14 @@ export function useCognee() {
     }
     const data = (await res.json()) as { access_token: string }
     _bearerToken = data.access_token
+    localStorage.setItem('engram_token', data.access_token)
     currentUser.value = email
   }
 
   async function logout() {
     await fetch('/api/v1/auth/logout', { method: 'POST' }).catch(() => {})
     _bearerToken = null
+    localStorage.removeItem('engram_token')
     currentUser.value = null
     datasets.value = []
     activeDatasetId.value = null
