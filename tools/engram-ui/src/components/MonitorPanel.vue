@@ -99,6 +99,10 @@
 
           <div class="text-subtitle2 q-mb-sm">Knowledge Registry</div>
           <q-banner v-if="entriesError" dense rounded class="bg-negative text-white q-mb-sm">{{ entriesError }}</q-banner>
+          <q-banner v-if="viewNotify" dense rounded class="bg-info text-white q-mb-sm" @click="viewNotify = null">
+            <template #avatar><q-icon name="mdi-information" /></template>
+            {{ viewNotify }}
+          </q-banner>
           <q-card flat bordered class="q-mb-md">
             <q-card-section v-if="entriesLoading && entries.length === 0" class="text-center q-pa-md">
               <q-spinner size="24px" />
@@ -116,7 +120,16 @@
               dense
             >
               <template #body-cell-domain="props">
-                <q-td :props="props"><span class="text-mono text-caption">{{ props.row.domain }}</span></q-td>
+                <q-td :props="props">
+                  <span class="text-mono text-caption">{{ props.row.domain }}</span>
+                  <q-btn
+                    flat dense round size="xs" icon="mdi-eye-outline" class="q-ml-xs"
+                    :loading="viewingRow === rowKey(props.row)"
+                    @click.stop="onViewRow(props.row)"
+                  >
+                    <q-tooltip>View entries in VS Code</q-tooltip>
+                  </q-btn>
+                </q-td>
               </template>
               <template #body-cell-type="props">
                 <q-td :props="props">
@@ -324,8 +337,35 @@ const {
   LIMIT,
   fetchQueries,
   fetchIngestionHistory,
+  viewEntries,
   loadAll,
 } = useEngramMonitor()
+
+const viewingRow = ref<string | null>(null)
+const viewNotify = ref<string | null>(null)
+
+function rowKey(row: { domain: string; type: string; scope: string }): string {
+  return `${row.domain}|${row.type}|${row.scope}`
+}
+
+async function onViewRow(row: { domain: string; type: string; scope: string }) {
+  const key = rowKey(row)
+  if (viewingRow.value === key) return
+  viewingRow.value = key
+  viewNotify.value = null
+  try {
+    const res = await viewEntries(row.domain, row.type, row.scope)
+    if (!res.path) {
+      viewNotify.value = res.note ?? 'No entries matched'
+    } else if (!res.opened) {
+      viewNotify.value = `Saved to ${res.path} (${res.entryCount} entries)`
+    }
+  } catch (err) {
+    viewNotify.value = err instanceof Error ? err.message : 'View failed'
+  } finally {
+    viewingRow.value = null
+  }
+}
 
 const monitorTab = ref<'status' | 'queries' | 'ingestion'>('status')
 const refreshing = ref(false)

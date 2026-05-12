@@ -49,6 +49,12 @@ rules:
       - patterns:
           - pattern: |
               /^[a-z][a-z0-9_\-]*$/.test($X)
+      - patterns:
+          - pattern: |
+              /^[a-z][a-z0-9-]*$/.test($X)
+      - patterns:
+          - pattern: |
+              /^[a-z][a-z0-9_-]*$/.test($X)
     metadata:
       category: security
       cwe: CWE-22

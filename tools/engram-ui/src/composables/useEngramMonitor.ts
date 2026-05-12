@@ -168,6 +168,13 @@ export function useEngramMonitor() {
     }
   }
 
+  async function viewEntries(domain: string, type?: string, scope?: string): Promise<{ path: string | null; entryCount: number; opened: boolean; note?: string }> {
+    return weaverFetch('/weaver/api/engram/view', {
+      method: 'POST',
+      body: JSON.stringify({ domain, type, scope }),
+    })
+  }
+
   async function loadAll() {
     await Promise.all([fetchStatus(), fetchQueries(0), fetchIngestionHistory(0), fetchEntries()])
   }
@@ -196,6 +203,7 @@ export function useEngramMonitor() {
     entriesTotal,
     entriesLoading,
     entriesError,
+    viewEntries,
     loadAll,
   }
 }
