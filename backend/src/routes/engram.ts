@@ -4,8 +4,12 @@ import { FastifyPluginAsync } from 'fastify'
 import { ZodTypeProvider } from 'fastify-type-provider-zod'
 import { z } from 'zod'
 import { DatabaseSync } from 'node:sqlite'
-import { existsSync, statSync } from 'node:fs'
-import { join } from 'node:path'
+import { existsSync, statSync, readFileSync, writeFileSync } from 'node:fs'
+import { join, resolve } from 'node:path'
+import { execFile } from 'node:child_process'
+import { promisify } from 'node:util'
+
+const execFileAsync = promisify(execFile)
 // Auth deferred — RBAC gates added at Weaver Team/Fabrick integration (Decision #160).
 
 interface EngramRouteOptions {
@@ -108,6 +112,63 @@ export const engramRoutes: FastifyPluginAsync<EngramRouteOptions> = async (fasti
       return reply.send({ entries: [], total: 0 })
     }
   })
+
+  // POST /api/engram/view — filter source files by domain/type/scope, write temp file, open in VS Code
+  app.post(
+    '/view',
+    {
+      schema: {
+        body: z.object({
+          domain: z.string().min(1).max(64).regex(/^[a-z][a-z0-9_-]*$/),
+          type: z.enum(['lesson', 'gotcha']).optional(),
+          scope: z.string().max(64).regex(/^[a-z][a-z0-9_-]*$/).optional(),
+        }),
+      },
+    },
+    async (request, reply) => {
+      const { domain, type, scope } = request.body
+
+      const knowledgeRoot = resolve(opts.dataDir, '..', 'docs', 'knowledge')
+
+      const filesToRead: string[] = []
+      if (!type || type === 'lesson') filesToRead.push(join(knowledgeRoot, 'lessons', `${domain}.md`))
+      if (!type || type === 'gotcha') filesToRead.push(join(knowledgeRoot, 'gotchas', `${domain}.md`))
+
+      const ENTRY_RE = new RegExp('<!--\\s*entry:([\\w-]+)\\s*-->([\\s\\S]*?)<!--\\s*/entry\\s*-->', 'g')
+      const filtered: string[] = []
+
+      for (const filePath of filesToRead) {
+        if (!existsSync(filePath)) continue
+        const content = readFileSync(filePath, 'utf8')
+        let match: RegExpExecArray | null
+        while ((match = ENTRY_RE.exec(content)) !== null) {
+          const block = match[0]!
+          if (scope) {
+            const scopeMatch = block.match(/^scope:\s*(.+)$/m)
+            const blockScope = scopeMatch ? scopeMatch[1]!.trim() : 'project'
+            if (blockScope !== scope) continue
+          }
+          filtered.push(block)
+        }
+      }
+
+      if (filtered.length === 0) {
+        return reply.send({ path: null, entryCount: 0, opened: false, note: 'No matching entries found' })
+      }
+
+      const tempPath = join('/tmp', `engram-view-${Date.now()}.md`)
+      writeFileSync(tempPath, filtered.join('\n\n'))
+
+      const codeBin = process.env.CODE_BIN ?? 'code'
+      let opened = false
+      try {
+        await execFileAsync(codeBin, [tempPath], { timeout: 5_000 })
+        opened = true
+      } catch { /* code not in PATH — caller can open path manually */ }
+
+      return reply.send({ path: tempPath, entryCount: filtered.length, opened })
+    }
+  )
 
   // GET /api/engram/status — summary: last ingest, call counts per tool, DB size, admin only
   app.get(

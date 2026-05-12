@@ -31,6 +31,19 @@ rules:
       - patterns:
           - pattern: execFileAsync($BIN, $SINK, ...)
         focus-metavariable: $SINK
+    pattern-sanitizers:
+      - patterns:
+          - pattern: |
+              /^[a-z][a-z0-9\-]*$/.test($X)
+      - patterns:
+          - pattern: |
+              /^[a-z][a-z0-9_\-]*$/.test($X)
+      - patterns:
+          - pattern: |
+              /^[a-z][a-z0-9-]*$/.test($X)
+      - patterns:
+          - pattern: |
+              /^[a-z][a-z0-9_-]*$/.test($X)
     metadata:
       category: security
       cwe: CWE-78

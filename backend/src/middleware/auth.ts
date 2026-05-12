@@ -43,6 +43,7 @@ const PUBLIC_ROUTES = [
   '/api/engram/queries',
   '/api/engram/ingestion-history',
   '/api/engram/entries',
+  '/api/engram/view',
 ]
 
 function isPublicRoute(url: string): boolean {
