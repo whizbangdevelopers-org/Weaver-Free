@@ -301,19 +301,37 @@ async function pollCognifyCompletion(token: string | null, maxWaitMs = 45 * 60 *
  *  /api/v1/activity/pipeline-runs until cognify_pipeline COMPLETED or ERRORED.
  *  Skips the POST if the pipeline already shows COMPLETED (prevents duplicate
  *  accumulation when re-running after a timeout). Local llama-cpp can take
- *  25+ minutes for ~20 entries — polls every 30 s, up to 45 min total. */
+ *  25+ minutes for ~20 entries — polls every 30 s, up to 45 min total.
+ *
+ *  Stale STARTED guard: pipeline-runs table caps at 50 rows. If add_pipeline events
+ *  fill the table, the terminal COMPLETED/ERRORED event is pushed out, leaving only
+ *  the STARTED event visible. A STARTED event older than the poll timeout (45 min)
+ *  is definitionally stale — the pipeline finished one way or another. Fall through
+ *  to start a fresh cognify rather than polling forever. */
 async function cognifyDataset(token: string | null): Promise<boolean> {
+  const POLL_TIMEOUT_MS = 45 * 60 * 1000
   // Skip POST if the pipeline already completed (re-run-safe guard)
   const checkRes = await fetch(`${COGNEE_URL}/api/v1/activity/pipeline-runs`, {
     headers: authHeader(token),
     signal: AbortSignal.timeout(10000),
   }).catch(() => null)
   if (checkRes?.ok) {
-    const runs = await checkRes.json() as Array<{ pipeline_name: string; status: string }>
+    const runs = await checkRes.json() as Array<{ pipeline_name: string; status: string; created_at: string }>
     const existing = runs.find((r) => r.pipeline_name === 'cognify_pipeline')
     if (existing?.status === 'DATASET_PROCESSING_COMPLETED') return true
-    // If STARTED, just poll — don't start a duplicate run
-    if (existing?.status === 'DATASET_PROCESSING_STARTED') return pollCognifyCompletion(token)
+    if (existing?.status === 'DATASET_PROCESSING_STARTED') {
+      const startedAt = new Date(existing.created_at).getTime()
+      const ageMs = Date.now() - startedAt
+      if (ageMs < POLL_TIMEOUT_MS) {
+        // Pipeline is actively running — poll for completion
+        return pollCognifyCompletion(token)
+      }
+      // STARTED event is older than the poll timeout — the pipeline finished but
+      // its terminal event was pushed out of the 50-row table by add_pipeline events.
+      // Fall through to start a fresh cognify run.
+      console.log(`  ${YELLOW}⚠ cognify STARTED event is ${Math.round(ageMs / 60000)}m old — stale (terminal event off-table), starting fresh cognify${RESET}`)
+    }
+    // ERRORED or stale STARTED: fall through to start a new cognify run
   }
 
   const res = await fetch(`${COGNEE_URL}/api/v1/cognify`, {
