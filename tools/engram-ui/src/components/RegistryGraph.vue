@@ -12,10 +12,9 @@
     <template v-else>
       <!-- Legend row -->
       <div class="row items-center q-mb-xs q-gutter-x-sm flex-wrap">
-        <span class="text-caption text-grey-6">
-          {{ nodes.length }} entries · {{ edges.length }} related links
-        </span>
-        <q-separator vertical class="q-mx-xs" />
+
+        <!-- Fill = domain -->
+        <span class="text-caption text-grey-5" style="white-space:nowrap">fill = domain:</span>
         <span
           v-for="[domain, color] in domainLegend"
           :key="domain"
@@ -24,15 +23,25 @@
           <span :style="`display:inline-block;width:10px;height:10px;border-radius:50%;background:${color}`" />
           <span>{{ domain }}</span>
         </span>
+
         <q-separator vertical class="q-mx-xs" />
+
+        <!-- Shape + border = type -->
+        <span class="text-caption text-grey-5" style="white-space:nowrap">shape · border = type:</span>
         <span class="row items-center q-gutter-x-xs text-caption">
-          <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#64b5f6;border:2px solid #1976d2" />
+          <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#bdbdbd;border:2px solid #0d47a1" />
           <span>lesson</span>
         </span>
         <span class="row items-center q-gutter-x-xs text-caption">
-          <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#ffb74d;border:2px solid #e65100" />
+          <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#bdbdbd;border:2px solid #bf360c" />
           <span>gotcha</span>
         </span>
+
+        <q-separator vertical class="q-mx-xs" />
+        <span class="text-caption text-grey-6">
+          {{ nodes.length }} entries · {{ edges.length }} related links
+        </span>
+
       </div>
 
       <!-- Graph -->
