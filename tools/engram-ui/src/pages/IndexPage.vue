@@ -24,6 +24,7 @@
         :loading="datasetsLoading"
         @select="onSelectDataset"
         @refresh="loadDatasets"
+        @delete="onDeleteDataset"
       />
     </q-drawer>
 
@@ -204,6 +205,7 @@ const {
   listApiKeys,
   createApiKey,
   deleteApiKey,
+  deleteDataset,
 } = useCognee()
 
 const drawerOpen = ref(true)
@@ -321,6 +323,26 @@ async function loadActivity() {
 
 function onSelectDataset(id: string) {
   activeDatasetId.value = id
+}
+
+async function onDeleteDataset(id: string, name: string) {
+  $q.dialog({
+    title: 'Delete dataset',
+    message: `Delete "${name}"? This removes the dataset and its graph nodes from the Engram sidecar. Local knowledge files are not affected.`,
+    ok: { label: 'Delete', color: 'negative', flat: true },
+    cancel: { label: 'Cancel', flat: true },
+  }).onOk(async () => {
+    try {
+      await deleteDataset(id)
+      $q.notify({ type: 'positive', message: `Dataset "${name}" deleted`, timeout: 2000 })
+    } catch (e) {
+      $q.notify({
+        type: 'negative',
+        message: e instanceof Error ? e.message : 'Delete failed',
+        timeout: 3000,
+      })
+    }
+  })
 }
 
 // ── Recall ───────────────────────────────────────────────────────────────────
