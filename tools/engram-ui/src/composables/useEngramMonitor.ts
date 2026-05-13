@@ -39,8 +39,27 @@ export interface EngramPgvectorStats {
 
 export interface EngramStats {
   totalEntries: number
-  strategy: 'embed-only' | 'full-cognify'
+  strategy: 'embed-only' | 'embed+graph' | 'full-cognify'
   pgvector: EngramPgvectorStats | null
+}
+
+export interface EngramGraphNode {
+  id: string
+  title: string
+  domain: string
+  type: string
+  scope: string
+  status: string
+}
+
+export interface EngramGraphEdge {
+  source: string
+  target: string
+}
+
+export interface EngramGraphData {
+  nodes: EngramGraphNode[]
+  edges: EngramGraphEdge[]
 }
 
 export interface EngramEntryDomainRow {
@@ -119,6 +138,10 @@ export function useEngramMonitor() {
   const statsLoading = ref(false)
   const statsError = ref<string | null>(null)
 
+  const graphData = ref<EngramGraphData | null>(null)
+  const graphLoading = ref(false)
+  const graphError = ref<string | null>(null)
+
   async function fetchStatus() {
     statusLoading.value = true
     statusError.value = null
@@ -196,6 +219,18 @@ export function useEngramMonitor() {
     }
   }
 
+  async function fetchGraphData() {
+    graphLoading.value = true
+    graphError.value = null
+    try {
+      graphData.value = await weaverFetch<EngramGraphData>('/weaver/api/engram/graph-data')
+    } catch (err) {
+      graphError.value = err instanceof Error ? err.message : 'Failed to load graph data'
+    } finally {
+      graphLoading.value = false
+    }
+  }
+
   async function viewEntries(domain: string, type?: string, scope?: string): Promise<{ path: string | null; entryCount: number; opened: boolean; note?: string }> {
     return weaverFetch('/weaver/api/engram/view', {
       method: 'POST',
@@ -204,7 +239,7 @@ export function useEngramMonitor() {
   }
 
   async function loadAll() {
-    await Promise.all([fetchStatus(), fetchQueries(0), fetchIngestionHistory(0), fetchEntries(), fetchStats()])
+    await Promise.all([fetchStatus(), fetchQueries(0), fetchIngestionHistory(0), fetchEntries(), fetchStats(), fetchGraphData()])
   }
 
   return {
@@ -235,6 +270,10 @@ export function useEngramMonitor() {
     statsLoading,
     statsError,
     fetchStats,
+    graphData,
+    graphLoading,
+    graphError,
+    fetchGraphData,
     viewEntries,
     loadAll,
   }

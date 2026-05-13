@@ -491,6 +491,7 @@ async function main(): Promise<void> {
         tags: JSON.stringify(entry.tags),
         sinceVersion: entry.since_version,
         title: entry.title,
+        related: JSON.stringify(entry.related),
         ingestedAt: Date.now(),
       })
       if (isUpdate) { updated++; console.log(`${GREEN}✓${RESET}`) }

@@ -13,6 +13,14 @@ import { Pool } from 'pg'
 const execFileAsync = promisify(execFile)
 // Auth deferred — RBAC gates added at Weaver Team/Fabrick integration (Decision #160).
 
+// Processing strategy per dataset. embed-only and embed+graph bypass Cognee's
+// cognify pipeline; full-cognify uses it unchanged. Registry is the source of
+// truth for both the ingest script and the UI stats/graph-data endpoints.
+const DATASET_STRATEGIES: Record<string, 'embed-only' | 'embed+graph' | 'full-cognify'> = {
+  project_knowledge: 'embed-only',
+  fom_registry: 'full-cognify',
+}
+
 interface EngramRouteOptions {
   dataDir: string
 }
@@ -171,6 +179,49 @@ export const engramRoutes: FastifyPluginAsync<EngramRouteOptions> = async (fasti
     }
   )
 
+  // GET /api/engram/graph-data — registry graph: entry nodes + related edges (for UI graph visualization)
+  app.get('/graph-data', {}, async (_request, reply) => {
+    const handle = db()
+    if (!handle) return reply.send({ nodes: [], edges: [] })
+
+    try {
+      const rows = handle.prepare(`
+        SELECT entry_id, title, domain, type, scope, status, related
+        FROM ingested_entries
+        ORDER BY domain, entry_id
+      `).all() as Array<{
+        entry_id: string; title: string; domain: string;
+        type: string; scope: string; status: string; related: string
+      }>
+
+      const nodes = rows.map((r) => ({
+        id: r.entry_id,
+        title: r.title,
+        domain: r.domain,
+        type: r.type,
+        scope: r.scope,
+        status: r.status,
+      }))
+
+      const edges: Array<{ source: string; target: string }> = []
+      const knownIds = new Set(rows.map((r) => r.entry_id))
+      for (const r of rows) {
+        let related: string[] = []
+        try { related = JSON.parse(r.related) as string[] } catch { /* skip */ }
+        for (const targetId of related) {
+          // Only include edges where both nodes are in the registry
+          if (knownIds.has(targetId)) {
+            edges.push({ source: r.entry_id, target: targetId })
+          }
+        }
+      }
+
+      return reply.send({ nodes, edges })
+    } catch {
+      return reply.send({ nodes: [], edges: [] })
+    }
+  })
+
   // GET /api/engram/stats — processing strategy indicator + pgvector counts, admin only
   const pgvectorStatsSchema = z.object({
     chunks: z.number().int(),
@@ -185,7 +236,7 @@ export const engramRoutes: FastifyPluginAsync<EngramRouteOptions> = async (fasti
         response: {
           200: z.object({
             totalEntries: z.number().int(),
-            strategy: z.enum(['embed-only', 'full-cognify']),
+            strategy: z.enum(['embed-only', 'embed+graph', 'full-cognify']),
             pgvector: pgvectorStatsSchema,
           }),
         },
@@ -236,9 +287,13 @@ export const engramRoutes: FastifyPluginAsync<EngramRouteOptions> = async (fasti
         await pool.end().catch(() => {})
       }
 
+      // Determine strategy for the primary dataset (project_knowledge).
+      // Returns the most specific known strategy, defaulting to full-cognify.
+      const strategy = DATASET_STRATEGIES['project_knowledge'] ?? 'full-cognify'
+
       return reply.send({
         totalEntries,
-        strategy: 'embed-only' as const,
+        strategy,
         pgvector,
       })
     }
