@@ -205,14 +205,17 @@ export const engramRoutes: FastifyPluginAsync<EngramRouteOptions> = async (fasti
 
       const edges: Array<{ source: string; target: string }> = []
       const knownIds = new Set(rows.map((r) => r.entry_id))
+      const seenPairs = new Set<string>()
       for (const r of rows) {
         let related: string[] = []
         try { related = JSON.parse(r.related) as string[] } catch { /* skip */ }
         for (const targetId of related) {
-          // Only include edges where both nodes are in the registry
-          if (knownIds.has(targetId)) {
-            edges.push({ source: r.entry_id, target: targetId })
-          }
+          if (!knownIds.has(targetId)) continue
+          // Deduplicate bidirectional pairs — keep back-links in data, show one line in UI
+          const pairKey = [r.entry_id, targetId].sort().join('|')
+          if (seenPairs.has(pairKey)) continue
+          seenPairs.add(pairKey)
+          edges.push({ source: r.entry_id, target: targetId })
         }
       }
 
