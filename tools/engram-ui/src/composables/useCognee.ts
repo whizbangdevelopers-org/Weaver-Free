@@ -538,6 +538,27 @@ export function useCognee() {
     }
   }
 
+  // Delete a dataset by ID. Cognee returns 403 on successful deletion (known bug) — treat as success.
+  async function deleteDataset(datasetId: string) {
+    try {
+      const res = await fetch(`/api/v1/datasets/${datasetId}`, {
+        method: 'DELETE',
+        headers: _bearerToken ? { Authorization: `Bearer ${_bearerToken}` } : {},
+        signal: AbortSignal.timeout(15_000),
+      })
+      // 403 and 404 are both "success" — Cognee API quirk documented in G-engram-2026-05-12-003
+      if (!res.ok && res.status !== 403 && res.status !== 404) {
+        const text = await res.text().catch(() => '')
+        throw new Error(`HTTP ${res.status}: ${text}`)
+      }
+      datasets.value = datasets.value.filter((d) => d.id !== datasetId)
+      if (activeDatasetId.value === datasetId) activeDatasetId.value = null
+    } catch (err) {
+      error.value = extractError(err, 'Failed to delete dataset')
+      throw err
+    }
+  }
+
   return {
     status,
     statusDetail,
@@ -576,5 +597,6 @@ export function useCognee() {
     deleteApiKey,
     listDatasetFiles,
     deleteDatasetFile,
+    deleteDataset,
   }
 }
