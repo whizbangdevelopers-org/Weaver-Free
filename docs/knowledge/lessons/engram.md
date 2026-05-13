@@ -16,7 +16,7 @@ tags: [strategy, pipeline, dataset, architecture]
 since_version: "1.0.5"
 status: active
 scope: project
-related: []
+related: [G-engram-2026-05-12-006, G-engram-2026-05-12-001, G-engram-2026-05-12-002]
 graduated_to: ""
 ---
 
@@ -39,7 +39,7 @@ tags: [sqlite, graph, related, visualization]
 since_version: "1.0.5"
 status: active
 scope: project
-related: []
+related: [G-engram-2026-05-12-004, G-engram-2026-05-12-005]
 graduated_to: ""
 ---
 
@@ -50,5 +50,39 @@ graduated_to: ""
 **Rule:** When building a registry graph visualization, check whether structured metadata already captures the edge relationships before reaching for AI extraction or a graph DB. The `related` YAML field → SQLite column → `/api/engram/graph-data` endpoint pattern costs nothing at query time and makes the graph auditable.
 
 **Why this shape wins:** The backend API serves graph data from SQLite with no Kuzu/pgvector dependency. The graph reflects human-authored intent, not probabilistic extraction. It degrades gracefully when entries have no relations (just shows isolated nodes).
+
+<!-- /entry -->
+
+<!-- entry:L-engram-2026-05-13-003 -->
+---
+id: L-engram-2026-05-13-003
+type: lesson
+domain: engram
+tags: [graph, related, dedup, visualization, bidirectional]
+since_version: "1.0.5"
+status: active
+scope: transferable
+related: [L-engram-2026-05-13-002]
+graduated_to: ""
+---
+
+## Deduplicate bidirectional `related[]` edges with a canonical sorted pair key — 2026-05-13 · Claude
+
+**Root cause:** The `related: []` YAML field is intentionally bidirectional — both linked entries list each other explicitly. When ingested into SQLite and served via `/api/engram/graph-data`, each entry's `related` array produces a directed edge, yielding two edges per relationship pair. A graph visualization renders both edges as visual double-lines between the same two nodes.
+
+**Rule:** In the graph-data API endpoint, deduplicate bidirectional edge pairs before returning. Canonical pattern:
+```typescript
+const seenPairs = new Set<string>()
+for (const r of rows) {
+  for (const targetId of related) {
+    const pairKey = [r.entry_id, targetId].sort().join('|')
+    if (seenPairs.has(pairKey)) continue
+    seenPairs.add(pairKey)
+    edges.push({ source: r.entry_id, target: targetId })
+  }
+}
+```
+
+**Why this shape wins:** The `sort().join('|')` canonical key makes `(A,B)` and `(B,A)` identical regardless of which entry is processed first. The deduplication is in the API response, not in the data store — the back-links remain in SQLite and can be used for non-visual graph queries (e.g., "what links to this entry?"). 19 directed edges in data → 15 visual edges after dedup (4 bidirectional pairs collapsed).
 
 <!-- /entry -->

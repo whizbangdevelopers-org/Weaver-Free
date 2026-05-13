@@ -15,7 +15,7 @@ domain: process
 tags: [regex, typescript, esm, module, global-flag]
 since_version: "1.0.5"
 status: active
-related: []
+related: [L-process-2026-05-10-001]
 graduated_to: ""
 ---
 
@@ -57,7 +57,7 @@ domain: process
 tags: [auditor, marker-sync, doc-parity, audit-chain]
 since_version: "1.0.5"
 status: active
-related: []
+related: [L-process-2026-05-13-001]
 graduated_to: ""
 ---
 

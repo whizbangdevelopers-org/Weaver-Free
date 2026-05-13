@@ -40,6 +40,9 @@ import {
   getPgPool, closePgPool, ensureSchema, embedText, checkEmbedService,
   upsertChunk, deleteChunks, clearDatasetChunks,
 } from '../codebase-mcp/src/utils/pgvector-embed.js'
+import {
+  openEngramGraphWriter, resolveEngramGraphPath,
+} from './engram-graph.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -56,9 +59,12 @@ const FORCE_RESET = process.argv.includes('--force-reset')
 const METADATA_ONLY = process.argv.includes('--metadata-only')
 
 // Processing strategy for this dataset.
-// embed-only: chunk + embed → weaver_knowledge_chunks (pgvector), skip Cognee pipeline.
-// full-cognify: Cognee /add + /cognify (entity extraction + graph).
-const STRATEGY: 'embed-only' | 'full-cognify' = 'embed-only'
+// embed-only:  chunk + embed → weaver_knowledge_chunks (pgvector), skip Cognee pipeline.
+// embed+graph: embed-only PLUS LLM entity extraction → Kuzu (owned graph, no Cognee).
+// full-cognify: Cognee /add + /cognify (entity extraction + graph via Cognee sidecar).
+const STRATEGY: 'embed-only' | 'embed+graph' | 'full-cognify' = 'embed-only'
+
+const LLAMA_GEN_URL = process.env.LLAMA_GEN_URL ?? 'http://localhost:8769'
 
 // ── ANSI ─────────────────────────────────────────────────────────────────────
 const GREEN  = '\x1b[32m'
@@ -364,6 +370,51 @@ async function cognifyDataset(token: string | null): Promise<boolean> {
   return pollCognifyCompletion(token)
 }
 
+// ── Entity extraction (embed+graph) ──────────────────────────────────────────
+
+interface ExtractedEntity {
+  name: string
+  type: string
+  description: string
+}
+
+async function extractEntities(entryId: string, text: string): Promise<ExtractedEntity[]> {
+  const prompt = `Extract named entities from the following technical knowledge entry.
+Return a JSON object with an "entities" array. Each entity has: name (string), type (one of: concept, technology, tool, pattern, rule, component), description (one sentence).
+Extract 3-8 entities maximum. Focus on the most specific and useful technical concepts.
+
+Text:
+${text.slice(0, 2000)}
+
+Respond with ONLY valid JSON, no explanation.`
+
+  try {
+    const res = await fetch(`${LLAMA_GEN_URL}/v1/chat/completions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.1,
+        max_tokens: 512,
+        response_format: { type: 'json_object' },
+      }),
+      signal: AbortSignal.timeout(30000),
+    })
+    if (!res.ok) throw new Error(`llama-gen ${res.status}`)
+    const data = await res.json() as { choices: Array<{ message: { content: string } }> }
+    const content = data.choices[0]?.message?.content ?? ''
+    const parsed = JSON.parse(content) as { entities?: ExtractedEntity[] }
+    return Array.isArray(parsed.entities) ? parsed.entities.slice(0, 8) : []
+  } catch (err) {
+    console.log(`  ${YELLOW}⚠ entity extraction skipped for ${entryId}: ${String(err)}${RESET}`)
+    return []
+  }
+}
+
+function slugify(name: string): string {
+  return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+}
+
 // ── Main ──────────────────────────────────────────────────────────────────────
 
 async function main(): Promise<void> {
@@ -549,6 +600,115 @@ async function main(): Promise<void> {
       }
       improved = failed === 0
     } finally {
+      client.release()
+      await closePgPool()
+    }
+
+  } else if (STRATEGY === 'embed+graph') {
+    // ── embed+graph path: pgvector embed + LLM entity extraction → owned Kuzu ──
+    const embedOk = await checkEmbedService()
+    if (!embedOk) {
+      console.error(`${RED}${BOLD}nomic-embed unreachable at ${process.env.EMBED_URL ?? 'http://localhost:8767'}${RESET}`)
+      process.exit(1)
+    }
+    console.log(`${GREEN}✓${RESET} nomic-embed reachable`)
+
+    const graph = await openEngramGraphWriter(resolveEngramGraphPath(CODE_ROOT))
+    const pool = getPgPool()
+    const client = await pool.connect()
+    try {
+      await ensureSchema(client)
+
+      if (FORCE_RESET) {
+        process.stdout.write(`Force-resetting dataset "${DATASET}" (embed+graph)… `)
+        await clearDatasetChunks(client, DATASET)
+        await graph.clearAllEntries()
+        clearIngestedEntries(db)
+        console.log(`${GREEN}done${RESET}`)
+        toAdd.push(...toUpdate, ...entries.filter((e) => skipped.includes(e.id)))
+        toUpdate.length = 0
+        toDelete.length = 0
+        skipped.length = 0
+      }
+
+      // Deletions
+      for (const { entryId } of toDelete) {
+        process.stdout.write(`  ${RED}delete${RESET} ${entryId}… `)
+        try {
+          await deleteChunks(client, entryId, DATASET)
+          await graph.deleteEntry(entryId)
+          deleteIngestedEntry(db, entryId)
+          deleted++
+          console.log(`${GREEN}✓${RESET}`)
+        } catch (err) {
+          failed++
+          console.log(`${RED}✗ ${String(err)}${RESET}`)
+        }
+      }
+
+      // Updates fold into adds
+      for (const entry of toUpdate) toAdd.push(entry)
+
+      // Adds — embed + upsert Kuzu entry node + extract entities
+      for (const entry of toAdd) {
+        const text = formatEntryForEngram(entry)
+        const hash = computeHash(text)
+        const isUpdate = toUpdate.includes(entry)
+        process.stdout.write(`  ${isUpdate ? YELLOW + 're-embed' : GREEN + 'embed+graph'}${RESET} ${entry.id}… `)
+        try {
+          const embedding = await embedText(text)
+          await upsertChunk(client, { entryId: entry.id, dataset: DATASET, chunkText: text, embedding })
+          await graph.upsertEntry({
+            entryId: entry.id,
+            title: entry.title,
+            domain: entry.domain,
+            type: entry.type,
+            scope: entry.scope,
+            status: entry.status,
+          })
+          upsertIngestedEntry(db, {
+            entryId: entry.id,
+            contentHash: hash,
+            dataId: '',
+            datasetId: DATASET,
+            domain: entry.domain,
+            type: entry.type,
+            scope: entry.scope,
+            status: entry.status,
+            tags: JSON.stringify(entry.tags),
+            sinceVersion: entry.since_version,
+            title: entry.title,
+            related: JSON.stringify(entry.related),
+            ingestedAt: Date.now(),
+          })
+          if (isUpdate) updated++; else added++
+          console.log(`${GREEN}✓${RESET}`)
+
+          // Entity extraction (non-fatal)
+          const entities = await extractEntities(entry.id, text)
+          const entityIds: string[] = []
+          for (const entity of entities) {
+            const entityId = `${entry.id}:${slugify(entity.name)}`
+            await graph.upsertEntity({ entityId, name: entity.name, type: entity.type, description: entity.description })
+            entityIds.push(entityId)
+          }
+          if (entityIds.length > 0) await graph.addMentions(entry.id, entityIds)
+        } catch (err) {
+          failed++
+          console.log(`${RED}✗ ${String(err)}${RESET}`)
+        }
+      }
+
+      // Sync RELATED_TO edges for all entries (including unchanged — relations may have changed)
+      process.stdout.write(`Syncing graph relations… `)
+      for (const entry of entries) {
+        try { await graph.setRelations(entry.id, entry.related) } catch { /* non-fatal */ }
+      }
+      console.log(`${GREEN}✓${RESET}`)
+
+      improved = failed === 0
+    } finally {
+      graph.close()
       client.release()
       await closePgPool()
     }

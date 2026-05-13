@@ -16,7 +16,7 @@ tags: [cognee, auth, namespaces, datasets, anonymous-user]
 since_version: "1.0.5"
 status: active
 scope: project
-related: []
+related: [L-engram-2026-05-13-001]
 graduated_to: ""
 ---
 
@@ -138,7 +138,7 @@ tags: [cognee, instructor, llama-cpp, json-schema-mode, structured-output]
 since_version: "1.0.5"
 status: active
 scope: project
-related: []
+related: [L-engram-2026-05-13-001]
 graduated_to: ""
 ---
 

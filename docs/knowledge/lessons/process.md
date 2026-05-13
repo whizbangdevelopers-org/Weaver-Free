@@ -15,7 +15,7 @@ domain: process
 tags: [esm, typescript, dual-mode, import.meta.url, scripts]
 since_version: "1.0.5"
 status: active
-related: []
+related: [G-process-2026-05-10-002]
 graduated_to: ""
 ---
 
@@ -54,5 +54,28 @@ graduated_to: ""
 **Rule:** Never use `((var++))` in `set -e` scripts. Use `var=$((var + 1))` (assignment form, always exits 0) or `((++var))` (pre-increment, evaluates to 1 when starting from 0).
 
 **Why this shape wins:** The assignment form `var=$((var + 1))` makes intent explicit and is immune to `set -e` because assignment always exits 0. The `((++var))` form works but requires knowing that pre-increment evaluates to the post-increment value. Prefer the assignment form in any `set -e` script.
+
+<!-- /entry -->
+
+<!-- entry:L-process-2026-05-13-001 -->
+---
+id: L-process-2026-05-13-001
+type: lesson
+domain: process
+tags: [auditor, naming, rebrand, terminology, compliance]
+since_version: "1.0.5"
+status: active
+scope: transferable
+related: [G-process-2026-05-10-001, L-engram-2026-05-13-001]
+graduated_to: ""
+---
+
+## Enforce a product rename with a named auditor, not a one-time grep — 2026-05-13 · Claude
+
+**Root cause:** Renaming a product noun in a codebase (e.g., "Cognee" → "Engram") spans variable names, comments, strings, UI labels, docs, and API identifiers. A one-time search-and-replace clears the backlog but provides no protection: new code written the next day can silently reintroduce the old term, and the migration is never truly done.
+
+**Rule:** When renaming a product noun, write a named auditor (`audit:<noun>-naming`) that scans for the forbidden terms and register it in the compliance chain. The auditor is the exit criterion for the migration — it passes when the rename is complete, and fires on every push thereafter to prevent regression.
+
+**Why this shape wins:** The auditor makes the migration's completion state machine-readable. No future session needs context about "we used to call this X" — the auditor fails if X appears. Adding a new forbidden variant (a typo, an old alias, a case variant) is a one-line auditor change. The compliance chain's auditor count increasing triggers the marker-sync pattern automatically in any doc that summarises the CI chain, so documentation stays current. The pattern generalises: API deprecation (forbid old endpoint strings in client code), dependency retirement (forbid old import paths), terminology shifts (forbid "backlog" in user-facing copy).
 
 <!-- /entry -->
