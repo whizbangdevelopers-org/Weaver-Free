@@ -53,3 +53,57 @@ done
 **Rule:** Never indent heredoc closing delimiters inside loops or functions. If indentation is needed for readability, use `<<-EOF` (strips leading tabs only, not spaces) or switch to `printf`.
 
 <!-- /entry -->
+
+<!-- entry:G-devops-2026-05-13-001 -->
+---
+id: G-devops-2026-05-13-001
+type: gotcha
+domain: devops
+tags: [engram-ui, quasar, spa, deploy, king]
+since_version: "1.0.5"
+status: active
+scope: project
+related: []
+graduated_to: ""
+---
+
+## engram-ui is a static SPA deployed to king — changes require rebuild + rsync, not a server restart — 2026-05-13 · Claude
+
+**Problem:** After editing `code/tools/engram-ui/src/`, the browser on king shows no change. The natural assumption is "restart the dev server," but there is no running dev server — engram-ui is a Quasar SPA built to `dist/spa/` and rsynced to `king:/var/www/engram-ui/`. No HMR, no live reload.
+
+**Fix:** From `code/tools/engram-ui/`, run:
+```bash
+npm run deploy:king
+```
+This chains `quasar build` → `rsync -rl --delete … dist/spa/ king:/var/www/engram-ui/`. Hard-refresh the browser after the rsync completes.
+
+**Rule:** engram-ui changes are never visible until a new build is deployed to king. If something looks unchanged after a code edit, run `deploy:king` before investigating further.
+
+<!-- /entry -->
+
+<!-- entry:G-devops-2026-05-13-002 -->
+---
+id: G-devops-2026-05-13-002
+type: gotcha
+domain: devops
+tags: [engram-ui, rsync, permissions, king, nginx]
+since_version: "1.0.5"
+status: active
+scope: project
+related: [G-devops-2026-05-13-001]
+graduated_to: ""
+---
+
+## rsync to king:/var/www/engram-ui fails with Permission Denied after initial deploy — 2026-05-13 · Claude
+
+**Problem:** `npm run deploy:king` succeeds on first deploy, but subsequent runs fail with `Permission denied` on every file in `/var/www/engram-ui/`. The directory's files got owned by a system user (root or nginx) after the first rsync — likely because the initial deploy was run as root on king.
+
+**Fix:** On king as root:
+```bash
+chown -R mark:users /var/www/engram-ui
+```
+Then retry `npm run deploy:king` from the dev machine — it succeeds cleanly.
+
+**Rule:** If `deploy:king` rsync fails with permission errors, fix ownership on king before investigating further. The web root at `/var/www/engram-ui/` must be owned by `mark` for the dev-machine rsync user to write to it.
+
+<!-- /entry -->
