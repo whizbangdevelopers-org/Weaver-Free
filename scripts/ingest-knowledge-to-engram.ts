@@ -12,14 +12,19 @@
  * from the updated dataset — no per-entry graph rebuild.
  *
  * Flags:
- *   --dry-run      Print what would be added/skipped/deleted; do not POST.
- *   --force-reset  Wipe dataset + registry and re-ingest everything from scratch.
+ *   --dry-run        Print what would be added/skipped/deleted; do not POST.
+ *   --force-reset    Wipe dataset + registry and re-ingest everything from scratch.
+ *   --metadata-only  Update SQLite ingested_entries (title, domain, related, etc.)
+ *                    without touching the Cognee/Engram service. Useful when YAML
+ *                    metadata changed (e.g. related[] populated) but no re-embed needed.
+ *                    Preserves existing dataId/datasetId for already-ingested entries.
  *
  * Invocation:
  *   npx tsx scripts/ingest-knowledge-to-engram.ts
  *   npm run engram:ingest-knowledge
  *   npm run engram:ingest-knowledge -- --dry-run
  *   npm run engram:ingest-knowledge -- --force-reset
+ *   npm run engram:ingest-knowledge -- --metadata-only
  */
 
 import { readFileSync, readdirSync } from 'fs'
@@ -44,6 +49,7 @@ const COGNEE_PASSWORD = process.env.COGNEE_PASSWORD ?? 'weaver-dev-2026'
 const DATASET = 'project_knowledge'
 const DRY_RUN = process.argv.includes('--dry-run')
 const FORCE_RESET = process.argv.includes('--force-reset')
+const METADATA_ONLY = process.argv.includes('--metadata-only')
 
 // ── ANSI ─────────────────────────────────────────────────────────────────────
 const GREEN  = '\x1b[32m'
@@ -406,6 +412,44 @@ async function main(): Promise<void> {
     for (const d of toDelete) console.log(`  ${RED}- ${d.entryId}${RESET} — deleted from source`)
     console.log()
     console.log(`${GREEN}Dry run complete.${RESET}`)
+    return
+  }
+
+  // Metadata-only: sync SQLite without touching Cognee (useful when related[] or other
+  // YAML metadata changed but re-embedding is not needed or Cognee is unavailable).
+  if (METADATA_ONLY) {
+    let synced = 0
+    for (const entry of entries) {
+      const text = formatEntryForEngram(entry)
+      const hash = computeHash(text)
+      const rec = existing.get(entry.id)
+      upsertIngestedEntry(db, {
+        entryId: entry.id,
+        contentHash: hash,
+        dataId:    rec?.dataId    ?? '',
+        datasetId: rec?.datasetId ?? '',
+        domain: entry.domain,
+        type: entry.type,
+        scope: entry.scope,
+        status: entry.status,
+        tags: JSON.stringify(entry.tags),
+        sinceVersion: entry.since_version,
+        title: entry.title,
+        related: JSON.stringify(entry.related),
+        ingestedAt: Date.now(),
+      })
+      synced++
+    }
+    logIngestionRun(db, {
+      dataset: DATASET,
+      entryCount: entries.length,
+      successCount: synced,
+      failureCount: 0,
+      improved: false,
+      durationMs: Date.now() - ingestStart,
+      flags: { dryRun: false, forceReset: false, metadataOnly: true },
+    })
+    console.log(`${GREEN}✓${RESET} Metadata sync complete — ${synced} entries updated in SQLite (Cognee untouched)`)
     return
   }
 
