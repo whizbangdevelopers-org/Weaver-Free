@@ -19,8 +19,8 @@ pkgs.buildNpmPackage rec {
   # on every push. Remediation when it fails: `npm run nix:refresh-deps-hash`
   # (or manually: nix-shell -p prefetch-npm-deps --run 'prefetch-npm-deps
   # package-lock.json' → copy sha256 to npmDepsHash → update marker below).
-  npmDepsHash = "sha256-Fd3uzCkS5bAi3QPpJ7Gr6bhRKgSrb+x10SCKjVxwEHo=";
-  # lockfile-marker: 8bede535702973dd
+  npmDepsHash = "sha256-W11RNWXFDLAb0Kpbhek+l1BURInJw4VyfjmIMFBH+b0=";
+  # lockfile-marker: 3afc94494ff355e1
 
   makeCacheWritable = true;
   nodejs = pkgs.nodejs_24;

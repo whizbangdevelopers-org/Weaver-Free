@@ -31,6 +31,18 @@ export interface EngramStatus {
   queryCountsByTool: EngramToolStat[]
 }
 
+export interface EngramPgvectorStats {
+  chunks: number
+  summaries: number
+  entities: number
+}
+
+export interface EngramStats {
+  totalEntries: number
+  strategy: 'embed-only' | 'full-cognify'
+  pgvector: EngramPgvectorStats | null
+}
+
 export interface EngramEntryDomainRow {
   domain: string
   type: string
@@ -103,6 +115,10 @@ export function useEngramMonitor() {
   const entriesLoading = ref(false)
   const entriesError = ref<string | null>(null)
 
+  const engramStats = ref<EngramStats | null>(null)
+  const statsLoading = ref(false)
+  const statsError = ref<string | null>(null)
+
   async function fetchStatus() {
     statusLoading.value = true
     statusError.value = null
@@ -168,6 +184,18 @@ export function useEngramMonitor() {
     }
   }
 
+  async function fetchStats() {
+    statsLoading.value = true
+    statsError.value = null
+    try {
+      engramStats.value = await weaverFetch<EngramStats>('/weaver/api/engram/stats')
+    } catch (err) {
+      statsError.value = err instanceof Error ? err.message : 'Failed to load stats'
+    } finally {
+      statsLoading.value = false
+    }
+  }
+
   async function viewEntries(domain: string, type?: string, scope?: string): Promise<{ path: string | null; entryCount: number; opened: boolean; note?: string }> {
     return weaverFetch('/weaver/api/engram/view', {
       method: 'POST',
@@ -176,7 +204,7 @@ export function useEngramMonitor() {
   }
 
   async function loadAll() {
-    await Promise.all([fetchStatus(), fetchQueries(0), fetchIngestionHistory(0), fetchEntries()])
+    await Promise.all([fetchStatus(), fetchQueries(0), fetchIngestionHistory(0), fetchEntries(), fetchStats()])
   }
 
   return {
@@ -203,6 +231,10 @@ export function useEngramMonitor() {
     entriesTotal,
     entriesLoading,
     entriesError,
+    engramStats,
+    statsLoading,
+    statsError,
+    fetchStats,
     viewEntries,
     loadAll,
   }

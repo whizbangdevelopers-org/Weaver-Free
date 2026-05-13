@@ -132,11 +132,18 @@ async function apiFetch<T>(
 ): Promise<T> {
   const controller = new AbortController()
   const id = setTimeout(() => controller.abort(), timeout)
-  const authHeader = _bearerToken ? { Authorization: `Bearer ${_bearerToken}` } : {}
+  const authHeader: Record<string, string> = _bearerToken ? { Authorization: `Bearer ${_bearerToken}` } : {}
+  // Normalise options.headers to a plain record so the spread produces HeadersInit-compatible Record<string, string>
+  const baseHeaders: Record<string, string> =
+    options.headers instanceof Headers
+      ? Object.fromEntries(options.headers.entries())
+      : Array.isArray(options.headers)
+        ? Object.fromEntries(options.headers)
+        : (options.headers as Record<string, string> | undefined) ?? {}
   try {
     const res = await fetch(path, {
       ...options,
-      headers: { ...authHeader, ...(options.headers ?? {}) },
+      headers: { ...authHeader, ...baseHeaders },
       signal: controller.signal,
     })
     if (!res.ok) {

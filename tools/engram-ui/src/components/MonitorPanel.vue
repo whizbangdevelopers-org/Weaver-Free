@@ -97,7 +97,16 @@
             </q-card-section>
           </q-card>
 
-          <div class="text-subtitle2 q-mb-sm">Knowledge Registry</div>
+          <div class="row items-center q-mb-sm q-gutter-x-sm">
+            <div class="text-subtitle2">Knowledge Registry</div>
+            <q-chip
+              v-if="engramStats"
+              dense square size="sm"
+              :color="engramStats.strategy === 'full-cognify' ? 'blue-7' : 'amber-8'"
+              text-color="white"
+              :label="engramStats.strategy"
+            />
+          </div>
           <q-banner v-if="entriesError" dense rounded class="bg-negative text-white q-mb-sm">{{ entriesError }}</q-banner>
           <q-banner v-if="viewNotify" dense rounded class="bg-info text-white q-mb-sm" @click="viewNotify = null">
             <template #avatar><q-icon name="mdi-information" /></template>
@@ -155,6 +164,16 @@
               </template>
             </q-table>
           </q-card>
+
+          <div class="text-caption text-grey-6 q-mb-md q-mt-xs" v-if="engramStats">
+            pgvector —
+            <span v-if="engramStats.pgvector">
+              chunks: {{ engramStats.pgvector.chunks.toLocaleString() }} &middot;
+              summaries: {{ engramStats.pgvector.summaries.toLocaleString() }} &middot;
+              entities: {{ engramStats.pgvector.entities.toLocaleString() }}
+            </span>
+            <span v-else>unreachable</span>
+          </div>
 
           <div class="text-subtitle2 q-mb-sm">MCP Tool Usage (90-day window)</div>
           <q-card flat bordered>
@@ -334,6 +353,7 @@ const {
   entriesTotal,
   entriesLoading,
   entriesError,
+  engramStats,
   LIMIT,
   fetchQueries,
   fetchIngestionHistory,
