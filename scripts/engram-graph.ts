@@ -29,9 +29,9 @@
  *   g.close()
  */
 
-import kuzu from 'kuzu'
+import kuzu, { type KuzuValue } from 'kuzu'
 import { mkdirSync, existsSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { resolve, dirname } from 'node:path'
 
 // ── Schema ────────────────────────────────────────────────────────────────────
 
@@ -102,13 +102,29 @@ export interface EngramGraphHandle {
 
 // ── Internal helpers ──────────────────────────────────────────────────────────
 
+// kuzu 0.11+: conn.query() accepts no params (2nd arg is progressCallback).
+// Parameterized queries require conn.prepare() + conn.execute(prepared, params).
 async function runQuery(conn: kuzu.Connection, q: string, params?: Record<string, unknown>): Promise<void> {
-  const result = params ? await conn.query(q, params) : await conn.query(q)
+  let raw: kuzu.QueryResult | kuzu.QueryResult[]
+  if (params) {
+    const prepared = await conn.prepare(q)
+    raw = await conn.execute(prepared, params as unknown as Record<string, KuzuValue>)
+  } else {
+    raw = await conn.query(q)
+  }
+  const result = Array.isArray(raw) ? raw[0]! : raw
   result.close()
 }
 
 async function fetchAll<T>(conn: kuzu.Connection, q: string, params?: Record<string, unknown>): Promise<T[]> {
-  const result = params ? await conn.query(q, params) : await conn.query(q)
+  let raw: kuzu.QueryResult | kuzu.QueryResult[]
+  if (params) {
+    const prepared = await conn.prepare(q)
+    raw = await conn.execute(prepared, params as unknown as Record<string, KuzuValue>)
+  } else {
+    raw = await conn.query(q)
+  }
+  const result = Array.isArray(raw) ? raw[0]! : raw
   const rows = await result.getAll() as T[]
   result.close()
   return rows
@@ -229,7 +245,10 @@ function buildHandle(conn: kuzu.Connection): EngramGraphHandle {
 
 /** Open in read-write mode; creates schema on first run. Use in ingest script. */
 export async function openEngramGraphWriter(dbPath: string): Promise<EngramGraphHandle> {
-  if (!existsSync(dbPath)) mkdirSync(dbPath, { recursive: true })
+  // Only create the parent directory — kuzu creates the DB path itself.
+  // Pre-creating an empty directory at dbPath causes kuzu to reject it with
+  // "Database path cannot be a directory" (kuzu 0.11+).
+  if (!existsSync(dbPath)) mkdirSync(dirname(dbPath), { recursive: true })
   const db = new kuzu.Database(dbPath)
   const conn = new kuzu.Connection(db)
   for (const q of SCHEMA_QUERIES) {

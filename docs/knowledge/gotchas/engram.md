@@ -174,3 +174,59 @@ graduated_to: ""
 **Rule:** Never trust `DATASET_PROCESSING_STARTED` as proof that a pipeline is currently running. Always compare `created_at` to the poll timeout. The 50-row cap is a hard Cognee limit and cannot be configured away.
 
 <!-- /entry -->
+
+<!-- entry:G-engram-2026-05-13-001 -->
+---
+id: G-engram-2026-05-13-001
+type: gotcha
+domain: engram
+tags: [kuzu, parameterized-queries, api-change, prepare-execute]
+since_version: "1.0.5"
+status: active
+scope: transferable
+related: []
+graduated_to: ""
+---
+
+## kuzu 0.11+: conn.query() second argument is progressCallback, not params — 2026-05-13 · Claude
+
+**Problem:** In kuzu ≤ 0.10.x, `conn.query(statement, params)` accepted a plain object of query parameters. In kuzu 0.11+, the signature changed to `conn.query(statement, progressCallback?)` — the second argument is an optional callback function. Passing a params object as the second argument causes kuzu to validate it as a function: `Error: progressCallback must be a function`. All parameterized cypher queries silently fail at runtime, with no compile-time warning (the TypeScript types correctly reflect the new signature, but callers using the old pattern don't notice until tested).
+
+**Fix:** Use the two-step prepare/execute API for all parameterized queries:
+```typescript
+const prepared = await conn.prepare(statement)
+const result = await conn.execute(prepared, params as unknown as Record<string, KuzuValue>)
+```
+Unparam queries (no variables) can still use `conn.query(statement)` directly.
+
+**Rule:** With kuzu 0.11+, never pass params to `conn.query()`. Always use `conn.prepare()` + `conn.execute(prepared, params)` for any statement containing `$varName` placeholders.
+
+<!-- /entry -->
+
+<!-- entry:G-engram-2026-05-13-002 -->
+---
+id: G-engram-2026-05-13-002
+type: gotcha
+domain: engram
+tags: [kuzu, database-init, directory, empty-dir]
+since_version: "1.0.5"
+status: active
+scope: transferable
+related: []
+graduated_to: ""
+---
+
+## kuzu 0.11+: pre-creating an empty directory at the DB path causes "cannot be a directory" — 2026-05-13 · Claude
+
+**Problem:** Calling `mkdirSync(dbPath, { recursive: true })` before `new kuzu.Database(dbPath)` causes `Error: Runtime exception: Database path cannot be a directory: <path>`. Kuzu 0.11+ requires that it creates and owns the DB path itself. An empty directory at that path is rejected — but an existing kuzu-owned directory (from a prior session) is accepted. The failure mode is non-obvious because creating directories before opening files is a standard defensive pattern.
+
+**Fix:** Create only the PARENT directory; let kuzu create the DB path itself on first open:
+```typescript
+if (!existsSync(dbPath)) mkdirSync(dirname(dbPath), { recursive: true })
+const db = new kuzu.Database(dbPath)
+```
+On subsequent opens (kuzu directory already exists), no `mkdirSync` call is needed and kuzu opens the directory cleanly.
+
+**Rule:** Never pre-create the directory you pass to `new kuzu.Database(dbPath)`. Only ensure the parent directory exists. This applies on first run; subsequent runs where kuzu already owns the path are unaffected.
+
+<!-- /entry -->
