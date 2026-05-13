@@ -39,6 +39,7 @@ This file lists all direct runtime dependencies bundled with Weaver, their licen
 | @fastify/rate-limit | ^10.3.0 | MIT | Tomas Della Vedova |
 | @fastify/static | ^9.0.0 | MIT | Tommaso Allevi |
 | @fastify/websocket | ^11.2.0 | MIT | Matteo Collina |
+| @types/pg | ^8.20.0 | MIT | DefinitelyTyped contributors |
 | bcryptjs | ^3.0.3 | BSD-3-Clause | Daniel Wirtz |
 | better-sqlite3 | ^12.6.2 | MIT | Joshua Wise |
 | dotenv | ^16.3.1 | BSD-2-Clause | Scott Motte |
@@ -47,6 +48,7 @@ This file lists all direct runtime dependencies bundled with Weaver, their licen
 | jsonwebtoken | ^9.0.3 | MIT | auth0 |
 | markdown-it | ^14.1.1 | MIT | Vitaly Puzrin, Alex Kocharin |
 | nodemailer | ^8.0.1 | MIT-0 | Andris Reinman |
+| pg | ^8.20.0 | MIT | Brian Carlson |
 | stripe | ^18.1.0 | MIT | Stripe |
 | web-push | ^3.6.7 | MPL-2.0 | Marco Castelluccio |
 | zod | ^3.25.76 | MIT | Colin McDonnell |

@@ -8,6 +8,7 @@ import { existsSync, statSync, readFileSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
+import { Pool } from 'pg'
 
 const execFileAsync = promisify(execFile)
 // Auth deferred — RBAC gates added at Weaver Team/Fabrick integration (Decision #160).
@@ -167,6 +168,79 @@ export const engramRoutes: FastifyPluginAsync<EngramRouteOptions> = async (fasti
       } catch { /* code not in PATH — caller can open path manually */ }
 
       return reply.send({ path: tempPath, entryCount: filtered.length, opened })
+    }
+  )
+
+  // GET /api/engram/stats — processing strategy indicator + pgvector counts, admin only
+  const pgvectorStatsSchema = z.object({
+    chunks: z.number().int(),
+    summaries: z.number().int(),
+    entities: z.number().int(),
+  }).nullable()
+
+  app.get(
+    '/stats',
+    {
+      schema: {
+        response: {
+          200: z.object({
+            totalEntries: z.number().int(),
+            strategy: z.enum(['embed-only', 'full-cognify']),
+            pgvector: pgvectorStatsSchema,
+          }),
+        },
+      },
+    },
+    async (_request, reply) => {
+      // Total entries from SQLite ingested_entries table
+      const handle = db()
+      let totalEntries = 0
+      if (handle) {
+        try {
+          const row = handle.prepare('SELECT COUNT(*) as n FROM ingested_entries').get() as { n: number } | undefined
+          totalEntries = row?.n ?? 0
+        } catch { /* table may not exist yet */ }
+      }
+
+      // pgvector counts — connect to cognee PostgreSQL
+      let pgvector: { chunks: number; summaries: number; entities: number } | null = null
+      const pool = new Pool({
+        host: '127.0.0.1',
+        port: 5432,
+        user: 'cognee',
+        password: 'cognee-local',
+        database: 'cognee',
+        connectionTimeoutMillis: 3000,
+        max: 1,
+      })
+      try {
+        const client = await pool.connect()
+        try {
+          const [chunksRes, summariesRes, entitiesRes] = await Promise.all([
+            client.query<{ n: string }>('SELECT COUNT(*) as n FROM "DocumentChunk_text"'),
+            client.query<{ n: string }>('SELECT COUNT(*) as n FROM "TextSummary_text"'),
+            client.query<{ n: string }>('SELECT COUNT(*) as n FROM "Entity_name"'),
+          ])
+          pgvector = {
+            chunks: parseInt(chunksRes.rows[0]?.n ?? '0', 10),
+            summaries: parseInt(summariesRes.rows[0]?.n ?? '0', 10),
+            entities: parseInt(entitiesRes.rows[0]?.n ?? '0', 10),
+          }
+        } finally {
+          client.release()
+        }
+      } catch (err) {
+        // pgvector unreachable — return null; this is expected when cognee is not running
+        fastify.log.debug({ err }, 'engram/stats: pgvector unreachable')
+      } finally {
+        await pool.end().catch(() => {})
+      }
+
+      return reply.send({
+        totalEntries,
+        strategy: 'embed-only' as const,
+        pgvector,
+      })
     }
   )
 
