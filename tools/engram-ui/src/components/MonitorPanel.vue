@@ -102,9 +102,19 @@
             <q-chip
               v-if="engramStats"
               dense square size="sm"
-              :color="engramStats.strategy === 'full-cognify' ? 'blue-7' : 'amber-8'"
+              :color="engramStats.strategy === 'full-cognify' ? 'blue-7' : engramStats.strategy === 'embed+graph' ? 'teal-7' : 'amber-8'"
               text-color="white"
               :label="engramStats.strategy"
+            />
+            <q-space />
+            <q-btn-toggle
+              v-model="registryView"
+              flat dense
+              toggle-color="primary"
+              :options="[
+                { value: 'table', icon: 'mdi-format-list-bulleted' },
+                { value: 'graph', icon: 'mdi-graph-outline' },
+              ]"
             />
           </div>
           <q-banner v-if="entriesError" dense rounded class="bg-negative text-white q-mb-sm">{{ entriesError }}</q-banner>
@@ -112,7 +122,9 @@
             <template #avatar><q-icon name="mdi-information" /></template>
             {{ viewNotify }}
           </q-banner>
-          <q-card flat bordered class="q-mb-md">
+
+          <!-- Table view -->
+          <q-card v-if="registryView === 'table'" flat bordered class="q-mb-md">
             <q-card-section v-if="entriesLoading && entries.length === 0" class="text-center q-pa-md">
               <q-spinner size="24px" />
             </q-card-section>
@@ -163,6 +175,19 @@
                 </q-tr>
               </template>
             </q-table>
+          </q-card>
+
+          <!-- Graph view -->
+          <q-card v-else flat bordered class="q-mb-md">
+            <q-card-section v-if="graphLoading && !graphData" class="text-center q-pa-md">
+              <q-spinner size="24px" />
+            </q-card-section>
+            <q-card-section v-else class="q-pa-sm">
+              <registry-graph
+                :nodes="graphData?.nodes ?? []"
+                :edges="graphData?.edges ?? []"
+              />
+            </q-card-section>
           </q-card>
 
           <div class="text-caption text-grey-6 q-mb-md q-mt-xs" v-if="engramStats">
@@ -333,6 +358,7 @@
 import { ref, computed, watch } from 'vue'
 import type { QTableColumn } from 'quasar'
 import { useEngramMonitor } from '../composables/useEngramMonitor'
+import RegistryGraph from './RegistryGraph.vue'
 
 const {
   status,
@@ -354,12 +380,16 @@ const {
   entriesLoading,
   entriesError,
   engramStats,
+  graphData,
+  graphLoading,
   LIMIT,
   fetchQueries,
   fetchIngestionHistory,
   viewEntries,
   loadAll,
 } = useEngramMonitor()
+
+const registryView = ref<'table' | 'graph'>('table')
 
 const viewingRow = ref<string | null>(null)
 const viewNotify = ref<string | null>(null)

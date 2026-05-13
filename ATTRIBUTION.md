@@ -18,6 +18,7 @@ This file lists all direct runtime dependencies bundled with Weaver, their licen
 | @xterm/xterm | ^6.0.0 | MIT | The xterm.js authors, SourceLair Private Company, Christopher Jeffrey |
 | axios | ^1.6.5 | MIT | Matt Zabriskie |
 | idb | ^8.0.0 | ISC | Jake Archibald |
+| kuzu | ^0.11.3 | MIT | Kùzu Team |
 | markdown-it | ^14.1.1 | MIT | Vitaly Puzrin, Alex Kocharin |
 | pinia | ^2.1.7 | MIT | Eduardo San Martin Morote |
 | pinia-plugin-persistedstate | ^3.2.1 | MIT | prazdevs |
