@@ -36,6 +36,10 @@ import {
   getAllIngestedEntries, upsertIngestedEntry, deleteIngestedEntry, clearIngestedEntries,
   getLastIngestionRun,
 } from '../codebase-mcp/src/utils/engram-db.js'
+import {
+  getPgPool, closePgPool, ensureSchema, embedText, checkEmbedService,
+  upsertChunk, deleteChunks, clearDatasetChunks,
+} from '../codebase-mcp/src/utils/pgvector-embed.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -50,6 +54,11 @@ const DATASET = 'project_knowledge'
 const DRY_RUN = process.argv.includes('--dry-run')
 const FORCE_RESET = process.argv.includes('--force-reset')
 const METADATA_ONLY = process.argv.includes('--metadata-only')
+
+// Processing strategy for this dataset.
+// embed-only: chunk + embed → weaver_knowledge_chunks (pgvector), skip Cognee pipeline.
+// full-cognify: Cognee /add + /cognify (entity extraction + graph).
+const STRATEGY: 'embed-only' | 'full-cognify' = 'embed-only'
 
 // ── ANSI ─────────────────────────────────────────────────────────────────────
 const GREEN  = '\x1b[32m'
@@ -453,120 +462,194 @@ async function main(): Promise<void> {
     return
   }
 
-  // Check sidecar
-  const available = await checkCognee()
-  if (!available) {
-    console.error(`${RED}${BOLD}Engram service unreachable at ${COGNEE_URL}${RESET}`)
-    console.error(`${DIM}Start it via: systemctl start weaver-cognee${RESET}`)
-    process.exit(1)
-  }
-  console.log(`${GREEN}✓${RESET} Engram service reachable`)
-
-  // Authenticate — operations run in the weaver user namespace so CSM hooks and
-  // the Engram UI (both authenticated) can reach the same datasets.
-  const token = await getToken()
-  if (!token) {
-    console.error(`${RED}${BOLD}Auth failed — cannot ingest to anonymous namespace (would be invisible to Engram UI).${RESET}`)
-    console.error(`${DIM}Check COGNEE_USER / COGNEE_PASSWORD env vars or Cognee service availability.${RESET}`)
-    process.exit(1)
-  }
-  console.log(`${GREEN}✓${RESET} Authenticated as ${COGNEE_USER}`)
-
-  // Force reset: wipe dataset + registry, then treat everything as new
-  if (FORCE_RESET) {
-    process.stdout.write(`Force-resetting dataset "${DATASET}"… `)
-    await wipeDataset(token)
-    clearIngestedEntries(db)
-    console.log(`${GREEN}done${RESET}`)
-    toAdd.push(...toUpdate, ...entries.filter((e) => skipped.includes(e.id)))
-    toUpdate.length = 0
-    toDelete.length = 0
-    skipped.length = 0
-  }
-
   let added = 0
   let updated = 0
   let deleted = 0
   let failed = 0
-
-  // Deletions
-  for (const { entryId, dataId } of toDelete) {
-    process.stdout.write(`  ${RED}forget${RESET} ${entryId}… `)
-    try {
-      await forgetEntry(dataId, token)
-      deleteIngestedEntry(db, entryId)
-      deleted++
-      console.log(`${GREEN}✓${RESET}`)
-    } catch (err) {
-      failed++
-      console.log(`${RED}✗ ${String(err)}${RESET}`)
-    }
-  }
-
-  // Updates: forget old version then fall through to add
-  for (const entry of toUpdate) {
-    const rec = existing.get(entry.id)!
-    process.stdout.write(`  ${YELLOW}update${RESET} ${entry.id}… `)
-    try {
-      await forgetEntry(rec.dataId, token)
-    } catch {
-      // Non-fatal: old version may already be gone; proceed with re-add
-    }
-    toAdd.push(entry)
-  }
-
-  // Adds
-  for (const entry of toAdd) {
-    const text = formatEntryForEngram(entry)
-    const hash = computeHash(text)
-    const isUpdate = toUpdate.includes(entry)
-    if (!isUpdate) process.stdout.write(`  ${GREEN}add${RESET} ${entry.id}… `)
-    try {
-      const { dataId, datasetId } = await addEntry(text, entry.id, token)
-      upsertIngestedEntry(db, {
-        entryId: entry.id,
-        contentHash: hash,
-        dataId,
-        datasetId,
-        domain: entry.domain,
-        type: entry.type,
-        scope: entry.scope,
-        status: entry.status,
-        tags: JSON.stringify(entry.tags),
-        sinceVersion: entry.since_version,
-        title: entry.title,
-        related: JSON.stringify(entry.related),
-        ingestedAt: Date.now(),
-      })
-      if (isUpdate) { updated++; console.log(`${GREEN}✓${RESET}`) }
-      else added++
-      console.log(`${GREEN}✓${RESET}`)
-    } catch (err) {
-      failed++
-      console.log(`${RED}✗ ${String(err)}${RESET}`)
-    }
-  }
-
-  console.log()
-
-  // Cognify (graph construction) — run if anything changed OR if the previous
-  // run failed cognify (entries are in the registry but graph is incomplete).
   let improved = false
-  const anyChange = added + updated + deleted > 0
-  const lastRun = getLastIngestionRun(db, DATASET)
-  const needsRebuild = anyChange || (lastRun !== null && !lastRun.improved && lastRun.successCount > 0)
-  if (needsRebuild) {
-    process.stdout.write(`Building knowledge graph (may take several minutes)… `)
-    try {
-      improved = await cognifyDataset(token)
-      console.log(improved ? `${GREEN}done${RESET}` : `${RED}✗ cognify returned error${RESET}`)
-    } catch (err) {
-      console.log(`${RED}✗ ${String(err)}${RESET}`)
-      failed++
+
+  // ── Strategy dispatch ────────────────────────────────────────────────────────
+  if (STRATEGY === 'embed-only') {
+    // Direct pgvector path — no Cognee. Chunk + embed → weaver_knowledge_chunks.
+    const embedOk = await checkEmbedService()
+    if (!embedOk) {
+      console.error(`${RED}${BOLD}nomic-embed unreachable at ${process.env.EMBED_URL ?? 'http://localhost:8767'}${RESET}`)
+      console.error(`${DIM}Start it via: systemctl start weaver-llama-embed${RESET}`)
+      process.exit(1)
     }
+    console.log(`${GREEN}✓${RESET} nomic-embed reachable`)
+
+    const pool = getPgPool()
+    const client = await pool.connect()
+    try {
+      await ensureSchema(client)
+
+      // Force reset: wipe our chunks + registry
+      if (FORCE_RESET) {
+        process.stdout.write(`Force-resetting dataset "${DATASET}" (embed-only)… `)
+        await clearDatasetChunks(client, DATASET)
+        clearIngestedEntries(db)
+        console.log(`${GREEN}done${RESET}`)
+        toAdd.push(...toUpdate, ...entries.filter((e) => skipped.includes(e.id)))
+        toUpdate.length = 0
+        toDelete.length = 0
+        skipped.length = 0
+      }
+
+      // Deletions
+      for (const { entryId } of toDelete) {
+        process.stdout.write(`  ${RED}delete${RESET} ${entryId}… `)
+        try {
+          await deleteChunks(client, entryId, DATASET)
+          deleteIngestedEntry(db, entryId)
+          deleted++
+          console.log(`${GREEN}✓${RESET}`)
+        } catch (err) {
+          failed++
+          console.log(`${RED}✗ ${String(err)}${RESET}`)
+        }
+      }
+
+      // Updates fold into adds (upsertChunk deletes existing chunk first)
+      for (const entry of toUpdate) {
+        toAdd.push(entry)
+      }
+
+      // Adds
+      for (const entry of toAdd) {
+        const text = formatEntryForEngram(entry)
+        const hash = computeHash(text)
+        const isUpdate = toUpdate.includes(entry)
+        if (!isUpdate) process.stdout.write(`  ${GREEN}embed${RESET} ${entry.id}… `)
+        else process.stdout.write(`  ${YELLOW}re-embed${RESET} ${entry.id}… `)
+        try {
+          const embedding = await embedText(text)
+          await upsertChunk(client, { entryId: entry.id, dataset: DATASET, chunkText: text, embedding })
+          upsertIngestedEntry(db, {
+            entryId: entry.id,
+            contentHash: hash,
+            dataId: '',
+            datasetId: DATASET,
+            domain: entry.domain,
+            type: entry.type,
+            scope: entry.scope,
+            status: entry.status,
+            tags: JSON.stringify(entry.tags),
+            sinceVersion: entry.since_version,
+            title: entry.title,
+            related: JSON.stringify(entry.related),
+            ingestedAt: Date.now(),
+          })
+          if (isUpdate) updated++; else added++
+          console.log(`${GREEN}✓${RESET}`)
+        } catch (err) {
+          failed++
+          console.log(`${RED}✗ ${String(err)}${RESET}`)
+        }
+      }
+      improved = failed === 0
+    } finally {
+      client.release()
+      await closePgPool()
+    }
+
   } else {
-    console.log(`${DIM}Graph up to date — skipping cognify.${RESET}`)
-    improved = true
+    // ── full-cognify path (Cognee /add + /cognify) ─────────────────────────────
+    const available = await checkCognee()
+    if (!available) {
+      console.error(`${RED}${BOLD}Engram service unreachable at ${COGNEE_URL}${RESET}`)
+      console.error(`${DIM}Start it via: systemctl start weaver-cognee${RESET}`)
+      process.exit(1)
+    }
+    console.log(`${GREEN}✓${RESET} Engram service reachable`)
+
+    const token = await getToken()
+    if (!token) {
+      console.error(`${RED}${BOLD}Auth failed — cannot ingest to anonymous namespace (would be invisible to Engram UI).${RESET}`)
+      console.error(`${DIM}Check COGNEE_USER / COGNEE_PASSWORD env vars or Cognee service availability.${RESET}`)
+      process.exit(1)
+    }
+    console.log(`${GREEN}✓${RESET} Authenticated as ${COGNEE_USER}`)
+
+    if (FORCE_RESET) {
+      process.stdout.write(`Force-resetting dataset "${DATASET}"… `)
+      await wipeDataset(token)
+      clearIngestedEntries(db)
+      console.log(`${GREEN}done${RESET}`)
+      toAdd.push(...toUpdate, ...entries.filter((e) => skipped.includes(e.id)))
+      toUpdate.length = 0
+      toDelete.length = 0
+      skipped.length = 0
+    }
+
+    for (const { entryId, dataId } of toDelete) {
+      process.stdout.write(`  ${RED}forget${RESET} ${entryId}… `)
+      try {
+        await forgetEntry(dataId, token)
+        deleteIngestedEntry(db, entryId)
+        deleted++
+        console.log(`${GREEN}✓${RESET}`)
+      } catch (err) {
+        failed++
+        console.log(`${RED}✗ ${String(err)}${RESET}`)
+      }
+    }
+
+    for (const entry of toUpdate) {
+      const rec = existing.get(entry.id)!
+      process.stdout.write(`  ${YELLOW}update${RESET} ${entry.id}… `)
+      try { await forgetEntry(rec.dataId, token) } catch { /* non-fatal */ }
+      toAdd.push(entry)
+    }
+
+    for (const entry of toAdd) {
+      const text = formatEntryForEngram(entry)
+      const hash = computeHash(text)
+      const isUpdate = toUpdate.includes(entry)
+      if (!isUpdate) process.stdout.write(`  ${GREEN}add${RESET} ${entry.id}… `)
+      try {
+        const { dataId, datasetId } = await addEntry(text, entry.id, token)
+        upsertIngestedEntry(db, {
+          entryId: entry.id,
+          contentHash: hash,
+          dataId,
+          datasetId,
+          domain: entry.domain,
+          type: entry.type,
+          scope: entry.scope,
+          status: entry.status,
+          tags: JSON.stringify(entry.tags),
+          sinceVersion: entry.since_version,
+          title: entry.title,
+          related: JSON.stringify(entry.related),
+          ingestedAt: Date.now(),
+        })
+        if (isUpdate) { updated++; console.log(`${GREEN}✓${RESET}`) }
+        else added++
+        console.log(`${GREEN}✓${RESET}`)
+      } catch (err) {
+        failed++
+        console.log(`${RED}✗ ${String(err)}${RESET}`)
+      }
+    }
+
+    console.log()
+    const anyChange = added + updated + deleted > 0
+    const lastRun = getLastIngestionRun(db, DATASET)
+    const needsRebuild = anyChange || (lastRun !== null && !lastRun.improved && lastRun.successCount > 0)
+    if (needsRebuild) {
+      process.stdout.write(`Building knowledge graph (may take several minutes)… `)
+      try {
+        improved = await cognifyDataset(token)
+        console.log(improved ? `${GREEN}done${RESET}` : `${RED}✗ cognify returned error${RESET}`)
+      } catch (err) {
+        console.log(`${RED}✗ ${String(err)}${RESET}`)
+        failed++
+      }
+    } else {
+      console.log(`${DIM}Graph up to date — skipping cognify.${RESET}`)
+      improved = true
+    }
   }
 
   logIngestionRun(db, {
