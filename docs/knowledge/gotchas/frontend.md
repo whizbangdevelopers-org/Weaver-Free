@@ -28,3 +28,39 @@ graduated_to: ""
 **Rule:** `q-badge`: slot content only, never `:label` + slot together.
 
 <!-- /entry -->
+
+<!-- entry:G-frontend-2026-05-13-001 -->
+---
+id: G-frontend-2026-05-13-001
+type: gotcha
+domain: frontend
+tags: [typescript, oxc, type-assertion, vite]
+since_version: "1.0.5"
+status: active
+scope: transferable
+related: []
+graduated_to: ""
+---
+
+## oxc breaks chained method call on new line after `as` assertion — 2026-05-13 · Claude
+
+**Problem:** When a type assertion and a method call are split across lines:
+
+```typescript
+return db.prepare(...).all() as Array<{ entry_id: string }>
+  .map((r) => ({ entryId: r.entry_id }))
+```
+
+oxc (Vite's transformer) parses them as two separate statements. The `.map()` is treated as a standalone expression, not a continuation. Runtime error: `[PARSE_ERROR] Unexpected token`.
+
+**Fix:** Extract into a typed intermediate variable:
+
+```typescript
+type Row = { entry_id: string }
+const rows = db.prepare(...).all() as Row[]
+return rows.map((r) => ({ entryId: r.entry_id }))
+```
+
+**Rule:** Never chain a method call on a new line immediately after an `as` type assertion. oxc treats the line boundary as a statement terminator. Extract to `const` first.
+
+<!-- /entry -->
