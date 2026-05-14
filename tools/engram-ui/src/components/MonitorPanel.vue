@@ -22,6 +22,7 @@
     <!-- Sub-tabs -->
     <q-tabs v-model="monitorTab" align="left" dense class="q-mb-md" active-color="primary" indicator-color="primary">
       <q-tab name="status"    icon="mdi-gauge"                label="Status" />
+      <q-tab name="registry"  icon="mdi-bookshelf"            label="Knowledge Registry" />
       <q-tab name="queries"   icon="mdi-format-list-bulleted" label="Query Log" />
       <q-tab name="ingestion" icon="mdi-database-import"      label="Ingestion" />
     </q-tabs>
@@ -97,109 +98,6 @@
             </q-card-section>
           </q-card>
 
-          <div class="row items-center q-mb-sm q-gutter-x-sm">
-            <div class="text-subtitle2">Knowledge Registry</div>
-            <q-chip
-              v-if="engramStats"
-              dense square size="sm"
-              :color="engramStats.strategy === 'full-cognify' ? 'blue-7' : engramStats.strategy === 'embed+graph' ? 'teal-7' : 'amber-8'"
-              text-color="white"
-              :label="engramStats.strategy"
-            />
-            <q-space />
-            <q-btn-toggle
-              v-model="registryView"
-              flat dense
-              toggle-color="primary"
-              :options="[
-                { value: 'table', icon: 'mdi-format-list-bulleted' },
-                { value: 'graph', icon: 'mdi-graph-outline' },
-              ]"
-            />
-          </div>
-          <q-banner v-if="entriesError" dense rounded class="bg-negative text-white q-mb-sm">{{ entriesError }}</q-banner>
-          <q-banner v-if="viewNotify" dense rounded class="bg-negative text-white q-mb-sm" @click="viewNotify = null">
-            <template #avatar><q-icon name="mdi-alert-circle" /></template>
-            {{ viewNotify }}
-          </q-banner>
-
-          <!-- Table view -->
-          <q-card v-if="registryView === 'table'" flat bordered class="q-mb-md">
-            <q-card-section v-if="entriesLoading && entries.length === 0" class="text-center q-pa-md">
-              <q-spinner size="24px" />
-            </q-card-section>
-            <q-card-section v-else-if="entries.length === 0" class="text-grey-7 text-caption">
-              No entries in registry yet — run <span class="text-mono">npm run engram:ingest-knowledge</span>.
-            </q-card-section>
-            <q-table
-              v-else flat
-              :rows="entries"
-              :columns="entryColumns"
-              row-key="entry_key"
-              hide-pagination
-              :rows-per-page-options="[0]"
-              dense
-            >
-              <template #body-cell-domain="props">
-                <q-td :props="props">
-                  <span class="text-mono text-caption">{{ props.row.domain }}</span>
-                  <q-btn
-                    flat dense round size="xs" icon="mdi-eye-outline" class="q-ml-xs"
-                    :loading="viewingRow === rowKey(props.row)"
-                    @click.stop="onViewRow(props.row)"
-                  >
-                    <q-tooltip>View entries</q-tooltip>
-                  </q-btn>
-                </q-td>
-              </template>
-              <template #body-cell-type="props">
-                <q-td :props="props">
-                  <q-badge :color="props.row.type === 'lesson' ? 'blue-7' : 'orange-8'" outline :label="props.row.type" />
-                </q-td>
-              </template>
-              <template #body-cell-scope="props">
-                <q-td :props="props">
-                  <q-badge
-                    :color="props.row.scope === 'transferable' ? 'positive' : props.row.scope === 'transient' ? 'grey-6' : 'primary'"
-                    outline :label="props.row.scope"
-                  />
-                </q-td>
-              </template>
-              <template #body-cell-count="props">
-                <q-td :props="props" class="text-right text-weight-medium">{{ props.row.count }}</q-td>
-              </template>
-              <template #bottom-row>
-                <q-tr class="text-grey-7">
-                  <q-td colspan="3" class="text-caption">Total</q-td>
-                  <q-td class="text-right text-weight-bold">{{ entriesTotal }}</q-td>
-                </q-tr>
-              </template>
-            </q-table>
-          </q-card>
-
-          <!-- Graph view -->
-          <q-card v-else flat bordered class="q-mb-md">
-            <q-card-section v-if="graphLoading && !graphData" class="text-center q-pa-md">
-              <q-spinner size="24px" />
-            </q-card-section>
-            <q-card-section v-else class="q-pa-sm">
-              <registry-graph
-                :nodes="graphData?.nodes ?? []"
-                :edges="graphData?.edges ?? []"
-              />
-            </q-card-section>
-          </q-card>
-
-          <div class="text-caption text-grey-6 q-mb-md q-mt-xs" v-if="engramStats">
-            pgvector —
-            <span v-if="engramStats.pgvector">
-              chunks: {{ engramStats.pgvector.chunks.toLocaleString() }} &middot;
-              summaries: {{ engramStats.pgvector.summaries.toLocaleString() }} &middot;
-              entities: {{ engramStats.pgvector.entities.toLocaleString() }}
-            </span>
-            <span v-else>unreachable</span>
-          </div>
-
           <div class="text-subtitle2 q-mb-sm">MCP Tool Usage (90-day window)</div>
           <q-card flat bordered>
             <q-card-section v-if="status.queryCountsByTool.length === 0" class="text-grey-7 text-caption">
@@ -225,6 +123,126 @@
             </q-table>
           </q-card>
         </template>
+      </q-tab-panel>
+
+      <!-- ── Knowledge Registry ────────────────────────────────────────────── -->
+      <q-tab-panel name="registry" class="q-pa-none">
+        <div class="row items-center q-mb-sm q-gutter-x-sm">
+          <q-chip
+            v-if="engramStats"
+            dense square size="sm"
+            :color="engramStats.strategy === 'full-cognify' ? 'blue-7' : engramStats.strategy === 'embed+graph' ? 'teal-7' : 'amber-8'"
+            text-color="white"
+            :label="engramStats.strategy"
+          />
+          <q-space />
+          <q-btn-toggle
+            v-model="registryView"
+            flat dense
+            toggle-color="primary"
+            :options="[
+              { value: 'table', icon: 'mdi-format-list-bulleted' },
+              { value: 'graph', icon: 'mdi-graph-outline' },
+            ]"
+          />
+        </div>
+        <q-banner v-if="entriesError" dense rounded class="bg-negative text-white q-mb-sm">{{ entriesError }}</q-banner>
+        <q-banner v-if="viewNotify" dense rounded class="bg-negative text-white q-mb-sm" @click="viewNotify = null">
+          <template #avatar><q-icon name="mdi-alert-circle" /></template>
+          {{ viewNotify }}
+        </q-banner>
+
+        <!-- Table view -->
+        <q-card v-if="registryView === 'table'" flat bordered class="q-mb-md">
+          <q-card-section v-if="entriesLoading && entries.length === 0" class="text-center q-pa-md">
+            <q-spinner size="24px" />
+          </q-card-section>
+          <q-card-section v-else-if="entries.length === 0" class="text-grey-7 text-caption">
+            No entries in registry yet — run <span class="text-mono">npm run engram:ingest-knowledge</span>.
+          </q-card-section>
+          <div v-else class="registry-table">
+            <div class="row items-center q-px-sm q-py-xs text-caption text-grey-7 bg-grey-2">
+              <div style="width:40px"></div>
+              <div class="col">Type</div>
+              <div style="width:130px">Scope</div>
+              <div class="text-right" style="width:56px">Count</div>
+            </div>
+            <q-separator />
+            <template v-for="group in groupedEntries" :key="group.domain">
+              <div
+                class="row items-center q-px-sm q-py-xs bg-grey-1 registry-domain-header"
+                @click="toggleDomain(group.domain)"
+              >
+                <div style="width:40px" class="text-center">
+                  <q-icon
+                    :name="expandedDomains.has(group.domain) ? 'mdi-chevron-down' : 'mdi-chevron-right'"
+                    size="16px" color="grey-6"
+                  />
+                </div>
+                <div class="col text-mono text-caption text-weight-medium">{{ group.domain }}</div>
+                <div style="width:130px"></div>
+                <div class="text-right text-weight-bold text-caption" style="width:56px">{{ group.total }}</div>
+              </div>
+              <template v-if="expandedDomains.has(group.domain)">
+                <div
+                  v-for="row in group.rows"
+                  :key="rowKey(row)"
+                  class="row items-center q-px-sm q-py-xs registry-subrow"
+                >
+                  <div style="width:40px" class="text-center">
+                    <q-btn
+                      flat dense round size="xs" icon="mdi-eye-outline"
+                      :loading="viewingRow === rowKey(row)"
+                      @click.stop="onViewRow(row)"
+                    >
+                      <q-tooltip>View entries</q-tooltip>
+                    </q-btn>
+                  </div>
+                  <div class="col">
+                    <q-badge :color="row.type === 'lesson' ? 'blue-7' : 'orange-8'" outline :label="row.type" />
+                  </div>
+                  <div style="width:130px">
+                    <q-badge
+                      :color="row.scope === 'transferable' ? 'positive' : row.scope === 'transient' ? 'grey-6' : 'primary'"
+                      outline :label="row.scope"
+                    />
+                  </div>
+                  <div class="text-right text-weight-medium text-caption" style="width:56px">{{ row.count }}</div>
+                </div>
+              </template>
+              <q-separator />
+            </template>
+            <div class="row items-center q-px-sm q-py-xs text-grey-7">
+              <div style="width:40px"></div>
+              <div class="col text-caption">Total</div>
+              <div style="width:130px"></div>
+              <div class="text-right text-weight-bold text-caption" style="width:56px">{{ entriesTotal }}</div>
+            </div>
+          </div>
+        </q-card>
+
+        <!-- Graph view -->
+        <q-card v-else flat bordered class="q-mb-md">
+          <q-card-section v-if="graphLoading && !graphData" class="text-center q-pa-md">
+            <q-spinner size="24px" />
+          </q-card-section>
+          <q-card-section v-else class="q-pa-sm">
+            <registry-graph
+              :nodes="graphData?.nodes ?? []"
+              :edges="graphData?.edges ?? []"
+            />
+          </q-card-section>
+        </q-card>
+
+        <div class="text-caption text-grey-6 q-mt-xs" v-if="engramStats">
+          pgvector —
+          <span v-if="engramStats.pgvector">
+            chunks: {{ engramStats.pgvector.chunks.toLocaleString() }} &middot;
+            summaries: {{ engramStats.pgvector.summaries.toLocaleString() }} &middot;
+            entities: {{ engramStats.pgvector.entities.toLocaleString() }}
+          </span>
+          <span v-else>unreachable</span>
+        </div>
       </q-tab-panel>
 
       <!-- ── Query Log ───────────────────────────────────────────────────── -->
@@ -372,6 +390,7 @@
 import { ref, computed, watch } from 'vue'
 import type { QTableColumn } from 'quasar'
 import { useEngramMonitor } from '../composables/useEngramMonitor'
+import type { EngramEntryDomainRow } from '../composables/useEngramMonitor'
 import RegistryGraph from './RegistryGraph.vue'
 
 const {
@@ -436,8 +455,27 @@ async function onViewRow(row: { domain: string; type: string; scope: string }) {
   }
 }
 
-const monitorTab = ref<'status' | 'queries' | 'ingestion'>('status')
+const monitorTab = ref<'status' | 'registry' | 'queries' | 'ingestion'>('status')
 const refreshing = ref(false)
+
+const expandedDomains = ref<Set<string>>(new Set())
+function toggleDomain(domain: string) {
+  const next = new Set(expandedDomains.value)
+  if (next.has(domain)) next.delete(domain)
+  else next.add(domain)
+  expandedDomains.value = next
+}
+
+const groupedEntries = computed(() => {
+  const map = new Map<string, { domain: string; total: number; rows: EngramEntryDomainRow[] }>()
+  for (const row of entries.value) {
+    if (!map.has(row.domain)) map.set(row.domain, { domain: row.domain, total: 0, rows: [] })
+    const g = map.get(row.domain)!
+    g.rows.push(row)
+    g.total += row.count
+  }
+  return [...map.values()]
+})
 
 const toolOptions = computed(() =>
   status.value?.queryCountsByTool.map((s) => ({ label: s.tool, value: s.tool })) ?? [],
@@ -487,13 +525,6 @@ function summariseFlags(json: string): string {
   } catch { return json }
 }
 
-const entryColumns: QTableColumn[] = [
-  { name: 'domain', label: 'Domain', field: 'domain', align: 'left', sortable: true },
-  { name: 'type',   label: 'Type',   field: 'type',   align: 'left', sortable: true },
-  { name: 'scope',  label: 'Scope',  field: 'scope',  align: 'left', sortable: true },
-  { name: 'count',  label: 'Count',  field: 'count',  align: 'right', sortable: true },
-]
-
 const toolStatColumns: QTableColumn[] = [
   { name: 'tool',           label: 'Tool',        field: 'tool',           align: 'left'  },
   { name: 'count',          label: 'Calls',       field: 'count',          align: 'right', sortable: true },
@@ -522,5 +553,14 @@ const runColumns: QTableColumn[] = [
 <style scoped>
 .text-mono {
   font-family: 'Roboto Mono', monospace;
+}
+.registry-domain-header {
+  cursor: pointer;
+}
+.registry-domain-header:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+.registry-subrow:hover {
+  background: rgba(0, 0, 0, 0.04);
 }
 </style>

@@ -207,7 +207,7 @@ const configs = defineConfigs({
       positionFixedByDrag: true,
       positionFixedByClickWithAltKey: true,
       createSimulation: (d3, nodes, edges) => {
-        const forceLink = d3.forceLink<{ id: string }, { source: string; target: string }>(edges).id((n) => n.id).distance(80)
+        const forceLink = d3.forceLink<{ id: string }, { source: string; target: string }>(edges).id((n: { id: string }) => n.id).distance(80)
         return d3
           .forceSimulation(nodes)
           .force('link', forceLink)
@@ -222,11 +222,7 @@ const configs = defineConfigs({
   },
   node: {
     normal: {
-      radius: (n: { name: string }) => {
-        // Use a fixed radius for now — shape distinguishes type
-        void n
-        return 10
-      },
+      radius: 10,
       color: '#90a4ae',  // overridden in #override-node slot
     },
     hover: { radius: 13 },
@@ -242,9 +238,6 @@ const configs = defineConfigs({
     normal: {
       color: '#90a4ae',
       width: 1.5,
-    },
-    arrow: {
-      target: { type: 'arrow', width: 4, height: 4 },
     },
   },
 })
