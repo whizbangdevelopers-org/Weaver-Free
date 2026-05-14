@@ -1,7 +1,7 @@
 <!-- Copyright (c) 2026 whizBANG Developers LLC. All rights reserved. -->
 <!-- Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE. -->
 <template>
-  <div class="column" style="height: 500px; position: relative;">
+  <div class="column" :style="isFullscreen ? 'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:9999;background:#fff' : 'height:500px;position:relative'">
 
     <!-- Empty state -->
     <div v-if="nodes.length === 0" class="flex flex-center col column items-center text-grey-6">
@@ -41,6 +41,14 @@
         <span class="text-caption text-grey-6">
           {{ nodes.length }} entries · {{ edges.length }} related links
         </span>
+
+        <q-space />
+        <q-btn
+          :icon="isFullscreen ? 'mdi-fullscreen-exit' : 'mdi-fullscreen'"
+          flat dense round size="sm"
+          :color="isFullscreen ? 'grey-4' : 'grey-6'"
+          @click="isFullscreen = !isFullscreen"
+        />
 
       </div>
 
@@ -88,7 +96,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { defineConfigs } from 'v-network-graph'
 import { ForceLayout } from 'v-network-graph/lib/force-layout'
 import type { EngramGraphNode, EngramGraphEdge } from '../composables/useEngramMonitor'
@@ -97,6 +105,15 @@ const props = defineProps<{
   nodes: EngramGraphNode[]
   edges: EngramGraphEdge[]
 }>()
+
+// ── Fullscreen toggle ─────────────────────────────────────────────────────────
+const isFullscreen = ref(false)
+
+function onKeydown(e: KeyboardEvent) {
+  if (e.key === 'Escape' && isFullscreen.value) isFullscreen.value = false
+}
+onMounted(() => window.addEventListener('keydown', onKeydown))
+onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 
 // ── Domain color palette ──────────────────────────────────────────────────────
 // Deterministic: sorted domain name → index → color. Adding new domains

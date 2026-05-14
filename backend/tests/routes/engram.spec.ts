@@ -182,7 +182,7 @@ describe('Engram Routes', () => {
   })
 
   describe('POST /api/engram/view', () => {
-    it('returns entryCount and temp path for all entries in domain', async () => {
+    it('returns entryCount, temp path, and content for all entries in domain', async () => {
       const res = await fastify.inject({
         method: 'POST', url: '/api/engram/view',
         payload: { domain: 'backend' },
@@ -193,6 +193,9 @@ describe('Engram Routes', () => {
       expect(typeof body.path).toBe('string')
       expect(body.path).toMatch(/\/tmp\/engram-view-\d+\.md/)
       expect(body.opened).toBe(false)  // CODE_BIN set to nonexistent path
+      expect(typeof body.content).toBe('string')
+      expect(body.content).toContain('Use Zod for validation')
+      expect(body.content).toContain('Never return raw errors')
     })
 
     it('filters to transferable scope only', async () => {
@@ -204,7 +207,7 @@ describe('Engram Routes', () => {
       expect(res.json().entryCount).toBe(1)
     })
 
-    it('returns entryCount=0 and path=null for unknown domain', async () => {
+    it('returns entryCount=0, path=null, content=null for unknown domain', async () => {
       const res = await fastify.inject({
         method: 'POST', url: '/api/engram/view',
         payload: { domain: 'nonexistent' },
@@ -213,6 +216,7 @@ describe('Engram Routes', () => {
       const body = res.json()
       expect(body.entryCount).toBe(0)
       expect(body.path).toBeNull()
+      expect(body.content).toBeNull()
     })
 
     it('returns 400 for domain failing regex validation', async () => {

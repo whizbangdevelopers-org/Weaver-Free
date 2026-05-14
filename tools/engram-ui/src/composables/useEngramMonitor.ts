@@ -231,7 +231,7 @@ export function useEngramMonitor() {
     }
   }
 
-  async function viewEntries(domain: string, type?: string, scope?: string): Promise<{ path: string | null; entryCount: number; opened: boolean; note?: string }> {
+  async function viewEntries(domain: string, type?: string, scope?: string): Promise<{ path: string | null; entryCount: number; opened: boolean; content: string | null; note?: string }> {
     return weaverFetch('/weaver/api/engram/view', {
       method: 'POST',
       body: JSON.stringify({ domain, type, scope }),

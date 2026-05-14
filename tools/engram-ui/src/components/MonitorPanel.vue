@@ -118,8 +118,8 @@
             />
           </div>
           <q-banner v-if="entriesError" dense rounded class="bg-negative text-white q-mb-sm">{{ entriesError }}</q-banner>
-          <q-banner v-if="viewNotify" dense rounded class="bg-info text-white q-mb-sm" @click="viewNotify = null">
-            <template #avatar><q-icon name="mdi-information" /></template>
+          <q-banner v-if="viewNotify" dense rounded class="bg-negative text-white q-mb-sm" @click="viewNotify = null">
+            <template #avatar><q-icon name="mdi-alert-circle" /></template>
             {{ viewNotify }}
           </q-banner>
 
@@ -148,7 +148,7 @@
                     :loading="viewingRow === rowKey(props.row)"
                     @click.stop="onViewRow(props.row)"
                   >
-                    <q-tooltip>View entries in VS Code</q-tooltip>
+                    <q-tooltip>View entries</q-tooltip>
                   </q-btn>
                 </q-td>
               </template>
@@ -352,6 +352,20 @@
     </q-tab-panels>
 
   </div>
+
+  <!-- Entry viewer dialog -->
+  <q-dialog v-model="viewDialogOpen" maximized>
+    <q-card class="column" style="max-width:100%">
+      <q-bar class="bg-grey-9 text-white">
+        <span class="text-caption text-weight-medium">{{ viewDialogTitle }}</span>
+        <q-space />
+        <q-btn dense flat icon="mdi-close" @click="viewDialogOpen = false" />
+      </q-bar>
+      <q-card-section class="col overflow-auto q-pa-md">
+        <pre style="font-size:12px;line-height:1.6;white-space:pre-wrap;word-break:break-word;margin:0">{{ viewDialogContent }}</pre>
+      </q-card-section>
+    </q-card>
+  </q-dialog>
 </template>
 
 <script setup lang="ts">
@@ -393,6 +407,9 @@ const registryView = ref<'table' | 'graph'>('table')
 
 const viewingRow = ref<string | null>(null)
 const viewNotify = ref<string | null>(null)
+const viewDialogOpen = ref(false)
+const viewDialogTitle = ref('')
+const viewDialogContent = ref('')
 
 function rowKey(row: { domain: string; type: string; scope: string }): string {
   return `${row.domain}|${row.type}|${row.scope}`
@@ -405,10 +422,12 @@ async function onViewRow(row: { domain: string; type: string; scope: string }) {
   viewNotify.value = null
   try {
     const res = await viewEntries(row.domain, row.type, row.scope)
-    if (!res.path) {
+    if (!res.content) {
       viewNotify.value = res.note ?? 'No entries matched'
-    } else if (!res.opened) {
-      viewNotify.value = `Saved to ${res.path} (${res.entryCount} entries)`
+    } else {
+      viewDialogTitle.value = `${row.domain} · ${row.type} · ${row.scope} (${res.entryCount} entries)`
+      viewDialogContent.value = res.content
+      viewDialogOpen.value = true
     }
   } catch (err) {
     viewNotify.value = err instanceof Error ? err.message : 'View failed'
