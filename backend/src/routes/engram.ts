@@ -4,13 +4,9 @@ import { FastifyPluginAsync } from 'fastify'
 import { ZodTypeProvider } from 'fastify-type-provider-zod'
 import { z } from 'zod'
 import { DatabaseSync } from 'node:sqlite'
-import { existsSync, statSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, statSync, readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
-import { execFile } from 'node:child_process'
-import { promisify } from 'node:util'
 import { Pool } from 'pg'
-
-const execFileAsync = promisify(execFile)
 // Auth deferred — RBAC gates added at Weaver Team/Fabrick integration (Decision #160).
 
 // Processing strategy per dataset. embed-only and embed+graph bypass Cognee's
@@ -122,7 +118,7 @@ export const engramRoutes: FastifyPluginAsync<EngramRouteOptions> = async (fasti
     }
   })
 
-  // POST /api/engram/view — filter source files by domain/type/scope, write temp file, open in VS Code
+  // POST /api/engram/view — filter source files by domain/type/scope, return content for browser dialog
   app.post(
     '/view',
     {
@@ -164,20 +160,10 @@ export const engramRoutes: FastifyPluginAsync<EngramRouteOptions> = async (fasti
       const content = filtered.join('\n\n')
 
       if (filtered.length === 0) {
-        return reply.send({ path: null, entryCount: 0, opened: false, content: null, note: 'No matching entries found' })
+        return reply.send({ entryCount: 0, content: null, note: 'No matching entries found' })
       }
 
-      const tempPath = join('/tmp', `engram-view-${Date.now()}.md`)
-      writeFileSync(tempPath, content)
-
-      const codeBin = process.env.CODE_BIN ?? 'code'
-      let opened = false
-      try {
-        await execFileAsync(codeBin, [tempPath], { timeout: 5_000 })
-        opened = true
-      } catch { /* code not in PATH — caller can open path manually */ }
-
-      return reply.send({ path: tempPath, entryCount: filtered.length, opened, content })
+      return reply.send({ entryCount: filtered.length, content })
     }
   )
 

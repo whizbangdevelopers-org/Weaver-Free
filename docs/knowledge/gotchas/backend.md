@@ -52,3 +52,26 @@ graduated_to: ""
 **Rule:** After adding any new API endpoint, grep `auth.ts` PUBLIC_ROUTES. If the route should be public (or auth-deferred), add it immediately — don't discover the miss during UI testing.
 
 <!-- /entry -->
+
+<!-- entry:G-backend-2026-05-14-001 -->
+---
+id: G-backend-2026-05-14-001
+type: gotcha
+domain: backend
+tags: [fastify, route, side-effects, delivery-path, subprocess]
+since_version: "1.0.5"
+status: active
+scope: transferable
+related: []
+graduated_to: ""
+---
+
+## Dual delivery path accumulation: old side-effect code survives alongside new in-band response — 2026-05-14 · Claude
+
+**Problem:** A route was extended to add in-band content delivery (returning file content in the JSON response body). The old delivery path — `writeFileSync` to a temp file followed by `execFileAsync('code', [tempPath])` to open VSCode — was not removed when the new `content` field was added. Both paths fired on every request: VSCode opened AND the response included the content. The symptom was "it opened VSCode *and* showed content", not just one or the other, making it look like the fix hadn't landed.
+
+**Fix:** When replacing a side-effect delivery mechanism (subprocess spawn, file write, external notification) with an in-band response field, explicitly remove all imports and code paths belonging to the old mechanism in the same commit. Leaving them in causes both to fire. In this case: removed `writeFileSync`, `execFileAsync`, `promisify`, `execFile`, `const execFileAsync`, the temp file write, the subprocess call, and the `opened`/`path` fields from the response schema.
+
+**Rule:** Adding a new delivery path does not automatically disable the old one. Search the handler for every artifact of the prior approach (imports, variables, the call itself, return fields) and delete them. The test: after the change, no code path in the handler should reference the old mechanism.
+
+<!-- /entry -->

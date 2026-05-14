@@ -76,3 +76,32 @@ The marker is then maintained automatically by the pre-commit hook on every subs
 **Rule:** No prose document should contain a raw auditor count. Every occurrence is a `<!-- auditor-count:begin -->` marker waiting to be planted. Grep for bare numbers when adding a new doc that summarises the CI chain.
 
 <!-- /entry -->
+
+<!-- entry:G-process-2026-05-14-001 -->
+---
+id: G-process-2026-05-14-001
+type: gotcha
+domain: process
+tags: [shell, curl, json, debugging, pipe]
+since_version: "1.0.5"
+status: active
+scope: transferable
+related: []
+graduated_to: ""
+---
+
+## Shell-pipe JSON parsing via inline python3/jq produces false failures from quoting artifacts — 2026-05-14 · Claude
+
+**Problem:** When smoke-testing API responses with `curl | python3 -c "import json,sys; ..."` or `curl | jq`, shell variable interpolation inside the quoted python3 string can silently corrupt the JSON or produce misleading "Invalid control character" / "parse error" failures. The symptom looks like the API is returning malformed JSON, but the actual issue is the shell quoting — the API response is clean.
+
+**Fix:** Write the curl response to a temp file first, then parse from the file:
+```bash
+curl -s -X POST http://localhost:PORT/path -H 'Content-Type: application/json' \
+  -d '{"key":"value"}' > /tmp/test-response.json
+python3 -c "import json; d=json.load(open('/tmp/test-response.json')); print(d.get('field'))"
+```
+This eliminates shell quoting from the parse path entirely. The response bytes on disk are exactly what the server sent.
+
+**Rule:** Never pipe curl output through an inline python3 `-c` string that contains shell variables or complex quoting. Write to a file, parse from the file. Use this pattern consistently when smoke-testing JSON APIs from the terminal.
+
+<!-- /entry -->
