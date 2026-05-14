@@ -27,6 +27,7 @@
     "build:spa": "quasar build",
     "build:backend": "npm -w backend run build",
     "build:tui": "npm -w tui run build",
+    "build:engram-ui": "npm --prefix tools/engram-ui run deploy:king",
     "build:all": "npm run build && npm run build:backend && npm run build:tui",
     "build:release": "./scripts/build-release.sh",
     "deploy": "npm run build:all && cp -r dist/pwa/* /var/www/weaver/ && sudo systemctl restart weaver",
