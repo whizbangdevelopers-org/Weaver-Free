@@ -161,12 +161,14 @@ export const engramRoutes: FastifyPluginAsync<EngramRouteOptions> = async (fasti
         }
       }
 
+      const content = filtered.join('\n\n')
+
       if (filtered.length === 0) {
-        return reply.send({ path: null, entryCount: 0, opened: false, note: 'No matching entries found' })
+        return reply.send({ path: null, entryCount: 0, opened: false, content: null, note: 'No matching entries found' })
       }
 
       const tempPath = join('/tmp', `engram-view-${Date.now()}.md`)
-      writeFileSync(tempPath, filtered.join('\n\n'))
+      writeFileSync(tempPath, content)
 
       const codeBin = process.env.CODE_BIN ?? 'code'
       let opened = false
@@ -175,7 +177,7 @@ export const engramRoutes: FastifyPluginAsync<EngramRouteOptions> = async (fasti
         opened = true
       } catch { /* code not in PATH — caller can open path manually */ }
 
-      return reply.send({ path: tempPath, entryCount: filtered.length, opened })
+      return reply.send({ path: tempPath, entryCount: filtered.length, opened, content })
     }
   )
 
