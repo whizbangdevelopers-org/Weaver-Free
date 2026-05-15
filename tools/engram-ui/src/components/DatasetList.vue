@@ -162,6 +162,8 @@ function upgradeStateClass(name: string): string {
   if (idx < STRATEGY_ORDER.length - 1) return 'text-teal-7'
   return 'text-grey-6'
 }
+
+defineExpose({ canUpgrade, upgradeStateLabel, upgradeStateIcon, upgradeStateClass, activeJobFor, strategyMeta })
 </script>
 
 <style scoped>

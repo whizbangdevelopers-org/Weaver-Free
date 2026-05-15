@@ -199,6 +199,8 @@ function onNewDataset(val: string, done: (v?: string) => void) {
   done()
 }
 
+defineExpose({ onNewDataset })
+
 function onDrop(e: DragEvent) {
   isDragging.value = false
   const files = Array.from(e.dataTransfer?.files ?? [])
