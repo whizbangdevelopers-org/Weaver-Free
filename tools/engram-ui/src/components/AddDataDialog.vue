@@ -87,18 +87,19 @@
           </template>
         </q-select>
 
-        <!-- Cognify toggle -->
-        <q-item tag="label" dense class="q-px-none">
-          <q-item-section>
-            <q-item-label class="text-body2">Cognify after adding</q-item-label>
-            <q-item-label caption>
-              Triggers knowledge graph extraction in the background. Monitor progress in Activity.
-            </q-item-label>
-          </q-item-section>
-          <q-item-section side>
-            <q-toggle v-model="cognifyAfter" color="primary" />
-          </q-item-section>
-        </q-item>
+        <!-- Processing intent — derived from dataset, not a user choice -->
+        <div v-if="datasetName.trim()" class="intent-block q-mt-sm">
+          <div class="text-caption text-grey-6 q-mb-xs">Will process as</div>
+          <div class="intent-row">
+            <q-icon :name="strategyMeta.icon" :color="strategyMeta.color" size="20px" class="q-mr-sm" />
+            <div>
+              <div class="text-body2 text-weight-medium" :class="`text-${strategyMeta.color}`">
+                {{ strategyMeta.label }}
+              </div>
+              <div class="text-caption text-grey-6">{{ strategyMeta.caption }}</div>
+            </div>
+          </div>
+        </div>
       </q-card-section>
 
       <q-card-actions align="right">
@@ -118,26 +119,52 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import type { Dataset } from '../composables/useCognee'
+import type { Dataset, ProcessingStrategy } from '../composables/useCognee'
+
+const STRATEGY_META: Record<ProcessingStrategy, { label: string; icon: string; color: string; caption: string }> = {
+  'embed-only': {
+    label: 'Embed only',
+    icon: 'mdi-lightning-bolt',
+    color: 'teal',
+    caption: 'Files upload to Cognee. Embedding handled by the ingest script.',
+  },
+  'embed+graph': {
+    label: 'Embed + graph',
+    icon: 'mdi-graph-outline',
+    color: 'blue',
+    caption: 'Cognee builds vector embeddings and a relationship graph.',
+  },
+  'full-cognify': {
+    label: 'Full cognify',
+    icon: 'mdi-brain',
+    color: 'deep-purple',
+    caption: 'Full entity extraction pipeline. Slowest, richest output.',
+  },
+}
 
 const props = defineProps<{
   modelValue: boolean
   datasets: Dataset[]
+  strategies: Record<string, ProcessingStrategy>
   defaultDataset?: string
   loading: boolean
 }>()
 
 const emit = defineEmits<{
   'update:modelValue': [v: boolean]
-  submit: [files: File[], datasetName: string, cognifyAfter: boolean]
+  submit: [files: File[], datasetName: string]
 }>()
 
 const open = ref(props.modelValue)
 const selectedFiles = ref<File[]>([])
 const datasetName = ref(props.defaultDataset ?? '')
-const cognifyAfter = ref(false)
 const isDragging = ref(false)
 const fileInput = ref<HTMLInputElement | null>(null)
+
+const resolvedStrategy = computed<ProcessingStrategy>(
+  () => props.strategies[datasetName.value.trim()] ?? 'full-cognify'
+)
+const strategyMeta = computed(() => STRATEGY_META[resolvedStrategy.value])
 
 // Filtered options for the q-select
 const allDatasetNames = computed(() => props.datasets.map((d) => d.name))
@@ -184,13 +211,12 @@ function removeFile(i: number) {
 
 function reset() {
   selectedFiles.value = []
-  cognifyAfter.value = false
   isDragging.value = false
 }
 
 function onSubmit() {
   if (!selectedFiles.value.length || !datasetName.value.trim()) return
-  emit('submit', [...selectedFiles.value], datasetName.value.trim(), cognifyAfter.value)
+  emit('submit', [...selectedFiles.value], datasetName.value.trim())
 }
 
 function formatBytes(n: number): string {
@@ -222,6 +248,16 @@ function fileIcon(name: string): string {
 </script>
 
 <style scoped>
+.intent-block {
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 6px;
+  padding: 10px 14px;
+  background: rgba(0, 0, 0, 0.02);
+}
+.intent-row {
+  display: flex;
+  align-items: flex-start;
+}
 .drop-zone {
   border: 2px dashed #ccc;
   border-radius: 8px;

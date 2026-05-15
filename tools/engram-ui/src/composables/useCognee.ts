@@ -5,6 +5,14 @@ import { ref } from 'vue'
 
 export type SidecarStatus = 'checking' | 'available' | 'unavailable'
 export type SearchType = 'CHUNKS' | 'GRAPH_COMPLETION' | 'SUMMARIES'
+export type ProcessingStrategy = 'embed-only' | 'embed+graph' | 'full-cognify'
+
+// Mirror of backend DATASET_STRATEGIES in backend/src/routes/engram.ts.
+// Keep in sync when datasets are added or strategies change.
+export const DATASET_STRATEGIES: Record<string, ProcessingStrategy> = {
+  project_knowledge: 'embed-only',
+  fom_registry:      'full-cognify',
+}
 
 export interface Dataset {
   id: string
@@ -164,6 +172,8 @@ async function apiFetch<T>(
 }
 
 export function useCognee() {
+  const strategies = ref<Record<string, ProcessingStrategy>>(DATASET_STRATEGIES)
+
   const status = ref<SidecarStatus>('checking')
   const statusDetail = ref<{ version: string; llmBackend: string } | null>(null)
   const datasets = ref<Dataset[]>([])
@@ -562,6 +572,7 @@ export function useCognee() {
   return {
     status,
     statusDetail,
+    strategies,
     datasets,
     activeDatasetId,
     results,

@@ -88,6 +88,16 @@ describe('Engram Routes', () => {
     await rm(TEST_DIR, { recursive: true, force: true }).catch(() => {})
   })
 
+  describe('GET /api/engram/strategies', () => {
+    it('returns the seeded strategy map from dataset_config', async () => {
+      const res = await fastify.inject({ method: 'GET', url: '/api/engram/strategies' })
+      expect(res.statusCode).toBe(200)
+      const body = res.json()
+      expect(body.project_knowledge).toBe('embed-only')
+      expect(body.fom_registry).toBe('full-cognify')
+    })
+  })
+
   describe('GET /api/engram/queries', () => {
     it('returns query log', async () => {
       const res = await fastify.inject({ method: 'GET', url: '/api/engram/queries' })
@@ -182,7 +192,7 @@ describe('Engram Routes', () => {
   })
 
   describe('POST /api/engram/view', () => {
-    it('returns entryCount, temp path, and content for all entries in domain', async () => {
+    it('returns entryCount and inline content for all entries in domain', async () => {
       const res = await fastify.inject({
         method: 'POST', url: '/api/engram/view',
         payload: { domain: 'backend' },
@@ -190,9 +200,6 @@ describe('Engram Routes', () => {
       expect(res.statusCode).toBe(200)
       const body = res.json()
       expect(body.entryCount).toBe(2)
-      expect(typeof body.path).toBe('string')
-      expect(body.path).toMatch(/\/tmp\/engram-view-\d+\.md/)
-      expect(body.opened).toBe(false)  // CODE_BIN set to nonexistent path
       expect(typeof body.content).toBe('string')
       expect(body.content).toContain('Use Zod for validation')
       expect(body.content).toContain('Never return raw errors')
@@ -207,7 +214,7 @@ describe('Engram Routes', () => {
       expect(res.json().entryCount).toBe(1)
     })
 
-    it('returns entryCount=0, path=null, content=null for unknown domain', async () => {
+    it('returns entryCount=0 and content=null for unknown domain', async () => {
       const res = await fastify.inject({
         method: 'POST', url: '/api/engram/view',
         payload: { domain: 'nonexistent' },
@@ -215,7 +222,6 @@ describe('Engram Routes', () => {
       expect(res.statusCode).toBe(200)
       const body = res.json()
       expect(body.entryCount).toBe(0)
-      expect(body.path).toBeNull()
       expect(body.content).toBeNull()
     })
 

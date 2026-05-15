@@ -127,6 +127,7 @@
     <AddDataDialog
       v-model="addOpen"
       :datasets="datasets"
+      :strategies="strategies"
       :defaultDataset="activeDatasetName ?? undefined"
       :loading="addLoading"
       @submit="onAddData"
@@ -154,7 +155,7 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useQuasar } from 'quasar'
 import { useCognee, STALE_MS, DEFAULT_STALE_MS } from '../composables/useCognee'
-import type { Settings, SearchType } from '../composables/useCognee'
+import type { Settings, SearchType, ProcessingStrategy } from '../composables/useCognee'
 import StatusBar from '../components/StatusBar.vue'
 import DatasetList from '../components/DatasetList.vue'
 import RecallPanel from '../components/RecallPanel.vue'
@@ -172,6 +173,7 @@ const $q = useQuasar()
 const {
   status,
   statusDetail,
+  strategies,
   datasets,
   activeDatasetId,
   results,
@@ -394,8 +396,9 @@ async function onRemember(text: string, datasetName: string) {
 
 // ── Add files ────────────────────────────────────────────────────────────────
 
-async function onAddData(files: File[], datasetName: string, cognifyAfter: boolean) {
+async function onAddData(files: File[], datasetName: string) {
   addLoading.value = true
+  const strategy: ProcessingStrategy = strategies.value[datasetName] ?? 'full-cognify'
   try {
     await addData(files, datasetName)
     const plural = files.length !== 1 ? 's' : ''
@@ -409,7 +412,7 @@ async function onAddData(files: File[], datasetName: string, cognifyAfter: boole
     if (activeTab.value === 'files' && activeDatasetId.value) {
       await listDatasetFiles(activeDatasetId.value)
     }
-    if (cognifyAfter) await onCognifyDataset(datasetName, '')
+    if (strategy !== 'embed-only') await onCognifyDataset(datasetName, '')
   } catch (e) {
     $q.notify({
       type: 'negative',

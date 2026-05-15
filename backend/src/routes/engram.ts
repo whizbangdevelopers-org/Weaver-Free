@@ -9,12 +9,22 @@ import { join, resolve } from 'node:path'
 import { Pool } from 'pg'
 // Auth deferred — RBAC gates added at Weaver Team/Fabrick integration (Decision #160).
 
-// Processing strategy per dataset. embed-only and embed+graph bypass Cognee's
-// cognify pipeline; full-cognify uses it unchanged. Registry is the source of
-// truth for both the ingest script and the UI stats/graph-data endpoints.
-const DATASET_STRATEGIES: Record<string, 'embed-only' | 'embed+graph' | 'full-cognify'> = {
-  project_knowledge: 'embed-only',
-  fom_registry: 'full-cognify',
+type ProcessingStrategy = 'embed-only' | 'embed+graph' | 'full-cognify'
+
+function readDatasetConfigs(handle: DatabaseSync): Record<string, ProcessingStrategy> {
+  try {
+    const rows = handle.prepare('SELECT dataset_name, strategy FROM dataset_config').all() as Array<{ dataset_name: string; strategy: string }>
+    const out: Record<string, ProcessingStrategy> = {}
+    for (const r of rows) out[r.dataset_name] = r.strategy as ProcessingStrategy
+    return out
+  } catch { return {} }
+}
+
+function readDatasetStrategy(handle: DatabaseSync, datasetName: string): ProcessingStrategy | null {
+  try {
+    const row = handle.prepare('SELECT strategy FROM dataset_config WHERE dataset_name = ?').get(datasetName) as { strategy: string } | undefined
+    return row ? row.strategy as ProcessingStrategy : null
+  } catch { return null }
 }
 
 interface EngramRouteOptions {
@@ -34,6 +44,13 @@ export const engramRoutes: FastifyPluginAsync<EngramRouteOptions> = async (fasti
   }
 
   fastify.addHook('onClose', () => { _db?.close() })
+
+  // GET /api/engram/strategies — processing strategy map from dataset_config table
+  app.get('/strategies', {}, async (_request, reply) => {
+    const handle = db()
+    if (!handle) return reply.send({})
+    return reply.send(readDatasetConfigs(handle))
+  })
 
   // GET /api/engram/queries — paginated MCP tool call log, admin only
   app.get(
@@ -278,9 +295,10 @@ export const engramRoutes: FastifyPluginAsync<EngramRouteOptions> = async (fasti
         await pool.end().catch(() => {})
       }
 
-      // Determine strategy for the primary dataset (project_knowledge).
-      // Returns the most specific known strategy, defaulting to full-cognify.
-      const strategy = DATASET_STRATEGIES['project_knowledge'] ?? 'full-cognify'
+      // Determine strategy for the primary dataset from dataset_config table.
+      const strategy = handle
+        ? (readDatasetStrategy(handle, 'project_knowledge') ?? 'full-cognify')
+        : 'full-cognify'
 
       return reply.send({
         totalEntries,
