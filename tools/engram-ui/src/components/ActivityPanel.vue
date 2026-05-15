@@ -234,8 +234,8 @@ function isErrored(r: PipelineRun) {
 }
 
 function pipelineLabel(name: string | null): string {
-  if (name === 'add_pipeline') return 'Add'
-  if (name === 'cognify_pipeline') return 'Cognify'
+  if (name === 'add_pipeline') return 'Add files'
+  if (name === 'cognify_pipeline') return 'Build graph'
   return name ?? 'Pipeline'
 }
 

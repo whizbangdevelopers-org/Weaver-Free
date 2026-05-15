@@ -27,7 +27,8 @@
         @select="onSelectDataset"
         @refresh="loadDatasets"
         @delete="onDeleteDataset"
-        @create="addOpen = true"
+        @create="createOpen = true"
+        @upgrade="onUpgradeDataset"
       />
     </q-drawer>
 
@@ -134,6 +135,28 @@
       :defaultDataset="activeDatasetName ?? undefined"
       :loading="addLoading"
       @submit="onAddData"
+      @create-with-name="onAddDataCreateWithName"
+    />
+
+    <!-- Create dataset dialog -->
+    <CreateDatasetDialog
+      v-model="createOpen"
+      :initialName="createInitialName"
+      :infrastructure="infrastructure"
+      :infraLoading="infraLoading"
+      :loading="createLoading"
+      @submit="onCreateDataset"
+    />
+
+    <!-- Upgrade dataset dialog -->
+    <UpgradeDatasetDialog
+      v-if="upgradeDataset"
+      v-model="upgradeOpen"
+      :datasetName="upgradeDataset.name"
+      :currentStrategy="upgradeDataset.strategy"
+      :infrastructure="infrastructure"
+      :loading="upgradeLoading"
+      @submit="onSubmitUpgrade"
     />
 
     <!-- Login dialog -->
@@ -157,8 +180,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useQuasar } from 'quasar'
-import { useCognee, STALE_MS, DEFAULT_STALE_MS } from '../composables/useCognee'
-import type { Settings, SearchType, ProcessingStrategy } from '../composables/useCognee'
+import { useEngram, STALE_MS, DEFAULT_STALE_MS } from '../composables/useEngram'
+import type { Settings, SearchType } from '../composables/useEngram'
 import StatusBar from '../components/StatusBar.vue'
 import DatasetList from '../components/DatasetList.vue'
 import RecallPanel from '../components/RecallPanel.vue'
@@ -171,16 +194,28 @@ import ApiKeysPanel from '../components/ApiKeysPanel.vue'
 import DatasetFilesPanel from '../components/DatasetFilesPanel.vue'
 import LoginDialog from '../components/LoginDialog.vue'
 import MonitorPanel from '../components/MonitorPanel.vue'
+import CreateDatasetDialog from '../components/CreateDatasetDialog.vue'
+import UpgradeDatasetDialog from '../components/UpgradeDatasetDialog.vue'
 import { useEngramMonitor } from '../composables/useEngramMonitor'
+import type { ProcessingStrategy } from '../composables/useEngram'
 
 const $q = useQuasar()
 
-const { upgradeQueue, fetchQueue } = useEngramMonitor()
+const {
+  upgradeQueue,
+  fetchQueue,
+  strategies,
+  fetchStrategies,
+  infrastructure,
+  infraLoading,
+  fetchInfrastructure,
+  createDatasetConfig,
+  enqueueDatasetUpgrade,
+} = useEngramMonitor()
 
 const {
   status,
   statusDetail,
-  strategies,
   datasets,
   activeDatasetId,
   results,
@@ -215,7 +250,7 @@ const {
   createApiKey,
   deleteApiKey,
   deleteDataset,
-} = useCognee()
+} = useEngram()
 
 const drawerOpen = ref(true)
 const activeTab = ref('recall')
@@ -235,6 +270,12 @@ const rememberLoading = ref(false)
 const addLoading = ref(false)
 const loginOpen = ref(false)
 const loginLoading = ref(false)
+const createOpen = ref(false)
+const createLoading = ref(false)
+const createInitialName = ref<string | undefined>(undefined)
+const upgradeOpen = ref(false)
+const upgradeLoading = ref(false)
+const upgradeDataset = ref<{ name: string; strategy: ProcessingStrategy } | null>(null)
 
 const activeDatasetName = computed(
   () => datasets.value.find((d) => d.id === activeDatasetId.value)?.name ?? null,
@@ -261,7 +302,7 @@ const inFlightCount = computed(
 
 onMounted(async () => {
   await Promise.all([checkStatus(), fetchCurrentUser()])
-  await Promise.all([loadDatasets(), loadActivity(), fetchQueue()])
+  await Promise.all([loadDatasets(), loadActivity(), fetchQueue(), fetchStrategies(), fetchInfrastructure()])
 })
 
 onUnmounted(() => {
@@ -405,7 +446,7 @@ async function onRemember(text: string, datasetName: string) {
 
 async function onAddData(files: File[], datasetName: string) {
   addLoading.value = true
-  const strategy: ProcessingStrategy = strategies.value[datasetName] ?? 'full-cognify'
+  const strategy = strategies.value[datasetName] ?? 'full-cognify'
   try {
     await addData(files, datasetName)
     const plural = files.length !== 1 ? 's' : ''
@@ -428,6 +469,62 @@ async function onAddData(files: File[], datasetName: string) {
     })
   } finally {
     addLoading.value = false
+  }
+}
+
+// ── Create dataset ───────────────────────────────────────────────────────────
+
+function onAddDataCreateWithName(name: string) {
+  addOpen.value = false
+  createInitialName.value = name
+  createOpen.value = true
+}
+
+async function onCreateDataset(name: string, strategy: ProcessingStrategy) {
+  createLoading.value = true
+  try {
+    await createDatasetConfig(name, strategy)
+    createOpen.value = false
+    $q.notify({ type: 'positive', message: `Dataset "${name}" created`, timeout: 2000 })
+    await Promise.all([loadDatasets(), fetchStrategies()])
+  } catch (e) {
+    $q.notify({
+      type: 'negative',
+      message: e instanceof Error ? e.message : 'Create failed',
+      timeout: 3000,
+    })
+  } finally {
+    createLoading.value = false
+  }
+}
+
+// ── Upgrade dataset ──────────────────────────────────────────────────────────
+
+function onUpgradeDataset(id: string, name: string) {
+  const strategy = strategies.value[name] ?? 'embed-only'
+  upgradeDataset.value = { name, strategy }
+  upgradeOpen.value = true
+  void id
+}
+
+async function onSubmitUpgrade(name: string, targetStrategy: ProcessingStrategy, method: string) {
+  upgradeLoading.value = true
+  try {
+    const job = await enqueueDatasetUpgrade(name, targetStrategy, method)
+    upgradeOpen.value = false
+    const msg = job.status === 'running'
+      ? `Upgrade started for "${name}"`
+      : `Upgrade queued for "${name}" — will start when services are available`
+    $q.notify({ type: 'positive', message: msg, timeout: 3000 })
+    await Promise.all([fetchQueue(), fetchStrategies()])
+  } catch (e) {
+    $q.notify({
+      type: 'negative',
+      message: e instanceof Error ? e.message : 'Upgrade failed',
+      timeout: 3000,
+    })
+  } finally {
+    upgradeLoading.value = false
   }
 }
 
