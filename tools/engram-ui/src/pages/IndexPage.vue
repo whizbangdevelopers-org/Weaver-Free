@@ -22,9 +22,12 @@
         :datasets="datasets"
         :activeDatasetId="activeDatasetId"
         :loading="datasetsLoading"
+        :strategies="strategies"
+        :upgradeQueue="upgradeQueue"
         @select="onSelectDataset"
         @refresh="loadDatasets"
         @delete="onDeleteDataset"
+        @create="addOpen = true"
       />
     </q-drawer>
 
@@ -168,8 +171,12 @@ import ApiKeysPanel from '../components/ApiKeysPanel.vue'
 import DatasetFilesPanel from '../components/DatasetFilesPanel.vue'
 import LoginDialog from '../components/LoginDialog.vue'
 import MonitorPanel from '../components/MonitorPanel.vue'
+import { useEngramMonitor } from '../composables/useEngramMonitor'
 
 const $q = useQuasar()
+
+const { upgradeQueue, fetchQueue } = useEngramMonitor()
+
 const {
   status,
   statusDetail,
@@ -254,7 +261,7 @@ const inFlightCount = computed(
 
 onMounted(async () => {
   await Promise.all([checkStatus(), fetchCurrentUser()])
-  await Promise.all([loadDatasets(), loadActivity()])
+  await Promise.all([loadDatasets(), loadActivity(), fetchQueue()])
 })
 
 onUnmounted(() => {

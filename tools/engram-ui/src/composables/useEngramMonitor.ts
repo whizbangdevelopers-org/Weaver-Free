@@ -69,6 +69,17 @@ export interface EngramEntryDomainRow {
   count: number
 }
 
+export interface UpgradeQueueEntry {
+  id: number
+  datasetName: string
+  targetStrategy: string
+  method: string
+  requiredCapability: Record<string, boolean>
+  queuedAt: number
+  status: 'queued' | 'running' | 'complete' | 'failed'
+  startedAt: number | null
+}
+
 export interface EngramComponentStatus {
   available: boolean
   latencyMs: number | null
@@ -167,6 +178,9 @@ export function useEngramMonitor() {
   const infraLoading = ref(false)
   const infraError = ref<string | null>(null)
 
+  const upgradeQueue = ref<UpgradeQueueEntry[]>([])
+  const queueLoading = ref(false)
+
   async function fetchStatus() {
     statusLoading.value = true
     statusError.value = null
@@ -256,6 +270,16 @@ export function useEngramMonitor() {
     }
   }
 
+  async function fetchQueue() {
+    queueLoading.value = true
+    try {
+      const data = await weaverFetch<{ queue: UpgradeQueueEntry[] }>('/weaver/api/engram/queue')
+      upgradeQueue.value = data.queue
+    } catch { /* non-critical — leave stale */ } finally {
+      queueLoading.value = false
+    }
+  }
+
   async function fetchInfrastructure() {
     infraLoading.value = true
     infraError.value = null
@@ -315,6 +339,9 @@ export function useEngramMonitor() {
     infraLoading,
     infraError,
     fetchInfrastructure,
+    upgradeQueue,
+    queueLoading,
+    fetchQueue,
     viewEntries,
     loadAll,
   }
