@@ -46,11 +46,21 @@ const PUBLIC_ROUTES = [
   '/api/engram/view',
   '/api/engram/graph-data',
   '/api/engram/stats',
+  // Engram dataset management (Layer 1+2) — same deferral as above (Decision #160)
+  '/api/engram/infrastructure',
+  '/api/engram/strategies',
+  '/api/engram/queue',
+]
+
+// Dynamic Engram routes with :name or :id segments — Decision #160 deferral applies
+const PUBLIC_PREFIXES = [
+  '/api/engram/datasets/',
+  '/api/engram/queue/',
 ]
 
 function isPublicRoute(url: string): boolean {
   const path = url.split('?')[0]
-  return PUBLIC_ROUTES.includes(path)
+  return PUBLIC_ROUTES.includes(path) || PUBLIC_PREFIXES.some((p) => path.startsWith(p))
 }
 
 /** Cached JWT decode result (CPU savings — avoids re-verifying signature) */
