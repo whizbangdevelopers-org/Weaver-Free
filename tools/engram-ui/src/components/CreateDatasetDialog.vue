@@ -191,6 +191,8 @@ function onSubmit() {
   if (!nameValid.value) return
   emit('submit', name.value.trim(), selectedStrategy.value)
 }
+
+defineExpose({ nameRule, nameValid, strategyOptions, selectedStrategy, name, onSubmit })
 </script>
 
 <style scoped>

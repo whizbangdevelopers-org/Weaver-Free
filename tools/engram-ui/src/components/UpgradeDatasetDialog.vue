@@ -209,6 +209,12 @@ const open = ref(props.modelValue)
 const selectedMethod = ref<UpgradeMethod>('gradual')
 const selectedTarget = ref<ProcessingStrategy | null>(null)
 
+// Declare before the immediate watch that reads it (eager-eval-tdz rule)
+const upgradeTargets = computed<ProcessingStrategy[]>(() => {
+  const idx = STRATEGY_ORDER.indexOf(props.currentStrategy)
+  return STRATEGY_ORDER.slice(idx + 1)
+})
+
 watch(() => props.modelValue, (v) => { open.value = v })
 watch(open, (v) => emit('update:modelValue', v))
 
@@ -218,11 +224,6 @@ watch([() => props.modelValue, () => props.currentStrategy], ([isOpen]) => {
     selectedTarget.value = upgradeTargets.value[upgradeTargets.value.length - 1] ?? null
   }
 }, { immediate: true })
-
-const upgradeTargets = computed<ProcessingStrategy[]>(() => {
-  const idx = STRATEGY_ORDER.indexOf(props.currentStrategy)
-  return STRATEGY_ORDER.slice(idx + 1)
-})
 
 const methodOptions = computed(() => {
   const infra = props.infrastructure
@@ -273,6 +274,8 @@ function onSubmit() {
   if (!selectedMethod.value || !selectedTarget.value) return
   emit('submit', props.datasetName, selectedTarget.value, selectedMethod.value)
 }
+
+defineExpose({ upgradeTargets, methodOptions, isImmediateStart, selectedMethod, selectedTarget, onSubmit })
 </script>
 
 <style scoped>
