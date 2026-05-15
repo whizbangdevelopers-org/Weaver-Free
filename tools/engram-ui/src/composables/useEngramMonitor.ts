@@ -69,6 +69,27 @@ export interface EngramEntryDomainRow {
   count: number
 }
 
+export interface EngramComponentStatus {
+  available: boolean
+  latencyMs: number | null
+  detail: string | null
+}
+
+export interface EngramInfrastructure {
+  llm:       EngramComponentStatus
+  embedding: EngramComponentStatus & { headroomPer15s: number | null }
+  pipeline:  EngramComponentStatus
+  pgvector:  EngramComponentStatus
+  methodFeasibility: {
+    gradual:         boolean
+    additive:        boolean
+    priorityTrickle: boolean
+    bulkReprocess:   boolean
+    parallelAtomic:  boolean
+  }
+  polledAt: number
+}
+
 export interface EngramQueryRow {
   id: number
   ts: number
@@ -141,6 +162,10 @@ export function useEngramMonitor() {
   const graphData = ref<EngramGraphData | null>(null)
   const graphLoading = ref(false)
   const graphError = ref<string | null>(null)
+
+  const infrastructure = ref<EngramInfrastructure | null>(null)
+  const infraLoading = ref(false)
+  const infraError = ref<string | null>(null)
 
   async function fetchStatus() {
     statusLoading.value = true
@@ -231,6 +256,18 @@ export function useEngramMonitor() {
     }
   }
 
+  async function fetchInfrastructure() {
+    infraLoading.value = true
+    infraError.value = null
+    try {
+      infrastructure.value = await weaverFetch<EngramInfrastructure>('/weaver/api/engram/infrastructure')
+    } catch (err) {
+      infraError.value = err instanceof Error ? err.message : 'Failed to probe infrastructure'
+    } finally {
+      infraLoading.value = false
+    }
+  }
+
   async function viewEntries(domain: string, type?: string, scope?: string): Promise<{ entryCount: number; content: string | null; note?: string }> {
     return weaverFetch('/weaver/api/engram/view', {
       method: 'POST',
@@ -274,6 +311,10 @@ export function useEngramMonitor() {
     graphLoading,
     graphError,
     fetchGraphData,
+    infrastructure,
+    infraLoading,
+    infraError,
+    fetchInfrastructure,
     viewEntries,
     loadAll,
   }
