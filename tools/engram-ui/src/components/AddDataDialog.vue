@@ -75,10 +75,18 @@
           @filter="filterDatasets"
           @new-value="onNewDataset"
         >
-          <template #no-option>
+          <template #no-option="{ inputValue }">
             <q-item>
-              <q-item-section class="text-grey-6 text-caption">
-                Type to create new dataset or select existing
+              <q-item-section>
+                <div class="text-caption text-grey-6 q-mb-xs">No matching dataset</div>
+                <q-btn
+                  v-if="inputValue"
+                  flat dense no-caps size="sm"
+                  color="primary"
+                  icon="mdi-database-plus-outline"
+                  :label="`Create '${inputValue}'`"
+                  @click="emit('create-with-name', inputValue)"
+                />
               </q-item-section>
             </q-item>
           </template>
@@ -119,7 +127,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import type { Dataset, ProcessingStrategy } from '../composables/useCognee'
+import type { Dataset, ProcessingStrategy } from '../composables/useEngram'
 
 const STRATEGY_META: Record<ProcessingStrategy, { label: string; icon: string; color: string; caption: string }> = {
   'embed-only': {
@@ -153,6 +161,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   'update:modelValue': [v: boolean]
   submit: [files: File[], datasetName: string]
+  'create-with-name': [name: string]
 }>()
 
 const open = ref(props.modelValue)
@@ -184,8 +193,10 @@ function filterDatasets(val: string, update: (fn: () => void) => void) {
   })
 }
 
-function onNewDataset(val: string, done: (v: string) => void) {
-  if (val.trim()) done(val.trim())
+function onNewDataset(val: string, done: (v?: string) => void) {
+  // Route new names to the creation flow instead of accepting inline
+  if (val.trim()) emit('create-with-name', val.trim())
+  done()
 }
 
 function onDrop(e: DragEvent) {

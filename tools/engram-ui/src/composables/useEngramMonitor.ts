@@ -2,6 +2,7 @@
 // Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE.
 
 import { ref } from 'vue'
+import type { ProcessingStrategy } from './useEngram'
 
 // Response types — mirrors backend/src/routes/engram.ts
 // Auth is handled at the RBAC layer (Weaver Team/Fabrick) on integration.
@@ -72,7 +73,7 @@ export interface EngramEntryDomainRow {
 export interface UpgradeQueueEntry {
   id: number
   datasetName: string
-  targetStrategy: string
+  targetStrategy: ProcessingStrategy
   method: string
   requiredCapability: Record<string, boolean>
   queuedAt: number
@@ -180,6 +181,9 @@ export function useEngramMonitor() {
 
   const upgradeQueue = ref<UpgradeQueueEntry[]>([])
   const queueLoading = ref(false)
+
+  const strategies = ref<Record<string, ProcessingStrategy>>({})
+  const strategiesLoading = ref(false)
 
   async function fetchStatus() {
     statusLoading.value = true
@@ -299,6 +303,33 @@ export function useEngramMonitor() {
     })
   }
 
+  async function fetchStrategies() {
+    strategiesLoading.value = true
+    try {
+      strategies.value = await weaverFetch<Record<string, ProcessingStrategy>>('/weaver/api/engram/strategies')
+    } catch { /* non-critical — leave stale */ } finally {
+      strategiesLoading.value = false
+    }
+  }
+
+  async function createDatasetConfig(name: string, strategy: ProcessingStrategy): Promise<void> {
+    await weaverFetch(`/weaver/api/engram/datasets/${encodeURIComponent(name)}/config`, {
+      method: 'PUT',
+      body: JSON.stringify({ strategy }),
+    })
+  }
+
+  async function enqueueDatasetUpgrade(
+    name: string,
+    targetStrategy: ProcessingStrategy,
+    method: string,
+  ): Promise<UpgradeQueueEntry> {
+    return weaverFetch<UpgradeQueueEntry>(`/weaver/api/engram/datasets/${encodeURIComponent(name)}/upgrade`, {
+      method: 'POST',
+      body: JSON.stringify({ target_strategy: targetStrategy, method }),
+    })
+  }
+
   async function loadAll() {
     await Promise.all([fetchStatus(), fetchQueries(0), fetchIngestionHistory(0), fetchEntries(), fetchStats(), fetchGraphData()])
   }
@@ -342,6 +373,11 @@ export function useEngramMonitor() {
     upgradeQueue,
     queueLoading,
     fetchQueue,
+    strategies,
+    strategiesLoading,
+    fetchStrategies,
+    createDatasetConfig,
+    enqueueDatasetUpgrade,
     viewEntries,
     loadAll,
   }

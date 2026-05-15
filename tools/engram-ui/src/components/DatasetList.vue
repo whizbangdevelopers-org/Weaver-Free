@@ -35,9 +35,18 @@
           <div class="text-body2 ellipsis">{{ ds.name }}</div>
 
           <!-- Upgrade state indicator -->
-          <div class="text-caption upgrade-state" :class="upgradeStateClass(ds.name)">
-            <q-icon :name="upgradeStateIcon(ds.name)" size="11px" class="q-mr-xxs" />
-            {{ upgradeStateLabel(ds.name) }}
+          <div class="text-caption upgrade-state row items-center" :class="upgradeStateClass(ds.name)">
+            <q-icon :name="upgradeStateIcon(ds.name)" size="11px" class="q-mr-xxs flex-shrink-0" />
+            <span>{{ upgradeStateLabel(ds.name) }}</span>
+            <q-btn
+              v-if="canUpgrade(ds.name)"
+              flat dense round size="xs"
+              icon="mdi-arrow-up-circle"
+              class="q-ml-xxs upgrade-trigger"
+              @click.stop="emit('upgrade', ds.id, ds.name)"
+            >
+              <q-tooltip>Upgrade strategy</q-tooltip>
+            </q-btn>
           </div>
         </div>
 
@@ -81,7 +90,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { Dataset, ProcessingStrategy } from '../composables/useCognee'
+import type { Dataset, ProcessingStrategy } from '../composables/useEngram'
 import type { UpgradeQueueEntry } from '../composables/useEngramMonitor'
 
 const STRATEGY_META: Record<ProcessingStrategy, { label: string; icon: string; color: string }> = {
@@ -105,6 +114,7 @@ const emit = defineEmits<{
   refresh: []
   delete: [id: string, name: string]
   create: []
+  upgrade: [id: string, name: string]
 }>()
 
 function strategyMeta(name: string) {
@@ -133,6 +143,14 @@ function upgradeStateIcon(name: string): string {
   const idx = STRATEGY_ORDER.indexOf(strategy)
   if (idx < STRATEGY_ORDER.length - 1) return 'mdi-arrow-up-circle-outline'
   return 'mdi-check-circle-outline'
+}
+
+function canUpgrade(name: string): boolean {
+  const job = activeJobFor(name)
+  if (job) return false
+  const strategy = props.strategies[name] ?? 'full-cognify'
+  const idx = STRATEGY_ORDER.indexOf(strategy)
+  return idx < STRATEGY_ORDER.length - 1
 }
 
 function upgradeStateClass(name: string): string {
@@ -171,6 +189,14 @@ function upgradeStateClass(name: string): string {
 .upgrade-state {
   line-height: 1.2;
   margin-top: 1px;
+  flex-wrap: nowrap;
+}
+.upgrade-trigger {
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.dataset-item:hover .upgrade-trigger {
+  opacity: 1;
 }
 .flex-shrink-0 {
   flex-shrink: 0;
