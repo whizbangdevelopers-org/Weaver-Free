@@ -32,3 +32,26 @@ graduated_to: ""
 **Why this shape wins:** The default mock in step 1 keeps all other tests unaffected (they get the default value). The per-test override in step 2 exercises only the specific scenario. Vitest's module mock isolation ensures mocks don't bleed across tests. This pattern works for any "primary fails, fallback runs" code path that goes through imported utilities.
 
 <!-- /entry -->
+
+<!-- entry:L-testing-2026-05-15-001 -->
+---
+id: L-testing-2026-05-15-001
+type: lesson
+domain: testing
+tags: [vitest, quasar, vue3, shallowMount, unit-tests]
+since_version: "1.0.5"
+status: active
+scope: transferable
+related: [G-testing-2026-05-15-001]
+graduated_to: ""
+---
+
+## Vitest + Quasar components: skip the plugin install entirely when using `shallowMount` — 2026-05-15 · Claude
+
+**Root cause:** When setting up Vitest for Vue components that import Quasar, installing the Quasar plugin (`config.global.plugins = [[Quasar, {}]]`) in a `jsdom` environment without the correct Vite browser resolve conditions causes Vitest to load `quasar.server.prod.js` (the SSR build) instead of the client build. That SSR build fails immediately with "Cannot convert undefined or null to object" at boot time.
+
+**Rule:** For components whose `<script setup>` blocks only import from Vue (not from Quasar directly), the plugin install is unnecessary. `shallowMount` automatically stubs all template-level Quasar components (`q-dialog`, `q-btn`, etc.), so they resolve without requiring the plugin. The `setupFiles` entry can be an empty file — or contain only comments explaining why the plugin is absent.
+
+**Why this shape wins:** No Quasar plugin = no SSR/client build disambiguation problem. `shallowMount` stubs isolate the component logic from Quasar's runtime, which is exactly what unit tests should do anyway (test the script, not the template widgets). This keeps the test setup to two lines in `vitest.config.ts` (`setupFiles` and the package alias) and zero lines of actual setup code.
+
+<!-- /entry -->

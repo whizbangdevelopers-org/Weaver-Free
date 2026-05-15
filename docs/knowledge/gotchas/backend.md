@@ -75,3 +75,35 @@ graduated_to: ""
 **Rule:** Adding a new delivery path does not automatically disable the old one. Search the handler for every artifact of the prior approach (imports, variables, the call itself, return fields) and delete them. The test: after the change, no code path in the handler should reference the old mechanism.
 
 <!-- /entry -->
+
+<!-- entry:G-backend-2026-05-15-001 -->
+---
+id: G-backend-2026-05-15-001
+type: gotcha
+domain: backend
+tags: [auth, middleware, routes, dynamic-segments, fastify]
+since_version: "1.0.5"
+status: active
+scope: project
+related: []
+graduated_to: ""
+---
+
+## `PUBLIC_ROUTES.includes()` silently rejects all dynamic route paths like `/api/x/:name/y` — 2026-05-15 · Claude
+
+**Problem:** New Engram dataset-management routes (`/api/engram/datasets/:name/config`, `/api/engram/datasets/:name/upgrade`, `/api/engram/queue/:id`) were added but never added to `PUBLIC_ROUTES` in `auth.ts`. The auth middleware uses `PUBLIC_ROUTES.includes(path)` — exact-string matching. The actual request path contains a real segment value (e.g., `/api/engram/datasets/myds/config`), which never matches the `:name` placeholder pattern, so every request returned 401. No error, no log — just silent rejection.
+
+**Fix:** Add a separate `PUBLIC_PREFIXES` array for route families with parameterised segments, and update `isPublicRoute` to check both:
+
+```ts
+const PUBLIC_PREFIXES = ['/api/engram/datasets/', '/api/engram/queue/']
+
+function isPublicRoute(url: string): boolean {
+  const path = url.split('?')[0]
+  return PUBLIC_ROUTES.includes(path) || PUBLIC_PREFIXES.some((p) => path.startsWith(p))
+}
+```
+
+**Rule:** When adding a new parameterised route family to a public allowlist that uses exact-string matching, always add a prefix entry at the same time. The exact-string list is only correct for routes with no path parameters. Symptom of missing entry: 401 responses with a valid session, reproducible by curling the route unauthenticated — the same 401 you'd expect, so it's easy to misdiagnose as a Cognee/upstream error rather than an auth middleware gap.
+
+<!-- /entry -->
