@@ -55,6 +55,60 @@
             </q-card>
           </div>
 
+          <!-- AI Compute Infrastructure -->
+          <div class="row items-center q-mb-sm q-mt-md">
+            <div class="text-subtitle2">AI Compute</div>
+            <q-space />
+            <q-spinner v-if="infraLoading" size="16px" class="q-mr-xs" />
+            <span v-if="infrastructure" class="text-caption text-grey-6">
+              polled {{ formatTs(infrastructure.polledAt) }}
+            </span>
+          </div>
+          <q-banner v-if="infraError" dense rounded class="bg-warning text-white q-mb-sm">{{ infraError }}</q-banner>
+          <div class="row q-gutter-sm q-mb-md">
+            <q-card v-for="comp in infraComponents" :key="comp.key" flat bordered class="infra-tile">
+              <q-card-section class="q-pa-sm">
+                <div class="row items-center q-gutter-xs q-mb-xs">
+                  <q-icon :name="comp.icon" size="16px" color="grey-6" />
+                  <div class="text-caption text-grey-7">{{ comp.label }}</div>
+                </div>
+                <template v-if="comp.status">
+                  <q-badge
+                    :color="comp.status.available ? 'positive' : 'negative'"
+                    :label="comp.status.available ? 'up' : 'down'"
+                    class="q-mb-xs"
+                  />
+                  <div v-if="comp.status.available && comp.status.latencyMs !== null" class="text-caption text-grey-7">
+                    {{ comp.status.latencyMs }} ms
+                    <template v-if="comp.key === 'embedding' && infrastructure?.embedding.headroomPer15s !== null">
+                      &middot; ~{{ infrastructure?.embedding.headroomPer15s }}/15s
+                    </template>
+                  </div>
+                  <div v-else-if="comp.status.detail" class="text-caption text-negative" style="max-width: 140px; word-break: break-word">
+                    {{ comp.status.detail }}
+                  </div>
+                </template>
+                <q-spinner v-else size="16px" />
+              </q-card-section>
+            </q-card>
+          </div>
+
+          <!-- Upgrade method feasibility (when infra is loaded) -->
+          <template v-if="infrastructure">
+            <div class="text-subtitle2 q-mb-sm">Upgrade Method Feasibility</div>
+            <div class="row q-gutter-sm q-mb-md flex-wrap">
+              <q-chip
+                v-for="m in upgradeMethodMeta"
+                :key="m.key"
+                dense
+                :icon="infrastructure.methodFeasibility[m.key] ? 'mdi-check-circle' : 'mdi-close-circle'"
+                :color="infrastructure.methodFeasibility[m.key] ? 'positive' : 'grey-5'"
+                text-color="white"
+                :label="m.label"
+              />
+            </div>
+          </template>
+
           <div class="text-subtitle2 q-mb-sm">Last Ingestion Run</div>
           <q-card flat bordered class="q-mb-md">
             <q-card-section v-if="!status.lastIngestion" class="text-grey-7 text-caption">
@@ -387,7 +441,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onUnmounted } from 'vue'
 import type { QTableColumn } from 'quasar'
 import { useEngramMonitor } from '../composables/useEngramMonitor'
 import type { EngramEntryDomainRow } from '../composables/useEngramMonitor'
@@ -415,6 +469,10 @@ const {
   engramStats,
   graphData,
   graphLoading,
+  infrastructure,
+  infraLoading,
+  infraError,
+  fetchInfrastructure,
   LIMIT,
   fetchQueries,
   fetchIngestionHistory,
@@ -422,7 +480,44 @@ const {
   loadAll,
 } = useEngramMonitor()
 
+// 10s auto-refresh for infrastructure while Status tab is active
+let infraTimer: ReturnType<typeof setInterval> | null = null
+function startInfraPolling() {
+  if (infraTimer) return
+  void fetchInfrastructure()
+  infraTimer = setInterval(() => { void fetchInfrastructure() }, 10_000)
+}
+function stopInfraPolling() {
+  if (infraTimer) { clearInterval(infraTimer); infraTimer = null }
+}
+onUnmounted(stopInfraPolling)
+
 const registryView = ref<'table' | 'graph'>('table')
+
+type InfraKey = 'llm' | 'embedding' | 'pipeline' | 'pgvector'
+const INFRA_META: Array<{ key: InfraKey; label: string; icon: string }> = [
+  { key: 'llm',       label: 'LLM',       icon: 'mdi-chip' },
+  { key: 'embedding', label: 'Embedding',  icon: 'mdi-vector-triangle' },
+  { key: 'pipeline',  label: 'Pipeline',   icon: 'mdi-pipe' },
+  { key: 'pgvector',  label: 'pgvector',   icon: 'mdi-database' },
+]
+
+const infraComponents = computed(() =>
+  INFRA_META.map((m) => ({
+    ...m,
+    status: infrastructure.value
+      ? infrastructure.value[m.key]
+      : null,
+  }))
+)
+
+const upgradeMethodMeta = [
+  { key: 'gradual',         label: 'Gradual' },
+  { key: 'additive',        label: 'Additive' },
+  { key: 'priorityTrickle', label: 'Priority trickle' },
+  { key: 'bulkReprocess',   label: 'Bulk reprocess' },
+  { key: 'parallelAtomic',  label: 'Parallel/atomic' },
+] as const
 
 const viewingRow = ref<string | null>(null)
 const viewNotify = ref<string | null>(null)
@@ -490,9 +585,12 @@ async function onRefreshAll() {
 watch(monitorTab, (t) => {
   if (t === 'queries' && queries.value.length === 0) void fetchQueries(0)
   if (t === 'ingestion' && runs.value.length === 0) void fetchIngestionHistory(0)
+  if (t === 'status') startInfraPolling()
+  else stopInfraPolling()
 })
 
 void loadAll()
+startInfraPolling()
 
 function formatTs(ms: number): string {
   return new Date(ms).toLocaleString(undefined, {
@@ -553,6 +651,9 @@ const runColumns: QTableColumn[] = [
 <style scoped>
 .text-mono {
   font-family: 'Roboto Mono', monospace;
+}
+.infra-tile {
+  min-width: 110px;
 }
 .registry-domain-header {
   cursor: pointer;

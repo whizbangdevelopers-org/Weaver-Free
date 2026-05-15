@@ -7,6 +7,7 @@ import { DatabaseSync } from 'node:sqlite'
 import { existsSync, statSync, readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { Pool } from 'pg'
+import { probeEngramInfrastructure } from '../services/engram-infra.js'
 // Auth deferred — RBAC gates added at Weaver Team/Fabrick integration (Decision #160).
 
 type ProcessingStrategy = 'embed-only' | 'embed+graph' | 'full-cognify'
@@ -50,6 +51,12 @@ export const engramRoutes: FastifyPluginAsync<EngramRouteOptions> = async (fasti
     const handle = db()
     if (!handle) return reply.send({})
     return reply.send(readDatasetConfigs(handle))
+  })
+
+  // GET /api/engram/infrastructure — live probe of AI compute components
+  app.get('/infrastructure', {}, async (_request, reply) => {
+    const infra = await probeEngramInfrastructure()
+    return reply.send(infra)
   })
 
   // GET /api/engram/queries — paginated MCP tool call log, admin only

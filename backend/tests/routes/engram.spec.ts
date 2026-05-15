@@ -88,6 +88,28 @@ describe('Engram Routes', () => {
     await rm(TEST_DIR, { recursive: true, force: true }).catch(() => {})
   })
 
+  describe('GET /api/engram/infrastructure', () => {
+    it('returns status for all four components and method feasibility', async () => {
+      const res = await fastify.inject({ method: 'GET', url: '/api/engram/infrastructure' })
+      expect(res.statusCode).toBe(200)
+      const body = res.json()
+      // All services unreachable in test env — shape still correct
+      expect(typeof body.llm.available).toBe('boolean')
+      expect(typeof body.embedding.available).toBe('boolean')
+      expect(typeof body.pipeline.available).toBe('boolean')
+      expect(typeof body.pgvector.available).toBe('boolean')
+      expect(typeof body.embedding.headroomPer15s === 'number' || body.embedding.headroomPer15s === null).toBe(true)
+      expect(typeof body.polledAt).toBe('number')
+      // gradual is always feasible
+      expect(body.methodFeasibility.gradual).toBe(true)
+      // all other methods require embedding — which is down in test env
+      expect(body.methodFeasibility.additive).toBe(body.embedding.available)
+      expect(body.methodFeasibility.priorityTrickle).toBe(body.embedding.available && body.pipeline.available)
+      expect(body.methodFeasibility.bulkReprocess).toBe(body.embedding.available && body.pipeline.available)
+      expect(body.methodFeasibility.parallelAtomic).toBe(body.embedding.available && body.pipeline.available && body.pgvector.available)
+    })
+  })
+
   describe('GET /api/engram/strategies', () => {
     it('returns the seeded strategy map from dataset_config', async () => {
       const res = await fastify.inject({ method: 'GET', url: '/api/engram/strategies' })
