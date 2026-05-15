@@ -45,9 +45,6 @@
           {{ errorMsg }}
         </div>
 
-        <div class="text-caption text-grey-6 q-mt-md">
-          Default credentials: <code>default_user@example.com</code> / <code>default_password</code>
-        </div>
       </q-card-section>
 
       <q-card-actions align="right">
