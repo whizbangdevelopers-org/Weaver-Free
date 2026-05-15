@@ -11,6 +11,20 @@ import { probeEngramInfrastructure } from '../services/engram-infra.js'
 // Auth deferred — RBAC gates added at Weaver Team/Fabrick integration (Decision #160).
 
 type ProcessingStrategy = 'embed-only' | 'embed+graph' | 'full-cognify'
+type UpgradeMethod = 'gradual' | 'additive' | 'priorityTrickle' | 'bulkReprocess' | 'parallelAtomic'
+type UpgradeStatus = 'queued' | 'running' | 'complete' | 'failed'
+
+// Required capabilities per upgrade method (matches engram-db.ts CANONICAL logic).
+const METHOD_CAPABILITIES: Record<UpgradeMethod, Record<string, boolean>> = {
+  gradual:         {},
+  additive:        { embedding: true },
+  priorityTrickle: { embedding: true, pipeline: true },
+  bulkReprocess:   { embedding: true, pipeline: true },
+  parallelAtomic:  { embedding: true, pipeline: true, pgvector: true },
+}
+
+// Ordered progression: a dataset can only upgrade forward.
+const STRATEGY_ORDER: ProcessingStrategy[] = ['embed-only', 'embed+graph', 'full-cognify']
 
 function readDatasetConfigs(handle: DatabaseSync): Record<string, ProcessingStrategy> {
   try {
@@ -21,11 +35,62 @@ function readDatasetConfigs(handle: DatabaseSync): Record<string, ProcessingStra
   } catch { return {} }
 }
 
+function readDatasetConfig(handle: DatabaseSync, datasetName: string) {
+  try {
+    type Row = { dataset_name: string; strategy: string; pending_strategy: string | null; upgrade_method: string | null; upgraded_at: number | null }
+    return handle.prepare('SELECT * FROM dataset_config WHERE dataset_name = ?').get(datasetName) as Row | undefined
+  } catch { return undefined }
+}
+
 function readDatasetStrategy(handle: DatabaseSync, datasetName: string): ProcessingStrategy | null {
   try {
     const row = handle.prepare('SELECT strategy FROM dataset_config WHERE dataset_name = ?').get(datasetName) as { strategy: string } | undefined
     return row ? row.strategy as ProcessingStrategy : null
   } catch { return null }
+}
+
+function writeDatasetConfig(handle: DatabaseSync, datasetName: string, fields: {
+  strategy?: ProcessingStrategy; pendingStrategy?: ProcessingStrategy | null;
+  upgradeMethod?: string | null; upgradedAt?: number | null
+}): void {
+  const existing = readDatasetConfig(handle, datasetName)
+  if (!existing) {
+    handle.prepare(`INSERT INTO dataset_config (dataset_name, strategy, pending_strategy, upgrade_method, upgraded_at) VALUES (?, ?, ?, ?, ?)`)
+      .run(datasetName, fields.strategy ?? 'full-cognify', fields.pendingStrategy ?? null, fields.upgradeMethod ?? null, fields.upgradedAt ?? null)
+  } else {
+    const updates: string[] = []
+    const params: unknown[] = []
+    if (fields.strategy !== undefined) { updates.push('strategy = ?'); params.push(fields.strategy) }
+    if ('pendingStrategy' in fields) { updates.push('pending_strategy = ?'); params.push(fields.pendingStrategy ?? null) }
+    if ('upgradeMethod' in fields) { updates.push('upgrade_method = ?'); params.push(fields.upgradeMethod ?? null) }
+    if ('upgradedAt' in fields) { updates.push('upgraded_at = ?'); params.push(fields.upgradedAt ?? null) }
+    if (!updates.length) return
+    params.push(datasetName)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    handle.prepare(`UPDATE dataset_config SET ${updates.join(', ')} WHERE dataset_name = ?`).run(...(params as any[]))
+  }
+}
+
+function insertQueueEntry(handle: DatabaseSync, datasetName: string, targetStrategy: ProcessingStrategy, method: UpgradeMethod, capability: Record<string, boolean>, status: UpgradeStatus): number {
+  const res = handle.prepare(
+    `INSERT INTO upgrade_queue (dataset_name, target_strategy, method, required_capability, queued_at, status) VALUES (?, ?, ?, ?, ?, ?)`
+  ).run(datasetName, targetStrategy, method, JSON.stringify(capability), Date.now(), status)
+  return res.lastInsertRowid as number
+}
+
+function mapQueueRow(r: { id: number; dataset_name: string; target_strategy: string; method: string; required_capability: string; queued_at: number; status: string; started_at: number | null }) {
+  return { id: r.id, datasetName: r.dataset_name, targetStrategy: r.target_strategy, method: r.method, requiredCapability: JSON.parse(r.required_capability) as Record<string, boolean>, queuedAt: r.queued_at, status: r.status, startedAt: r.started_at }
+}
+
+function getQueueRows(handle: DatabaseSync) {
+  type Row = { id: number; dataset_name: string; target_strategy: string; method: string; required_capability: string; queued_at: number; status: string; started_at: number | null }
+  return (handle.prepare(`SELECT * FROM upgrade_queue ORDER BY queued_at ASC`).all() as Row[]).map(mapQueueRow)
+}
+
+function getLatestQueueEntry(handle: DatabaseSync, datasetName: string) {
+  type Row = { id: number; dataset_name: string; target_strategy: string; method: string; required_capability: string; queued_at: number; status: string; started_at: number | null }
+  const row = handle.prepare(`SELECT * FROM upgrade_queue WHERE dataset_name = ? ORDER BY queued_at DESC LIMIT 1`).get(datasetName) as Row | undefined
+  return row ? mapQueueRow(row) : null
 }
 
 interface EngramRouteOptions {
@@ -53,10 +118,121 @@ export const engramRoutes: FastifyPluginAsync<EngramRouteOptions> = async (fasti
     return reply.send(readDatasetConfigs(handle))
   })
 
-  // GET /api/engram/infrastructure — live probe of AI compute components
+  // GET /api/engram/infrastructure — live probe of AI compute components; promotes queued jobs when feasible
   app.get('/infrastructure', {}, async (_request, reply) => {
     const infra = await probeEngramInfrastructure()
+    const handle = db()
+    if (handle) {
+      // Promote queued upgrade jobs whose required capabilities are now met.
+      type QRow = { id: number; required_capability: string }
+      const queued = handle.prepare(`SELECT id, required_capability FROM upgrade_queue WHERE status = 'queued'`).all() as QRow[]
+      for (const row of queued) {
+        let required: Record<string, boolean> = {}
+        try { required = JSON.parse(row.required_capability) as Record<string, boolean> } catch { /* skip */ }
+        const canRun = Object.entries(required).every(([k, v]) => !v || infra.methodFeasibility[k as keyof typeof infra.methodFeasibility])
+        if (canRun) handle.prepare(`UPDATE upgrade_queue SET status = 'running', started_at = ? WHERE id = ?`).run(Date.now(), row.id)
+      }
+    }
     return reply.send(infra)
+  })
+
+  // GET /api/engram/datasets/:name/config
+  app.get('/datasets/:name/config', {
+    schema: { params: z.object({ name: z.string().min(1).max(64).regex(/^[a-z][a-z0-9_-]*$/) }) },
+  }, async (request, reply) => {
+    const { name } = request.params
+    const handle = db()
+    if (!handle) return reply.status(503).send({ error: 'Engram DB not initialised' })
+    const row = readDatasetConfig(handle, name)
+    if (!row) return reply.status(404).send({ error: `Dataset '${name}' not found` })
+    return reply.send({ datasetName: row.dataset_name, strategy: row.strategy, pendingStrategy: row.pending_strategy, upgradeMethod: row.upgrade_method, upgradedAt: row.upgraded_at })
+  })
+
+  // PUT /api/engram/datasets/:name/config — update strategy
+  app.put('/datasets/:name/config', {
+    schema: {
+      params: z.object({ name: z.string().min(1).max(64).regex(/^[a-z][a-z0-9_-]*$/) }),
+      body: z.object({ strategy: z.enum(['embed-only', 'embed+graph', 'full-cognify']) }),
+    },
+  }, async (request, reply) => {
+    const { name } = request.params
+    const { strategy } = request.body
+    const handle = db()
+    if (!handle) return reply.status(503).send({ error: 'Engram DB not initialised' })
+    const existing = readDatasetConfig(handle, name)
+    if (!existing) return reply.status(404).send({ error: `Dataset '${name}' not found` })
+    const curIdx = STRATEGY_ORDER.indexOf(existing.strategy as ProcessingStrategy)
+    const newIdx = STRATEGY_ORDER.indexOf(strategy)
+    if (newIdx < curIdx) return reply.status(422).send({ error: 'Strategy can only be upgraded forward (embed-only → embed+graph → full-cognify)' })
+    writeDatasetConfig(handle, name, { strategy })
+    return reply.send({ datasetName: name, strategy })
+  })
+
+  // POST /api/engram/datasets/:name/upgrade — enqueue or start an upgrade job
+  app.post('/datasets/:name/upgrade', {
+    schema: {
+      params: z.object({ name: z.string().min(1).max(64).regex(/^[a-z][a-z0-9_-]*$/) }),
+      body: z.object({
+        target_strategy: z.enum(['embed-only', 'embed+graph', 'full-cognify']),
+        method: z.enum(['gradual', 'additive', 'priorityTrickle', 'bulkReprocess', 'parallelAtomic']),
+      }),
+    },
+  }, async (request, reply) => {
+    const { name } = request.params
+    const { target_strategy, method } = request.body
+    const handle = db()
+    if (!handle) return reply.status(503).send({ error: 'Engram DB not initialised' })
+    const existing = readDatasetConfig(handle, name)
+    if (!existing) return reply.status(404).send({ error: `Dataset '${name}' not found` })
+    const curIdx = STRATEGY_ORDER.indexOf(existing.strategy as ProcessingStrategy)
+    const tgtIdx = STRATEGY_ORDER.indexOf(target_strategy)
+    if (tgtIdx <= curIdx) return reply.status(422).send({ error: 'Target strategy must be ahead of current strategy' })
+
+    const capability = METHOD_CAPABILITIES[method]
+    const infra = await probeEngramInfrastructure()
+    const feasible = Object.entries(capability).every(([k, v]) => !v || infra.methodFeasibility[k as keyof typeof infra.methodFeasibility])
+    const status: UpgradeStatus = feasible ? 'running' : 'queued'
+
+    writeDatasetConfig(handle, name, { pendingStrategy: target_strategy, upgradeMethod: method })
+    const id = insertQueueEntry(handle, name, target_strategy, method, capability, status)
+
+    return reply.status(202).send({ id, datasetName: name, targetStrategy: target_strategy, method, status })
+  })
+
+  // GET /api/engram/datasets/:name/upgrade/status
+  app.get('/datasets/:name/upgrade/status', {
+    schema: { params: z.object({ name: z.string().min(1).max(64).regex(/^[a-z][a-z0-9_-]*$/) }) },
+  }, async (request, reply) => {
+    const { name } = request.params
+    const handle = db()
+    if (!handle) return reply.status(503).send({ error: 'Engram DB not initialised' })
+    const config = readDatasetConfig(handle, name)
+    if (!config) return reply.status(404).send({ error: `Dataset '${name}' not found` })
+    const latest = getLatestQueueEntry(handle, name)
+    return reply.send({
+      datasetName: name,
+      currentStrategy: config.strategy,
+      pendingStrategy: config.pending_strategy,
+      latestJob: latest,
+    })
+  })
+
+  // GET /api/engram/queue — all queue entries
+  app.get('/queue', {}, async (_request, reply) => {
+    const handle = db()
+    if (!handle) return reply.send({ queue: [] })
+    return reply.send({ queue: getQueueRows(handle) })
+  })
+
+  // DELETE /api/engram/queue/:id — remove a queue entry
+  app.delete('/queue/:id', {
+    schema: { params: z.object({ id: z.coerce.number().int().positive() }) },
+  }, async (request, reply) => {
+    const { id } = request.params
+    const handle = db()
+    if (!handle) return reply.status(503).send({ error: 'Engram DB not initialised' })
+    handle.prepare('DELETE FROM upgrade_queue WHERE id = ?').run(id)
+    return reply.status(204).send()
   })
 
   // GET /api/engram/queries — paginated MCP tool call log, admin only
