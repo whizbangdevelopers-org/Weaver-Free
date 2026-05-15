@@ -70,6 +70,8 @@ describe('Engram Routes', () => {
     logIngestionRun(db, { dataset: 'knowledge_entries', entryCount: 5, successCount: 5, failureCount: 0, improved: true, durationMs: 3200, flags: { dryRun: false, noReset: false } })
     upsertIngestedEntry(db, ENTRY_A)
     upsertIngestedEntry(db, ENTRY_B)
+    // Dedicated test dataset for write/upgrade tests (isolated from canonical datasets)
+    db.prepare("INSERT OR IGNORE INTO dataset_config (dataset_name, strategy) VALUES ('test_write_dataset', 'embed-only')").run()
 
     // Knowledge files for POST /view tests
     await mkdir(join(TEST_DIR, 'docs', 'knowledge', 'lessons'), { recursive: true })
@@ -117,6 +119,99 @@ describe('Engram Routes', () => {
       const body = res.json()
       expect(body.project_knowledge).toBe('embed-only')
       expect(body.fom_registry).toBe('full-cognify')
+    })
+  })
+
+  describe('Dataset config API', () => {
+    it('GET /datasets/:name/config returns 404 for unknown dataset', async () => {
+      const res = await fastify.inject({ method: 'GET', url: '/api/engram/datasets/nonexistent/config' })
+      expect(res.statusCode).toBe(404)
+    })
+
+    it('GET /datasets/:name/config returns config for seeded dataset', async () => {
+      const res = await fastify.inject({ method: 'GET', url: '/api/engram/datasets/project_knowledge/config' })
+      expect(res.statusCode).toBe(200)
+      const body = res.json()
+      expect(body.datasetName).toBe('project_knowledge')
+      expect(body.strategy).toBe('embed-only')
+      expect(body.pendingStrategy).toBeNull()
+    })
+
+    it('PUT /datasets/:name/config updates test dataset strategy forward', async () => {
+      const res = await fastify.inject({
+        method: 'PUT', url: '/api/engram/datasets/test_write_dataset/config',
+        payload: { strategy: 'embed+graph' },
+      })
+      expect(res.statusCode).toBe(200)
+      expect(res.json().strategy).toBe('embed+graph')
+    })
+
+    it('PUT /datasets/:name/config rejects downgrade', async () => {
+      const res = await fastify.inject({
+        method: 'PUT', url: '/api/engram/datasets/fom_registry/config',
+        payload: { strategy: 'embed-only' },
+      })
+      expect(res.statusCode).toBe(422)
+    })
+
+    it('PUT /datasets/:name/config returns 400 for invalid dataset name', async () => {
+      const res = await fastify.inject({
+        method: 'PUT', url: '/api/engram/datasets/INVALID/config',
+        payload: { strategy: 'embed+graph' },
+      })
+      expect(res.statusCode).toBe(400)
+    })
+  })
+
+  describe('Upgrade queue API', () => {
+    it('POST /datasets/:name/upgrade enqueues a job for test dataset', async () => {
+      // test_write_dataset is now at embed+graph (updated by Dataset config API test above)
+      const res = await fastify.inject({
+        method: 'POST', url: '/api/engram/datasets/test_write_dataset/upgrade',
+        payload: { target_strategy: 'full-cognify', method: 'gradual' },
+      })
+      expect(res.statusCode).toBe(202)
+      const body = res.json()
+      expect(body.datasetName).toBe('test_write_dataset')
+      expect(body.targetStrategy).toBe('full-cognify')
+      expect(typeof body.id).toBe('number')
+      expect(['running', 'queued']).toContain(body.status)
+    })
+
+    it('POST /datasets/:name/upgrade rejects same-level target', async () => {
+      const res = await fastify.inject({
+        method: 'POST', url: '/api/engram/datasets/fom_registry/upgrade',
+        payload: { target_strategy: 'full-cognify', method: 'gradual' },
+      })
+      expect(res.statusCode).toBe(422)
+    })
+
+    it('GET /api/engram/queue returns queue entries', async () => {
+      const res = await fastify.inject({ method: 'GET', url: '/api/engram/queue' })
+      expect(res.statusCode).toBe(200)
+      const body = res.json()
+      expect(Array.isArray(body.queue)).toBe(true)
+      expect(body.queue.length).toBeGreaterThan(0)
+    })
+
+    it('GET /datasets/:name/upgrade/status returns current + latest job', async () => {
+      const res = await fastify.inject({ method: 'GET', url: '/api/engram/datasets/test_write_dataset/upgrade/status' })
+      expect(res.statusCode).toBe(200)
+      const body = res.json()
+      expect(body.datasetName).toBe('test_write_dataset')
+      expect(typeof body.currentStrategy).toBe('string')
+      expect(body.latestJob).not.toBeNull()
+    })
+
+    it('DELETE /api/engram/queue/:id removes an entry', async () => {
+      const qRes = await fastify.inject({ method: 'GET', url: '/api/engram/queue' })
+      const { queue } = qRes.json()
+      const id = (queue[0] as { id: number }).id
+      const del = await fastify.inject({ method: 'DELETE', url: `/api/engram/queue/${id}` })
+      expect(del.statusCode).toBe(204)
+      const qRes2 = await fastify.inject({ method: 'GET', url: '/api/engram/queue' })
+      const ids2 = (qRes2.json().queue as Array<{ id: number }>).map((e) => e.id)
+      expect(ids2).not.toContain(id)
     })
   })
 
