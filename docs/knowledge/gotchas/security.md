@@ -98,3 +98,26 @@ graduated_to: ""
 **Rule:** When adding regex patterns to Semgrep sanitizers, enumerate every textual form the team actually writes in code — Semgrep won't infer equivalence.
 
 <!-- /entry -->
+
+<!-- entry:G-security-2026-05-15-001 -->
+---
+id: G-security-2026-05-15-001
+type: gotcha
+domain: security
+tags: [sast, command-injection, sqlite, exec, compile-time-constant]
+since_version: "1.0.5"
+status: active
+scope: transferable
+related: []
+graduated_to: ""
+---
+
+## SAST command-injection rule flags `exec(stmt + ';')` on a compile-time constant — 2026-05-15 · Claude
+
+**Problem:** Porting the `openEngramDb` schema initialization pattern into the backend produced this code: `for (const stmt of SCHEMA.split(';')...) { handle.exec(stmt + ';') }`. The SAST `command-injection` rule flagged line `handle.exec(stmt + ';')` as a taint sink fed by a potentially untrusted string. The `stmt` variable is derived entirely from splitting a hardcoded compile-time SCHEMA constant — no user input anywhere. The SAST tool performs lexical taint tracking and cannot distinguish a constant-derived intermediate from a user-input-derived one.
+
+**Fix:** `DatabaseSync.exec()` (Node.js `node:sqlite`) handles multi-statement SQL natively — pass the entire SCHEMA string directly: `handle.exec(SCHEMA)`. This removes the split/concat loop entirely, making the pattern cleaner and eliminating the flagged concatenation.
+
+**Rule:** When initializing a database schema with a hardcoded SQL constant, pass it to `exec()` as a single call. Splitting on `;` and re-appending is unnecessary for `node:sqlite`'s `exec()`, introduces a string concatenation that SAST tools flag as potential injection, and is strictly worse in every dimension. Use `exec(fullSqlString)` — the semicolons in the SQL are sufficient delimiters.
+
+<!-- /entry -->

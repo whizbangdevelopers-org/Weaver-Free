@@ -86,3 +86,26 @@ for (const r of rows) {
 **Why this shape wins:** The `sort().join('|')` canonical key makes `(A,B)` and `(B,A)` identical regardless of which entry is processed first. The deduplication is in the API response, not in the data store — the back-links remain in SQLite and can be used for non-visual graph queries (e.g., "what links to this entry?"). 19 directed edges in data → 15 visual edges after dedup (4 bidirectional pairs collapsed).
 
 <!-- /entry -->
+
+<!-- entry:L-engram-2026-05-16-001 -->
+---
+id: L-engram-2026-05-16-001
+type: lesson
+domain: engram
+tags: [sqlite, vm-data-dir, ingest, data-dir, production]
+since_version: "1.0.5"
+status: active
+scope: project
+related: [G-nixos-2026-05-15-001]
+graduated_to: ""
+---
+
+## DB producers must follow the backend's VM_DATA_DIR path atomically — 2026-05-16 · Claude
+
+**Root cause:** Adding `VM_DATA_DIR` support to the backend changes where `engram.db` is read from. Any script that writes to `engram.db` (the ingest pipeline) also needs `VM_DATA_DIR` support in the same change — otherwise writes land in `code/data/engram.db` while the backend reads from `$VM_DATA_DIR/engram.db`. The Monitor shows an empty registry with no error; it silently reads from a different file than the one ingest is populating.
+
+**Rule:** When adding or changing the DB path resolution logic in the backend (`engramDataDir` in `index.ts`), update every DB producer atomically in the same PR: `code/scripts/ingest-knowledge-to-engram.ts` and any future scripts that open `engram.db`. Both must resolve path via `VM_DATA_DIR` with the same fallback.
+
+**Why this shape wins:** The silent symptom (empty UI, no 500, no stderr) makes this the kind of bug that wastes hours. Making the path change atomic at the PR level and having a single `ENGRAM_DB_PATH` constant (shared across producers) ensures the two files can never diverge silently again.
+
+<!-- /entry -->

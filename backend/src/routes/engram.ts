@@ -4,8 +4,8 @@ import { FastifyPluginAsync } from 'fastify'
 import { ZodTypeProvider } from 'fastify-type-provider-zod'
 import { z } from 'zod'
 import { DatabaseSync } from 'node:sqlite'
-import { existsSync, statSync, readFileSync } from 'node:fs'
-import { join, resolve } from 'node:path'
+import { existsSync, statSync, readFileSync, mkdirSync } from 'node:fs'
+import { join, resolve, dirname } from 'node:path'
 import { Pool } from 'pg'
 import { probeEngramInfrastructure } from '../services/engram-infra.js'
 // Auth deferred — RBAC gates added at Weaver Team/Fabrick integration (Decision #160).
@@ -25,6 +25,99 @@ const METHOD_CAPABILITIES: Record<UpgradeMethod, Record<string, boolean>> = {
 
 // Ordered progression: a dataset can only upgrade forward.
 const STRATEGY_ORDER: ProcessingStrategy[] = ['embed-only', 'embed+graph', 'full-cognify']
+
+// Schema co-maintained with codebase-mcp/src/utils/engram-db.ts.
+// Direct import is blocked by backend tsconfig rootDir: ./src — extract to a workspace
+// package when both consumers stabilise.
+const SCHEMA = `
+PRAGMA journal_mode = WAL;
+
+CREATE TABLE IF NOT EXISTS knowledge_queries (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  ts          INTEGER NOT NULL,
+  tool        TEXT    NOT NULL,
+  params      TEXT    NOT NULL,
+  result_count INTEGER NOT NULL,
+  result_ids  TEXT    NOT NULL,
+  latency_ms  INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS ingestion_runs (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  ts            INTEGER NOT NULL,
+  dataset       TEXT    NOT NULL,
+  entry_count   INTEGER NOT NULL,
+  success_count INTEGER NOT NULL,
+  failure_count INTEGER NOT NULL,
+  improved      INTEGER NOT NULL,
+  duration_ms   INTEGER NOT NULL,
+  flags         TEXT    NOT NULL,
+  strategy      TEXT    NOT NULL DEFAULT 'embed-only'
+);
+
+CREATE TABLE IF NOT EXISTS ingested_entries (
+  entry_id      TEXT    PRIMARY KEY,
+  content_hash  TEXT    NOT NULL,
+  data_id       TEXT    NOT NULL,
+  dataset_id    TEXT    NOT NULL,
+  domain        TEXT    NOT NULL,
+  type          TEXT    NOT NULL,
+  scope         TEXT    NOT NULL,
+  status        TEXT    NOT NULL,
+  tags          TEXT    NOT NULL,
+  since_version TEXT    NOT NULL,
+  title         TEXT    NOT NULL,
+  related       TEXT    NOT NULL DEFAULT '[]',
+  ingested_at   INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS dataset_config (
+  dataset_name     TEXT PRIMARY KEY,
+  strategy         TEXT NOT NULL,
+  pending_strategy TEXT,
+  upgrade_method   TEXT,
+  upgraded_at      INTEGER
+);
+
+CREATE TABLE IF NOT EXISTS upgrade_queue (
+  id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+  dataset_name        TEXT    NOT NULL,
+  target_strategy     TEXT    NOT NULL,
+  method              TEXT    NOT NULL,
+  required_capability TEXT    NOT NULL DEFAULT '{}',
+  queued_at           INTEGER NOT NULL,
+  status              TEXT    NOT NULL DEFAULT 'queued',
+  started_at          INTEGER
+);
+
+CREATE INDEX IF NOT EXISTS idx_kq_ts     ON knowledge_queries (ts DESC);
+CREATE INDEX IF NOT EXISTS idx_kq_tool   ON knowledge_queries (tool);
+CREATE INDEX IF NOT EXISTS idx_ir_ts     ON ingestion_runs (ts DESC);
+CREATE INDEX IF NOT EXISTS idx_ie_domain ON ingested_entries (domain);
+CREATE INDEX IF NOT EXISTS idx_uq_status ON upgrade_queue (status);
+`
+
+// Canonical dataset → strategy mapping. Must match CANONICAL_STRATEGIES in engram-db.ts.
+const CANONICAL_STRATEGIES: Record<string, ProcessingStrategy> = {
+  project_knowledge: 'embed-only',
+  fom_registry:      'full-cognify',
+}
+
+// Mirrors openEngramDb() from codebase-mcp/src/utils/engram-db.ts.
+// Creates the file if absent, applies full schema, seeds CANONICAL_STRATEGIES.
+function initEngramDb(dbPath: string): DatabaseSync {
+  const dir = dirname(dbPath)
+  if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
+  const handle = new DatabaseSync(dbPath)
+  handle.exec(SCHEMA)
+  // Migrations for columns added after the initial schema.
+  try { handle.exec(`ALTER TABLE ingested_entries ADD COLUMN related TEXT NOT NULL DEFAULT '[]';`) } catch { /* already exists */ }
+  try { handle.exec(`ALTER TABLE ingestion_runs ADD COLUMN strategy TEXT NOT NULL DEFAULT 'embed-only';`) } catch { /* already exists */ }
+  // Seed dataset_config (no-op if already present).
+  const seed = handle.prepare(`INSERT OR IGNORE INTO dataset_config (dataset_name, strategy) VALUES (?, ?)`)
+  for (const [name, strategy] of Object.entries(CANONICAL_STRATEGIES)) seed.run(name, strategy)
+  return handle
+}
 
 function readDatasetConfigs(handle: DatabaseSync): Record<string, ProcessingStrategy> {
   try {
@@ -101,37 +194,28 @@ export const engramRoutes: FastifyPluginAsync<EngramRouteOptions> = async (fasti
   const app = fastify.withTypeProvider<ZodTypeProvider>()
   const dbPath = join(opts.dataDir, 'engram.db')
 
-  let _db: DatabaseSync | null = null
-  function db(): DatabaseSync | null {
-    if (_db) return _db
-    if (!existsSync(dbPath)) return null
-    _db = new DatabaseSync(dbPath)
-    return _db
-  }
-
-  fastify.addHook('onClose', () => { _db?.close() })
+  // Eagerly open (and create if absent) — ensures CANONICAL_STRATEGIES are seeded
+  // before any request arrives. db() returning null on first request was the root
+  // cause of empty /strategies and 503 on /datasets/:name/config.
+  const handle = initEngramDb(dbPath)
+  fastify.addHook('onClose', () => { handle.close() })
 
   // GET /api/engram/strategies — processing strategy map from dataset_config table
   app.get('/strategies', {}, async (_request, reply) => {
-    const handle = db()
-    if (!handle) return reply.send({})
     return reply.send(readDatasetConfigs(handle))
   })
 
   // GET /api/engram/infrastructure — live probe of AI compute components; promotes queued jobs when feasible
   app.get('/infrastructure', {}, async (_request, reply) => {
     const infra = await probeEngramInfrastructure()
-    const handle = db()
-    if (handle) {
-      // Promote queued upgrade jobs whose required capabilities are now met.
-      type QRow = { id: number; required_capability: string }
-      const queued = handle.prepare(`SELECT id, required_capability FROM upgrade_queue WHERE status = 'queued'`).all() as QRow[]
-      for (const row of queued) {
-        let required: Record<string, boolean> = {}
-        try { required = JSON.parse(row.required_capability) as Record<string, boolean> } catch { /* skip */ }
-        const canRun = Object.entries(required).every(([k, v]) => !v || infra.methodFeasibility[k as keyof typeof infra.methodFeasibility])
-        if (canRun) handle.prepare(`UPDATE upgrade_queue SET status = 'running', started_at = ? WHERE id = ?`).run(Date.now(), row.id)
-      }
+    // Promote queued upgrade jobs whose required capabilities are now met.
+    type QRow = { id: number; required_capability: string }
+    const queued = handle.prepare(`SELECT id, required_capability FROM upgrade_queue WHERE status = 'queued'`).all() as QRow[]
+    for (const row of queued) {
+      let required: Record<string, boolean> = {}
+      try { required = JSON.parse(row.required_capability) as Record<string, boolean> } catch { /* skip */ }
+      const canRun = Object.entries(required).every(([k, v]) => !v || infra.methodFeasibility[k as keyof typeof infra.methodFeasibility])
+      if (canRun) handle.prepare(`UPDATE upgrade_queue SET status = 'running', started_at = ? WHERE id = ?`).run(Date.now(), row.id)
     }
     return reply.send(infra)
   })
@@ -141,8 +225,6 @@ export const engramRoutes: FastifyPluginAsync<EngramRouteOptions> = async (fasti
     schema: { params: z.object({ name: z.string().min(1).max(64).regex(/^[a-z][a-z0-9_-]*$/) }) },
   }, async (request, reply) => {
     const { name } = request.params
-    const handle = db()
-    if (!handle) return reply.status(503).send({ error: 'Engram DB not initialised' })
     const row = readDatasetConfig(handle, name)
     if (!row) return reply.status(404).send({ error: `Dataset '${name}' not found` })
     return reply.send({ datasetName: row.dataset_name, strategy: row.strategy, pendingStrategy: row.pending_strategy, upgradeMethod: row.upgrade_method, upgradedAt: row.upgraded_at })
@@ -157,8 +239,6 @@ export const engramRoutes: FastifyPluginAsync<EngramRouteOptions> = async (fasti
   }, async (request, reply) => {
     const { name } = request.params
     const { strategy } = request.body
-    const handle = db()
-    if (!handle) return reply.status(503).send({ error: 'Engram DB not initialised' })
     const existing = readDatasetConfig(handle, name)
     if (!existing) return reply.status(404).send({ error: `Dataset '${name}' not found` })
     const curIdx = STRATEGY_ORDER.indexOf(existing.strategy as ProcessingStrategy)
@@ -180,8 +260,6 @@ export const engramRoutes: FastifyPluginAsync<EngramRouteOptions> = async (fasti
   }, async (request, reply) => {
     const { name } = request.params
     const { target_strategy, method } = request.body
-    const handle = db()
-    if (!handle) return reply.status(503).send({ error: 'Engram DB not initialised' })
     const existing = readDatasetConfig(handle, name)
     if (!existing) return reply.status(404).send({ error: `Dataset '${name}' not found` })
     const curIdx = STRATEGY_ORDER.indexOf(existing.strategy as ProcessingStrategy)
@@ -204,8 +282,6 @@ export const engramRoutes: FastifyPluginAsync<EngramRouteOptions> = async (fasti
     schema: { params: z.object({ name: z.string().min(1).max(64).regex(/^[a-z][a-z0-9_-]*$/) }) },
   }, async (request, reply) => {
     const { name } = request.params
-    const handle = db()
-    if (!handle) return reply.status(503).send({ error: 'Engram DB not initialised' })
     const config = readDatasetConfig(handle, name)
     if (!config) return reply.status(404).send({ error: `Dataset '${name}' not found` })
     const latest = getLatestQueueEntry(handle, name)
@@ -219,8 +295,6 @@ export const engramRoutes: FastifyPluginAsync<EngramRouteOptions> = async (fasti
 
   // GET /api/engram/queue — all queue entries
   app.get('/queue', {}, async (_request, reply) => {
-    const handle = db()
-    if (!handle) return reply.send({ queue: [] })
     return reply.send({ queue: getQueueRows(handle) })
   })
 
@@ -229,8 +303,6 @@ export const engramRoutes: FastifyPluginAsync<EngramRouteOptions> = async (fasti
     schema: { params: z.object({ id: z.coerce.number().int().positive() }) },
   }, async (request, reply) => {
     const { id } = request.params
-    const handle = db()
-    if (!handle) return reply.status(503).send({ error: 'Engram DB not initialised' })
     handle.prepare('DELETE FROM upgrade_queue WHERE id = ?').run(id)
     return reply.status(204).send()
   })
@@ -248,9 +320,6 @@ export const engramRoutes: FastifyPluginAsync<EngramRouteOptions> = async (fasti
       },
     },
     async (request, reply) => {
-
-      const handle = db()
-      if (!handle) return reply.send({ queries: [], total: 0, note: 'No query log yet' })
 
       const { tool, limit, offset } = request.query
       const where = tool ? 'WHERE tool = ?' : ''
@@ -281,9 +350,6 @@ export const engramRoutes: FastifyPluginAsync<EngramRouteOptions> = async (fasti
     },
     async (request, reply) => {
 
-      const handle = db()
-      if (!handle) return reply.send({ runs: [], total: 0, note: 'No ingestion log yet' })
-
       const { limit, offset } = request.query
       const rows = handle.prepare(
         `SELECT id, ts, dataset, entry_count, success_count, failure_count, improved, duration_ms, flags
@@ -299,9 +365,6 @@ export const engramRoutes: FastifyPluginAsync<EngramRouteOptions> = async (fasti
 
   // GET /api/engram/entries — registry breakdown by domain/type/scope
   app.get('/entries', {}, async (request, reply) => {
-    const handle = db()
-    if (!handle) return reply.send({ entries: [], total: 0 })
-
     try {
       const rows = handle.prepare(`
         SELECT domain, type, scope, COUNT(*) as count
@@ -313,7 +376,7 @@ export const engramRoutes: FastifyPluginAsync<EngramRouteOptions> = async (fasti
       const total = rows.reduce((sum, r) => sum + r.count, 0)
       return reply.send({ entries: rows, total })
     } catch {
-      // ingested_entries table doesn't exist yet (no ingest run)
+      // ingested_entries table exists but may be empty before first ingest run
       return reply.send({ entries: [], total: 0 })
     }
   })
@@ -369,9 +432,6 @@ export const engramRoutes: FastifyPluginAsync<EngramRouteOptions> = async (fasti
 
   // GET /api/engram/graph-data — registry graph: entry nodes + related edges (for UI graph visualization)
   app.get('/graph-data', {}, async (_request, reply) => {
-    const handle = db()
-    if (!handle) return reply.send({ nodes: [], edges: [] })
-
     try {
       const rows = handle.prepare(`
         SELECT entry_id, title, domain, type, scope, status, related
@@ -435,14 +495,11 @@ export const engramRoutes: FastifyPluginAsync<EngramRouteOptions> = async (fasti
     },
     async (_request, reply) => {
       // Total entries from SQLite ingested_entries table
-      const handle = db()
       let totalEntries = 0
-      if (handle) {
-        try {
-          const row = handle.prepare('SELECT COUNT(*) as n FROM ingested_entries').get() as { n: number } | undefined
-          totalEntries = row?.n ?? 0
-        } catch { /* table may not exist yet */ }
-      }
+      try {
+        const row = handle.prepare('SELECT COUNT(*) as n FROM ingested_entries').get() as { n: number } | undefined
+        totalEntries = row?.n ?? 0
+      } catch { /* table may not exist yet */ }
 
       // pgvector counts — connect to cognee PostgreSQL
       let pgvector: { chunks: number; summaries: number; entities: number } | null = null
@@ -479,9 +536,7 @@ export const engramRoutes: FastifyPluginAsync<EngramRouteOptions> = async (fasti
       }
 
       // Determine strategy for the primary dataset from dataset_config table.
-      const strategy = handle
-        ? (readDatasetStrategy(handle, 'project_knowledge') ?? 'full-cognify')
-        : 'full-cognify'
+      const strategy = readDatasetStrategy(handle, 'project_knowledge') ?? 'full-cognify'
 
       return reply.send({
         totalEntries,
@@ -496,17 +551,6 @@ export const engramRoutes: FastifyPluginAsync<EngramRouteOptions> = async (fasti
     '/status',
     {},
     async (request, reply) => {
-
-      const handle = db()
-      if (!handle) {
-        return reply.send({
-          dbExists: false,
-          dbSizeBytes: 0,
-          lastIngestion: null,
-          queryCountsByTool: [],
-          totalQueries: 0,
-        })
-      }
 
       const dbSizeBytes = existsSync(dbPath) ? statSync(dbPath).size : 0
 
