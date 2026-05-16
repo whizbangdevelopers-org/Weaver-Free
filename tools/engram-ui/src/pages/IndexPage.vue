@@ -62,13 +62,18 @@
             <MonitorPanel />
           </q-tab-panel>
 
-          <!-- ── Graph mode (embed+graph, placeholder) ───────────────────────── -->
+          <!-- ── Graph mode (embed+graph) ────────────────────────────────────── -->
           <q-tab-panel name="graph" class="q-pa-none" style="height: 100%">
-            <div class="flex flex-center column q-pa-xl text-grey-6" style="height: 100%">
-              <q-icon name="mdi-graph-outline" size="64px" class="q-mb-md" />
-              <div class="text-h6">Graph mode</div>
-              <div class="text-caption q-mt-xs">Embed + graph extraction — coming soon</div>
-            </div>
+            <GraphPanel
+              :graphData="graphData"
+              :activeDatasetId="activeDatasetId"
+              :activeDatasetName="activeDatasetName"
+              :loading="graphLoading"
+              :loadingStatus="graphStatus"
+              :error="graphError"
+              @load="onLoadGraph"
+              @cancel="onCancelGraph"
+            />
           </q-tab-panel>
 
           <!-- ── Cognee mode (full-cognify) ──────────────────────────────────── -->
@@ -250,8 +255,6 @@ import UpgradeDatasetDialog from '../components/UpgradeDatasetDialog.vue'
 import { useEngramMonitor } from '../composables/useEngramMonitor'
 import type { ProcessingStrategy } from '../composables/useEngram'
 
-// GraphPanel is imported but used only in the graph tab placeholder area; suppress unused warning
-void GraphPanel
 
 const $q = useQuasar()
 
@@ -306,11 +309,6 @@ const {
   deleteDataset,
 } = useEngram()
 
-// suppress unused — fetchGraph/cancelGraph/graphData/graphStatus kept for future Graph mode
-void fetchGraph
-void cancelGraph
-void graphData
-void graphStatus
 
 const drawerOpen = ref(true)
 const activeMode = ref<'knowledge' | 'graph' | 'cognee'>('knowledge')
@@ -323,6 +321,8 @@ const addOpen = ref(false)
 const datasetsLoading = ref(false)
 const recallLoading = ref(false)
 const recallError = ref<string | null>(null)
+const graphLoading = ref(false)
+const graphError = ref<string | null>(null)
 const settingsLoading = ref(false)
 const settingsError = ref<string | null>(null)
 const keysLoading = ref(false)
@@ -453,6 +453,23 @@ async function onDeleteDataset(id: string, name: string) {
       })
     }
   })
+}
+
+// ── Graph ────────────────────────────────────────────────────────────────────
+
+async function onLoadGraph() {
+  if (!activeDatasetId.value) return
+  graphLoading.value = true
+  graphError.value = null
+  try { await fetchGraph(activeDatasetId.value) }
+  catch (e) { graphError.value = e instanceof Error ? e.message : 'Graph load failed' }
+  finally { graphLoading.value = false }
+}
+
+function onCancelGraph() {
+  cancelGraph()
+  graphLoading.value = false
+  graphError.value = null
 }
 
 // ── Recall ───────────────────────────────────────────────────────────────────
