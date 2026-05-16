@@ -13,54 +13,54 @@
     </div>
 
     <q-scroll-area v-else class="col">
-      <div
-        v-for="ds in datasets"
-        :key="ds.id"
-        class="dataset-item q-pa-xs q-mb-xs"
-        :class="{ active: activeDatasetId === ds.id }"
-        @click="emit('select', ds.id)"
-      >
-        <!-- Mode badge icon -->
-        <q-icon
-          :name="strategyMeta(ds.name).icon"
-          size="15px"
-          :color="activeDatasetId === ds.id ? 'primary' : strategyMeta(ds.name).color"
-          class="q-mr-xs flex-shrink-0"
-        >
-          <q-tooltip>{{ strategyMeta(ds.name).label }}</q-tooltip>
-        </q-icon>
-
-        <!-- Name -->
-        <div class="col overflow-hidden">
-          <div class="text-body2 ellipsis">{{ ds.name }}</div>
-
-          <!-- Upgrade state indicator -->
-          <div class="text-caption upgrade-state row items-center" :class="upgradeStateClass(ds.name)">
-            <q-icon :name="upgradeStateIcon(ds.name)" size="11px" class="q-mr-xxs flex-shrink-0" />
-            <span>{{ upgradeStateLabel(ds.name) }}</span>
-            <q-btn
-              v-if="canUpgrade(ds.name)"
-              flat dense round size="xs"
-              icon="mdi-arrow-up-circle"
-              class="q-ml-xxs upgrade-trigger"
-              @click.stop="emit('upgrade', ds.id, ds.name)"
-            >
-              <q-tooltip>Upgrade strategy</q-tooltip>
-            </q-btn>
-          </div>
+      <template v-for="group in datasetsByMode" :key="group.strategy">
+        <!-- Mode section header -->
+        <div class="row items-center q-px-xs q-pt-sm q-pb-xxs">
+          <q-icon :name="group.meta.icon" size="13px" :color="group.meta.color" class="q-mr-xs" />
+          <span class="text-caption text-weight-medium" :style="`color: var(--q-${group.meta.color}, #555)`">
+            {{ group.meta.label }}
+          </span>
         </div>
 
-        <!-- Delete -->
-        <q-btn
-          flat dense round size="xs"
-          icon="mdi-delete-outline"
-          color="grey-5"
-          class="delete-btn flex-shrink-0"
-          @click.stop="emit('delete', ds.id, ds.name)"
+        <div
+          v-for="ds in group.datasets"
+          :key="ds.id"
+          class="dataset-item q-pa-xs q-mb-xs"
+          :class="{ active: activeDatasetId === ds.id }"
+          @click="emit('select', ds.id)"
         >
-          <q-tooltip>Delete dataset</q-tooltip>
-        </q-btn>
-      </div>
+          <!-- Name -->
+          <div class="col overflow-hidden">
+            <div class="text-body2 ellipsis">{{ ds.name }}</div>
+
+            <!-- Upgrade state indicator -->
+            <div class="text-caption upgrade-state row items-center" :class="upgradeStateClass(ds.name)">
+              <q-icon :name="upgradeStateIcon(ds.name)" size="11px" class="q-mr-xxs flex-shrink-0" />
+              <span>{{ upgradeStateLabel(ds.name) }}</span>
+              <q-btn
+                v-if="canUpgrade(ds.name)"
+                flat dense round size="xs"
+                icon="mdi-arrow-up-circle"
+                class="q-ml-xxs upgrade-trigger"
+                @click.stop="emit('upgrade', ds.id, ds.name)"
+              >
+                <q-tooltip>Upgrade strategy</q-tooltip>
+              </q-btn>
+            </div>
+          </div>
+
+          <!-- Delete -->
+          <q-btn
+            flat dense round size="xs"
+            icon="mdi-delete-outline"
+            color="grey-5"
+            class="delete-btn flex-shrink-0"
+            @click.stop="emit('delete', ds.id, ds.name)"
+          >
+            <q-tooltip>Delete dataset</q-tooltip>
+          </q-btn>
+        </div>
+      </template>
     </q-scroll-area>
 
     <q-separator class="q-my-xs" />
@@ -116,6 +116,18 @@ const emit = defineEmits<{
   create: []
   upgrade: [id: string, name: string]
 }>()
+
+const datasetsByMode = computed(() =>
+  STRATEGY_ORDER
+    .map((strategy) => ({
+      strategy,
+      meta: STRATEGY_META[strategy],
+      datasets: props.datasets.filter(
+        (d) => (props.strategies[d.name] ?? 'full-cognify') === strategy,
+      ),
+    }))
+    .filter((group) => group.datasets.length > 0),
+)
 
 function strategyMeta(name: string) {
   return STRATEGY_META[props.strategies[name] ?? 'full-cognify']
