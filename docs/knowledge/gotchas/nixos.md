@@ -60,3 +60,56 @@ graduated_to: ""
 **Rule:** When using trust auth in NixOS for a loopback-only service connection, the application's own credential validator may still require a non-empty password string. Always set a dummy placeholder password even when the database ignores it.
 
 <!-- /entry -->
+
+<!-- entry:G-nixos-2026-05-15-001 -->
+---
+id: G-nixos-2026-05-15-001
+type: gotcha
+domain: nixos
+tags: [nix-store, read-only, sqlite, data-dir, buildNpmPackage, engram]
+since_version: "1.0.5"
+status: active
+scope: project
+related: [G-backend-2026-05-15-002, L-backend-2026-05-15-001]
+graduated_to: ""
+---
+
+## `buildNpmPackage` bakes `data/` into the read-only Nix store — any write-mode DB open fails silently — 2026-05-15 · Claude
+
+**Problem:** The `buildNpmPackage` derivation copies the entire source tree (all git-tracked files) into the Nix store, including `code/data/`. A backend route that opens a SQLite DB using `import.meta.dirname`-relative paths resolves to the Nix store path in production. The old lazy opener (`existsSync → open`) *appeared* to work: it found the baked-in `engram.db` snapshot, opened it, and returned data. But any write failed silently (EROFS). The new eager opener (`initEngramDb`) exposed this: `PRAGMA journal_mode = WAL` immediately fails on a read-only SQLite file, crashing plugin registration.
+
+**Fix:** Use an environment variable (`VM_DATA_DIR=/var/lib/weaver`) for mutable service state in production. In `index.ts`:
+
+```ts
+const engramDataDir = process.env.VM_DATA_DIR ?? join(import.meta.dirname, '..', '..', 'data')
+await fastify.register(engramRoutes, { prefix: '/api/engram', dataDir: engramDataDir })
+```
+
+In production the service creates and owns `/var/lib/weaver/engram.db` (inaccessible to non-service users — that's correct NixOS service isolation). In dev where `VM_DATA_DIR` is unset, the fallback keeps `code/data/engram.db` as before.
+
+**Rule:** Never derive mutable DB paths from `import.meta.dirname` in a NixOS service. The file is in the Nix store; the Nix store is read-only. Any service that writes to its own data store must use a `StateDirectory` / `$STATE_DIRECTORY` or an explicit `Environment=` path that resolves to a mutable location outside the store. The read-only source snapshot is only correct as a dev fallback or seed; production always needs a dedicated mutable dir.
+
+<!-- /entry -->
+
+<!-- entry:G-nixos-2026-05-16-001 -->
+---
+id: G-nixos-2026-05-16-001
+type: gotcha
+domain: nixos
+tags: [nixos-rebuild, systemd, concurrent, rebuild-script]
+since_version: "1.0.5"
+status: active
+scope: transferable
+related: []
+graduated_to: ""
+---
+
+## Concurrent `nixos-rebuild switch` fails — "unit already loaded" — 2026-05-16 · Claude
+
+**Problem:** Running `sudo nixos-rebuild switch` while a previous rebuild is still activating (the `nixos-rebuild-switch-to-configuration.service` transient unit) causes the second invocation to fail immediately with `Failed to start transient service unit: Unit nixos-rebuild-switch-to-configuration.service was already loaded`. The first rebuild continues and may succeed, but the second one exits non-zero with no useful diagnostic about what actually happened.
+
+**Fix:** Wait for the first rebuild to complete before starting another. The `nix-rebuild-local.sh` script runs in the foreground — if you see it hanging on the nixos-rebuild step, it is not stuck: it is still activating services. Let it finish. If the script was run in background, check `journalctl -u nixos-rebuild-switch-to-configuration.service` or poll `readlink /run/current-system` to see when the switch completes.
+
+**Rule:** Never run two `nixos-rebuild switch` invocations concurrently. The transient unit is a singleton. If the first rebuild appears to stall, it is almost certainly still activating — check journalctl before concluding it is stuck or re-running.
+
+<!-- /entry -->

@@ -107,3 +107,26 @@ function isPublicRoute(url: string): boolean {
 **Rule:** When adding a new parameterised route family to a public allowlist that uses exact-string matching, always add a prefix entry at the same time. The exact-string list is only correct for routes with no path parameters. Symptom of missing entry: 401 responses with a valid session, reproducible by curling the route unauthenticated — the same 401 you'd expect, so it's easy to misdiagnose as a Cognee/upstream error rather than an auth middleware gap.
 
 <!-- /entry -->
+
+<!-- entry:G-backend-2026-05-15-002 -->
+---
+id: G-backend-2026-05-15-002
+type: gotcha
+domain: backend
+tags: [sqlite, database, lazy-init, silent-failure, engram]
+since_version: "1.0.5"
+status: active
+scope: transferable
+related: [L-backend-2026-05-15-001]
+graduated_to: ""
+---
+
+## Lazy `existsSync → null` DB opener silently breaks all routes without any error — 2026-05-15 · Claude
+
+**Problem:** A SQLite DB accessor that checks `if (!existsSync(dbPath)) return null` causes every route handler to silently degrade: `/strategies` returns `{}`, `/datasets/:name/config` returns 503, `/queue` returns `{ queue: [] }`. No error log, no startup warning, no crash. The DB file is absent because no initializer ever created it — the opener only opens existing files. The symptom looks like "data not ingested yet" rather than "DB never initialized."
+
+**Fix:** Replace the lazy opener with an eager `initDb(dbPath)` called once at plugin registration: `mkdirSync` to ensure directory, `new DatabaseSync(dbPath)` to create the file, `handle.exec(SCHEMA)` for schema, migrations, and seed rows. Store the returned handle in the plugin closure. Remove all `null` guards from route handlers — the handle is always valid after initialization.
+
+**Rule:** Never write a DB opener that returns null on a missing file. A missing file is an initialization event, not an error condition. Any route that handles `db() === null` by returning empty data is converting a startup failure into silent data loss. Fix at the opener, not at every call site.
+
+<!-- /entry -->

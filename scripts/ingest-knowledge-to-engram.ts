@@ -48,6 +48,11 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 const CODE_ROOT = resolve(__dirname, '..')
 const KNOWLEDGE_ROOT = resolve(CODE_ROOT, 'docs/knowledge')
+// In production, use VM_DATA_DIR as the DB root to match the backend service path.
+// In dev (VM_DATA_DIR unset), falls back to code/data/engram.db.
+const ENGRAM_DB_PATH = process.env.VM_DATA_DIR
+  ? resolve(process.env.VM_DATA_DIR, 'engram.db')
+  : resolveEngramDbPath(CODE_ROOT)
 const COGNEE_URL = process.env.COGNEE_URL ?? 'http://localhost:8765'
 // Default to the weaver service account so the dataset lands in the same namespace
 // as the Engram UI and CSM hooks. Override via env vars if needed.
@@ -423,7 +428,7 @@ async function main(): Promise<void> {
   console.log(`${DIM}Dataset: ${DATASET}  ·  Sidecar: ${COGNEE_URL}${DRY_RUN ? '  ·  DRY RUN' : FORCE_RESET ? '  ·  FORCE RESET' : '  ·  incremental'}${RESET}`)
   console.log()
 
-  const db = openEngramDb(resolveEngramDbPath(CODE_ROOT))
+  const db = openEngramDb(ENGRAM_DB_PATH)
   const entries = collectEntries()
 
   if (entries.length === 0) {

@@ -22,8 +22,12 @@
       <span v-if="statusDetail.llmBackend"> · {{ statusDetail.llmBackend }}</span>
     </span>
 
-    <q-btn flat dense icon="mdi-upload" label="Add files" class="q-mr-xs" @click="emit('add')" />
-    <q-btn flat dense icon="mdi-plus-circle-outline" label="Remember" @click="emit('remember')" />
+    <q-btn flat dense round icon="mdi-cog" class="q-mr-xs" @click="emit('settings')">
+      <q-tooltip>Settings</q-tooltip>
+    </q-btn>
+    <q-btn flat dense round icon="mdi-key-variant" class="q-mr-xs" @click="emit('keys')">
+      <q-tooltip>API Keys</q-tooltip>
+    </q-btn>
     <q-btn flat dense round icon="mdi-refresh" class="q-ml-xs" @click="emit('refresh')" />
 
     <template v-if="currentUser">
@@ -48,8 +52,8 @@ defineProps<{
 }>()
 
 const emit = defineEmits<{
-  add: []
-  remember: []
+  settings: []
+  keys: []
   refresh: []
   login: []
   logout: []

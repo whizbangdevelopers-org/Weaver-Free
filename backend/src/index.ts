@@ -398,8 +398,10 @@ await fastify.register(agentRoutes, { prefix: '/api/workload', config, auditServ
 const distroTester = provisioner ? new DistroTester(vmRegistry, provisioner, config) : undefined
 await fastify.register(distroRoutes, { prefix: '/api/distros', distroStore, catalogStore, imageManager, urlValidator, config, auditService, distroTester })
 await fastify.register(auditRoutes, { prefix: '/api/audit', auditService, config })
-// Engram DB lives at code/data/ — shared with ingest script (code/scripts/ingest-knowledge-to-engram.ts)
-await fastify.register(engramRoutes, { prefix: '/api/engram', dataDir: join(import.meta.dirname, '..', '..', 'data') })
+// Dev: code/data/engram.db (shared with ingest script). Production: $VM_DATA_DIR/engram.db (mutable,
+// not baked into the read-only Nix store — the source data/ snapshot is only the seed for dev).
+const engramDataDir = process.env.VM_DATA_DIR ?? join(import.meta.dirname, '..', '..', 'data')
+await fastify.register(engramRoutes, { prefix: '/api/engram', dataDir: engramDataDir })
 await fastify.register(usersRoutes, { prefix: '/api/users', userStore, sessionStore, auditService })
 await fastify.register(quotaRoutes, { prefix: '/api/users', config, quotaStore, userStore, auditService })
 await fastify.register(vmAclRoutes, { prefix: '/api/users', aclStore: vmAclStore, config, userStore, auditService })
