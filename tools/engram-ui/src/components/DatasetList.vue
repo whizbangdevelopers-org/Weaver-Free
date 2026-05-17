@@ -4,6 +4,15 @@
   <div class="column full-height q-pa-sm" style="min-width: 200px; max-width: 260px">
     <div class="text-overline text-grey-7 q-mb-xs q-px-xs">Datasets</div>
 
+    <q-btn
+      flat dense size="sm"
+      icon="mdi-plus"
+      label="New dataset"
+      color="primary"
+      class="q-mb-xs"
+      @click="emit('create')"
+    />
+
     <div v-if="loading" class="flex flex-center q-pa-md">
       <q-spinner-dots color="primary" size="24px" />
     </div>
@@ -63,28 +72,6 @@
       </template>
     </q-scroll-area>
 
-    <q-separator class="q-my-xs" />
-
-    <!-- Footer actions -->
-    <div class="row items-center q-gutter-xs">
-      <q-btn
-        flat dense size="sm"
-        icon="mdi-plus"
-        label="New dataset"
-        color="primary"
-        class="col"
-        @click="emit('create')"
-      />
-      <q-btn
-        flat dense round size="sm"
-        icon="mdi-refresh"
-        color="grey-7"
-        :loading="loading"
-        @click="emit('refresh')"
-      >
-        <q-tooltip>Refresh</q-tooltip>
-      </q-btn>
-    </div>
   </div>
 </template>
 
@@ -111,7 +98,6 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   select: [id: string]
-  refresh: []
   delete: [id: string, name: string]
   create: []
   upgrade: [id: string, name: string]
