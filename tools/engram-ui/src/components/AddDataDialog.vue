@@ -142,7 +142,7 @@ const STRATEGY_META: Record<ProcessingStrategy, { label: string; icon: string; c
     color: 'blue',
     caption: 'Cognee builds vector embeddings and a relationship graph.',
   },
-  'full-cognify': {
+  'full-engram': {
     label: 'Full cognify',
     icon: 'mdi-brain',
     color: 'deep-purple',
@@ -171,7 +171,7 @@ const isDragging = ref(false)
 const fileInput = ref<HTMLInputElement | null>(null)
 
 const resolvedStrategy = computed<ProcessingStrategy>(
-  () => props.strategies[datasetName.value.trim()] ?? 'full-cognify'
+  () => props.strategies[datasetName.value.trim()] ?? 'full-engram'
 )
 const strategyMeta = computed(() => STRATEGY_META[resolvedStrategy.value])
 

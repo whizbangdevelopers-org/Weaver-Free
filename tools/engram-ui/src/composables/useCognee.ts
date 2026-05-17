@@ -13,7 +13,7 @@ export { useEngram as useCognee } from './useEngram'
 import type { ProcessingStrategy } from './useEngram'
 export const DATASET_STRATEGIES: Record<string, ProcessingStrategy> = {
   project_knowledge: 'embed-only',
-  fom_registry:      'full-cognify',
+  fom_registry:      'full-engram',
 }
 
 // STALE_MS and DEFAULT_STALE_MS are re-exported via the wildcard above.

@@ -20,12 +20,24 @@
     </q-banner>
 
     <!-- Sub-tabs -->
-    <q-tabs v-model="monitorTab" align="left" dense class="q-mb-md" active-color="primary" indicator-color="primary">
+    <q-tabs v-model="monitorTab" align="left" dense class="q-mb-sm" active-color="primary" indicator-color="primary">
       <q-tab name="status"    icon="mdi-gauge"                label="Status" />
-      <q-tab name="registry"  icon="mdi-bookshelf"            label="Knowledge Registry" />
+      <q-tab name="registry"  icon="mdi-bookshelf"            :label="props.mode === 'graph' ? 'Graph' : 'Knowledge Registry'" />
       <q-tab name="queries"   icon="mdi-format-list-bulleted" label="Query Log" />
       <q-tab name="ingestion" icon="mdi-database-import"      label="Ingestion" />
     </q-tabs>
+
+    <!-- Produced card — always visible, content varies by mode -->
+    <ProducedCard
+      :mode="props.mode ?? 'knowledge'"
+      :chunks="props.activeDatasetId != null ? (props.engramStats?.pgvector?.chunks ?? 0) : 0"
+      :avgPerEntry="props.activeDatasetId != null ? avgPerEntry : null"
+      :embeddingLatencyMs="infrastructure?.embedding?.latencyMs ?? null"
+      :embeddingHeadroomPer15s="infrastructure?.embedding?.headroomPer15s ?? null"
+      :nodes="props.activeDatasetId != null ? (props.datasetGraph?.nodes.length ?? 0) : 0"
+      :edges="props.activeDatasetId != null ? (props.datasetGraph?.edges.length ?? 0) : 0"
+      :promotionRate="props.activeDatasetId != null ? promotionRate : null"
+    />
 
     <!-- ── Status ─────────────────────────────────────────────────────────── -->
     <q-tab-panels v-model="monitorTab" animated>
@@ -109,194 +121,171 @@
             </div>
           </template>
 
-          <div class="text-subtitle2 q-mb-sm">Last Ingestion Run</div>
-          <q-card flat bordered class="q-mb-md">
-            <q-card-section v-if="!status.lastIngestion" class="text-grey-7 text-caption">
-              No ingestion runs recorded yet.
-            </q-card-section>
-            <q-card-section v-else>
-              <div class="row q-gutter-md flex-wrap">
-                <div>
-                  <div class="text-caption text-grey-7">Time</div>
-                  <div class="text-body2">{{ formatTs(status.lastIngestion.ts) }}</div>
-                </div>
-                <div>
-                  <div class="text-caption text-grey-7">Dataset</div>
-                  <div class="text-body2 text-mono">{{ status.lastIngestion.dataset }}</div>
-                </div>
-                <div>
-                  <div class="text-caption text-grey-7">Entries</div>
-                  <div class="text-body2">{{ status.lastIngestion.entry_count }}</div>
-                </div>
-                <div>
-                  <div class="text-caption text-grey-7">OK / Fail</div>
-                  <div class="text-body2">
-                    <span class="text-positive">{{ status.lastIngestion.success_count }}</span>
-                    /
-                    <span :class="status.lastIngestion.failure_count > 0 ? 'text-negative' : 'text-grey-7'">{{ status.lastIngestion.failure_count }}</span>
-                  </div>
-                </div>
-                <div>
-                  <div class="text-caption text-grey-7">Graph</div>
-                  <q-icon
-                    :name="status.lastIngestion.improved ? 'mdi-check-circle' : 'mdi-close-circle'"
-                    :color="status.lastIngestion.improved ? 'positive' : 'grey-5'"
-                    size="20px"
-                  />
-                </div>
-                <div>
-                  <div class="text-caption text-grey-7">Duration</div>
-                  <div class="text-body2">{{ (status.lastIngestion.duration_ms / 1000).toFixed(1) }}s</div>
-                </div>
-              </div>
-            </q-card-section>
-          </q-card>
-
-          <div class="text-subtitle2 q-mb-sm">MCP Tool Usage (90-day window)</div>
-          <q-card flat bordered>
-            <q-card-section v-if="status.queryCountsByTool.length === 0" class="text-grey-7 text-caption">
-              No queries recorded yet.
-            </q-card-section>
-            <q-table
-              v-else flat
-              :rows="status.queryCountsByTool"
-              :columns="toolStatColumns"
-              row-key="tool"
-              hide-pagination
-              :rows-per-page-options="[0]"
-            >
-              <template #body-cell-tool="props">
-                <q-td :props="props"><span class="text-mono text-caption">{{ props.row.tool }}</span></q-td>
-              </template>
-              <template #body-cell-avg_latency_ms="props">
-                <q-td :props="props">{{ Math.round(props.row.avg_latency_ms) }} ms</q-td>
-              </template>
-              <template #body-cell-last_called="props">
-                <q-td :props="props"><span class="text-caption">{{ formatTs(props.row.last_called) }}</span></q-td>
-              </template>
-            </q-table>
-          </q-card>
+          <template v-if="props.mode === 'knowledge'">
+            <div class="text-subtitle2 q-mb-sm">MCP Tool Usage (90-day window)</div>
+            <q-card flat bordered>
+              <q-card-section v-if="status.queryCountsByTool.length === 0" class="text-grey-7 text-caption">
+                No queries recorded yet.
+              </q-card-section>
+              <q-table
+                v-else flat
+                :rows="status.queryCountsByTool"
+                :columns="toolStatColumns"
+                row-key="tool"
+                hide-pagination
+                :rows-per-page-options="[0]"
+              >
+                <template #body-cell-tool="props">
+                  <q-td :props="props"><span class="text-mono text-caption">{{ props.row.tool }}</span></q-td>
+                </template>
+                <template #body-cell-avg_latency_ms="props">
+                  <q-td :props="props">{{ Math.round(props.row.avg_latency_ms) }} ms</q-td>
+                </template>
+                <template #body-cell-last_called="props">
+                  <q-td :props="props"><span class="text-caption">{{ formatTs(props.row.last_called) }}</span></q-td>
+                </template>
+              </q-table>
+            </q-card>
+          </template>
         </template>
       </q-tab-panel>
 
-      <!-- ── Knowledge Registry ────────────────────────────────────────────── -->
+      <!-- ── Knowledge Registry / Graph Explorer ───────────────────────────── -->
       <q-tab-panel name="registry" class="q-pa-none">
-        <div class="row items-center q-mb-sm q-gutter-x-sm">
-          <q-chip
-            v-if="engramStats"
-            dense square size="sm"
-            :color="engramStats.strategy === 'full-cognify' ? 'blue-7' : engramStats.strategy === 'embed+graph' ? 'teal-7' : 'amber-8'"
-            text-color="white"
-            :label="engramStats.strategy"
-          />
-          <q-space />
-          <q-btn-toggle
-            v-model="registryView"
-            flat dense
-            toggle-color="primary"
-            :options="[
-              { value: 'table', icon: 'mdi-format-list-bulleted' },
-              { value: 'graph', icon: 'mdi-graph-outline' },
-            ]"
-          />
-        </div>
-        <q-banner v-if="entriesError" dense rounded class="bg-negative text-white q-mb-sm">{{ entriesError }}</q-banner>
-        <q-banner v-if="viewNotify" dense rounded class="bg-negative text-white q-mb-sm" @click="viewNotify = null">
-          <template #avatar><q-icon name="mdi-alert-circle" /></template>
-          {{ viewNotify }}
-        </q-banner>
 
-        <!-- Table view -->
-        <q-card v-if="registryView === 'table'" flat bordered class="q-mb-md">
-          <q-card-section v-if="entriesLoading && entries.length === 0" class="text-center q-pa-md">
-            <q-spinner size="24px" />
-          </q-card-section>
-          <q-card-section v-else-if="entries.length === 0" class="text-grey-7 text-caption">
-            No entries in registry yet — run <span class="text-mono">npm run engram:ingest-knowledge</span>.
-          </q-card-section>
-          <div v-else class="registry-table">
-            <div class="row items-center q-px-sm q-py-xs text-caption text-grey-7 bg-grey-2">
-              <div style="width:40px"></div>
-              <div class="col">Type</div>
-              <div style="width:130px">Scope</div>
-              <div class="text-right" style="width:56px">Count</div>
-            </div>
-            <q-separator />
-            <template v-for="group in groupedEntries" :key="group.domain">
-              <div
-                class="row items-center q-px-sm q-py-xs bg-grey-1 registry-domain-header"
-                @click="toggleDomain(group.domain)"
-              >
-                <div style="width:40px" class="text-center">
-                  <q-icon
-                    :name="expandedDomains.has(group.domain) ? 'mdi-chevron-down' : 'mdi-chevron-right'"
-                    size="16px" color="grey-6"
-                  />
-                </div>
-                <div class="col text-mono text-caption text-weight-medium">{{ group.domain }}</div>
-                <div style="width:130px"></div>
-                <div class="text-right text-weight-bold text-caption" style="width:56px">{{ group.total }}</div>
+        <!-- Graph mode: dataset graph visualizer -->
+        <template v-if="props.mode === 'graph'">
+          <GraphPanel
+            :graphData="props.datasetGraph ?? null"
+            :activeDatasetId="props.activeDatasetId ?? null"
+            :activeDatasetName="props.activeDatasetName ?? null"
+            :loading="props.datasetGraphLoading ?? false"
+            :loadingStatus="props.datasetGraphStatus ?? null"
+            :error="props.datasetGraphError ?? null"
+            @load="emit('loadDatasetGraph')"
+            @cancel="emit('cancelDatasetGraph')"
+          />
+        </template>
+
+        <!-- Knowledge mode: registry table / graph -->
+        <template v-else>
+          <div class="row items-center q-mb-sm q-gutter-x-sm">
+            <q-chip
+              v-if="props.engramStats"
+              dense square size="sm"
+              :color="props.engramStats.strategy === 'full-engram' ? 'blue-7' : props.engramStats.strategy === 'embed+graph' ? 'teal-7' : 'amber-8'"
+              text-color="white"
+              :label="props.engramStats.strategy"
+            />
+            <q-space />
+            <q-btn-toggle
+              v-model="registryView"
+              flat dense
+              toggle-color="primary"
+              :options="[
+                { value: 'table', icon: 'mdi-format-list-bulleted' },
+                { value: 'graph', icon: 'mdi-graph-outline' },
+              ]"
+            />
+          </div>
+          <q-banner v-if="entriesError" dense rounded class="bg-negative text-white q-mb-sm">{{ entriesError }}</q-banner>
+          <q-banner v-if="viewNotify" dense rounded class="bg-negative text-white q-mb-sm" @click="viewNotify = null">
+            <template #avatar><q-icon name="mdi-alert-circle" /></template>
+            {{ viewNotify }}
+          </q-banner>
+
+          <!-- Table view -->
+          <q-card v-if="registryView === 'table'" flat bordered class="q-mb-md">
+            <q-card-section v-if="entriesLoading && entries.length === 0" class="text-center q-pa-md">
+              <q-spinner size="24px" />
+            </q-card-section>
+            <q-card-section v-else-if="entries.length === 0" class="text-grey-7 text-caption">
+              No entries in registry yet — run <span class="text-mono">npm run engram:ingest-knowledge</span>.
+            </q-card-section>
+            <div v-else class="registry-table">
+              <div class="row items-center q-px-sm q-py-xs text-caption text-grey-7 bg-grey-2">
+                <div style="width:40px"></div>
+                <div class="col">Type</div>
+                <div style="width:130px">Scope</div>
+                <div class="text-right" style="width:56px">Count</div>
               </div>
-              <template v-if="expandedDomains.has(group.domain)">
+              <q-separator />
+              <template v-for="group in groupedEntries" :key="group.domain">
                 <div
-                  v-for="row in group.rows"
-                  :key="rowKey(row)"
-                  class="row items-center q-px-sm q-py-xs registry-subrow"
+                  class="row items-center q-px-sm q-py-xs bg-grey-1 registry-domain-header"
+                  @click="toggleDomain(group.domain)"
                 >
                   <div style="width:40px" class="text-center">
-                    <q-btn
-                      flat dense round size="xs" icon="mdi-eye-outline"
-                      :loading="viewingRow === rowKey(row)"
-                      @click.stop="onViewRow(row)"
-                    >
-                      <q-tooltip>View entries</q-tooltip>
-                    </q-btn>
-                  </div>
-                  <div class="col">
-                    <q-badge :color="row.type === 'lesson' ? 'blue-7' : 'orange-8'" outline :label="row.type" />
-                  </div>
-                  <div style="width:130px">
-                    <q-badge
-                      :color="row.scope === 'transferable' ? 'positive' : row.scope === 'transient' ? 'grey-6' : 'primary'"
-                      outline :label="row.scope"
+                    <q-icon
+                      :name="expandedDomains.has(group.domain) ? 'mdi-chevron-down' : 'mdi-chevron-right'"
+                      size="16px" color="grey-6"
                     />
                   </div>
-                  <div class="text-right text-weight-medium text-caption" style="width:56px">{{ row.count }}</div>
+                  <div class="col text-mono text-caption text-weight-medium">{{ group.domain }}</div>
+                  <div style="width:130px"></div>
+                  <div class="text-right text-weight-bold text-caption" style="width:56px">{{ group.total }}</div>
                 </div>
+                <template v-if="expandedDomains.has(group.domain)">
+                  <div
+                    v-for="row in group.rows"
+                    :key="rowKey(row)"
+                    class="row items-center q-px-sm q-py-xs registry-subrow"
+                  >
+                    <div style="width:40px" class="text-center">
+                      <q-btn
+                        flat dense round size="xs" icon="mdi-eye-outline"
+                        :loading="viewingRow === rowKey(row)"
+                        @click.stop="onViewRow(row)"
+                      >
+                        <q-tooltip>View entries</q-tooltip>
+                      </q-btn>
+                    </div>
+                    <div class="col">
+                      <q-badge :color="row.type === 'lesson' ? 'blue-7' : 'orange-8'" outline :label="row.type" />
+                    </div>
+                    <div style="width:130px">
+                      <q-badge
+                        :color="row.scope === 'transferable' ? 'positive' : row.scope === 'transient' ? 'grey-6' : 'primary'"
+                        outline :label="row.scope"
+                      />
+                    </div>
+                    <div class="text-right text-weight-medium text-caption" style="width:56px">{{ row.count }}</div>
+                  </div>
+                </template>
+                <q-separator />
               </template>
-              <q-separator />
-            </template>
-            <div class="row items-center q-px-sm q-py-xs text-grey-7">
-              <div style="width:40px"></div>
-              <div class="col text-caption">Total</div>
-              <div style="width:130px"></div>
-              <div class="text-right text-weight-bold text-caption" style="width:56px">{{ entriesTotal }}</div>
+              <div class="row items-center q-px-sm q-py-xs text-grey-7">
+                <div style="width:40px"></div>
+                <div class="col text-caption">Total</div>
+                <div style="width:130px"></div>
+                <div class="text-right text-weight-bold text-caption" style="width:56px">{{ entriesTotal }}</div>
+              </div>
             </div>
+          </q-card>
+
+          <!-- Graph view -->
+          <q-card v-else flat bordered class="q-mb-md">
+            <q-card-section v-if="graphLoading && !graphData" class="text-center q-pa-md">
+              <q-spinner size="24px" />
+            </q-card-section>
+            <q-card-section v-else class="q-pa-sm">
+              <registry-graph
+                :nodes="graphData?.nodes ?? []"
+                :edges="graphData?.edges ?? []"
+              />
+            </q-card-section>
+          </q-card>
+
+          <div class="text-caption text-grey-6 q-mt-xs" v-if="props.engramStats">
+            pgvector —
+            <span v-if="props.engramStats.pgvector">
+              chunks: {{ props.engramStats.pgvector.chunks.toLocaleString() }} &middot;
+              summaries: {{ props.engramStats.pgvector.summaries.toLocaleString() }} &middot;
+              entities: {{ props.engramStats.pgvector.entities.toLocaleString() }}
+            </span>
+            <span v-else>unreachable</span>
           </div>
-        </q-card>
-
-        <!-- Graph view -->
-        <q-card v-else flat bordered class="q-mb-md">
-          <q-card-section v-if="graphLoading && !graphData" class="text-center q-pa-md">
-            <q-spinner size="24px" />
-          </q-card-section>
-          <q-card-section v-else class="q-pa-sm">
-            <registry-graph
-              :nodes="graphData?.nodes ?? []"
-              :edges="graphData?.edges ?? []"
-            />
-          </q-card-section>
-        </q-card>
-
-        <div class="text-caption text-grey-6 q-mt-xs" v-if="engramStats">
-          pgvector —
-          <span v-if="engramStats.pgvector">
-            chunks: {{ engramStats.pgvector.chunks.toLocaleString() }} &middot;
-            summaries: {{ engramStats.pgvector.summaries.toLocaleString() }} &middot;
-            entities: {{ engramStats.pgvector.entities.toLocaleString() }}
-          </span>
-          <span v-else>unreachable</span>
-        </div>
+        </template>
       </q-tab-panel>
 
       <!-- ── Query Log ───────────────────────────────────────────────────── -->
@@ -416,8 +405,8 @@
             {{ runs.length > 0 ? `${runsOffset + 1}–${Math.min(runsOffset + LIMIT, runsTotal)} of ${runsTotal}` : '' }}
           </div>
           <div class="row q-gutter-sm">
-            <q-btn flat dense icon="mdi-chevron-left" :disable="runsOffset === 0" @click="fetchIngestionHistory(runsOffset - LIMIT)" />
-            <q-btn flat dense icon="mdi-chevron-right" :disable="runsOffset + LIMIT >= runsTotal" @click="fetchIngestionHistory(runsOffset + LIMIT)" />
+            <q-btn flat dense icon="mdi-chevron-left" :disable="runsOffset === 0" @click="fetchIngestionHistory(runsOffset - LIMIT, modeStrategy)" />
+            <q-btn flat dense icon="mdi-chevron-right" :disable="runsOffset + LIMIT >= runsTotal" @click="fetchIngestionHistory(runsOffset + LIMIT, modeStrategy)" />
           </div>
         </div>
       </q-tab-panel>
@@ -444,8 +433,36 @@
 import { ref, computed, watch, onUnmounted } from 'vue'
 import type { QTableColumn } from 'quasar'
 import { useEngramMonitor } from '../composables/useEngramMonitor'
-import type { EngramEntryDomainRow } from '../composables/useEngramMonitor'
+import type { EngramEntryDomainRow, EngramStats } from '../composables/useEngramMonitor'
+import type { GraphData } from '../composables/useEngram'
 import RegistryGraph from './RegistryGraph.vue'
+import GraphPanel from './GraphPanel.vue'
+import ProducedCard from './ProducedCard.vue'
+
+const props = withDefaults(defineProps<{
+  mode?: 'knowledge' | 'graph'
+  activeDatasetId?: string | null
+  activeDatasetName?: string | null
+  datasetGraph?: GraphData | null
+  datasetGraphLoading?: boolean
+  datasetGraphStatus?: string | null
+  datasetGraphError?: string | null
+  engramStats?: EngramStats | null
+}>(), {
+  mode: 'knowledge',
+  activeDatasetId: null,
+  activeDatasetName: null,
+  datasetGraph: null,
+  datasetGraphLoading: false,
+  datasetGraphStatus: null,
+  datasetGraphError: null,
+  engramStats: null,
+})
+
+const emit = defineEmits<{
+  loadDatasetGraph: []
+  cancelDatasetGraph: []
+}>()
 
 const {
   status,
@@ -466,7 +483,6 @@ const {
   entriesTotal,
   entriesLoading,
   entriesError,
-  engramStats,
   graphData,
   graphLoading,
   infrastructure,
@@ -474,11 +490,19 @@ const {
   infraError,
   fetchInfrastructure,
   LIMIT,
+  fetchStatus,
   fetchQueries,
   fetchIngestionHistory,
+  fetchEntries,
+  fetchGraphData,
   viewEntries,
-  loadAll,
 } = useEngramMonitor()
+
+const MODE_STRATEGY: Record<string, string> = {
+  knowledge: 'embed-only',
+  graph: 'embed+graph',
+}
+const modeStrategy = computed(() => MODE_STRATEGY[props.mode ?? 'knowledge'])
 
 // 10s auto-refresh for infrastructure while Status tab is active
 let infraTimer: ReturnType<typeof setInterval> | null = null
@@ -576,20 +600,39 @@ const toolOptions = computed(() =>
   status.value?.queryCountsByTool.map((s) => ({ label: s.tool, value: s.tool })) ?? [],
 )
 
+const avgPerEntry = computed((): number | null => {
+  const stats = props.engramStats
+  if (!stats?.pgvector || stats.totalEntries <= 0) return null
+  return stats.pgvector.chunks / stats.totalEntries
+})
+
+const promotionRate = computed((): number | null => {
+  if (props.mode !== 'graph') return null
+  const total = runs.value.length
+  if (total === 0) return null
+  return Math.round(runs.value.filter((r) => r.improved).length / total * 100)
+})
+
 async function onRefreshAll() {
   refreshing.value = true
-  await loadAll()
+  await Promise.all([
+    fetchStatus(),
+    fetchQueries(0),
+    fetchIngestionHistory(0, modeStrategy.value),
+    fetchEntries(),
+    fetchGraphData(),
+  ])
   refreshing.value = false
 }
 
 watch(monitorTab, (t) => {
   if (t === 'queries' && queries.value.length === 0) void fetchQueries(0)
-  if (t === 'ingestion' && runs.value.length === 0) void fetchIngestionHistory(0)
+  if (t === 'ingestion' && runs.value.length === 0) void fetchIngestionHistory(0, modeStrategy.value)
   if (t === 'status') startInfraPolling()
   else stopInfraPolling()
 })
 
-void loadAll()
+void Promise.all([fetchStatus(), fetchQueries(0), fetchIngestionHistory(0, modeStrategy.value), fetchEntries(), fetchGraphData()])
 startInfraPolling()
 
 function formatTs(ms: number): string {

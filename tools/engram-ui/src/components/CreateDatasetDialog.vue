@@ -122,11 +122,11 @@ const STRATEGY_OPTIONS: Array<{
     needsPipeline: false,
   },
   {
-    strategy: 'full-cognify',
-    label: 'Full cognify',
-    icon: 'mdi-brain',
+    strategy: 'full-engram',
+    label: 'Engram (full pipeline)',
+    icon: 'mdi-memory',
     color: 'deep-purple',
-    caption: 'Full entity extraction pipeline. Slowest, richest output.',
+    caption: 'Full Engram pipeline — entity extraction, graph, embeddings. Richest output.',
     needsEmbedding: true,
     needsPipeline: true,
   },
@@ -137,6 +137,7 @@ const NAME_REGEX = /^[a-z][a-z0-9_-]*$/
 const props = defineProps<{
   modelValue: boolean
   initialName?: string
+  initialStrategy?: ProcessingStrategy
   infrastructure: EngramInfrastructure | null
   infraLoading: boolean
   loading: boolean
@@ -149,11 +150,12 @@ const emit = defineEmits<{
 
 const open = ref(props.modelValue)
 const name = ref(props.initialName ?? '')
-const selectedStrategy = ref<ProcessingStrategy>('embed-only')
+const selectedStrategy = ref<ProcessingStrategy>(props.initialStrategy ?? 'embed-only')
 
 watch(() => props.modelValue, (v) => { open.value = v })
 watch(open, (v) => emit('update:modelValue', v))
 watch(() => props.initialName, (v) => { if (v) name.value = v })
+watch(() => props.initialStrategy, (v) => { if (v) selectedStrategy.value = v })
 
 const nameValid = computed(() => NAME_REGEX.test(name.value.trim()) && name.value.trim().length <= 64)
 
@@ -184,7 +186,7 @@ const strategyOptions = computed(() =>
 
 function reset() {
   name.value = props.initialName ?? ''
-  selectedStrategy.value = 'embed-only'
+  selectedStrategy.value = props.initialStrategy ?? 'embed-only'
 }
 
 function onSubmit() {

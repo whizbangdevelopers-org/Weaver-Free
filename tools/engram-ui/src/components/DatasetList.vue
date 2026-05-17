@@ -96,10 +96,10 @@ import type { UpgradeQueueEntry } from '../composables/useEngramMonitor'
 const STRATEGY_META: Record<ProcessingStrategy, { label: string; icon: string; color: string }> = {
   'embed-only':   { label: 'Embed only',   icon: 'mdi-lightning-bolt', color: 'teal'        },
   'embed+graph':  { label: 'Embed + graph', icon: 'mdi-graph-outline',  color: 'blue'        },
-  'full-cognify': { label: 'Full cognify', icon: 'mdi-brain',           color: 'deep-purple' },
+  'full-engram':  { label: 'Engram',        icon: 'mdi-memory',          color: 'deep-purple' },
 }
 
-const STRATEGY_ORDER: ProcessingStrategy[] = ['embed-only', 'embed+graph', 'full-cognify']
+const STRATEGY_ORDER: ProcessingStrategy[] = ['embed-only', 'embed+graph', 'full-engram']
 
 const props = defineProps<{
   datasets: Dataset[]
@@ -123,14 +123,14 @@ const datasetsByMode = computed(() =>
       strategy,
       meta: STRATEGY_META[strategy],
       datasets: props.datasets.filter(
-        (d) => (props.strategies[d.name] ?? 'full-cognify') === strategy,
+        (d) => (props.strategies[d.name] ?? 'full-engram') === strategy,
       ),
     }))
     .filter((group) => group.datasets.length > 0),
 )
 
 function strategyMeta(name: string) {
-  return STRATEGY_META[props.strategies[name] ?? 'full-cognify']
+  return STRATEGY_META[props.strategies[name] ?? 'full-engram']
 }
 
 function activeJobFor(name: string): UpgradeQueueEntry | null {
@@ -141,7 +141,7 @@ function upgradeStateLabel(name: string): string {
   const job = activeJobFor(name)
   if (job?.status === 'running') return 'Upgrading…'
   if (job?.status === 'queued')  return 'Queued'
-  const strategy = props.strategies[name] ?? 'full-cognify'
+  const strategy = props.strategies[name] ?? 'full-engram'
   const idx = STRATEGY_ORDER.indexOf(strategy)
   if (idx < STRATEGY_ORDER.length - 1) return '↑ Upgrade available'
   return 'Stable'
@@ -151,7 +151,7 @@ function upgradeStateIcon(name: string): string {
   const job = activeJobFor(name)
   if (job?.status === 'running') return 'mdi-sync'
   if (job?.status === 'queued')  return 'mdi-clock-outline'
-  const strategy = props.strategies[name] ?? 'full-cognify'
+  const strategy = props.strategies[name] ?? 'full-engram'
   const idx = STRATEGY_ORDER.indexOf(strategy)
   if (idx < STRATEGY_ORDER.length - 1) return 'mdi-arrow-up-circle-outline'
   return 'mdi-check-circle-outline'
@@ -160,7 +160,7 @@ function upgradeStateIcon(name: string): string {
 function canUpgrade(name: string): boolean {
   const job = activeJobFor(name)
   if (job) return false
-  const strategy = props.strategies[name] ?? 'full-cognify'
+  const strategy = props.strategies[name] ?? 'full-engram'
   const idx = STRATEGY_ORDER.indexOf(strategy)
   return idx < STRATEGY_ORDER.length - 1
 }
@@ -169,7 +169,7 @@ function upgradeStateClass(name: string): string {
   const job = activeJobFor(name)
   if (job?.status === 'running') return 'text-blue-6'
   if (job?.status === 'queued')  return 'text-orange-7'
-  const strategy = props.strategies[name] ?? 'full-cognify'
+  const strategy = props.strategies[name] ?? 'full-engram'
   const idx = STRATEGY_ORDER.indexOf(strategy)
   if (idx < STRATEGY_ORDER.length - 1) return 'text-teal-7'
   return 'text-grey-6'

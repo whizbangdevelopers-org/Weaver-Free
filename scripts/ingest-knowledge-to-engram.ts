@@ -66,8 +66,8 @@ const METADATA_ONLY = process.argv.includes('--metadata-only')
 // Processing strategy for this dataset.
 // embed-only:  chunk + embed → weaver_knowledge_chunks (pgvector), skip Cognee pipeline.
 // embed+graph: embed-only PLUS LLM entity extraction → Kuzu (owned graph, no Cognee).
-// full-cognify: Cognee /add + /cognify (entity extraction + graph via Cognee sidecar).
-const STRATEGY: 'embed-only' | 'embed+graph' | 'full-cognify' = 'embed-only'
+// full-engram: Cognee /add + /cognify (entity extraction + graph via Cognee sidecar).
+const STRATEGY: 'embed-only' | 'embed+graph' | 'full-engram' = 'embed-only'
 
 const LLAMA_GEN_URL = process.env.LLAMA_GEN_URL ?? 'http://localhost:8769'
 
@@ -719,7 +719,7 @@ async function main(): Promise<void> {
     }
 
   } else {
-    // ── full-cognify path (Cognee /add + /cognify) ─────────────────────────────
+    // ── full-engram path (Cognee /add + /cognify) ──────────────────────────────
     const available = await checkCognee()
     if (!available) {
       console.error(`${RED}${BOLD}Engram service unreachable at ${COGNEE_URL}${RESET}`)

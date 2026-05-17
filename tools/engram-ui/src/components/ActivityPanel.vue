@@ -99,18 +99,18 @@
             </q-item-label>
           </q-item-section>
 
-          <!-- Cognify action for completed add_pipeline -->
+          <!-- Process action for completed add_pipeline -->
           <q-item-section side v-if="isCompleted(run) && run.pipeline_name === 'add_pipeline'">
             <q-btn
               flat
               dense
               size="sm"
-              icon="mdi-brain"
-              label="Cognify"
+              icon="mdi-memory"
+              label="Process"
               color="primary"
-              @click="emit('cognify', run.dataset_name ?? '', run.dataset_id ?? '')"
+              @click="emit('process', run.dataset_name ?? '', run.dataset_id ?? '')"
             >
-              <q-tooltip>Extract knowledge graph from this dataset</q-tooltip>
+              <q-tooltip>Run full Engram pipeline on this dataset</q-tooltip>
             </q-btn>
           </q-item-section>
         </q-item>
@@ -135,7 +135,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   refresh: []
-  cognify: [datasetName: string, datasetId: string]
+  process: [datasetName: string, datasetId: string]
 }>()
 
 function isStale(r: PipelineRun): boolean {
