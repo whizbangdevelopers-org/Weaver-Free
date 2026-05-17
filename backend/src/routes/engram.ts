@@ -8,6 +8,7 @@ import { existsSync, statSync, readFileSync, mkdirSync } from 'node:fs'
 import { join, resolve, dirname } from 'node:path'
 import { Pool } from 'pg'
 import { probeEngramInfrastructure } from '../services/engram-infra.js'
+import { engramConfig } from '../services/engram-config.js'
 // Auth deferred — RBAC gates added at Weaver Team/Fabrick integration (Decision #160).
 
 type ProcessingStrategy = 'embed-only' | 'embed+graph' | 'full-engram'
@@ -522,14 +523,10 @@ export const engramRoutes: FastifyPluginAsync<EngramRouteOptions> = async (fasti
         }
       } catch { /* table may not exist yet */ }
 
-      // pgvector counts — connect to cognee PostgreSQL
+      // pgvector counts — connect to Engram PostgreSQL
       let pgvector: { chunks: number; summaries: number; entities: number } | null = null
       const pool = new Pool({
-        host: '127.0.0.1',
-        port: 5432,
-        user: 'cognee',
-        password: 'cognee-local',
-        database: 'cognee',
+        ...engramConfig.pg,
         connectionTimeoutMillis: 3000,
         max: 1,
       })

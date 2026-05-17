@@ -2,17 +2,7 @@
 // Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE.
 
 import { Pool } from 'pg'
-
-// Service URLs — override via env vars to match the deployment config.
-const LLM_URL      = process.env.ENGRAM_LLM_URL      ?? 'http://127.0.0.1:8769'
-const EMBED_URL    = process.env.ENGRAM_EMBED_URL     ?? 'http://127.0.0.1:8767'
-const PIPELINE_URL = process.env.ENGRAM_PIPELINE_URL  ?? 'http://127.0.0.1:8765'
-
-const PG_HOST     = process.env.PGVECTOR_HOST     ?? '127.0.0.1'
-const PG_PORT     = parseInt(process.env.PGVECTOR_PORT ?? '5432', 10)
-const PG_USER     = process.env.PGVECTOR_USER     ?? 'cognee'
-const PG_PASSWORD = process.env.PGVECTOR_PASSWORD ?? 'cognee-local'
-const PG_DB       = process.env.PGVECTOR_DB       ?? 'cognee'
+import { engramConfig } from './engram-config.js'
 
 const PROBE_TIMEOUT_MS = 2000
 
@@ -50,7 +40,7 @@ async function probeHttp(url: string): Promise<ComponentStatus> {
 
 async function probePgvector(): Promise<ComponentStatus> {
   const pool = new Pool({
-    host: PG_HOST, port: PG_PORT, user: PG_USER, password: PG_PASSWORD, database: PG_DB,
+    ...engramConfig.pg,
     connectionTimeoutMillis: PROBE_TIMEOUT_MS, max: 1,
   })
   const start = Date.now()
@@ -68,9 +58,9 @@ async function probePgvector(): Promise<ComponentStatus> {
 
 export async function probeEngramInfrastructure(): Promise<InfrastructureStatus> {
   const [llm, embedding, pipeline, pgvector] = await Promise.all([
-    probeHttp(`${LLM_URL}/health`),
-    probeHttp(`${EMBED_URL}/health`),
-    probeHttp(`${PIPELINE_URL}/health`),
+    probeHttp(`${engramConfig.llm.url}/health`),
+    probeHttp(`${engramConfig.embedding.url}/health`),
+    probeHttp(`${engramConfig.pipeline.url}/health`),
     probePgvector(),
   ])
 

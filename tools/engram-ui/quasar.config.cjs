@@ -45,18 +45,18 @@ module.exports = configure(function (/* ctx */) {
 
     devServer: {
       open: false,
-      port: 8768,
+      port: Number(process.env.QUASAR_ENGRAM_PORT) || 8768,
       proxy: {
         '/api': {
-          target: 'http://localhost:8765',
+          target: `http://localhost:${process.env.QUASAR_COGNEE_PORT || 8765}`,
           changeOrigin: true,
         },
         '/health': {
-          target: 'http://localhost:8765',
+          target: `http://localhost:${process.env.QUASAR_COGNEE_PORT || 8765}`,
           changeOrigin: true,
         },
         '/weaver': {
-          target: 'http://localhost:3110',
+          target: `http://localhost:${process.env.QUASAR_WEAVER_PORT || 3110}`,
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/weaver/, ''),
         },
