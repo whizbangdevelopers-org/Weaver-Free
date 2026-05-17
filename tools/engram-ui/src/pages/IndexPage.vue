@@ -25,7 +25,6 @@
         :strategies="strategies"
         :upgradeQueue="upgradeQueue"
         @select="onSelectDataset"
-        @refresh="loadDatasets"
         @delete="onDeleteDataset"
         @create="createOpen = true"
         @upgrade="onUpgradeDataset"
