@@ -238,6 +238,97 @@ in
       description = "Path to weasyprint binary for compliance PDF generation";
     };
 
+    engram = mkOption {
+      description = ''
+        Engram knowledge service connection configuration.
+        Engram provides vector search, graph memory, and LLM-assisted knowledge
+        ingestion. It runs as a companion service (Cognee sidecar) alongside Weaver.
+
+        For independent installation, set pgPasswordFile and cogneePasswordFile
+        to sops-nix secret paths. All other options have sensible defaults for
+        a standard local install.
+
+        Example (configuration.nix):
+          services.weaver.engram = {
+            pgPasswordFile       = config.sops.secrets."engram-pg-password".path;
+            cogneeEmail          = "weaver@example.com";
+            cogneePasswordFile   = config.sops.secrets."engram-cognee-password".path;
+          };
+      '';
+      default = {};
+      type = types.submodule {
+        options = {
+          pgHost = mkOption {
+            type = types.str;
+            default = "127.0.0.1";
+            description = "PostgreSQL host for the Engram vector database";
+          };
+          pgPort = mkOption {
+            type = types.port;
+            default = 5432;
+            description = "PostgreSQL port for the Engram vector database";
+          };
+          pgUser = mkOption {
+            type = types.str;
+            default = "engram";
+            description = "PostgreSQL role name for the Engram database";
+          };
+          pgDatabase = mkOption {
+            type = types.str;
+            default = "engram";
+            description = "PostgreSQL database name for the Engram vector store";
+          };
+          pgPasswordFile = mkOption {
+            type = types.nullOr types.str;
+            default = null;
+            description = ''
+              Path to a file containing the PostgreSQL password for the Engram role.
+              Recommended for production — use sops-nix to manage the secret.
+              If null, falls back to ENGRAM_PG_PASSWORD env var (default: engram-local).
+            '';
+          };
+          cogneeUrl = mkOption {
+            type = types.str;
+            default = "http://127.0.0.1:8765";
+            description = "URL of the Cognee sidecar (Engram pipeline service)";
+          };
+          cogneeEmail = mkOption {
+            type = types.nullOr types.str;
+            default = null;
+            description = ''
+              Email address for the Cognee sidecar service account.
+              Required for dataset-aware operations (graph ingestion, recall).
+              If null, Cognee auth is unavailable and only embed-only strategy works.
+            '';
+          };
+          cogneePasswordFile = mkOption {
+            type = types.nullOr types.str;
+            default = null;
+            description = ''
+              Path to a file containing the Cognee sidecar account password.
+              Recommended for production — use sops-nix to manage the secret.
+              If null, Cognee auth is unavailable.
+            '';
+          };
+          embedUrl = mkOption {
+            type = types.str;
+            default = "http://127.0.0.1:8767";
+            description = "URL of the embedding service (llama-server, nomic-embed-text)";
+          };
+          llmUrl = mkOption {
+            type = types.str;
+            default = "http://127.0.0.1:8769";
+            description = "URL of the LLM generation service (llama-server)";
+          };
+          pipelineUrl = mkOption {
+            type = types.str;
+            default = "http://127.0.0.1:8765";
+            description = "URL of the Cognee pipeline endpoint (usually same host as cogneeUrl)";
+          };
+        };
+      };
+    };
+
   };
 
   config = let
@@ -354,6 +445,21 @@ in
           LSCPU_BIN = cfg.lscpuBin;
           DF_BIN = cfg.dfBin;
           NIXOS_VERSION_BIN = cfg.nixosVersionBin;
+          # Engram connection config — always set so defaults are explicit in the service env
+          ENGRAM_PG_HOST     = cfg.engram.pgHost;
+          ENGRAM_PG_PORT     = toString cfg.engram.pgPort;
+          ENGRAM_PG_USER     = cfg.engram.pgUser;
+          ENGRAM_PG_DATABASE = cfg.engram.pgDatabase;
+          ENGRAM_EMBED_URL   = cfg.engram.embedUrl;
+          ENGRAM_LLM_URL     = cfg.engram.llmUrl;
+          ENGRAM_PIPELINE_URL = cfg.engram.pipelineUrl;
+          ENGRAM_COGNEE_URL  = cfg.engram.cogneeUrl;
+        } // optionalAttrs (cfg.engram.pgPasswordFile != null) {
+          ENGRAM_PG_PASSWORD_FILE = cfg.engram.pgPasswordFile;
+        } // optionalAttrs (cfg.engram.cogneeEmail != null) {
+          ENGRAM_COGNEE_EMAIL = cfg.engram.cogneeEmail;
+        } // optionalAttrs (cfg.engram.cogneePasswordFile != null) {
+          ENGRAM_COGNEE_PASSWORD_FILE = cfg.engram.cogneePasswordFile;
         };
 
         serviceConfig = {

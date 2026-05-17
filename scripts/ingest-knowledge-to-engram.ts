@@ -40,6 +40,7 @@ import {
   getPgPool, closePgPool, ensureSchema, embedText, checkEmbedService,
   upsertChunk, deleteChunks, clearDatasetChunks,
 } from '../codebase-mcp/src/utils/pgvector-embed.js'
+import { engramConfig } from '../codebase-mcp/src/utils/engram-config.js'
 import {
   openEngramGraphWriter, resolveEngramGraphPath,
 } from './engram-graph.js'
@@ -53,11 +54,9 @@ const KNOWLEDGE_ROOT = resolve(CODE_ROOT, 'docs/knowledge')
 const ENGRAM_DB_PATH = process.env.VM_DATA_DIR
   ? resolve(process.env.VM_DATA_DIR, 'engram.db')
   : resolveEngramDbPath(CODE_ROOT)
-const COGNEE_URL = process.env.COGNEE_URL ?? 'http://localhost:8765'
-// Default to the weaver service account so the dataset lands in the same namespace
-// as the Engram UI and CSM hooks. Override via env vars if needed.
-const COGNEE_USER = process.env.COGNEE_USER ?? 'weaver@weaver.dev'
-const COGNEE_PASSWORD = process.env.COGNEE_PASSWORD ?? 'weaver-dev-2026'
+const COGNEE_URL      = engramConfig.cognee.url
+const COGNEE_USER     = engramConfig.cognee.email
+const COGNEE_PASSWORD = engramConfig.cognee.password
 const DATASET = 'project_knowledge'
 const DRY_RUN = process.argv.includes('--dry-run')
 const FORCE_RESET = process.argv.includes('--force-reset')
@@ -69,7 +68,7 @@ const METADATA_ONLY = process.argv.includes('--metadata-only')
 // full-engram: Cognee /add + /cognify (entity extraction + graph via Cognee sidecar).
 const STRATEGY: 'embed-only' | 'embed+graph' | 'full-engram' = 'embed-only'
 
-const LLAMA_GEN_URL = process.env.LLAMA_GEN_URL ?? 'http://localhost:8769'
+const LLAMA_GEN_URL = engramConfig.llm.url
 
 // ── ANSI ─────────────────────────────────────────────────────────────────────
 const GREEN  = '\x1b[32m'
