@@ -118,7 +118,7 @@ describe('Engram Routes', () => {
       expect(res.statusCode).toBe(200)
       const body = res.json()
       expect(body.project_knowledge).toBe('embed-only')
-      expect(body.fom_registry).toBe('full-cognify')
+      expect(body.fom_registry).toBe('full-engram')
     })
   })
 
@@ -168,12 +168,12 @@ describe('Engram Routes', () => {
       // test_write_dataset is now at embed+graph (updated by Dataset config API test above)
       const res = await fastify.inject({
         method: 'POST', url: '/api/engram/datasets/test_write_dataset/upgrade',
-        payload: { target_strategy: 'full-cognify', method: 'gradual' },
+        payload: { target_strategy: 'full-engram', method: 'gradual' },
       })
       expect(res.statusCode).toBe(202)
       const body = res.json()
       expect(body.datasetName).toBe('test_write_dataset')
-      expect(body.targetStrategy).toBe('full-cognify')
+      expect(body.targetStrategy).toBe('full-engram')
       expect(typeof body.id).toBe('number')
       expect(['running', 'queued']).toContain(body.status)
     })
@@ -181,7 +181,7 @@ describe('Engram Routes', () => {
     it('POST /datasets/:name/upgrade rejects same-level target', async () => {
       const res = await fastify.inject({
         method: 'POST', url: '/api/engram/datasets/fom_registry/upgrade',
-        payload: { target_strategy: 'full-cognify', method: 'gradual' },
+        payload: { target_strategy: 'full-engram', method: 'gradual' },
       })
       expect(res.statusCode).toBe(422)
     })

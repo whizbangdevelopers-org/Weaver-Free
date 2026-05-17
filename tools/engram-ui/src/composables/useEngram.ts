@@ -5,7 +5,7 @@ import { ref } from 'vue'
 
 export type SidecarStatus = 'checking' | 'available' | 'unavailable'
 export type SearchType = 'CHUNKS' | 'GRAPH_COMPLETION' | 'SUMMARIES'
-export type ProcessingStrategy = 'embed-only' | 'embed+graph' | 'full-cognify'
+export type ProcessingStrategy = 'embed-only' | 'embed+graph' | 'full-engram'
 
 export interface Dataset {
   id: string
@@ -273,14 +273,14 @@ export function useEngram() {
     }
   }
 
-  // Add text content as a .txt file upload, then cognify synchronously.
+  // Add text content as a .txt file upload, then process synchronously.
   async function remember(text: string, datasetName: string) {
     loading.value = true
     error.value = null
     try {
       const file = new File([text], 'content.txt', { type: 'text/plain' })
       await addData([file], datasetName)
-      await cognifyDataset([datasetName], undefined, false)
+      await processDataset([datasetName], undefined, false)
     } catch (err) {
       error.value = extractError(err, 'Remember failed')
       throw err
@@ -319,10 +319,10 @@ export function useEngram() {
     }
   }
 
-  // Trigger cognify on one or more datasets by name or id.
+  // Trigger the full Engram pipeline on one or more datasets by name or id.
   // background=true: returns immediately, starts activity polling.
   // background=false: blocks until pipeline completes (used by remember()).
-  async function cognifyDataset(
+  async function processDataset(
     datasetNames?: string[],
     datasetIds?: string[],
     background = true,
@@ -588,7 +588,7 @@ export function useEngram() {
     recall,
     remember,
     addData,
-    cognifyDataset,
+    processDataset,
     listPipelineRuns,
     startActivityPolling,
     stopActivityPolling,

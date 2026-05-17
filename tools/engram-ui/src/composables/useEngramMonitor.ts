@@ -40,7 +40,7 @@ export interface EngramPgvectorStats {
 
 export interface EngramStats {
   totalEntries: number
-  strategy: 'embed-only' | 'embed+graph' | 'full-cognify'
+  strategy: 'embed-only' | 'embed+graph' | 'full-engram'
   pgvector: EngramPgvectorStats | null
 }
 
@@ -216,12 +216,13 @@ export function useEngramMonitor() {
     }
   }
 
-  async function fetchIngestionHistory(offset = 0) {
+  async function fetchIngestionHistory(offset = 0, strategy?: string) {
     runsLoading.value = true
     runsOffset.value = offset
     runsError.value = null
     try {
       const params = new URLSearchParams({ limit: String(LIMIT), offset: String(offset) })
+      if (strategy) params.set('strategy', strategy)
       const data = await weaverFetch<{ runs: EngramIngestionRow[]; total: number }>(
         `/weaver/api/engram/ingestion-history?${params}`,
       )
@@ -250,11 +251,12 @@ export function useEngramMonitor() {
     }
   }
 
-  async function fetchStats() {
+  async function fetchStats(dataset?: string) {
     statsLoading.value = true
     statsError.value = null
     try {
-      engramStats.value = await weaverFetch<EngramStats>('/weaver/api/engram/stats')
+      const params = dataset ? `?dataset=${encodeURIComponent(dataset)}` : ''
+      engramStats.value = await weaverFetch<EngramStats>(`/weaver/api/engram/stats${params}`)
     } catch (err) {
       statsError.value = err instanceof Error ? err.message : 'Failed to load stats'
     } finally {

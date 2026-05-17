@@ -132,12 +132,12 @@ import type { EngramInfrastructure } from '../composables/useEngramMonitor'
 
 type UpgradeMethod = 'gradual' | 'additive' | 'priorityTrickle' | 'bulkReprocess' | 'parallelAtomic'
 
-const STRATEGY_ORDER: ProcessingStrategy[] = ['embed-only', 'embed+graph', 'full-cognify']
+const STRATEGY_ORDER: ProcessingStrategy[] = ['embed-only', 'embed+graph', 'full-engram']
 
 const STRATEGY_META: Record<ProcessingStrategy, { label: string; icon: string; color: string }> = {
   'embed-only':   { label: 'Embed only',   icon: 'mdi-lightning-bolt', color: 'teal'        },
   'embed+graph':  { label: 'Embed + graph', icon: 'mdi-graph-outline',  color: 'blue'        },
-  'full-cognify': { label: 'Full cognify', icon: 'mdi-brain',           color: 'deep-purple' },
+  'full-engram':  { label: 'Full cognify', icon: 'mdi-brain',           color: 'deep-purple' },
 }
 
 interface MethodDef {

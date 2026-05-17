@@ -10,7 +10,7 @@ import { Pool } from 'pg'
 import { probeEngramInfrastructure } from '../services/engram-infra.js'
 // Auth deferred — RBAC gates added at Weaver Team/Fabrick integration (Decision #160).
 
-type ProcessingStrategy = 'embed-only' | 'embed+graph' | 'full-cognify'
+type ProcessingStrategy = 'embed-only' | 'embed+graph' | 'full-engram'
 type UpgradeMethod = 'gradual' | 'additive' | 'priorityTrickle' | 'bulkReprocess' | 'parallelAtomic'
 type UpgradeStatus = 'queued' | 'running' | 'complete' | 'failed'
 
@@ -24,7 +24,7 @@ const METHOD_CAPABILITIES: Record<UpgradeMethod, Record<string, boolean>> = {
 }
 
 // Ordered progression: a dataset can only upgrade forward.
-const STRATEGY_ORDER: ProcessingStrategy[] = ['embed-only', 'embed+graph', 'full-cognify']
+const STRATEGY_ORDER: ProcessingStrategy[] = ['embed-only', 'embed+graph', 'full-engram']
 
 // Schema co-maintained with codebase-mcp/src/utils/engram-db.ts.
 // Direct import is blocked by backend tsconfig rootDir: ./src — extract to a workspace
@@ -100,7 +100,7 @@ CREATE INDEX IF NOT EXISTS idx_uq_status ON upgrade_queue (status);
 // Canonical dataset → strategy mapping. Must match CANONICAL_STRATEGIES in engram-db.ts.
 const CANONICAL_STRATEGIES: Record<string, ProcessingStrategy> = {
   project_knowledge: 'embed-only',
-  fom_registry:      'full-cognify',
+  fom_registry:      'full-engram',
 }
 
 // Mirrors openEngramDb() from codebase-mcp/src/utils/engram-db.ts.
@@ -113,6 +113,9 @@ function initEngramDb(dbPath: string): DatabaseSync {
   // Migrations for columns added after the initial schema.
   try { handle.exec(`ALTER TABLE ingested_entries ADD COLUMN related TEXT NOT NULL DEFAULT '[]';`) } catch { /* already exists */ }
   try { handle.exec(`ALTER TABLE ingestion_runs ADD COLUMN strategy TEXT NOT NULL DEFAULT 'embed-only';`) } catch { /* already exists */ }
+  // Strategy rename migration: 'full-cognify' → 'full-engram'
+  handle.exec(`UPDATE dataset_config SET strategy = 'full-engram' WHERE strategy = 'full-cognify'`)
+  handle.exec(`UPDATE ingestion_runs SET strategy = 'full-engram' WHERE strategy = 'full-cognify'`)
   // Seed dataset_config (no-op if already present).
   const seed = handle.prepare(`INSERT OR IGNORE INTO dataset_config (dataset_name, strategy) VALUES (?, ?)`)
   for (const [name, strategy] of Object.entries(CANONICAL_STRATEGIES)) seed.run(name, strategy)
@@ -149,7 +152,7 @@ function writeDatasetConfig(handle: DatabaseSync, datasetName: string, fields: {
   const existing = readDatasetConfig(handle, datasetName)
   if (!existing) {
     handle.prepare(`INSERT INTO dataset_config (dataset_name, strategy, pending_strategy, upgrade_method, upgraded_at) VALUES (?, ?, ?, ?, ?)`)
-      .run(datasetName, fields.strategy ?? 'full-cognify', fields.pendingStrategy ?? null, fields.upgradeMethod ?? null, fields.upgradedAt ?? null)
+      .run(datasetName, fields.strategy ?? 'full-engram', fields.pendingStrategy ?? null, fields.upgradeMethod ?? null, fields.upgradedAt ?? null)
   } else {
     const updates: string[] = []
     const params: unknown[] = []
@@ -234,7 +237,7 @@ export const engramRoutes: FastifyPluginAsync<EngramRouteOptions> = async (fasti
   app.put('/datasets/:name/config', {
     schema: {
       params: z.object({ name: z.string().min(1).max(64).regex(/^[a-z][a-z0-9_-]*$/) }),
-      body: z.object({ strategy: z.enum(['embed-only', 'embed+graph', 'full-cognify']) }),
+      body: z.object({ strategy: z.enum(['embed-only', 'embed+graph', 'full-engram']) }),
     },
   }, async (request, reply) => {
     const { name } = request.params
@@ -243,7 +246,7 @@ export const engramRoutes: FastifyPluginAsync<EngramRouteOptions> = async (fasti
     if (!existing) return reply.status(404).send({ error: `Dataset '${name}' not found` })
     const curIdx = STRATEGY_ORDER.indexOf(existing.strategy as ProcessingStrategy)
     const newIdx = STRATEGY_ORDER.indexOf(strategy)
-    if (newIdx < curIdx) return reply.status(422).send({ error: 'Strategy can only be upgraded forward (embed-only → embed+graph → full-cognify)' })
+    if (newIdx < curIdx) return reply.status(422).send({ error: 'Strategy can only be upgraded forward (embed-only → embed+graph → full-engram)' })
     writeDatasetConfig(handle, name, { strategy })
     return reply.send({ datasetName: name, strategy })
   })
@@ -253,7 +256,7 @@ export const engramRoutes: FastifyPluginAsync<EngramRouteOptions> = async (fasti
     schema: {
       params: z.object({ name: z.string().min(1).max(64).regex(/^[a-z][a-z0-9_-]*$/) }),
       body: z.object({
-        target_strategy: z.enum(['embed-only', 'embed+graph', 'full-cognify']),
+        target_strategy: z.enum(['embed-only', 'embed+graph', 'full-engram']),
         method: z.enum(['gradual', 'additive', 'priorityTrickle', 'bulkReprocess', 'parallelAtomic']),
       }),
     },
@@ -345,19 +348,23 @@ export const engramRoutes: FastifyPluginAsync<EngramRouteOptions> = async (fasti
         querystring: z.object({
           limit: z.coerce.number().int().min(1).max(200).default(50),
           offset: z.coerce.number().int().min(0).default(0),
+          strategy: z.enum(['embed-only', 'embed+graph', 'full-engram']).optional(),
         }),
       },
     },
     async (request, reply) => {
 
-      const { limit, offset } = request.query
+      const { limit, offset, strategy } = request.query
+      const where = strategy ? 'WHERE strategy = ?' : ''
       const rows = handle.prepare(
         `SELECT id, ts, dataset, entry_count, success_count, failure_count, improved, duration_ms, flags
-         FROM ingestion_runs
+         FROM ingestion_runs ${where}
          ORDER BY ts DESC LIMIT ? OFFSET ?`
-      ).all(limit, offset)
+      ).all(...(strategy ? [strategy, limit, offset] : [limit, offset]))
 
-      const { n } = handle.prepare('SELECT COUNT(*) as n FROM ingestion_runs').get() as { n: number }
+      const { n } = handle.prepare(
+        `SELECT COUNT(*) as n FROM ingestion_runs ${where}`
+      ).get(...(strategy ? [strategy] : [])) as { n: number }
 
       return reply.send({ runs: rows, total: n })
     }
@@ -484,21 +491,35 @@ export const engramRoutes: FastifyPluginAsync<EngramRouteOptions> = async (fasti
     '/stats',
     {
       schema: {
+        querystring: z.object({
+          dataset: z.string().min(1).max(128).optional(),
+        }),
         response: {
           200: z.object({
             totalEntries: z.number().int(),
-            strategy: z.enum(['embed-only', 'embed+graph', 'full-cognify']),
+            strategy: z.enum(['embed-only', 'embed+graph', 'full-engram']),
             pgvector: pgvectorStatsSchema,
           }),
         },
       },
     },
-    async (_request, reply) => {
-      // Total entries from SQLite ingested_entries table
+    async (request, reply) => {
+      const { dataset } = request.query
+
+      // Total entries: when a dataset is specified, use last run's entry_count as proxy
+      // (ingested_entries doesn't have a dataset_id column queryable by name).
+      // When no dataset, fall back to full ingested_entries count.
       let totalEntries = 0
       try {
-        const row = handle.prepare('SELECT COUNT(*) as n FROM ingested_entries').get() as { n: number } | undefined
-        totalEntries = row?.n ?? 0
+        if (dataset) {
+          const row = handle.prepare(
+            'SELECT entry_count FROM ingestion_runs WHERE dataset = ? ORDER BY ts DESC LIMIT 1'
+          ).get(dataset) as { entry_count: number } | undefined
+          totalEntries = row?.entry_count ?? 0
+        } else {
+          const row = handle.prepare('SELECT COUNT(*) as n FROM ingested_entries').get() as { n: number } | undefined
+          totalEntries = row?.n ?? 0
+        }
       } catch { /* table may not exist yet */ }
 
       // pgvector counts — connect to cognee PostgreSQL
@@ -535,8 +556,9 @@ export const engramRoutes: FastifyPluginAsync<EngramRouteOptions> = async (fasti
         await pool.end().catch(() => {})
       }
 
-      // Determine strategy for the primary dataset from dataset_config table.
-      const strategy = readDatasetStrategy(handle, 'project_knowledge') ?? 'full-cognify'
+      // Determine strategy from dataset_config; fall back to full-engram when unknown.
+      const strategySource = dataset ?? 'project_knowledge'
+      const strategy = readDatasetStrategy(handle, strategySource) ?? 'full-engram'
 
       return reply.send({
         totalEntries,
