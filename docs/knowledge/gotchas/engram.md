@@ -230,3 +230,26 @@ On subsequent opens (kuzu directory already exists), no `mkdirSync` call is need
 **Rule:** Never pre-create the directory you pass to `new kuzu.Database(dbPath)`. Only ensure the parent directory exists. This applies on first run; subsequent runs where kuzu already owns the path are unaffected.
 
 <!-- /entry -->
+
+<!-- entry:G-engram-2026-05-18-001 -->
+---
+id: G-engram-2026-05-18-001
+type: gotcha
+domain: engram
+tags: [ingest, vm-data-dir, engram-db, llgd]
+since_version: "1.0.5"
+status: active
+scope: project
+related: ["G-devops-2026-05-18-003"]
+graduated_to: ""
+---
+
+## `ingestion_runs` in dev db look "automatic" but are all from llgd Step 4 — 2026-05-18 · Claude
+
+**Problem:** `code/data/engram.db` accumulates `ingestion_runs` rows during Claude sessions on king even though no cron or systemd timer runs the ingest script. Investigating shows runs at consistent intervals (aligning with session activity) with entry counts that grow by 1–2 per run. This looks like a scheduled auto-ingest but is not.
+
+**Root cause:** `ingest-knowledge-to-engram.ts` resolves its db path as `VM_DATA_DIR + /engram.db` when set, else `code/data/engram.db`. The `llgd` skill always runs this script in Step 4 (after writing entries) without `VM_DATA_DIR`. So every `llgd` invocation from any Claude Code session running in the fabrick-weaver-project directory on king writes an `ingestion_runs` row to the dev db.
+
+**Rule:** When investigating unexpected `ingestion_runs` entries in `code/data/engram.db` on king: count the llgd invocations from recent sessions first. If the run count matches, there is no runaway process. Production ingest runs use `VM_DATA_DIR=/var/lib/weaver` and appear only in `/var/lib/weaver/engram.db`.
+
+<!-- /entry -->
