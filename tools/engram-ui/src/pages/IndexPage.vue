@@ -26,7 +26,7 @@
         :upgradeQueue="upgradeQueue"
         @select="onSelectDataset"
         @delete="onDeleteDataset"
-        @create="createOpen = true"
+        @create="openCreateForMode"
         @upgrade="onUpgradeDataset"
       />
     </q-drawer>
@@ -86,8 +86,7 @@
           <!-- ── Knowledge mode (embed-only) ─────────────────────────────────── -->
           <q-tab-panel name="knowledge" class="q-pa-none" style="height: 100%; display: flex; flex-direction: column;">
             <div class="row items-center q-px-sm q-py-xs bg-grey-1">
-              <q-btn flat dense icon="mdi-upload" label="Ingest" class="q-mr-xs" @click="addOpen = true" />
-              <q-btn flat dense icon="mdi-database-plus-outline" label="New dataset" @click="openCreateForMode" />
+              <q-btn flat dense icon="mdi-upload" label="Ingest" @click="addOpen = true" />
             </div>
             <div style="flex: 1; min-height: 0;">
               <MonitorPanel
@@ -102,8 +101,7 @@
           <!-- ── Graph mode (embed+graph) ────────────────────────────────────── -->
           <q-tab-panel name="graph" class="q-pa-none" style="height: 100%; display: flex; flex-direction: column;">
             <div class="row items-center q-px-sm q-py-xs bg-grey-1">
-              <q-btn flat dense icon="mdi-upload" label="Map" class="q-mr-xs" @click="addOpen = true" />
-              <q-btn flat dense icon="mdi-database-plus-outline" label="New dataset" @click="openCreateForMode" />
+              <q-btn flat dense icon="mdi-upload" label="Map" @click="addOpen = true" />
             </div>
             <div style="flex: 1; min-height: 0;">
               <MonitorPanel
@@ -127,8 +125,7 @@
             <!-- Engram action bar — full pipeline: ingest files or capture freeform text -->
             <div class="row items-center q-px-sm q-py-xs bg-grey-1">
               <q-btn flat dense icon="mdi-upload" label="Ingest" class="q-mr-xs" @click="addOpen = true" />
-              <q-btn flat dense icon="mdi-text-box-plus-outline" label="Capture" class="q-mr-xs" @click="rememberOpen = true" />
-              <q-btn flat dense icon="mdi-database-plus-outline" label="New dataset" @click="openCreateForMode" />
+              <q-btn flat dense icon="mdi-text-box-plus-outline" label="Capture" @click="rememberOpen = true" />
             </div>
 
             <!-- Engram sub-tabs -->

@@ -135,3 +135,30 @@ npm install
 **Rule:** Never run `npm run dev`, `quasar dev`, or any Vite-based dev server under sudo. The Vite dep-optimizer writes to `node_modules/.q-cache/` as the running user — if that user is root, the cache becomes root-owned and blocks future unprivileged `rm -rf node_modules`.
 
 <!-- /entry -->
+
+<!-- entry:G-devops-2026-05-18-002 -->
+---
+id: G-devops-2026-05-18-002
+type: gotcha
+domain: devops
+tags: [npm, node_modules, git-restore, workspace, dotenv]
+since_version: "1.0.5"
+status: active
+scope: transferable
+related: [G-devops-2026-05-18-001]
+graduated_to: ""
+---
+
+## Ghost package installs survive `npm install --workspace=X` when the package directory still exists — 2026-05-18 · Claude
+
+**Problem:** After restoring accidentally-deleted tracked files via `git ls-files -z -d | xargs -0 git checkout --`, some packages in `backend/node_modules/` had only their `.d.ts` files present but were missing their `.js` entry points (e.g. `dotenv/lib/main.js`). Running `npm install --workspace=backend` did NOT fix this — npm saw the package directory still existed (with `package.json` intact) and skipped reinstalling it, leaving the incomplete install silently in place. The breakage only surfaced at runtime inside the E2E Docker container.
+
+**Fix:** Delete the incomplete package directory first, then reinstall:
+```bash
+rm -rf backend/node_modules/<package>
+npm install --workspace=backend
+```
+
+**Rule:** After any bulk file-restore operation (git checkout, rsync, etc.), scan nested workspace `node_modules/` for packages whose `main` field target is absent. Don't rely on `npm install` to self-heal — it won't touch a directory that looks present.
+
+<!-- /entry -->
