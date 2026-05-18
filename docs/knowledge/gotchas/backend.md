@@ -130,3 +130,26 @@ graduated_to: ""
 **Rule:** Never write a DB opener that returns null on a missing file. A missing file is an initialization event, not an error condition. Any route that handles `db() === null` by returning empty data is converting a startup failure into silent data loss. Fix at the opener, not at every call site.
 
 <!-- /entry -->
+
+<!-- entry:G-backend-2026-05-18-001 -->
+---
+id: G-backend-2026-05-18-001
+type: gotcha
+domain: backend
+tags: [zod, semver, npm, typescript, v4-bridge]
+since_version: "1.0.5"
+status: active
+scope: transferable
+related: []
+graduated_to: ""
+---
+
+## zod@3.25.x is a Zod v4 compatibility bridge, not a real v3 release — 2026-05-18 · Claude
+
+**Problem:** `zod@^3.x.x` installed `3.25.76` via semver, which appeared to be a patch bump. But the `3.25.x` series is Zod v4 shipped as a backward-compat bridge — `index.d.cts` does `export * from "./v3/external.cjs"` rather than exporting the real v3 types. The compat layer doesn't implement the full v3 API, so `tsc` emitted 625 errors on existing Zod v3 code despite the lockfile claiming v3.25. The breakage looked like `@types/node` corruption because the errors appeared across every file that imported from `zod`.
+
+**Fix:** Pin `backend/package.json` to the exact last real Zod v3: `"zod": "3.24.4"` (no caret, no tilde). Run `npm install --workspace=backend`.
+
+**Rule:** Use an exact version pin (`3.24.4`, not `^3.24.4`) for Zod in any project on v3. The `3.25.x` range is permanently occupied by the v4 bridge; a range specifier will re-promote on the next `npm install` after a cache clear.
+
+<!-- /entry -->

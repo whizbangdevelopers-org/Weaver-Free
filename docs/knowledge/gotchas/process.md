@@ -105,3 +105,30 @@ This eliminates shell quoting from the parse path entirely. The response bytes o
 **Rule:** Never pipe curl output through an inline python3 `-c` string that contains shell variables or complex quoting. Write to a file, parse from the file. Use this pattern consistently when smoke-testing JSON APIs from the terminal.
 
 <!-- /entry -->
+
+<!-- entry:G-process-2026-05-18-001 -->
+---
+id: G-process-2026-05-18-001
+type: gotcha
+domain: process
+tags: [git, filenames, special-chars, restore, xargs]
+since_version: "1.0.5"
+status: active
+scope: transferable
+related: []
+graduated_to: ""
+---
+
+## `git checkout -- $(git ls-files -d)` fails with special characters in filenames — 2026-05-18 · Claude
+
+**Problem:** When restoring a batch of accidentally-deleted tracked files, `git checkout -- $(git ls-files -d)` fails with "pathspec 'archive/brand-lockup-wip/whizBANG!' did not match any file(s)" because word splitting breaks filenames containing spaces, exclamation marks, or other shell-special characters.
+
+**Fix:** Use the null-delimited form instead:
+```bash
+git ls-files -z -d | xargs -0 git checkout --
+```
+`-z` outputs NUL-separated filenames; `-0` in xargs reads NUL-separated input. No shell word splitting, no quoting issues, no partial restore.
+
+**Rule:** Any batch git operation on a file list should use `-z`/`-0` by default — the fallback to shell word splitting only works on repos where every filename is a plain ASCII slug.
+
+<!-- /entry -->
