@@ -107,3 +107,31 @@ Then retry `npm run deploy:king` from the dev machine — it succeeds cleanly.
 **Rule:** If `deploy:king` rsync fails with permission errors, fix ownership on king before investigating further. The web root at `/var/www/engram-ui/` must be owned by `mark` for the dev-machine rsync user to write to it.
 
 <!-- /entry -->
+
+<!-- entry:G-devops-2026-05-18-001 -->
+---
+id: G-devops-2026-05-18-001
+type: gotcha
+domain: devops
+tags: [node_modules, npm, permissions, sudo, quasar]
+since_version: "1.0.5"
+status: active
+scope: transferable
+related: []
+graduated_to: ""
+---
+
+## Running quasar dev / npm run dev with sudo leaves root-owned files in node_modules — 2026-05-18 · Claude
+
+**Problem:** `rm -rf node_modules` fails with "Permission denied" on `node_modules/.q-cache/dev-spa/vite-spa/deps/` and `node_modules/.q-cache.broken/`. These directories are owned by root because a prior `npm run dev` or `quasar dev` was run under sudo, causing Vite's dep-optimizer to write its cache as root.
+
+**Fix:** Restore ownership before removing:
+```bash
+sudo chown -R $USER:users node_modules/.q-cache node_modules/.q-cache.broken
+rm -rf node_modules
+npm install
+```
+
+**Rule:** Never run `npm run dev`, `quasar dev`, or any Vite-based dev server under sudo. The Vite dep-optimizer writes to `node_modules/.q-cache/` as the running user — if that user is root, the cache becomes root-owned and blocks future unprivileged `rm -rf node_modules`.
+
+<!-- /entry -->

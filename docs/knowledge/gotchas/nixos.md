@@ -113,3 +113,26 @@ graduated_to: ""
 **Rule:** Never run two `nixos-rebuild switch` invocations concurrently. The transient unit is a singleton. If the first rebuild appears to stall, it is almost certainly still activating — check journalctl before concluding it is stuck or re-running.
 
 <!-- /entry -->
+
+<!-- entry:G-nixos-2026-05-18-001 -->
+---
+id: G-nixos-2026-05-18-001
+type: gotcha
+domain: nixos
+tags: [nginx, proxy, ports, engram-ui]
+since_version: "1.0.5"
+status: active
+scope: project
+related: []
+graduated_to: ""
+---
+
+## nginx proxy pointing at dev port instead of NixOS service port causes 502 — 2026-05-18 · Claude
+
+**Problem:** The engram-ui nginx config at `/etc/nixos/modules/services/engram-ui.nix` had a `# DEV: port 3110 … Switch to 3100 when Engram goes production` comment paired with `proxyPass = "http://127.0.0.1:3110/"`. The dev backend (3110) is never running on king — only the NixOS `weaver.service` (3100) is. Result: every request to `/weaver/` returned 502 Bad Gateway.
+
+**Fix:** Change `proxyPass` to `http://127.0.0.1:3100/` and remove the deferred-TODO comment. The NixOS service port is always 3100 on king regardless of Engram's development status.
+
+**Rule:** Never leave "switch this when X goes production" port comments in NixOS nginx configs. The NixOS service is the production target by definition — use its port from day one and document the dev/prod port difference in comments rather than deferring the change.
+
+<!-- /entry -->
