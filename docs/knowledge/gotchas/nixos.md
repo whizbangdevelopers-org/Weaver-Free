@@ -136,3 +136,32 @@ graduated_to: ""
 **Rule:** Never leave "switch this when X goes production" port comments in NixOS nginx configs. The NixOS service is the production target by definition — use its port from day one and document the dev/prod port difference in comments rather than deferring the change.
 
 <!-- /entry -->
+
+<!-- entry:G-nixos-2026-05-18-002 -->
+---
+id: G-nixos-2026-05-18-002
+type: gotcha
+domain: nixos
+tags: [nixpkgs, insecure-packages, ventoy, rebuild]
+since_version: "1.0.5"
+status: active
+scope: transferable
+related: []
+graduated_to: ""
+---
+
+## nixpkgs marks packages insecure mid-channel, blocking nixos-rebuild — 2026-05-18 · Claude
+
+**Problem:** `nixos-rebuild switch` fails with `Package 'ventoy-1.1.10' is marked as insecure, refusing to evaluate` after a nixpkgs update marks the package insecure (binary-blob audit). The build evaluation aborts entirely — no partial build, no warning. The error traces through `environment.etc.dbus-1.source` before naming the actual package, making it look like a dbus problem at first.
+
+**Fix:** Add the package to `nixpkgs.config.permittedInsecurePackages` in the host `configuration.nix`:
+```nix
+nixpkgs.config.permittedInsecurePackages = [
+  "ventoy-1.1.10"
+];
+```
+Commit to the nixos git repo, then re-run `nix-rebuild-local.sh`. The rebuild proceeds past the package.
+
+**Rule:** When a NixOS rebuild fails with a "marked as insecure" error, add the package to `permittedInsecurePackages` if removal is not feasible (e.g., the package has a legitimate offline use case). The fix goes in the host nixos config repo — never in the Weaver project repo.
+
+<!-- /entry -->
