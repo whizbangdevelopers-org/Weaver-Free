@@ -162,3 +162,33 @@ npm install --workspace=backend
 **Rule:** After any bulk file-restore operation (git checkout, rsync, etc.), scan nested workspace `node_modules/` for packages whose `main` field target is absent. Don't rely on `npm install` to self-heal — it won't touch a directory that looks present.
 
 <!-- /entry -->
+
+<!-- entry:G-devops-2026-05-18-003 -->
+---
+id: G-devops-2026-05-18-003
+type: gotcha
+domain: devops
+tags: [sqlite, wal, deployment, database, file-copy]
+since_version: "1.0.5"
+status: active
+scope: transferable
+related: []
+graduated_to: ""
+---
+
+## Copying a SQLite db over an existing file leaves stale WAL files that mask all new data — 2026-05-18 · Claude
+
+**Problem:** When replacing a SQLite database by copying a new file over the old path (`cp new.db /path/to/old.db`), any existing `.db-wal` and `.db-shm` files at the destination survive. SQLite reads these WAL files on open and applies them on top of the new main db, rolling back or masking the new data entirely. In this case: copied a 55-entry knowledge db over an empty production db (4 KB), but the old WAL files from the empty db represented a zero-entry state — after service restart, every query returned empty despite the main db file containing 55 rows. `dbSizeBytes` reported correctly (73728), confirming the backend saw the file, but all row queries silently returned nothing.
+
+**Fix:** Stop the service before replacing the db, then delete the stale WAL files, copy the new db, fix ownership, and restart:
+```bash
+systemctl stop weaver
+rm -f /var/lib/weaver/engram.db-wal /var/lib/weaver/engram.db-shm
+cp /tmp/staging/engram.db /var/lib/weaver/engram.db
+chown weaver:weaver /var/lib/weaver/engram.db
+systemctl start weaver
+```
+
+**Rule:** Any time you replace a SQLite db file in production: (1) stop the consumer first, (2) delete all WAL/SHM siblings at the destination, (3) copy, (4) restore ownership, (5) start. Never hot-swap a SQLite file by copying only the `.db` — the WAL files are part of the logical database.
+
+<!-- /entry -->
