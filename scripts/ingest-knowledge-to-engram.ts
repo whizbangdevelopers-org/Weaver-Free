@@ -38,7 +38,7 @@ import {
 } from '../codebase-mcp/src/utils/engram-db.js'
 import {
   getPgPool, closePgPool, ensureSchema, embedText, checkEmbedService,
-  upsertChunk, deleteChunks, clearDatasetChunks,
+  upsertChunk, deleteChunks, clearProjectChunks,
 } from '../codebase-mcp/src/utils/pgvector-embed.js'
 import { engramConfig } from '../codebase-mcp/src/utils/engram-config.js'
 import {
@@ -49,11 +49,11 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 const CODE_ROOT = resolve(__dirname, '..')
 const KNOWLEDGE_ROOT = resolve(CODE_ROOT, 'docs/knowledge')
-// In production, use VM_DATA_DIR as the DB root to match the backend service path.
-// In dev (VM_DATA_DIR unset), falls back to code/data/engram.db.
+// Shared knowledge registry — all projects write to the same file, scoped by project column.
+// VM_DATA_DIR overrides for non-standard deployments; standard path is /var/lib/pipeline-runner/engram.db.
 const ENGRAM_DB_PATH = process.env.VM_DATA_DIR
   ? resolve(process.env.VM_DATA_DIR, 'engram.db')
-  : resolveEngramDbPath(CODE_ROOT)
+  : '/var/lib/pipeline-runner/engram.db'
 const COGNEE_URL      = engramConfig.cognee.url
 const COGNEE_USER     = engramConfig.cognee.email
 const COGNEE_PASSWORD = engramConfig.cognee.password
@@ -525,7 +525,7 @@ async function main(): Promise<void> {
 
   // ── Strategy dispatch ────────────────────────────────────────────────────────
   if (STRATEGY === 'embed-only') {
-    // Direct pgvector path — no Cognee. Chunk + embed → weaver_knowledge_chunks.
+    // Direct pgvector path — no Cognee. Chunk + embed → engram_chunks (project='weaver').
     const embedOk = await checkEmbedService()
     if (!embedOk) {
       console.error(`${RED}${BOLD}nomic-embed unreachable at ${process.env.EMBED_URL ?? 'http://localhost:8767'}${RESET}`)
@@ -542,7 +542,7 @@ async function main(): Promise<void> {
       // Force reset: wipe our chunks + registry
       if (FORCE_RESET) {
         process.stdout.write(`Force-resetting dataset "${DATASET}" (embed-only)… `)
-        await clearDatasetChunks(client, DATASET)
+        await clearProjectChunks(client, 'weaver')
         clearIngestedEntries(db)
         console.log(`${GREEN}done${RESET}`)
         toAdd.push(...toUpdate, ...entries.filter((e) => skipped.includes(e.id)))
@@ -555,7 +555,7 @@ async function main(): Promise<void> {
       for (const { entryId } of toDelete) {
         process.stdout.write(`  ${RED}delete${RESET} ${entryId}… `)
         try {
-          await deleteChunks(client, entryId, DATASET)
+          await deleteChunks(client, 'weaver', entryId)
           deleteIngestedEntry(db, entryId)
           deleted++
           console.log(`${GREEN}✓${RESET}`)
@@ -579,7 +579,7 @@ async function main(): Promise<void> {
         else process.stdout.write(`  ${YELLOW}re-embed${RESET} ${entry.id}… `)
         try {
           const embedding = await embedText(text)
-          await upsertChunk(client, { entryId: entry.id, dataset: DATASET, chunkText: text, embedding })
+          await upsertChunk(client, { project: 'weaver', entryId: entry.id, content: text, embedding, metadata: { domain: entry.domain, type: entry.type, scope: entry.scope, status: entry.status, tags: entry.tags, related: entry.related, title: entry.title, since_version: entry.since_version } })
           upsertIngestedEntry(db, {
             entryId: entry.id,
             contentHash: hash,
@@ -625,7 +625,7 @@ async function main(): Promise<void> {
 
       if (FORCE_RESET) {
         process.stdout.write(`Force-resetting dataset "${DATASET}" (embed+graph)… `)
-        await clearDatasetChunks(client, DATASET)
+        await clearProjectChunks(client, 'weaver')
         await graph.clearAllEntries()
         clearIngestedEntries(db)
         console.log(`${GREEN}done${RESET}`)
@@ -639,7 +639,7 @@ async function main(): Promise<void> {
       for (const { entryId } of toDelete) {
         process.stdout.write(`  ${RED}delete${RESET} ${entryId}… `)
         try {
-          await deleteChunks(client, entryId, DATASET)
+          await deleteChunks(client, 'weaver', entryId)
           await graph.deleteEntry(entryId)
           deleteIngestedEntry(db, entryId)
           deleted++
@@ -661,7 +661,7 @@ async function main(): Promise<void> {
         process.stdout.write(`  ${isUpdate ? YELLOW + 're-embed' : GREEN + 'embed+graph'}${RESET} ${entry.id}… `)
         try {
           const embedding = await embedText(text)
-          await upsertChunk(client, { entryId: entry.id, dataset: DATASET, chunkText: text, embedding })
+          await upsertChunk(client, { project: 'weaver', entryId: entry.id, content: text, embedding, metadata: { domain: entry.domain, type: entry.type, scope: entry.scope, status: entry.status, tags: entry.tags, related: entry.related, title: entry.title, since_version: entry.since_version } })
           await graph.upsertEntry({
             entryId: entry.id,
             title: entry.title,

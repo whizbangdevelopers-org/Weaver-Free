@@ -371,6 +371,35 @@ export const engramRoutes: FastifyPluginAsync<EngramRouteOptions> = async (fasti
     }
   )
 
+  // GET /api/engram/hosts — host inventory from hosts table (populated by anvil sync_hosts.py)
+  app.get('/hosts', {}, async (request, reply) => {
+    try {
+      const rows = handle.prepare(
+        `SELECT hostname, role, os, arch, status, capacity, network, facts, last_probed, last_updated
+         FROM hosts ORDER BY hostname`
+      ).all() as Array<{
+        hostname: string; role: string; os: string; arch: string; status: string
+        capacity: string; network: string; facts: string
+        last_probed: number | null; last_updated: number
+      }>
+      const hosts = rows.map(r => ({
+        hostname:    r.hostname,
+        role:        r.role,
+        os:          r.os,
+        arch:        r.arch,
+        status:      r.status,
+        capacity:    JSON.parse(r.capacity) as Record<string, unknown>,
+        network:     JSON.parse(r.network)  as Record<string, unknown>,
+        facts:       JSON.parse(r.facts)    as Record<string, unknown>,
+        lastProbed:  r.last_probed,
+        lastUpdated: r.last_updated,
+      }))
+      return reply.send({ hosts })
+    } catch {
+      return reply.send({ hosts: [] })
+    }
+  })
+
   // GET /api/engram/entries — registry breakdown by domain/type/scope
   app.get('/entries', {}, async (request, reply) => {
     try {

@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "quasar dev",
     "build": "quasar build",
-    "deploy:king": "quasar build && rsync -rl --delete --no-times --no-perms dist/spa/ king:/var/www/engram-ui/",
+    "deploy:king": "quasar build && rsync -rl --delete --no-times --no-perms dist/spa/ /var/www/engram-ui/",
     "lint": "eslint --ext .js,.ts,.vue src",
     "typecheck": "vue-tsc --noEmit"
   },
