@@ -371,33 +371,115 @@ export const engramRoutes: FastifyPluginAsync<EngramRouteOptions> = async (fasti
     }
   )
 
-  // GET /api/engram/hosts — host inventory from hosts table (populated by anvil sync_hosts.py)
-  app.get('/hosts', {}, async (request, reply) => {
+  // ── Host inventory CRUD ────────────────────────────────────────────────────
+  // Table populated by anvil tools/sync_hosts.py (SSH probe) or manual entry here.
+  // Future: ingest pipeline will auto-sync on schedule.
+
+  const hostBodySchema = z.object({
+    hostname: z.string().min(1).max(64).regex(/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/),
+    role:     z.string().min(1).max(64),
+    os:       z.string().max(32).default('nixos'),
+    arch:     z.string().max(32).default('x86_64'),
+    status:   z.string().max(32).default('unknown'),
+    capacity: z.object({
+      cpus:      z.number().int().min(0).default(0),
+      cpu_model: z.string().max(128).default(''),
+      memory_mb: z.number().int().min(0).default(0),
+      disk_gb:   z.number().int().min(0).default(0),
+    }).default({}),
+    network: z.object({
+      ips:     z.record(z.string()).default({}),
+      bridges: z.record(z.string()).default({}),
+    }).default({}),
+    facts: z.record(z.unknown()).default({}),
+  })
+
+  function rowToHost(r: { hostname: string; role: string; os: string; arch: string; status: string; capacity: string; network: string; facts: string; last_probed: number | null; last_updated: number }) {
+    return {
+      hostname:    r.hostname,
+      role:        r.role,
+      os:          r.os,
+      arch:        r.arch,
+      status:      r.status,
+      capacity:    JSON.parse(r.capacity)  as Record<string, unknown>,
+      network:     JSON.parse(r.network)   as Record<string, unknown>,
+      facts:       JSON.parse(r.facts)     as Record<string, unknown>,
+      lastProbed:  r.last_probed,
+      lastUpdated: r.last_updated,
+    }
+  }
+
+  // GET /api/engram/hosts
+  app.get('/hosts', {}, async (_request, reply) => {
     try {
       const rows = handle.prepare(
         `SELECT hostname, role, os, arch, status, capacity, network, facts, last_probed, last_updated
          FROM hosts ORDER BY hostname`
-      ).all() as Array<{
-        hostname: string; role: string; os: string; arch: string; status: string
-        capacity: string; network: string; facts: string
-        last_probed: number | null; last_updated: number
-      }>
-      const hosts = rows.map(r => ({
-        hostname:    r.hostname,
-        role:        r.role,
-        os:          r.os,
-        arch:        r.arch,
-        status:      r.status,
-        capacity:    JSON.parse(r.capacity) as Record<string, unknown>,
-        network:     JSON.parse(r.network)  as Record<string, unknown>,
-        facts:       JSON.parse(r.facts)    as Record<string, unknown>,
-        lastProbed:  r.last_probed,
-        lastUpdated: r.last_updated,
-      }))
-      return reply.send({ hosts })
+      ).all() as Parameters<typeof rowToHost>[0][]
+      return reply.send({ hosts: rows.map(rowToHost) })
     } catch {
       return reply.send({ hosts: [] })
     }
+  })
+
+  // POST /api/engram/hosts — create
+  app.post('/hosts', { schema: { body: hostBodySchema } }, async (request, reply) => {
+    const b = request.body
+    const existing = handle.prepare('SELECT hostname FROM hosts WHERE hostname = ?').get(b.hostname)
+    if (existing) return reply.status(409).send({ error: `Host "${b.hostname}" already exists` })
+    handle.prepare(`
+      INSERT INTO hosts (hostname, role, os, arch, status, capacity, network, facts, content_hash, last_updated)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, '', ?)
+    `).run(b.hostname, b.role, b.os, b.arch, b.status,
+           JSON.stringify(b.capacity), JSON.stringify(b.network), JSON.stringify(b.facts),
+           Date.now())
+    const row = handle.prepare(
+      `SELECT hostname, role, os, arch, status, capacity, network, facts, last_probed, last_updated
+       FROM hosts WHERE hostname = ?`
+    ).get(b.hostname) as Parameters<typeof rowToHost>[0]
+    return reply.status(201).send({ host: rowToHost(row) })
+  })
+
+  // PUT /api/engram/hosts/:hostname — update
+  app.put('/hosts/:hostname', {
+    schema: {
+      params: z.object({ hostname: z.string().min(1).max(64) }),
+      body: hostBodySchema.partial().omit({ hostname: true }),
+    },
+  }, async (request, reply) => {
+    const { hostname } = request.params as { hostname: string }
+    const b = request.body as Partial<typeof hostBodySchema._type>
+    const existing = handle.prepare('SELECT hostname FROM hosts WHERE hostname = ?').get(hostname)
+    if (!existing) return reply.status(404).send({ error: `Host "${hostname}" not found` })
+    const fields: string[] = []
+    const vals: unknown[] = []
+    if (b.role     !== undefined) { fields.push('role = ?');     vals.push(b.role) }
+    if (b.os       !== undefined) { fields.push('os = ?');       vals.push(b.os) }
+    if (b.arch     !== undefined) { fields.push('arch = ?');     vals.push(b.arch) }
+    if (b.status   !== undefined) { fields.push('status = ?');   vals.push(b.status) }
+    if (b.capacity !== undefined) { fields.push('capacity = ?'); vals.push(JSON.stringify(b.capacity)) }
+    if (b.network  !== undefined) { fields.push('network = ?');  vals.push(JSON.stringify(b.network)) }
+    if (b.facts    !== undefined) { fields.push('facts = ?');    vals.push(JSON.stringify(b.facts)) }
+    if (fields.length === 0) return reply.status(400).send({ error: 'No fields to update' })
+    fields.push('last_updated = ?'); vals.push(Date.now())
+    vals.push(hostname)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ;(handle.prepare(`UPDATE hosts SET ${fields.join(', ')} WHERE hostname = ?`) as any).run(...vals)
+    const row = handle.prepare(
+      `SELECT hostname, role, os, arch, status, capacity, network, facts, last_probed, last_updated
+       FROM hosts WHERE hostname = ?`
+    ).get(hostname) as Parameters<typeof rowToHost>[0]
+    return reply.send({ host: rowToHost(row) })
+  })
+
+  // DELETE /api/engram/hosts/:hostname
+  app.delete('/hosts/:hostname', {
+    schema: { params: z.object({ hostname: z.string().min(1).max(64) }) },
+  }, async (request, reply) => {
+    const { hostname } = request.params as { hostname: string }
+    const result = handle.prepare('DELETE FROM hosts WHERE hostname = ?').run(hostname)
+    if (result.changes === 0) return reply.status(404).send({ error: `Host "${hostname}" not found` })
+    return reply.send({ deleted: hostname })
   })
 
   // GET /api/engram/entries — registry breakdown by domain/type/scope
