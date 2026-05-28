@@ -25,7 +25,6 @@
     <!-- Tabs -->
     <q-tabs v-model="tab" align="left" class="q-mb-md" dense>
       <q-tab name="status" icon="mdi-gauge" label="Status" />
-      <q-tab name="hosts" icon="mdi-server" label="Hosts" />
       <q-tab name="queries" icon="mdi-format-list-bulleted" label="Query Log" />
       <q-tab name="ingestion" icon="mdi-database-import" label="Ingestion History" />
     </q-tabs>
@@ -133,72 +132,6 @@
               </template>
             </q-table>
           </q-card>
-        </template>
-      </q-tab-panel>
-
-      <!-- ── Hosts tab ─────────────────────────────────────────────────── -->
-      <q-tab-panel name="hosts" class="q-pa-none">
-        <div v-if="hostsLoading" class="text-center q-pa-xl text-grey-7">
-          <q-spinner size="40px" />
-        </div>
-        <template v-else-if="hosts.length === 0">
-          <div class="text-center q-pa-xl">
-            <q-icon name="mdi-server-off" size="60px" color="grey-5" />
-            <div class="text-h6 q-mt-md text-grey-8">No hosts in registry</div>
-            <div class="text-caption text-grey-7 q-mt-sm">
-              Run <span class="text-mono">python3 tools/sync_hosts.py</span> in the anvil repo to populate.
-            </div>
-          </div>
-        </template>
-        <template v-else>
-          <q-table
-            flat
-            bordered
-            :rows="hosts"
-            :columns="hostColumns"
-            row-key="hostname"
-            hide-pagination
-            :rows-per-page-options="[0]"
-          >
-            <template #body-cell-hostname="props">
-              <q-td :props="props">
-                <span class="text-mono text-weight-medium">{{ props.row.hostname }}</span>
-              </q-td>
-            </template>
-            <template #body-cell-status="props">
-              <q-td :props="props">
-                <q-badge
-                  :color="props.row.status === 'reachable' ? 'positive' : props.row.status === 'unreachable' ? 'warning' : 'grey'"
-                  :label="props.row.status"
-                />
-              </q-td>
-            </template>
-            <template #body-cell-capacity="props">
-              <q-td :props="props">
-                <div class="text-caption">
-                  {{ props.row.capacity.cpus }}t ·
-                  {{ Math.round(props.row.capacity.memory_mb / 1024) }} GB RAM ·
-                  {{ props.row.capacity.disk_gb }} GB disk
-                </div>
-                <div v-if="props.row.capacity.cpu_model" class="text-caption text-grey-7 text-mono" style="font-size:10px">
-                  {{ props.row.capacity.cpu_model }}
-                </div>
-              </q-td>
-            </template>
-            <template #body-cell-ips="props">
-              <q-td :props="props">
-                <div v-for="(ip, iface) in props.row.network.ips" :key="iface" class="text-caption text-mono">
-                  {{ iface }}={{ ip }}
-                </div>
-              </q-td>
-            </template>
-            <template #body-cell-last_probed="props">
-              <q-td :props="props">
-                <span v-if="props.row.lastProbed" class="text-caption">{{ formatTs(props.row.lastProbed) }}</span>
-                <span v-else class="text-caption text-grey-5">—</span>
-              </q-td>
-            </template>
-          </q-table>
         </template>
       </q-tab-panel>
 
@@ -348,12 +281,12 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { engramApiService } from 'src/services/api'
-import type { EngramStatus, EngramQueryRow, EngramIngestionRow, EngramToolStat, EngramHostRecord } from 'src/services/api'
+import type { EngramStatus, EngramQueryRow, EngramIngestionRow, EngramToolStat } from 'src/services/api'
 import { extractErrorMessage } from 'src/utils/error'
 import { isDemoMode } from 'src/config/demo-mode'
 import type { QTableColumn } from 'quasar'
 
-const tab = ref<'status' | 'hosts' | 'queries' | 'ingestion'>('status')
+const tab = ref<'status' | 'queries' | 'ingestion'>('status')
 const loading = ref(false)
 const error = ref<string | null>(null)
 
@@ -367,22 +300,6 @@ async function fetchStatus() {
     status.value = await engramApiService.getStatus()
   } catch (err) {
     error.value = extractErrorMessage(err, 'Failed to load Engram status')
-  }
-}
-
-// ── Hosts ─────────────────────────────────────────────────────────────────────
-const hosts = ref<EngramHostRecord[]>([])
-const hostsLoading = ref(false)
-
-async function fetchHosts() {
-  hostsLoading.value = true
-  try {
-    const res = await engramApiService.getHosts()
-    hosts.value = res.hosts
-  } catch (err) {
-    error.value = extractErrorMessage(err, 'Failed to load host inventory')
-  } finally {
-    hostsLoading.value = false
   }
 }
 
@@ -439,7 +356,7 @@ async function fetchRuns(offset = 0) {
 async function refreshAll() {
   loading.value = true
   error.value = null
-  await Promise.all([fetchStatus(), fetchHosts(), fetchQueries(0), fetchRuns(0)])
+  await Promise.all([fetchStatus(), fetchQueries(0), fetchRuns(0)])
   loading.value = false
 }
 
@@ -447,9 +364,8 @@ onMounted(() => { if (!isDemoMode()) void refreshAll() })
 
 // Lazy-load tab data on first visit
 watch(tab, (t) => {
-  if (t === 'hosts'     && hosts.value.length === 0)   void fetchHosts()
-  if (t === 'queries'   && queries.value.length === 0) void fetchQueries(0)
-  if (t === 'ingestion' && runs.value.length === 0)    void fetchRuns(0)
+  if (t === 'queries' && queries.value.length === 0) void fetchQueries(0)
+  if (t === 'ingestion' && runs.value.length === 0) void fetchRuns(0)
 })
 
 // ── Formatters ────────────────────────────────────────────────────────────────
@@ -489,15 +405,6 @@ function summariseFlags(json: string): string {
 }
 
 // ── Column definitions ────────────────────────────────────────────────────────
-const hostColumns: QTableColumn[] = [
-  { name: 'hostname',    label: 'Host',       field: 'hostname',    align: 'left'  },
-  { name: 'role',        label: 'Role',       field: 'role',        align: 'left'  },
-  { name: 'status',      label: 'Status',     field: 'status',      align: 'left'  },
-  { name: 'capacity',    label: 'Capacity',   field: 'capacity',    align: 'left'  },
-  { name: 'ips',         label: 'IPs',        field: 'network',     align: 'left'  },
-  { name: 'last_probed', label: 'Last Probed', field: 'lastProbed', align: 'left'  },
-]
-
 const toolStatColumns: QTableColumn[] = [
   { name: 'tool',           label: 'Tool',         field: 'tool',           align: 'left'  },
   { name: 'count',          label: 'Calls',        field: 'count',          align: 'right', sortable: true },

@@ -559,19 +559,6 @@ export interface EngramStatus {
   totalQueries: number
 }
 
-export interface EngramHostRecord {
-  hostname: string
-  role: string
-  os: string
-  arch: string
-  status: string
-  capacity: { cpus: number; cpu_model: string; memory_mb: number; disk_gb: number }
-  network: { ips?: Record<string, string>; bridges?: Record<string, string> }
-  facts: Record<string, unknown>
-  lastProbed: number | null
-  lastUpdated: number
-}
-
 export class EngramApiService extends ApiService {
   constructor() {
     super('/engram')
@@ -596,10 +583,6 @@ export class EngramApiService extends ApiService {
     if (params.offset !== undefined) qs.set('offset', String(params.offset))
     const q = qs.toString()
     return this.get<{ runs: EngramIngestionRow[]; total: number }>(`/ingestion-history${q ? `?${q}` : ''}`)
-  }
-
-  async getHosts(): Promise<{ hosts: EngramHostRecord[] }> {
-    return this.get<{ hosts: EngramHostRecord[] }>('/hosts')
   }
 }
 

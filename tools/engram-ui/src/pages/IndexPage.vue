@@ -50,6 +50,7 @@
               {{ inFlightCount }}
             </q-badge>
           </q-tab>
+          <q-tab name="hosts" icon="mdi-server" label="Infrastructure" />
         </q-tabs>
 
         <q-separator />
@@ -191,6 +192,19 @@
 
           </q-tab-panel>
 
+          <!-- ── Infrastructure (Hosts) mode ──────────────────────────────── -->
+          <q-tab-panel name="hosts" class="q-pa-none" style="height: 100%">
+            <HostsPanel
+              :hosts="hosts"
+              :loading="hostsLoading"
+              :error="hostsError"
+              @refresh="fetchHosts"
+              @create="onCreateHost"
+              @update="onUpdateHost"
+              @delete="onDeleteHost"
+            />
+          </q-tab-panel>
+
         </q-tab-panels>
       </q-page>
     </q-page-container>
@@ -308,7 +322,9 @@ import MonitorPanel from '../components/MonitorPanel.vue'
 import ProducedCard from '../components/ProducedCard.vue'
 import CreateDatasetDialog from '../components/CreateDatasetDialog.vue'
 import UpgradeDatasetDialog from '../components/UpgradeDatasetDialog.vue'
+import HostsPanel from '../components/HostsPanel.vue'
 import { useEngramMonitor } from '../composables/useEngramMonitor'
+import type { HostInput, HostPatch } from '../composables/useEngramMonitor'
 
 
 const $q = useQuasar()
@@ -327,6 +343,13 @@ const {
   fetchStats,
   status: monitorStatus,
   fetchStatus: fetchMonitorStatus,
+  hosts,
+  hostsLoading,
+  hostsError,
+  fetchHosts,
+  createHost,
+  updateHost,
+  deleteHost,
 } = useEngramMonitor()
 
 const {
@@ -370,7 +393,7 @@ const {
 
 
 const drawerOpen = ref(true)
-const activeMode = ref<'knowledge' | 'graph' | 'engram'>('knowledge')
+const activeMode = ref<'knowledge' | 'graph' | 'engram' | 'hosts'>('knowledge')
 const engramTab = ref<'recall' | 'activity' | 'files'>('recall')
 const settingsOpen = ref(false)
 const keysOpen = ref(false)
@@ -747,9 +770,41 @@ function formatRunTs(ms: number): string {
   })
 }
 
+// ── Host handlers ─────────────────────────────────────────────────────────────
+async function onCreateHost(input: HostInput) {
+  try {
+    await createHost(input)
+    $q.notify({ type: 'positive', message: `Host "${input.hostname}" added`, timeout: 2000 })
+  } catch (e) {
+    $q.notify({ type: 'negative', message: e instanceof Error ? e.message : 'Create failed', timeout: 3000 })
+  }
+}
+
+async function onUpdateHost(hostname: string, patch: HostPatch) {
+  try {
+    await updateHost(hostname, patch)
+    $q.notify({ type: 'positive', message: `Host "${hostname}" updated`, timeout: 2000 })
+  } catch (e) {
+    $q.notify({ type: 'negative', message: e instanceof Error ? e.message : 'Update failed', timeout: 3000 })
+  }
+}
+
+async function onDeleteHost(hostname: string) {
+  try {
+    await deleteHost(hostname)
+    $q.notify({ type: 'positive', message: `Host "${hostname}" deleted`, timeout: 2000 })
+  } catch (e) {
+    $q.notify({ type: 'negative', message: e instanceof Error ? e.message : 'Delete failed', timeout: 3000 })
+  }
+}
+
 // ── Lazy-load ────────────────────────────────────────────────────────────────
 
 watch(activeMode, (newMode) => {
+  if (newMode === 'hosts' && hosts.value.length === 0) {
+    void fetchHosts()
+    return
+  }
   const strategy = MODE_STRATEGY[newMode]
   if (!strategy || !activeDatasetId.value) return
   const current = datasets.value.find((d) => d.id === activeDatasetId.value)

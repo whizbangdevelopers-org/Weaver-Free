@@ -64,6 +64,7 @@ export interface EngramGraphData {
 }
 
 export interface EngramEntryDomainRow {
+  project: string
   domain: string
   type: string
   scope: string
@@ -143,6 +144,34 @@ async function weaverFetch<T>(path: string, options: RequestInit = {}): Promise<
   }
   return res.json() as Promise<T>
 }
+
+export interface HostCapacity {
+  cpus:      number
+  cpu_model: string
+  memory_mb: number
+  disk_gb:   number
+}
+
+export interface HostNetwork {
+  ips?:     Record<string, string>
+  bridges?: Record<string, string>
+}
+
+export interface HostRecord {
+  hostname:    string
+  role:        string
+  os:          string
+  arch:        string
+  status:      string
+  capacity:    HostCapacity
+  network:     HostNetwork
+  facts:       Record<string, unknown>
+  lastProbed:  number | null
+  lastUpdated: number
+}
+
+export type HostInput = Omit<HostRecord, 'lastProbed' | 'lastUpdated'>
+export type HostPatch = Partial<Omit<HostRecord, 'hostname' | 'lastProbed' | 'lastUpdated'>>
 
 export function useEngramMonitor() {
   const status = ref<EngramStatus | null>(null)
@@ -239,9 +268,9 @@ export function useEngramMonitor() {
     entriesLoading.value = true
     entriesError.value = null
     try {
-      const data = await weaverFetch<{ entries: EngramEntryDomainRow[]; total: number }>(
-        '/weaver/api/engram/entries',
-      )
+      const res = await fetch('/engram-query/entries')
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const data = await res.json() as { entries: EngramEntryDomainRow[]; total: number }
       entries.value = data.entries
       entriesTotal.value = data.total
     } catch (err) {
@@ -268,7 +297,9 @@ export function useEngramMonitor() {
     graphLoading.value = true
     graphError.value = null
     try {
-      graphData.value = await weaverFetch<EngramGraphData>('/weaver/api/engram/graph-data')
+      const res = await fetch('/engram-query/graph-data')
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      graphData.value = await res.json() as EngramGraphData
     } catch (err) {
       graphError.value = err instanceof Error ? err.message : 'Failed to load graph data'
     } finally {
@@ -298,11 +329,14 @@ export function useEngramMonitor() {
     }
   }
 
-  async function viewEntries(domain: string, type?: string, scope?: string): Promise<{ entryCount: number; content: string | null; note?: string }> {
-    return weaverFetch('/weaver/api/engram/view', {
+  async function viewEntries(domain: string, type?: string, scope?: string, project?: string): Promise<{ entryCount: number; content: string | null; note?: string }> {
+    const res = await fetch('/engram-query/view', {
       method: 'POST',
-      body: JSON.stringify({ domain, type, scope }),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ project, domain, type, scope }),
     })
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    return res.json()
   }
 
   async function fetchStrategies() {
@@ -334,6 +368,47 @@ export function useEngramMonitor() {
 
   async function loadAll() {
     await Promise.all([fetchStatus(), fetchQueries(0), fetchIngestionHistory(0), fetchEntries(), fetchStats(), fetchGraphData()])
+  }
+
+  // ── Host inventory ────────────────────────────────────────────────────────
+  const hosts         = ref<HostRecord[]>([])
+  const hostsLoading  = ref(false)
+  const hostsError    = ref<string | null>(null)
+
+  async function fetchHosts() {
+    hostsLoading.value = true
+    hostsError.value   = null
+    try {
+      const data = await weaverFetch<{ hosts: HostRecord[] }>('/weaver/api/engram/hosts')
+      hosts.value = data.hosts
+    } catch (e) {
+      hostsError.value = e instanceof Error ? e.message : 'Failed to load hosts'
+    } finally {
+      hostsLoading.value = false
+    }
+  }
+
+  async function createHost(input: HostInput): Promise<HostRecord> {
+    const data = await weaverFetch<{ host: HostRecord }>('/weaver/api/engram/hosts', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    })
+    await fetchHosts()
+    return data.host
+  }
+
+  async function updateHost(hostname: string, patch: HostPatch): Promise<HostRecord> {
+    const data = await weaverFetch<{ host: HostRecord }>(`/weaver/api/engram/hosts/${encodeURIComponent(hostname)}`, {
+      method: 'PUT',
+      body: JSON.stringify(patch),
+    })
+    await fetchHosts()
+    return data.host
+  }
+
+  async function deleteHost(hostname: string): Promise<void> {
+    await weaverFetch(`/weaver/api/engram/hosts/${encodeURIComponent(hostname)}`, { method: 'DELETE' })
+    hosts.value = hosts.value.filter(h => h.hostname !== hostname)
   }
 
   return {
@@ -382,5 +457,12 @@ export function useEngramMonitor() {
     enqueueDatasetUpgrade,
     viewEntries,
     loadAll,
+    hosts,
+    hostsLoading,
+    hostsError,
+    fetchHosts,
+    createHost,
+    updateHost,
+    deleteHost,
   }
 }
