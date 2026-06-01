@@ -132,3 +132,26 @@ git ls-files -z -d | xargs -0 git checkout --
 **Rule:** Any batch git operation on a file list should use `-z`/`-0` by default — the fallback to shell word splitting only works on repos where every filename is a plain ASCII slug.
 
 <!-- /entry -->
+
+<!-- entry:G-process-2026-06-01-001 -->
+---
+id: G-process-2026-06-01-001
+type: gotcha
+domain: process
+tags: [terminology, security, networking, documentation]
+since_version: "1.0.5"
+status: active
+scope: transferable
+related: []
+graduated_to: ""
+---
+
+## "Airgapped" means zero internet path — NAT'd is not airgapped — 2026-06-01 · Claude
+
+**Problem:** A machine was labeled `airgapped: true` in the fleet inventory with the note "No WAN NIC." The machine had no direct WAN interface but had full internet access via NAT through a gateway host. When the NAT was set up and tested (confirmed HTTP response from external host), the `airgapped` label became actively misleading — it implied security isolation that didn't exist.
+
+**Fix:** Remove `airgapped: true`. Use a descriptive note: "No direct WAN NIC — internet via <gateway> NAT."
+
+**Rule:** Airgapped = zero network path to the internet. A machine that reaches the internet through NAT, a proxy, or a bastion is not airgapped — it's indirectly connected. Using `airgapped` for "no direct WAN NIC" is dangerous: security assumptions downstream of that label (no internet = no exfiltration risk, no update exposure) will be wrong. Document the actual topology.
+
+<!-- /entry -->

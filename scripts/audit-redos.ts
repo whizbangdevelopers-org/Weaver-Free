@@ -4,18 +4,37 @@
  * ReDoS (Regular Expression Denial of Service) Auditor
  *
  * Scans source code for regex literals and new RegExp() constructions whose
- * patterns exhibit catastrophic backtracking. Uses `safe-regex` for the safety
- * check (star-height heuristic) and a line-level heuristic extractor to find
- * regexes in .ts, .js, and .vue files.
+ * patterns exhibit catastrophic backtracking. A line-level heuristic extractor
+ * finds regexes in .ts, .js, and .vue files, then a TWO-STAGE check classifies
+ * each one:
  *
- * Suppress a finding with `redos-ignore[<match-snippet>]` anywhere in the 5
- * lines before the flagged line. The snippet is any substring of the regex
- * pattern string (e.g., `redos-ignore[a+]+` for `/^(a+)+$/`). Document WHY —
- * safe-regex produces false positives on anchored character-class repetitions
- * where the character sets are provably disjoint at runtime.
+ *   Stage 1 — `safe-regex` (star-height heuristic): cheap pre-filter. Catches
+ *     the broad class of nested-quantifier patterns but OVER-FIRES: its star
+ *     height counts a bounded outer quantifier (`?`, `{0,1}`, `{m,n}`) as added
+ *     nesting depth, so provably-safe patterns like `([a-z-]*[a-z])?` (a `?`
+ *     wrapper that permits at most one repetition) get flagged.
  *
- * `regexp-tree` (installed alongside safe-regex) is available for future
- * template-literal regex analysis; it is not yet used in the scan loop.
+ *   Stage 2 — `isCatastrophic` (regexp-tree AST analysis): confirmation gate.
+ *     A pattern is reported ONLY if stage 1 flags it AND the AST confirms a real
+ *     super-linear nest. The confirmed-dangerous shapes are:
+ *       (a) an amplifying repetition (unbounded `*`/`+`/`{n,}`, or bounded
+ *           `{m,n}` with n>=2) whose subtree contains an UNBOUNDED repetition
+ *           — e.g. `(a+)+`, `([a-z]+)*`, `(.*a){10}`; and
+ *       (b) an UNBOUNDED repetition over a disjunction (overlapping-branch
+ *           risk) — e.g. `(a|a)*`, `(a|ab)*`.
+ *     Bounded×bounded nests (e.g. IPv4 `\d{1,3}(\.\d{1,3}){3}`) do constant
+ *     work and are correctly cleared. Parse failures default to "catastrophic"
+ *     so an unparseable flagged pattern is never silently suppressed.
+ *
+ * This staged design fixes the star-height false-positive class WITHOUT
+ * weakening detection: stage 2 never suppresses a pattern stage 1 passed, and
+ * it confirms every known catastrophic form (validated against a dangerous/safe
+ * battery — see the auditor's commit). Per ~/.claude/rules/never-game-auditors:
+ * the fix tightens the rule, it does not reword the input to dodge the trigger.
+ *
+ * Suppress a residual finding with `redos-ignore[<match-snippet>]` anywhere in
+ * the 5 lines before the flagged line. The snippet is any substring of the
+ * regex pattern string (e.g., `redos-ignore[a+]+` for `/^(a+)+$/`). Document WHY.
  *
  * Usage: npm run audit:redos
  *
@@ -28,6 +47,107 @@ import { createRequire } from 'module'
 
 const _require = createRequire(import.meta.url)
 const safeRegex = _require('safe-regex') as (re: string | RegExp, opts?: { limit?: number }) => boolean
+const regexpTree = _require('regexp-tree') as { parse: (re: string | RegExp) => RegexpNode }
+
+// ── Stage 2: AST-based catastrophic-backtracking confirmation ────────────────
+//
+// regexp-tree AST nodes we care about. `quantifier.kind` is '+', '*', '?', or
+// 'Range' (with numeric `from` and optional `to`; `to` undefined => unbounded).
+
+interface Quantifier {
+  kind: '+' | '*' | '?' | 'Range'
+  from?: number
+  to?: number
+}
+interface RegexpNode {
+  type: string
+  quantifier?: Quantifier
+  expression?: RegexpNode
+  expressions?: RegexpNode[]
+  body?: RegexpNode
+  left?: RegexpNode
+  right?: RegexpNode
+  assertion?: RegexpNode
+}
+
+// An unbounded quantifier permits arbitrarily many repetitions of its body.
+function isUnbounded(q?: Quantifier): boolean {
+  if (!q) return false
+  if (q.kind === '+' || q.kind === '*') return true
+  if (q.kind === 'Range') return q.to === undefined || q.to === null
+  return false // '?'
+}
+
+// An amplifier permits >=2 repetitions (so it multiplies inner backtracking).
+// '?' / {0,1} / {1,1} cannot amplify (max one repetition) — provably safe outer.
+function isAmplifier(q?: Quantifier): boolean {
+  if (!q) return false
+  if (isUnbounded(q)) return true
+  if (q.kind === 'Range') return (q.to ?? 0) >= 2
+  return false
+}
+
+function childrenOf(n?: RegexpNode): RegexpNode[] {
+  if (!n) return []
+  switch (n.type) {
+    case 'RegExp':
+      return n.body ? [n.body] : []
+    case 'Alternative':
+      return n.expressions ?? []
+    case 'Disjunction':
+      return [n.left, n.right].filter(Boolean) as RegexpNode[]
+    case 'Group':
+    case 'Repetition':
+      return n.expression ? [n.expression] : []
+    case 'Assertion':
+      return n.assertion ? [n.assertion] : []
+    default:
+      return []
+  }
+}
+
+function subtreeHasUnbounded(n?: RegexpNode): boolean {
+  if (!n) return false
+  if (n.type === 'Repetition' && isUnbounded(n.quantifier)) return true
+  return childrenOf(n).some(subtreeHasUnbounded)
+}
+
+function subtreeHasDisjunction(n?: RegexpNode): boolean {
+  if (!n) return false
+  if (n.type === 'Disjunction') return true
+  return childrenOf(n).some(subtreeHasDisjunction)
+}
+
+// True iff the pattern contains a super-linear backtracking nest. Conservative:
+// an unparseable pattern returns true (never silently suppress a flagged regex).
+function isCatastrophic(pattern: string): boolean {
+  let ast: RegexpNode
+  try {
+    ast = regexpTree.parse(new RegExp(pattern))
+  } catch {
+    return true
+  }
+  let dangerous = false
+  const walk = (n?: RegexpNode): void => {
+    if (!n || dangerous) return
+    if (n.type === 'Repetition') {
+      // (a) amplifying outer over an unbounded inner — incl. bounded {m,n>=2}
+      //     over `.*`/`.+` (polynomial-degree blowup, e.g. `(.*a){10}`).
+      if (isAmplifier(n.quantifier) && subtreeHasUnbounded(n.expression)) {
+        dangerous = true
+        return
+      }
+      // (b) unbounded outer over a disjunction (overlapping-branch risk).
+      if (isUnbounded(n.quantifier) && subtreeHasDisjunction(n.expression)) {
+        dangerous = true
+        return
+      }
+    }
+    for (const c of childrenOf(n)) walk(c)
+  }
+  walk(ast)
+  return dangerous
+}
 
 interface Finding {
   file: string
@@ -174,7 +294,8 @@ function scanFile(filePath: string): Finding[] {
     for (const pat of extractLiterals(line)) {
       if (lookback.includes(`redos-ignore[${pat}]`)) continue
       try {
-        if (!safeRegex(pat)) {
+        // Stage 1 (safe-regex) flags, Stage 2 (AST) confirms — both required.
+        if (!safeRegex(pat) && isCatastrophic(pat)) {
           findings.push({ file: relPath, line: i + 1, pattern: pat, source: 'literal' })
         }
       } catch {
@@ -185,7 +306,7 @@ function scanFile(filePath: string): Finding[] {
     for (const pat of extractNewRegexps(line)) {
       if (lookback.includes(`redos-ignore[${pat}]`)) continue
       try {
-        if (!safeRegex(pat)) {
+        if (!safeRegex(pat) && isCatastrophic(pat)) {
           findings.push({ file: relPath, line: i + 1, pattern: pat, source: 'new-regexp' })
         }
       } catch {

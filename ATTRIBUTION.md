@@ -52,6 +52,7 @@ This file lists all direct runtime dependencies bundled with Weaver, their licen
 | pg | ^8.20.0 | MIT | Brian Carlson |
 | stripe | ^18.1.0 | MIT | Stripe |
 | web-push | ^3.6.7 | MPL-2.0 | Marco Castelluccio |
+| yaml | ^2.9.0 | ISC | Eemeli Aro |
 | zod | ^3.25.76 | MIT | Colin McDonnell |
 
 ## TUI Runtime Dependencies
