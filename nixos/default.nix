@@ -325,6 +325,16 @@ in
             default = "http://127.0.0.1:8765";
             description = "URL of the Cognee pipeline endpoint (usually same host as cogneeUrl)";
           };
+          hostsInventoryPath = mkOption {
+            type = types.nullOr types.str;
+            default = null;
+            description = ''
+              Absolute path to the hosts inventory YAML file (e.g. anvil hosts/inventory.yaml).
+              When set, the Infrastructure tab's Sync button reads this file and upserts
+              all hosts into the registry without leaving the browser.
+              If null, the Sync button returns 501 Not Implemented.
+            '';
+          };
         };
       };
     };
@@ -348,6 +358,9 @@ in
         group = group;
         home = cfg.dataDir;
         createHome = true;
+        # "users" group membership lets the service traverse /home/mark/Projects (750 users).
+        # Combined with the 0711 tmpfiles rule on /home/mark below.
+        extraGroups = [ "users" ];
       };
       users.groups.${group} = mkIf isDefaultGroup {};
 
@@ -460,6 +473,8 @@ in
           ENGRAM_COGNEE_EMAIL = cfg.engram.cogneeEmail;
         } // optionalAttrs (cfg.engram.cogneePasswordFile != null) {
           ENGRAM_COGNEE_PASSWORD_FILE = cfg.engram.cogneePasswordFile;
+        } // optionalAttrs (cfg.engram.hostsInventoryPath != null) {
+          HOSTS_INVENTORY_PATH = cfg.engram.hostsInventoryPath;
         };
 
         serviceConfig = {

@@ -10,36 +10,39 @@
     </div>
 
     <template v-else>
-      <!-- Legend row -->
-      <div class="row items-center q-mb-xs q-gutter-x-sm flex-wrap">
+      <!-- Legend row — domain chips are clickable filters -->
+      <div class="row items-center q-mb-xs q-gutter-x-xs flex-wrap">
 
-        <!-- Fill = domain -->
-        <span class="text-caption text-grey-5" style="white-space:nowrap">fill = domain:</span>
+        <span class="text-caption text-grey-5 q-mr-xs" style="white-space:nowrap">domain:</span>
         <span
           v-for="[domain, color] in domainLegend"
           :key="domain"
-          class="row items-center q-gutter-x-xs text-caption"
+          class="row items-center q-gutter-x-xs text-caption legend-filter"
+          :style="focusedDomain && focusedDomain !== domain ? 'opacity:0.25;cursor:pointer' : 'cursor:pointer'"
+          @click="toggleDomain(domain)"
         >
-          <span :style="`display:inline-block;width:10px;height:10px;border-radius:50%;background:${color}`" />
-          <span>{{ domain }}</span>
+          <span :style="`display:inline-block;width:10px;height:10px;border-radius:50%;background:${color};flex-shrink:0;${focusedDomain === domain ? 'outline:2px solid currentColor;outline-offset:1px' : ''}`" />
+          <span :style="focusedDomain === domain ? 'font-weight:600' : ''">{{ domain }}</span>
         </span>
 
         <q-separator vertical class="q-mx-xs" />
 
-        <!-- Shape + border = type -->
-        <span class="text-caption text-grey-5" style="white-space:nowrap">shape · border = type:</span>
+        <span class="text-caption text-grey-5" style="white-space:nowrap">type:</span>
         <span class="row items-center q-gutter-x-xs text-caption">
-          <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#bdbdbd;border:2px solid #0d47a1" />
+          <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#bdbdbd;border:2px solid #0d47a1;flex-shrink:0" />
           <span>lesson</span>
         </span>
         <span class="row items-center q-gutter-x-xs text-caption">
-          <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#bdbdbd;border:2px solid #bf360c" />
+          <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#bdbdbd;border:2px solid #bf360c;flex-shrink:0" />
           <span>gotcha</span>
         </span>
 
         <q-separator vertical class="q-mx-xs" />
         <span class="text-caption text-grey-6">
-          {{ nodes.length }} entries · {{ edges.length }} related links
+          {{ focusedDomain ? `${visibleNodeCount} / ${nodes.length}` : nodes.length }} entries
+          <template v-if="focusedDomain">
+            · <span class="text-caption text-primary" style="cursor:pointer" @click="focusedDomain = null">show all</span>
+          </template>
         </span>
 
         <q-space />
@@ -52,8 +55,9 @@
 
       </div>
 
-      <!-- Graph -->
+      <!-- Graph — keyed on focusedDomain so layout re-runs on focus change or reset -->
       <v-network-graph
+        :key="focusedDomain ?? '__all__'"
         class="col"
         :nodes="vNodes"
         :edges="vEdges"
@@ -109,6 +113,12 @@ const props = defineProps<{
 // ── Fullscreen toggle ─────────────────────────────────────────────────────────
 const isFullscreen = ref(false)
 
+// ── Domain focus filter ───────────────────────────────────────────────────────
+const focusedDomain = ref<string | null>(null)
+function toggleDomain(domain: string) {
+  focusedDomain.value = focusedDomain.value === domain ? null : domain
+}
+
 function onKeydown(e: KeyboardEvent) {
   if (e.key === 'Escape' && isFullscreen.value) isFullscreen.value = false
 }
@@ -151,19 +161,30 @@ const domainLegend = computed((): [string, string][] =>
 // ── v-network-graph data ──────────────────────────────────────────────────────
 const nodeById = computed<Map<string, EngramGraphNode>>(() => {
   const m = new Map<string, EngramGraphNode>()
-  for (const n of props.nodes) m.set(n.id, n)
+  for (const n of visibleNodes.value) m.set(n.id, n)
   return m
 })
 
+const visibleNodes = computed(() =>
+  focusedDomain.value ? props.nodes.filter((n) => n.domain === focusedDomain.value) : props.nodes,
+)
+
+const visibleNodeCount = computed(() => visibleNodes.value.length)
+
+const visibleNodeIds = computed(() => new Set(visibleNodes.value.map((n) => n.id)))
+
 const vNodes = computed<Record<string, { name: string }>>(() => {
   const out: Record<string, { name: string }> = {}
-  for (const n of props.nodes) out[n.id] = { name: n.title }
+  for (const n of visibleNodes.value) out[n.id] = { name: n.title }
   return out
 })
 
 const vEdges = computed<Record<string, { source: string; target: string }>>(() => {
   const out: Record<string, { source: string; target: string }> = {}
-  props.edges.forEach((e, i) => { out[`e${i}`] = { source: e.source, target: e.target } })
+  const ids = visibleNodeIds.value
+  props.edges
+    .filter((e) => ids.has(e.source) && ids.has(e.target))
+    .forEach((e, i) => { out[`e${i}`] = { source: e.source, target: e.target } })
   return out
 })
 
@@ -242,3 +263,9 @@ const configs = defineConfigs({
   },
 })
 </script>
+
+<style scoped>
+.legend-filter:hover {
+  opacity: 0.75;
+}
+</style>

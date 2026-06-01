@@ -11,7 +11,7 @@
 
 import {
   getPgPool, closePgPool, ensureSchema,
-  upsertChunk, searchChunks, clearDatasetChunks, countDatasetChunks,
+  upsertChunk, searchChunks, clearProjectChunks, countProjectChunks,
 } from '../codebase-mcp/src/utils/pgvector-embed.js'
 
 const GREEN  = '\x1b[32m'
@@ -59,20 +59,20 @@ async function main() {
     await ensureSchema(client)
 
     // ── Setup: wipe any leftover test data ───────────────────────────────────
-    await clearDatasetChunks(client, DS_A)
-    await clearDatasetChunks(client, DS_B)
+    await clearProjectChunks(client, DS_A)
+    await clearProjectChunks(client, DS_B)
     console.log(`${DIM}Cleared any prior test data.${RESET}`)
     console.log()
 
     // ── Phase 1: Insert ──────────────────────────────────────────────────────
     console.log(`Phase 1 — Insert`)
-    await upsertChunk(client, { entryId: 'alpha-entry-1', dataset: DS_A, chunkText: 'alpha content one',   embedding: vecFor(1) })
-    await upsertChunk(client, { entryId: 'alpha-entry-2', dataset: DS_A, chunkText: 'alpha content two',   embedding: vecFor(2) })
-    await upsertChunk(client, { entryId: 'beta-entry-1',  dataset: DS_B, chunkText: 'beta content one',    embedding: vecFor(3) })
-    await upsertChunk(client, { entryId: 'beta-entry-2',  dataset: DS_B, chunkText: 'beta content two',    embedding: vecFor(4) })
+    await upsertChunk(client, { project: DS_A, entryId: 'alpha-entry-1', content: 'alpha content one',   embedding: vecFor(1) })
+    await upsertChunk(client, { project: DS_A, entryId: 'alpha-entry-2', content: 'alpha content two',   embedding: vecFor(2) })
+    await upsertChunk(client, { project: DS_B, entryId: 'beta-entry-1',  content: 'beta content one',    embedding: vecFor(3) })
+    await upsertChunk(client, { project: DS_B, entryId: 'beta-entry-2',  content: 'beta content two',    embedding: vecFor(4) })
 
-    const countA = await countDatasetChunks(client, DS_A)
-    const countB = await countDatasetChunks(client, DS_B)
+    const countA = await countProjectChunks(client, DS_A)
+    const countB = await countProjectChunks(client, DS_B)
     assert(`DS_A has 2 chunks`,  countA === 2, `got ${countA}`)
     assert(`DS_B has 2 chunks`,  countB === 2, `got ${countB}`)
     console.log()
@@ -80,56 +80,56 @@ async function main() {
     // ── Phase 2: Search isolation ────────────────────────────────────────────
     console.log(`Phase 2 — Search isolation`)
 
-    const resultsA = await searchChunks(client, zeroVec(), { dataset: DS_A, limit: 10 })
-    const resultsB = await searchChunks(client, zeroVec(), { dataset: DS_B, limit: 10 })
+    const resultsA = await searchChunks(client, zeroVec(), { project: DS_A, limit: 10 })
+    const resultsB = await searchChunks(client, zeroVec(), { project: DS_B, limit: 10 })
     const aIds = resultsA.map(r => r.entryId)
     const bIds = resultsB.map(r => r.entryId)
 
-    assert(`DS_A query returns only DS_A chunks`,   resultsA.every(r => r.dataset === DS_A),   `datasets: ${[...new Set(resultsA.map(r => r.dataset))].join(', ')}`)
+    assert(`DS_A query returns only DS_A chunks`,   resultsA.every(r => r.project === DS_A),   `projects: ${[...new Set(resultsA.map(r => r.project))].join(', ')}`)
     assert(`DS_A query returns 2 results`,          resultsA.length === 2,                      `got ${resultsA.length}`)
     assert(`DS_A query contains alpha-entry-1`,     aIds.includes('alpha-entry-1'))
     assert(`DS_A query contains alpha-entry-2`,     aIds.includes('alpha-entry-2'))
     assert(`DS_A query has NO beta entries`,        !aIds.some(id => id.startsWith('beta-')),   `found: ${aIds.filter(id => id.startsWith('beta-'))}`)
 
-    assert(`DS_B query returns only DS_B chunks`,   resultsB.every(r => r.dataset === DS_B),   `datasets: ${[...new Set(resultsB.map(r => r.dataset))].join(', ')}`)
+    assert(`DS_B query returns only DS_B chunks`,   resultsB.every(r => r.project === DS_B),   `projects: ${[...new Set(resultsB.map(r => r.project))].join(', ')}`)
     assert(`DS_B query returns 2 results`,          resultsB.length === 2,                      `got ${resultsB.length}`)
     assert(`DS_B query contains beta-entry-1`,      bIds.includes('beta-entry-1'))
     assert(`DS_B query contains beta-entry-2`,      bIds.includes('beta-entry-2'))
     assert(`DS_B query has NO alpha entries`,       !bIds.some(id => id.startsWith('alpha-')), `found: ${bIds.filter(id => id.startsWith('alpha-'))}`)
 
-    // Verify both datasets coexist in the table (count-based, not search-position-based,
+    // Verify both projects coexist in the table (count-based, not search-position-based,
     // since production rows can saturate a fixed-limit unfiltered search result window).
-    const countBoth = await countDatasetChunks(client, DS_A) + await countDatasetChunks(client, DS_B)
-    assert(`both test datasets present in table simultaneously (count=4)`, countBoth === 4, `got ${countBoth}`)
+    const countBoth = await countProjectChunks(client, DS_A) + await countProjectChunks(client, DS_B)
+    assert(`both test projects present in table simultaneously (count=4)`, countBoth === 4, `got ${countBoth}`)
     console.log()
 
     // ── Phase 3: Clear isolation ─────────────────────────────────────────────
     console.log(`Phase 3 — Clear isolation`)
-    await clearDatasetChunks(client, DS_A)
+    await clearProjectChunks(client, DS_A)
 
-    const countAAfter = await countDatasetChunks(client, DS_A)
-    const countBAfter = await countDatasetChunks(client, DS_B)
-    assert(`DS_A cleared to 0 chunks`,       countAAfter === 0, `got ${countAAfter}`)
+    const countAAfter = await countProjectChunks(client, DS_A)
+    const countBAfter = await countProjectChunks(client, DS_B)
+    assert(`DS_A cleared to 0 chunks`,         countAAfter === 0, `got ${countAAfter}`)
     assert(`DS_B unaffected after DS_A clear`, countBAfter === 2, `got ${countBAfter}`)
 
-    const bAfterClear = await searchChunks(client, zeroVec(), { dataset: DS_B, limit: 10 })
+    const bAfterClear = await searchChunks(client, zeroVec(), { project: DS_B, limit: 10 })
     assert(`DS_B still searchable after DS_A clear`, bAfterClear.length === 2, `got ${bAfterClear.length}`)
     console.log()
 
     // ── Phase 4: Upsert idempotency ──────────────────────────────────────────
     console.log(`Phase 4 — Upsert idempotency (re-insert same entry)`)
-    await upsertChunk(client, { entryId: 'beta-entry-1', dataset: DS_B, chunkText: 'beta content one UPDATED', embedding: vecFor(3) })
-    const countBUpsert = await countDatasetChunks(client, DS_B)
+    await upsertChunk(client, { project: DS_B, entryId: 'beta-entry-1', content: 'beta content one UPDATED', embedding: vecFor(3) })
+    const countBUpsert = await countProjectChunks(client, DS_B)
     assert(`Upsert keeps count at 2 (no duplicate row)`, countBUpsert === 2, `got ${countBUpsert}`)
-    const bUpserted = await searchChunks(client, zeroVec(), { dataset: DS_B, limit: 10 })
+    const bUpserted = await searchChunks(client, zeroVec(), { project: DS_B, limit: 10 })
     const updatedEntry = bUpserted.find(r => r.entryId === 'beta-entry-1')
-    assert(`Upserted entry has updated text`, updatedEntry?.chunkText === 'beta content one UPDATED', `got: "${updatedEntry?.chunkText}"`)
+    assert(`Upserted entry has updated text`, updatedEntry?.content === 'beta content one UPDATED', `got: "${updatedEntry?.content}"`)
     console.log()
 
   } finally {
     // ── Cleanup ──────────────────────────────────────────────────────────────
-    await clearDatasetChunks(client, DS_A)
-    await clearDatasetChunks(client, DS_B)
+    await clearProjectChunks(client, DS_A)
+    await clearProjectChunks(client, DS_B)
     client.release()
     await closePgPool()
   }

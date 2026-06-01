@@ -411,6 +411,10 @@ export function useEngramMonitor() {
     hosts.value = hosts.value.filter(h => h.hostname !== hostname)
   }
 
+  async function syncHostsFromInventory(): Promise<{ synced: number; errors: string[] }> {
+    return weaverFetch<{ synced: number; errors: string[] }>('/weaver/api/engram/hosts/sync', { method: 'POST', body: '{}' })
+  }
+
   return {
     status,
     statusLoading,
@@ -464,5 +468,6 @@ export function useEngramMonitor() {
     createHost,
     updateHost,
     deleteHost,
+    syncHostsFromInventory,
   }
 }

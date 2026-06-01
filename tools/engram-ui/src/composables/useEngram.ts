@@ -4,7 +4,7 @@
 import { ref } from 'vue'
 
 export type SidecarStatus = 'checking' | 'available' | 'unavailable'
-export type SearchType = 'CHUNKS' | 'GRAPH_COMPLETION' | 'SUMMARIES'
+export type SearchType = 'CHUNKS' | 'GRAPH_COMPLETION' | 'SUMMARIES' | 'KNOWLEDGE'
 export type ProcessingStrategy = 'embed-only' | 'embed+graph' | 'full-engram'
 
 export interface Dataset {
@@ -251,6 +251,25 @@ export function useEngram() {
     error.value = null
     results.value = []
     try {
+      if (searchType === 'KNOWLEDGE') {
+        const url = `/engram-query/search?q=${encodeURIComponent(query)}&limit=50`
+        const controller = new AbortController()
+        const id = setTimeout(() => controller.abort(), RECALL_TIMEOUT)
+        try {
+          const res = await fetch(url, { signal: controller.signal })
+          if (!res.ok) throw new Error(`HTTP ${res.status}`)
+          const data = await res.json() as { results: Array<{ project: string; entry_id: string; chunk_type: string; content: string; score: number; metadata?: Record<string, unknown> }> }
+          results.value = (data.results ?? []).map((r) => ({
+            text: r.content,
+            score: r.score,
+            metadata: { project: r.project, entry_id: r.entry_id, chunk_type: r.chunk_type, ...r.metadata },
+          }))
+        } finally {
+          clearTimeout(id)
+        }
+        return
+      }
+
       const body: Record<string, unknown> = { query, searchType }
       if (activeDatasetId.value) {
         const ds = datasets.value.find((d) => d.id === activeDatasetId.value)

@@ -5,6 +5,8 @@ import { ZodTypeProvider } from 'fastify-type-provider-zod'
 import { z } from 'zod'
 import { DatabaseSync } from 'node:sqlite'
 import { existsSync, statSync, readFileSync, mkdirSync } from 'node:fs'
+import { createConnection } from 'node:net'
+import { parse as parseYaml } from 'yaml'
 import { join, resolve, dirname } from 'node:path'
 import { Pool } from 'pg'
 import { probeEngramInfrastructure } from '../services/engram-infra.js'
@@ -89,6 +91,20 @@ CREATE TABLE IF NOT EXISTS upgrade_queue (
   queued_at           INTEGER NOT NULL,
   status              TEXT    NOT NULL DEFAULT 'queued',
   started_at          INTEGER
+);
+
+CREATE TABLE IF NOT EXISTS hosts (
+  hostname      TEXT    PRIMARY KEY,
+  role          TEXT    NOT NULL,
+  os            TEXT    NOT NULL DEFAULT 'nixos',
+  arch          TEXT    NOT NULL DEFAULT 'x86_64',
+  status        TEXT    NOT NULL DEFAULT 'unknown',
+  capacity      TEXT    NOT NULL DEFAULT '{}',
+  network       TEXT    NOT NULL DEFAULT '{}',
+  facts         TEXT    NOT NULL DEFAULT '{}',
+  content_hash  TEXT    NOT NULL DEFAULT '',
+  last_probed   INTEGER,
+  last_updated  INTEGER NOT NULL
 );
 
 CREATE INDEX IF NOT EXISTS idx_kq_ts     ON knowledge_queries (ts DESC);
@@ -480,6 +496,79 @@ export const engramRoutes: FastifyPluginAsync<EngramRouteOptions> = async (fasti
     const result = handle.prepare('DELETE FROM hosts WHERE hostname = ?').run(hostname)
     if (result.changes === 0) return reply.status(404).send({ error: `Host "${hostname}" not found` })
     return reply.send({ deleted: hostname })
+  })
+
+  // POST /api/engram/hosts/sync — upsert all hosts from inventory YAML, check reachability
+  // via TCP connect (port 22, 2s timeout). No SSH auth — just tests connectivity.
+  // Hardware capacity (CPU/RAM/disk) is left unchanged; full probe remains npm run sync:hosts.
+  app.post('/hosts/sync', {}, async (_request, reply) => {
+    const inventoryPath = process.env.HOSTS_INVENTORY_PATH
+    if (!inventoryPath) return reply.status(501).send({ error: 'HOSTS_INVENTORY_PATH not configured' })
+    if (!existsSync(inventoryPath)) return reply.status(404).send({ error: `Inventory not found: ${inventoryPath}` })
+
+    let entries: Array<Record<string, unknown>>
+    try {
+      const raw = readFileSync(inventoryPath, 'utf8')
+      const doc = parseYaml(raw) as { hosts?: Array<Record<string, unknown>> }
+      entries = doc.hosts ?? []
+    } catch (err) {
+      return reply.status(422).send({ error: `Failed to parse inventory: ${String(err)}` })
+    }
+
+    // TCP reachability check — no SSH auth needed, just tests connectivity
+    async function checkReachable(ip: string): Promise<boolean> {
+      return new Promise((resolve) => {
+        const sock = createConnection({ host: ip, port: 22 })
+        const timer = setTimeout(() => { sock.destroy(); resolve(false) }, 3000)
+        sock.once('connect', () => { clearTimeout(timer); sock.destroy(); resolve(true) })
+        sock.once('error',   () => { clearTimeout(timer); resolve(false) })
+      })
+    }
+
+    const synced: string[] = []
+    const errors: string[] = []
+    const now = Date.now()
+
+    for (const entry of entries) {
+      const hostname = String(entry['hostname'] ?? '')
+      if (!hostname) { errors.push('Entry missing hostname — skipped'); continue }
+      try {
+        const probe     = String(entry['probe'] ?? 'none')
+        const probeHost = String(entry['probe_host'] ?? hostname)
+        const network   = (entry['network'] ?? {}) as { ips?: Record<string, string>; bridges?: Record<string, string> }
+
+        // Determine reachability: local host is always reachable; ssh/none hosts get TCP check
+        let status: string
+        if (probe === 'local') {
+          status = 'reachable'
+        } else if (probe === 'ssh') {
+          status = await checkReachable(probeHost) ? 'reachable' : 'unreachable'
+        } else {
+          status = 'unknown'
+        }
+
+        const role  = String(entry['role']  ?? 'other')
+        const os    = String(entry['os']    ?? 'nixos')
+        const arch  = String(entry['arch']  ?? 'x86_64')
+        const facts = (entry['facts'] ?? {}) as Record<string, unknown>
+        const net_  = { ips: network.ips ?? {}, bridges: network.bridges ?? {} }
+
+        const existing = handle.prepare('SELECT hostname FROM hosts WHERE hostname = ?').get(hostname)
+        if (existing) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          ;(handle.prepare(`UPDATE hosts SET role=?, os=?, arch=?, status=?, network=?, facts=?, last_updated=? WHERE hostname=?`) as any)
+            .run(role, os, arch, status, JSON.stringify(net_), JSON.stringify(facts), now, hostname)
+        } else {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          ;(handle.prepare(`INSERT INTO hosts (hostname,role,os,arch,status,capacity,network,facts,content_hash,last_updated) VALUES (?,?,?,?,?,?,?,?,'',?)`) as any)
+            .run(hostname, role, os, arch, status, '{}', JSON.stringify(net_), JSON.stringify(facts), now)
+        }
+        synced.push(hostname)
+      } catch (err) {
+        errors.push(`${hostname}: ${String(err)}`)
+      }
+    }
+    return reply.send({ synced: synced.length, hosts: synced, errors })
   })
 
   // GET /api/engram/entries — registry breakdown by domain/type/scope

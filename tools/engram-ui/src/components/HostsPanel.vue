@@ -11,6 +11,7 @@
       </div>
       <q-space />
       <q-btn flat dense icon="mdi-plus" label="Add" class="q-mr-xs" @click="openAdd" />
+      <q-btn flat dense icon="mdi-sync" label="Sync" class="q-mr-xs" :loading="syncing" @click="emit('sync')" />
       <q-btn flat dense round icon="mdi-refresh" :loading="loading" @click="emit('refresh')" />
     </div>
 
@@ -78,9 +79,9 @@
         </q-td>
       </template>
 
-      <template #body-cell-last_probed="props">
+      <template #body-cell-last_sync="props">
         <q-td :props="props">
-          <span v-if="props.row.lastProbed" class="text-caption">{{ fmtTs(props.row.lastProbed) }}</span>
+          <span v-if="props.row.lastUpdated" class="text-caption">{{ fmtTs(props.row.lastUpdated) }}</span>
           <span v-else class="text-caption text-grey-5">—</span>
         </q-td>
       </template>
@@ -130,7 +131,7 @@
           <div class="text-caption text-grey-7 q-mt-sm">Capacity</div>
           <div class="row q-gutter-sm">
             <q-input v-model.number="form.capacity.cpus"      label="Threads" type="number" dense outlined class="col" />
-            <q-input v-model.number="form.capacity.memory_mb" label="RAM (MB)" type="number" dense outlined class="col" />
+            <q-input v-model.number="form.capacity.memory_gb" label="RAM (GB)" type="number" dense outlined class="col" />
             <q-input v-model.number="form.capacity.disk_gb"   label="Disk (GB)" type="number" dense outlined class="col" />
           </div>
           <q-input v-model="form.capacity.cpu_model" label="CPU Model" dense outlined />
@@ -173,11 +174,13 @@ import type { HostRecord, HostInput, HostPatch } from '../composables/useEngramM
 const props = defineProps<{
   hosts:   HostRecord[]
   loading: boolean
+  syncing: boolean
   error:   string | null
 }>()
 
 const emit = defineEmits<{
   refresh: []
+  sync:    []
   create:  [input: HostInput]
   update:  [hostname: string, patch: HostPatch]
   delete:  [hostname: string]
@@ -197,7 +200,7 @@ const columns = [
   { name: 'status',      label: 'Status',      field: 'status',     align: 'left'   as const },
   { name: 'capacity',    label: 'Capacity',    field: 'capacity',   align: 'left'   as const },
   { name: 'ips',         label: 'IPs',         field: 'network',    align: 'left'   as const },
-  { name: 'last_probed', label: 'Last Probed', field: 'lastProbed', align: 'left'   as const },
+  { name: 'last_sync',   label: 'Last Sync',   field: 'lastUpdated', align: 'left'   as const },
   { name: 'actions',     label: '',            field: 'hostname',   align: 'right'  as const },
 ]
 
@@ -214,7 +217,7 @@ const blankForm = () => ({
   role: 'other',
   os: 'nixos',
   arch: 'x86_64',
-  capacity: { cpus: 0, cpu_model: '', memory_mb: 0, disk_gb: 0 },
+  capacity: { cpus: 0, cpu_model: '', memory_gb: 0, disk_gb: 0 },
   ipsJson: '{}',
   factsJson: '{}',
 })
@@ -243,7 +246,12 @@ function openEdit(host: HostRecord) {
     role:     host.role,
     os:       host.os,
     arch:     host.arch,
-    capacity: { ...host.capacity },
+    capacity: {
+      cpus:      host.capacity.cpus,
+      cpu_model: host.capacity.cpu_model,
+      memory_gb: Math.round((host.capacity.memory_mb ?? 0) / 1024),
+      disk_gb:   host.capacity.disk_gb,
+    },
     ipsJson:  JSON.stringify(host.network.ips ?? {}, null, 2),
     factsJson: JSON.stringify(host.facts, null, 2),
   }
@@ -261,10 +269,16 @@ async function submitForm() {
   try {
     const ips   = JSON.parse(form.value.ipsJson)   as Record<string, string>
     const facts = JSON.parse(form.value.factsJson) as Record<string, unknown>
+    const capacity = {
+      cpus:      form.value.capacity.cpus,
+      cpu_model: form.value.capacity.cpu_model,
+      memory_mb: form.value.capacity.memory_gb * 1024,
+      disk_gb:   form.value.capacity.disk_gb,
+    }
     if (editTarget.value) {
       const patch: HostPatch = {
         role: form.value.role, os: form.value.os, arch: form.value.arch,
-        capacity: form.value.capacity,
+        capacity,
         network: { ips, bridges: editTarget.value.network.bridges ?? {} },
         facts,
       }
@@ -274,7 +288,7 @@ async function submitForm() {
         hostname: form.value.hostname,
         role: form.value.role, os: form.value.os, arch: form.value.arch,
         status: 'unknown',
-        capacity: form.value.capacity,
+        capacity,
         network: { ips, bridges: {} },
         facts,
       }
