@@ -50,12 +50,16 @@ const PUBLIC_ROUTES = [
   '/api/engram/infrastructure',
   '/api/engram/strategies',
   '/api/engram/queue',
+  // Host inventory — same deferral (Decision #160)
+  '/api/engram/hosts',
+  '/api/engram/hosts/sync',
 ]
 
 // Dynamic Engram routes with :name or :id segments — Decision #160 deferral applies
 const PUBLIC_PREFIXES = [
   '/api/engram/datasets/',
   '/api/engram/queue/',
+  '/api/engram/hosts/',
 ]
 
 function isPublicRoute(url: string): boolean {

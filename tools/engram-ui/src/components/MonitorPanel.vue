@@ -205,52 +205,76 @@
             <div v-else class="registry-table">
               <div class="row items-center q-px-sm q-py-xs text-caption text-grey-7 bg-grey-2">
                 <div style="width:40px"></div>
-                <div class="col">Type</div>
+                <div class="col">Domain / Type</div>
                 <div style="width:130px">Scope</div>
                 <div class="text-right" style="width:56px">Count</div>
               </div>
               <q-separator />
-              <template v-for="group in groupedEntries" :key="group.domain">
+              <template v-for="pg in groupedEntries" :key="pg.project">
+                <!-- Project header -->
                 <div
-                  class="row items-center q-px-sm q-py-xs bg-grey-1 registry-domain-header"
-                  @click="toggleDomain(group.domain)"
+                  class="row items-center q-px-sm q-py-xs bg-blue-grey-1 registry-domain-header"
+                  @click="toggleDomain(pg.project)"
                 >
                   <div style="width:40px" class="text-center">
                     <q-icon
-                      :name="expandedDomains.has(group.domain) ? 'mdi-chevron-down' : 'mdi-chevron-right'"
+                      :name="expandedDomains.has(pg.project) ? 'mdi-chevron-down' : 'mdi-chevron-right'"
                       size="16px" color="grey-6"
                     />
                   </div>
-                  <div class="col text-mono text-caption text-weight-medium">{{ group.domain }}</div>
-                  <div style="width:130px"></div>
-                  <div class="text-right text-weight-bold text-caption" style="width:56px">{{ group.total }}</div>
-                </div>
-                <template v-if="expandedDomains.has(group.domain)">
-                  <div
-                    v-for="row in group.rows"
-                    :key="rowKey(row)"
-                    class="row items-center q-px-sm q-py-xs registry-subrow"
-                  >
-                    <div style="width:40px" class="text-center">
-                      <q-btn
-                        flat dense round size="xs" icon="mdi-eye-outline"
-                        :loading="viewingRow === rowKey(row)"
-                        @click.stop="onViewRow(row)"
-                      >
-                        <q-tooltip>View entries</q-tooltip>
-                      </q-btn>
-                    </div>
-                    <div class="col">
-                      <q-badge :color="row.type === 'lesson' ? 'blue-7' : 'orange-8'" outline :label="row.type" />
-                    </div>
-                    <div style="width:130px">
-                      <q-badge
-                        :color="row.scope === 'transferable' ? 'positive' : row.scope === 'transient' ? 'grey-6' : 'primary'"
-                        outline :label="row.scope"
-                      />
-                    </div>
-                    <div class="text-right text-weight-medium text-caption" style="width:56px">{{ row.count }}</div>
+                  <div class="col text-caption text-weight-bold">
+                    <q-badge color="teal" outline :label="pg.project" class="q-mr-xs" />
                   </div>
+                  <div style="width:130px"></div>
+                  <div class="text-right text-weight-bold text-caption" style="width:56px">{{ pg.total }}</div>
+                </div>
+                <!-- Domain rows under project -->
+                <template v-if="expandedDomains.has(pg.project)">
+                  <template v-for="group in pg.domains" :key="pg.project + '/' + group.domain">
+                    <div
+                      class="row items-center q-px-sm q-py-xs bg-grey-1 registry-domain-header"
+                      style="padding-left: 32px"
+                      @click="toggleDomain(pg.project + '/' + group.domain)"
+                    >
+                      <div style="width:40px" class="text-center">
+                        <q-icon
+                          :name="expandedDomains.has(pg.project + '/' + group.domain) ? 'mdi-chevron-down' : 'mdi-chevron-right'"
+                          size="16px" color="grey-5"
+                        />
+                      </div>
+                      <div class="col text-mono text-caption text-weight-medium">{{ group.domain }}</div>
+                      <div style="width:130px"></div>
+                      <div class="text-right text-weight-bold text-caption" style="width:56px">{{ group.total }}</div>
+                    </div>
+                    <template v-if="expandedDomains.has(pg.project + '/' + group.domain)">
+                      <div
+                        v-for="row in group.rows"
+                        :key="rowKey(row)"
+                        class="row items-center q-px-sm q-py-xs registry-subrow"
+                        style="padding-left: 48px"
+                      >
+                        <div style="width:40px" class="text-center">
+                          <q-btn
+                            flat dense round size="xs" icon="mdi-eye-outline"
+                            :loading="viewingRow === rowKey(row)"
+                            @click.stop="onViewRow(row)"
+                          >
+                            <q-tooltip>View entries</q-tooltip>
+                          </q-btn>
+                        </div>
+                        <div class="col">
+                          <q-badge :color="row.type === 'lesson' ? 'blue-7' : 'orange-8'" outline :label="row.type" />
+                        </div>
+                        <div style="width:130px">
+                          <q-badge
+                            :color="row.scope === 'transferable' ? 'positive' : row.scope === 'transient' ? 'grey-6' : 'primary'"
+                            outline :label="row.scope"
+                          />
+                        </div>
+                        <div class="text-right text-weight-medium text-caption" style="width:56px">{{ row.count }}</div>
+                      </div>
+                    </template>
+                  </template>
                 </template>
                 <q-separator />
               </template>
@@ -549,21 +573,21 @@ const viewDialogOpen = ref(false)
 const viewDialogTitle = ref('')
 const viewDialogContent = ref('')
 
-function rowKey(row: { domain: string; type: string; scope: string }): string {
-  return `${row.domain}|${row.type}|${row.scope}`
+function rowKey(row: { project: string; domain: string; type: string; scope: string }): string {
+  return `${row.project}|${row.domain}|${row.type}|${row.scope}`
 }
 
-async function onViewRow(row: { domain: string; type: string; scope: string }) {
+async function onViewRow(row: { project: string; domain: string; type: string; scope: string }) {
   const key = rowKey(row)
   if (viewingRow.value === key) return
   viewingRow.value = key
   viewNotify.value = null
   try {
-    const res = await viewEntries(row.domain, row.type, row.scope)
+    const res = await viewEntries(row.domain, row.type, row.scope, row.project)
     if (!res.content) {
       viewNotify.value = res.note ?? 'No entries matched'
     } else {
-      viewDialogTitle.value = `${row.domain} · ${row.type} · ${row.scope} (${res.entryCount} entries)`
+      viewDialogTitle.value = `${row.project} · ${row.domain} · ${row.type} · ${row.scope} (${res.entryCount} entries)`
       viewDialogContent.value = res.content
       viewDialogOpen.value = true
     }
@@ -586,14 +610,21 @@ function toggleDomain(domain: string) {
 }
 
 const groupedEntries = computed(() => {
-  const map = new Map<string, { domain: string; total: number; rows: EngramEntryDomainRow[] }>()
+  // Two-level: project → domain → rows
+  const projectMap = new Map<string, Map<string, { domain: string; total: number; rows: EngramEntryDomainRow[] }>>()
   for (const row of entries.value) {
-    if (!map.has(row.domain)) map.set(row.domain, { domain: row.domain, total: 0, rows: [] })
-    const g = map.get(row.domain)!
+    if (!projectMap.has(row.project)) projectMap.set(row.project, new Map())
+    const domainMap = projectMap.get(row.project)!
+    if (!domainMap.has(row.domain)) domainMap.set(row.domain, { domain: row.domain, total: 0, rows: [] })
+    const g = domainMap.get(row.domain)!
     g.rows.push(row)
     g.total += row.count
   }
-  return [...map.values()]
+  return [...projectMap.entries()].map(([project, domainMap]) => ({
+    project,
+    total: [...domainMap.values()].reduce((s, g) => s + g.total, 0),
+    domains: [...domainMap.values()],
+  }))
 })
 
 const toolOptions = computed(() =>

@@ -60,6 +60,11 @@ module.exports = configure(function (/* ctx */) {
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/weaver/, ''),
         },
+        '/engram-query': {
+          target: `http://localhost:${process.env.QUASAR_ENGRAM_QUERY_PORT || 8770}`,
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/engram-query/, ''),
+        },
       },
     },
 

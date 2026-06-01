@@ -64,13 +64,26 @@
         bordered
         class="result-card q-mb-sm"
       >
-        <q-card-section class="q-pa-sm row items-start">
-          <div class="col text-body2" style="white-space: pre-wrap; word-break: break-word">
-            {{ r.text }}
+        <q-card-section class="q-pa-sm">
+          <div class="row items-start">
+            <div class="col text-body2" style="white-space: pre-wrap; word-break: break-word">
+              {{ r.text }}
+            </div>
+            <q-badge color="primary" class="q-ml-sm" style="flex-shrink: 0">
+              {{ r.score.toFixed(2) }}
+            </q-badge>
           </div>
-          <q-badge color="primary" class="q-ml-sm" style="flex-shrink: 0">
-            {{ r.score.toFixed(2) }}
-          </q-badge>
+          <div v-if="r.metadata?.project" class="row q-gutter-xs q-mt-xs">
+            <q-badge outline color="teal" class="text-caption">
+              {{ r.metadata.project }}
+            </q-badge>
+            <q-badge v-if="r.metadata?.entry_id" outline color="blue-grey" class="text-caption">
+              {{ r.metadata.entry_id }}
+            </q-badge>
+            <q-badge v-if="r.metadata?.chunk_type && r.metadata.chunk_type !== 'knowledge_entry'" outline color="purple" class="text-caption">
+              {{ r.metadata.chunk_type }}
+            </q-badge>
+          </div>
         </q-card-section>
       </q-card>
     </q-scroll-area>
@@ -100,7 +113,7 @@ const emit = defineEmits<{
 const query = ref('')
 const searchType = ref<SearchType>('CHUNKS')
 const queried = ref(false)
-const searchTypes: SearchType[] = ['CHUNKS', 'GRAPH_COMPLETION', 'SUMMARIES']
+const searchTypes: SearchType[] = ['CHUNKS', 'GRAPH_COMPLETION', 'SUMMARIES', 'KNOWLEDGE']
 
 function onSearch() {
   if (!query.value.trim()) return

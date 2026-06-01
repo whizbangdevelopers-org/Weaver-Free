@@ -197,8 +197,10 @@
             <HostsPanel
               :hosts="hosts"
               :loading="hostsLoading"
+              :syncing="hostsSyncing"
               :error="hostsError"
               @refresh="fetchHosts"
+              @sync="onSyncHosts"
               @create="onCreateHost"
               @update="onUpdateHost"
               @delete="onDeleteHost"
@@ -350,7 +352,10 @@ const {
   createHost,
   updateHost,
   deleteHost,
+  syncHostsFromInventory,
 } = useEngramMonitor()
+
+const hostsSyncing = ref(false)
 
 const {
   status,
@@ -795,6 +800,22 @@ async function onDeleteHost(hostname: string) {
     $q.notify({ type: 'positive', message: `Host "${hostname}" deleted`, timeout: 2000 })
   } catch (e) {
     $q.notify({ type: 'negative', message: e instanceof Error ? e.message : 'Delete failed', timeout: 3000 })
+  }
+}
+
+async function onSyncHosts() {
+  hostsSyncing.value = true
+  try {
+    const result = await syncHostsFromInventory()
+    await fetchHosts()
+    const msg = result.errors.length === 0
+      ? `Synced ${result.synced} host${result.synced === 1 ? '' : 's'} from inventory`
+      : `Synced ${result.synced}, ${result.errors.length} error(s): ${result.errors[0]}`
+    $q.notify({ type: result.errors.length === 0 ? 'positive' : 'warning', message: msg, timeout: 3000 })
+  } catch (e) {
+    $q.notify({ type: 'negative', message: e instanceof Error ? e.message : 'Sync failed', timeout: 3000 })
+  } finally {
+    hostsSyncing.value = false
   }
 }
 
