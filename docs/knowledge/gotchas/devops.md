@@ -192,3 +192,26 @@ systemctl start weaver
 **Rule:** Any time you replace a SQLite db file in production: (1) stop the consumer first, (2) delete all WAL/SHM siblings at the destination, (3) copy, (4) restore ownership, (5) start. Never hot-swap a SQLite file by copying only the `.db` — the WAL files are part of the logical database.
 
 <!-- /entry -->
+
+<!-- entry:G-devops-2026-06-01-001 -->
+---
+id: G-devops-2026-06-01-001
+type: gotcha
+domain: devops
+tags: [ssh, config, root, permissions]
+since_version: "1.0.5"
+status: active
+scope: transferable
+related: [G-nixos-2026-06-01-004]
+graduated_to: ""
+---
+
+## SSH config User must be updated when PermitRootLogin changes — 2026-06-01 · Claude
+
+**Problem:** `~/.ssh/config` aliases that use `User root` silently break when `PermitRootLogin = "no"` is deployed on the target host. The connection is refused with `Permission denied (publickey)` — no indication that the username is the problem, just an auth failure.
+
+**Fix:** Whenever you disable root SSH on a machine, immediately update its `~/.ssh/config` alias to the correct non-root user. This is a one-liner but easy to miss in the moment.
+
+**Rule:** Changing `PermitRootLogin` on any host is a two-file change: the NixOS config AND `~/.ssh/config`. Treat them as an atomic pair.
+
+<!-- /entry -->

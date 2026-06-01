@@ -29,3 +29,54 @@ graduated_to: ""
 **Why this shape wins:** A developer running builds from the project root sees `build:engram-ui` alongside `build:backend` and `build:tui` — the deploy is not a separate mental step, it's baked into the standard build invocation. The bare `build` script inside the tool directory can remain for CI contexts that need build-only, but the root script is the canonical developer path. Documentation alone (gotchas, CLAUDE.md) doesn't prevent the mistake — the script structure does.
 
 <!-- /entry -->
+
+<!-- entry:L-devops-2026-06-01-001 -->
+---
+id: L-devops-2026-06-01-001
+type: lesson
+domain: devops
+tags: [storage, nas, nfs, llm, mlock, mount-naming]
+since_version: "1.0.5"
+status: active
+scope: transferable
+related: []
+graduated_to: ""
+---
+
+## Store large model files on NAS with mlock — single load, free local SSD — 2026-06-01 · Claude
+
+**Root cause:** Considered storing a 32GB Q8_0 model on the local NVMe of the inference machine. The NVMe is 2TB and would fit, but it would consume a third of the drive that's better used for the Nix store and build artifacts — which are large, frequently written, and don't benefit from NAS latency.
+
+**Rule:** For inference machines where the model is mlock'd into RAM on startup: store the model file on NAS. The load time penalty (1G NIC at ~125 MB/s → ~4 minutes for 32GB) only occurs at llama-server startup. Once locked, the model never touches storage again until the service restarts. Local NVMe is better used for Nix store, Docker image layers, and build caches — all of which benefit from low-latency random I/O.
+
+Name the mount point after the share, not the device: `/mnt/foundry-models` not `/mnt/nas`. When multiple machines share a NAS, `/mnt/nas` is ambiguous — `/mnt/foundry-models` communicates exactly what the mount contains and which machine it's for.
+
+**Why this shape wins:** The NAS stores the model once. If the inference machine is replaced, reprovisioned, or re-imaged, the model is already where it needs to be — no 32GB re-download. The per-share mount name also prevents confusion when the NAS serves multiple hosts from different shares.
+
+<!-- /entry -->
+
+<!-- entry:L-devops-2026-06-01-002 -->
+---
+id: L-devops-2026-06-01-002
+type: lesson
+domain: devops
+tags: [ssh, infra-users, root, service-accounts, privilege-separation, headless]
+since_version: "1.0.5"
+status: active
+scope: transferable
+related: [G-nixos-2026-06-01-004]
+graduated_to: ""
+---
+
+## Headless infra nodes get no human login user — root-from-admin-host + purpose-named service users — 2026-06-01 · Claude
+
+**Root cause:** We copied a workstation-identity user (`mark`) onto a headless inference/agent node because the scaffold config came from a workstation (king) that has one. An infra node managed entirely from an admin host has no interactive human at its console — so the human user is an identity that corresponds to no one, an extra key to rotate, and (when root SSH is disabled in the same rebuild) the direct cause of a lockout.
+
+**Rule:** Decide accounts from what the node *is*, not from the config you copied:
+- **Admin** → `root` over SSH, key-only (`PermitRootLogin = "prohibit-password"`, `PasswordAuthentication = false`), keys for each admin host (workstation + any orchestrator). Keeping root SSH alive is what makes the node lockout-proof — there is always one management path that no per-user provisioning step can break.
+- **Workloads that must not run as root** (agents, builders, CI) → a **purpose-named, unprivileged service user** (`forge`, `builder`) with only the groups it needs (`docker`) and **no sudo**. Never a mirror of the workstation identity. If a task needs one privileged action, add a narrow audited NOPASSWD rule for that exact command — never blanket wheel.
+- **Interactive human user** → none, unless someone genuinely sits at the box.
+
+**Why this shape wins:** It removes a whole failure class instead of working around it. There is no half-provisioned login account to lock you out, the agent blast radius is bounded (unprivileged, no sudo), and "who is this user" always has an answer. The contrast is sharp: the workaround was "add NOPASSWD sudo + an initial password so the human user can self-manage"; the root-cause fix is "the node has no human user, and root-from-admin-host is the management path." See [[G-nixos-2026-06-01-004]].
+
+<!-- /entry -->
