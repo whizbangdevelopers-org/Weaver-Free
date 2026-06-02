@@ -18,7 +18,7 @@ Weaver is distributed under two licenses depending on tier:
 
 | Tier | License |
 |------|---------|
-| Weaver Free | AGPL-3.0 + Commons Clause + AI Training Restriction |
+| Weaver Free | AGPL-3.0 + AI Training Restriction |
 | Weaver Solo / Team / Fabrick | BSL-1.1 + AI Training Restriction |
 
 The complete license text is included with the software in the LICENSE file. These Terms supplement — but do not replace — the applicable license.

@@ -243,4 +243,4 @@ See [docs/DEVELOPER-GUIDE.md](docs/DEVELOPER-GUIDE.md) for full architecture doc
 
 ## License
 
-By contributing, you agree that your contributions will be licensed under the project's [AGPL-3.0 + Commons Clause + AI Training Restriction](LICENSE) license.
+By contributing, you agree that your contributions will be licensed under the project's [AGPL-3.0 + AI Training Restriction](LICENSE) license.
