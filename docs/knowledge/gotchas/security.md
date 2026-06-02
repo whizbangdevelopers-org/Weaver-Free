@@ -121,3 +121,150 @@ graduated_to: ""
 **Rule:** When initializing a database schema with a hardcoded SQL constant, pass it to `exec()` as a single call. Splitting on `;` and re-appending is unnecessary for `node:sqlite`'s `exec()`, introduces a string concatenation that SAST tools flag as potential injection, and is strictly worse in every dimension. Use `exec(fullSqlString)` — the semicolons in the SQL are sufficient delimiters.
 
 <!-- /entry -->
+
+<!-- entry:G-security-2026-06-02-001 -->
+---
+id: G-security-2026-06-02-001
+type: gotcha
+domain: security
+tags: [cookies, secure-flag, http, tls, node-env, auth]
+since_version: "1.0.5"
+status: active
+scope: transferable
+related: []
+graduated_to: ""
+---
+
+## Cookie `secure: true` inferred from NODE_ENV breaks auth over HTTP — 2026-06-02 · Claude (migrated from legacy archive, orig. 2026-04)
+
+**Problem:** Login page shows an infinite spinner. Browser console: `Cookie "weaver_token" has been rejected because a non-HTTPS cookie can't be set as "secure".` The backend set `secure: isProduction` on httpOnly auth cookies, and the NixOS module sets `NODE_ENV=production`. Any production install without a TLS reverse proxy serves over HTTP → the browser silently rejects the secure cookie → auth fails → every protected page bounces to login → infinite spinner.
+
+**Fix:** Replace `const isProduction = process.env.NODE_ENV === 'production'` with `const secureCookies = process.env.COOKIE_SECURE === 'true'` in every cookie-setting route (register, login, refresh). Default is `false` so HTTP works out of the box; the NixOS module sets `COOKIE_SECURE=true` only when auto-TLS is configured.
+
+**Rule:** Never infer cookie security from `NODE_ENV`. Production installs legitimately run over plain HTTP (behind a firewall, on a LAN, during initial setup). Tie the `secure` flag to an explicit TLS-configuration env var, never to deployment environment.
+
+<!-- /entry -->
+
+<!-- entry:G-security-2026-06-02-002 -->
+---
+id: G-security-2026-06-02-002
+type: gotcha
+domain: security
+tags: [tsconfig, noemitonerror, typescript, build-integrity]
+since_version: "1.0.5"
+status: active
+scope: transferable
+related: []
+graduated_to: ""
+---
+
+## Backend tsc emits JS despite type errors without noEmitOnError — 2026-06-02 · Claude (migrated from legacy archive, orig. 2026-04)
+
+**Problem:** `npm run build` (tsc) exits with code 2 and reports type errors across dozens of files, yet still emits every `.js` and `.d.ts`. The backend compiles and runs despite being type-unsafe — a build that "succeeds" while lying about correctness.
+
+**Fix:** Add `noEmitOnError: true` to `backend/tsconfig.json`. TypeScript's default is to emit output even with errors; this makes a type error a hard build failure.
+
+**Rule:** Every TypeScript project must set `noEmitOnError: true`. A build that produces artifacts despite type errors silently ships type-unsafe code and masks regressions.
+
+<!-- /entry -->
+
+<!-- entry:G-security-2026-06-02-003 -->
+---
+id: G-security-2026-06-02-003
+type: gotcha
+domain: security
+tags: [error-sanitization, execfileasync, info-leak, api-boundary]
+since_version: "1.0.5"
+status: active
+scope: transferable
+related: []
+graduated_to: ""
+---
+
+## System-call error messages leak internal paths if returned to API clients — 2026-06-02 · Claude (migrated from legacy archive, orig. 2026-02)
+
+**Problem:** Raw error messages from `execFileAsync` or other system calls contain internal infrastructure detail (e.g. store paths like `/run/current-system/sw/bin/...`, file paths, command lines). Passing `err.message` straight into an API response leaks that detail to any client and gives an attacker a map of the host.
+
+**Fix:** Establish a sanitization boundary at every system-call catch: log the full error server-side, return a sanitized, user-actionable message to the client. System call → catch → log full error → return safe message. Never let an `execFileAsync` error reach an API response verbatim.
+
+**Rule:** No raw system error text crosses the API boundary. Log server-side at full fidelity; respond with a generic actionable message. This is a hard rule for every catch block that surfaces an error to a client.
+
+<!-- /entry -->
+
+<!-- entry:G-security-2026-06-02-004 -->
+---
+id: G-security-2026-06-02-004
+type: gotcha
+domain: security
+tags: [codeql, code-scanning, false-positive, path-dedup, sync, ci]
+since_version: "1.0.5"
+status: active
+scope: transferable
+related: [L-security-2026-06-02-006]
+graduated_to: ""
+---
+
+## Free-repo CodeQL double-reports every finding once with a `code/` prefix — 2026-06-02 · Claude (migrated from legacy archive, orig. 2026-04-25)
+
+**Problem:** The public Free repo's CodeQL database scans both the root content and a `code/` subdirectory artifact left by the dev-to-free sync. The same file appears at `backend/src/foo.ts` and `code/backend/src/foo.ts`, generating two separate alert entries — inflating counts and making raw alert lists misleading. Separately, CodeQL's `js/syntax-error` fires on `as unknown as { ... }` double-casts that are valid TypeScript 5.x but outside CodeQL's parser support.
+
+**Fix:** Normalize by stripping the `code/` prefix and deduplicate on `{rule, normalizedPath, startLine}` before classifying. For the TS-cast false positive, dismiss via `scripts/baselines/code-scanning-dismiss.json` with a reason — never reword valid source to dodge the parser.
+
+**Rule:** When triaging CodeQL alerts from a synced public mirror, always strip the `code/` prefix before deduplicating. Confirmed false positives go in `code-scanning-dismiss.json` (with reason); accepted *real* risks go in `business/legal/SECURITY-AUDIT.md` — the dismiss list is false-positives only.
+
+<!-- /entry -->
+
+<!-- entry:G-security-2026-06-02-005 -->
+---
+id: G-security-2026-06-02-005
+type: gotcha
+domain: security
+tags: [toctou, race-condition, filesystem, enoent, codeql, file-system-race]
+since_version: "1.0.5"
+status: active
+scope: transferable
+related: []
+graduated_to: ""
+---
+
+## TOCTOU: prefer readFile + ENOENT-catch over existsSync + readFile — 2026-06-02 · Claude (migrated from legacy archive, orig. 2026-06-02)
+
+**Problem:** `if (existsSync(path)) { return readFileSync(path) }` is a classic check-then-use race. Between `existsSync()` returning true and `readFileSync()` opening the file, another process can delete, replace, or swap-symlink it. CodeQL's `js/file-system-race` rule flags this exact pattern (caught on `backend/src/services/compliance-pdf.ts` cache-hit path).
+
+**Fix:** Attempt the read and catch ENOENT — atomic at the kernel level:
+```typescript
+// right — atomic read-or-fallthrough
+try {
+  return await readFile(cachePath)
+} catch (err) {
+  if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err
+}
+// regenerate...
+```
+
+**Rule:** Any "check file exists, then use file" sequence is a TOCTOU. The correct pattern is "attempt the use, handle the absence as an error." This applies to reads (ENOENT), locks (EEXIST on O_CREAT|O_EXCL), directory operations, and permission checks. Replace the check+use composition with a try+errno-filter composition wherever the intermediate state between check and use could matter.
+
+<!-- /entry -->
+
+<!-- entry:G-security-2026-06-02-006 -->
+---
+id: G-security-2026-06-02-006
+type: gotcha
+domain: security
+tags: [helmet, csp, upgrade-insecure-requests, reverse-proxy, http, serviceworker]
+since_version: "1.0.5"
+status: active
+scope: transferable
+related: []
+graduated_to: ".claude/rules/security.md"
+---
+
+## Helmet CSP adds upgrade-insecure-requests by default — breaks an HTTP backend behind a proxy — 2026-06-02 · Claude (migrated from legacy archive, orig. 2026-06-02)
+
+**Problem:** Accessing the dashboard via `http://localhost:3100` shows ServiceWorker errors. `@fastify/helmet` adds `upgrade-insecure-requests` to the CSP by default, telling browsers to upgrade every HTTP request to HTTPS — but the backend serves over plain HTTP (TLS terminates at the reverse proxy).
+
+**Fix:** Set `upgradeInsecureRequests: null` in the helmet config. HTTPS termination belongs at the reverse proxy, not in the app-level CSP.
+
+**Rule:** When using Helmet/CSP with an HTTP backend behind a reverse proxy, disable `upgrade-insecure-requests` at the app level (`upgradeInsecureRequests: null`) — set it at the proxy if needed. Leaving the default on produces ServiceWorker / mixed-content failures that look like app bugs.
+
+<!-- /entry -->
