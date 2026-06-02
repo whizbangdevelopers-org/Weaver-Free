@@ -281,7 +281,7 @@
               <div class="row items-center q-px-sm q-py-xs text-grey-7">
                 <div style="width:40px"></div>
                 <div class="col text-caption">Total</div>
-                <div style="width:130px"></div>
+                <div style="width:130px" class="text-caption text-positive text-weight-medium">{{ transferableTotal }} transferable</div>
                 <div class="text-right text-weight-bold text-caption" style="width:56px">{{ entriesTotal }}</div>
               </div>
             </div>
@@ -626,6 +626,12 @@ const groupedEntries = computed(() => {
     domains: [...domainMap.values()],
   }))
 })
+
+// Count of entries whose scope is `transferable` (reusable across projects),
+// summed across all projects/domains — shown on the registry Total line.
+const transferableTotal = computed(() =>
+  entries.value.reduce((s, r) => s + (r.scope === 'transferable' ? r.count : 0), 0),
+)
 
 const toolOptions = computed(() =>
   status.value?.queryCountsByTool.map((s) => ({ label: s.tool, value: s.tool })) ?? [],

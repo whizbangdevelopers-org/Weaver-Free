@@ -10,6 +10,7 @@ See `SCHEMA.md` for the entry format and ID convention.
 <!-- entry:G-process-2026-05-10-002 -->
 ---
 id: G-process-2026-05-10-002
+scope: transferable
 type: gotcha
 domain: process
 tags: [regex, typescript, esm, module, global-flag]
@@ -52,6 +53,7 @@ function scanFile(content: string) {
 <!-- entry:G-process-2026-05-10-001 -->
 ---
 id: G-process-2026-05-10-001
+scope: project
 type: gotcha
 domain: process
 tags: [auditor, marker-sync, doc-parity, audit-chain]

@@ -137,10 +137,10 @@
           <q-input v-model="form.capacity.cpu_model" label="CPU Model" dense outlined />
 
           <div class="text-caption text-grey-7 q-mt-sm">IPs (JSON object, e.g. {"trust":"192.168.0.8"})</div>
-          <q-input v-model="form.ipsJson" label="IPs" dense outlined type="textarea" autogrow :error="!!ipsJsonError" :error-message="ipsJsonError" />
+          <q-input v-model="form.ipsJson" label="IPs" dense outlined type="textarea" autogrow :error="!!ipsJsonError" :error-message="ipsJsonError ?? undefined" />
 
           <div class="text-caption text-grey-7">Facts (JSON object, freeform)</div>
-          <q-input v-model="form.factsJson" label="Facts" dense outlined type="textarea" autogrow :error="!!factsJsonError" :error-message="factsJsonError" />
+          <q-input v-model="form.factsJson" label="Facts" dense outlined type="textarea" autogrow :error="!!factsJsonError" :error-message="factsJsonError ?? undefined" />
         </q-card-section>
 
         <q-card-actions align="right">

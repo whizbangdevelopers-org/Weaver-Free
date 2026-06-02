@@ -45,7 +45,7 @@ const VALID_DOMAINS = new Set([
 ])
 const VALID_STATUSES = new Set(['active', 'graduated', 'deprecated', 'historical'])
 const VALID_SCOPES = new Set(['project', 'transferable', 'transient'])
-const REQUIRED_FIELDS = ['id', 'type', 'domain', 'tags', 'since_version', 'status', 'related', 'graduated_to']
+const REQUIRED_FIELDS = ['id', 'type', 'domain', 'tags', 'since_version', 'status', 'scope', 'related', 'graduated_to']
 const ID_RE = /^[LG]-[a-z]+(-[a-z]+)*-\d{4}-\d{2}-\d{2}-\d{3}$/
 
 // ── Parsing helpers ───────────────────────────────────────────────────────────
@@ -161,7 +161,7 @@ function auditFile(filePath: string): Violation[] {
       flag('status is "graduated" but graduated_to is empty — add the destination path')
     }
 
-    // scope is optional, but if present must be valid
+    // scope is required (see REQUIRED_FIELDS) and must be one of VALID_SCOPES
     if (fm['scope'] !== undefined && fm['scope'] !== '' && !VALID_SCOPES.has(fm['scope'])) {
       flag(`invalid scope "${fm['scope']}"; valid: project, transferable, transient`)
     }
