@@ -2,7 +2,9 @@
 <!-- Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE. -->
 # Paid Tier License Draft (BSL 1.1)
 
-**Status:** DRAFT — Not yet active. Will be finalized before Solo/Team ship.
+> **ARCHIVED 2026-06-02 — historical draft, superseded.** This draft predates the Commons Clause drop (2026-04-19) and still uses retired tier framing; its "Weaver Free | AGPL-3.0 + Commons Clause" row is no longer accurate (Free is pure AGPL-3.0 + AI Training Restriction). Retained for lineage only. The live tier→license model is `license-matrix.json` + `docs/legal/TERMS-OF-SERVICE.md`; the canonical paid-tier terms will be the BSL-1.1 `LICENSE` finalized before Solo/Team ship. Do not cite this file as current.
+
+**Status:** ARCHIVED DRAFT — superseded, not active.
 **Applies to:** Weaver Solo, Weaver Team, and Fabrick (Decision #137)
 **Template:** Business Source License 1.1 (MariaDB format, used by HashiCorp, CockroachDB, Sentry)
 **Full template text:** https://mariadb.com/bsl11/

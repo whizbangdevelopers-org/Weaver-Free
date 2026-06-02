@@ -70,6 +70,6 @@ All packages listed above are MIT, ISC, BSD-2-Clause, BSD-3-Clause, or MIT-0 lic
 
 - **web-push** (MPL-2.0) — weak file-level copyleft. Modifications to web-push source files must be shared under MPL-2.0. Weaver does not modify web-push; it is used as a dependency without source changes. MPL-2.0 is compatible with both AGPL-3.0 (Free tier) and BSL-1.1 (Solo/Team/Fabrick). Fabrick and compliance-sensitive customers should be aware of this license if their policy restricts copyleft dependencies.
 
-Weaver Free is licensed under AGPL-3.0 with Commons Clause and AI Training Restriction.
+Weaver Free is licensed under AGPL-3.0 with the AI Training Restriction.
 Weaver Solo, Weaver Team, and Fabrick are licensed separately. See LICENSE for full terms.
 See LICENSE for full terms.
