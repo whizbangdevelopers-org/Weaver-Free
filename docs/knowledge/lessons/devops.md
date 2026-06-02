@@ -382,3 +382,29 @@ graduated_to: ".claude/rules/scripts.md"
 **Why this shape wins:** The failure is completely silent — npm doesn't warn about unknown flags and the app launches "normally." A single-hop invocation makes arg passthrough deterministic, removing an entire class of "the flag had no effect and nothing told me why" debugging.
 
 <!-- /entry -->
+
+<!-- entry:L-devops-2026-06-02-014 -->
+---
+id: L-devops-2026-06-02-014
+type: lesson
+domain: devops
+tags: [local-llm, model-selection, agentic, tool-calling, llama-cpp, qwen]
+since_version: "1.0.5"
+status: active
+scope: transferable
+related: [G-devops-2026-06-02-030]
+graduated_to: ""
+---
+
+## Local agentic models: start near the newest, not the oldest "safe" one — 2026-06-02 · Mark + Claude
+
+**Root cause:** We started the local agent-model search at a conservative older model (Qwen2.5-Coder-32B) and had to climb a ladder, paying a full download + debug cycle per rung:
+- Qwen2.5-Coder-32B → tool-calling fundamentally broken (llama.cpp emits the wrong `<tools>` tag, nothing parses).
+- Qwen3-Coder-30B-A3B → tool calls parse, but fail whenever the model writes a preamble before the call (#20260).
+- Qwen3.5-35B-A3B → first generation where agentic tool-calling is a *solved* problem (community ships fixed chat templates; Unsloth bakes them into the GGUF).
+
+**Rule:** For local models used as agents (tool-calling via llama.cpp + Claude Code / similar), **start near the top of the model ladder — roughly the second-from-newest — not the oldest model you trust.** The capability gap between generations on *agentic tool-calling* is large and improving fast (bigger than quant differences). Newer models behave better AND the ecosystem (GGUF quants, fixed minijinja templates, llama.cpp tool parsers) has caught up by the second-newest. Avoid the absolute bleeding edge only because of tooling *lag* (a brand-new tool format llama.cpp can't parse yet, MTP needing a newer build) — hence *second*-from-newest as the pragmatic sweet spot: recent enough to benefit, mature enough to be supported.
+
+**Why this shape wins:** Starting old means paying a download + debug cycle for every rung you climb to discover newer was the answer all along (this session: 3 generations, 3 cycles). The NAS-passthrough model storage makes swapping cheap, so the cost of biasing toward newer is low and the upside is large. See [[G-devops-2026-06-02-030]].
+
+<!-- /entry -->
