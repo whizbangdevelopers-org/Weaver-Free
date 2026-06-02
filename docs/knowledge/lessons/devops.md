@@ -80,3 +80,26 @@ graduated_to: ""
 **Why this shape wins:** It removes a whole failure class instead of working around it. There is no half-provisioned login account to lock you out, the agent blast radius is bounded (unprivileged, no sudo), and "who is this user" always has an answer. The contrast is sharp: the workaround was "add NOPASSWD sudo + an initial password so the human user can self-manage"; the root-cause fix is "the node has no human user, and root-from-admin-host is the management path." See [[G-nixos-2026-06-01-004]].
 
 <!-- /entry -->
+
+<!-- entry:L-devops-2026-06-02-001 -->
+---
+id: L-devops-2026-06-02-001
+type: lesson
+domain: devops
+tags: [nfs, nfsv3, nat, passthrough, gateway, model-storage, nolock]
+since_version: "1.0.5"
+status: active
+scope: transferable
+related: [G-devops-2026-06-02-001, G-nixos-2026-06-02-001]
+graduated_to: ""
+---
+
+## NFSv3 survives NAT masquerade with nolock — gateway-passthrough model storage — 2026-06-02 · Claude
+
+**Root cause:** A GPU/inference node with only a private-subnet NIC needed a 34 GB model that lives on a NAS on another VLAN, reachable only through a NAT gateway. NFSv4 (single port 2049) would NAT cleanly, but the NAS is NFSv3-only. NFSv3's "doesn't survive NAT" reputation comes from its ancillary services (mountd/statd/lockd on dynamic ports + server→client lock callbacks).
+
+**Rule:** Mount NFSv3 through a masquerade with `-o nfsvers=3,nolock,ro,proto=tcp`. `nolock` drops statd/lockd, so every connection is client-initiated (portmapper 111 → mountd → nfsd 2049) and conntrack/SNAT carries it — no inbound callbacks to break. `ro`+`nolock` is exactly right for a read-only mmap/mlock model load. The gateway stores nothing — pure passthrough; the model lives only on the NAS, so both the gateway and the consumer keep their disk free and models stay swappable from one place.
+
+**Why this shape wins:** One canonical copy on the NAS, zero duplication, no fragile NFS re-export server — the gateway is just the router it already is. Caveats: a 32 GB read over a 1 G NAS link takes ~4–5 min at service start (one-time with mlock; set `TimeoutStartSec` generously), the mount-root dir must be traversable by the service user (see [[G-devops-2026-06-02-001]]), and the gateway's forwarding must be networkd-proof (see [[G-nixos-2026-06-02-001]]).
+
+<!-- /entry -->

@@ -79,3 +79,26 @@ graduated_to: ""
 **Why this shape wins:** The auditor makes the migration's completion state machine-readable. No future session needs context about "we used to call this X" — the auditor fails if X appears. Adding a new forbidden variant (a typo, an old alias, a case variant) is a one-line auditor change. The compliance chain's auditor count increasing triggers the marker-sync pattern automatically in any doc that summarises the CI chain, so documentation stays current. The pattern generalises: API deprecation (forbid old endpoint strings in client code), dependency retirement (forbid old import paths), terminology shifts (forbid "backlog" in user-facing copy).
 
 <!-- /entry -->
+
+<!-- entry:L-process-2026-06-02-001 -->
+---
+id: L-process-2026-06-02-001
+type: lesson
+domain: process
+tags: [nixos, config-ownership, single-source, homelab, duplication]
+since_version: "1.0.5"
+status: active
+scope: transferable
+related: [L-devops-2026-06-01-002]
+graduated_to: ""
+---
+
+## Find a host's canonical config repo before reconstructing it — 2026-06-02 · Claude
+
+**Root cause:** Bringing a gateway host under declarative management, I reconstructed its full NixOS config "from running state" into the repo I happened to be working in (the consumer node's repo) — not realizing a canonical, richer config for that host already existed in a different repo (the homelab repo that owns it). That created a duplicate, deployed the wrong one, and the canonical config's NAT was missing from the deployed copy — which silently broke the consumer's uplink.
+
+**Rule:** The convention is one repo per host's `/etc/nixos` (each host deploys its own repo; the workstation is the exemplar). Before reconstructing or relocating any host's config, grep the other active repos for `hosts/<name>/` and check each flake's `nixosConfigurations` — the host may already be owned elsewhere. Reconcile into the canonical owner; never duplicate a host definition across two flakes.
+
+**Why this shape wins:** Drift between two host definitions is invisible until a deploy picks the wrong one. This is the single-source rule applied to whole-host configs — see `~/.claude/rules/single-source-generated` and [[L-devops-2026-06-01-002]] (per-host infra ownership).
+
+<!-- /entry -->

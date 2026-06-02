@@ -215,3 +215,26 @@ graduated_to: ""
 **Rule:** Changing `PermitRootLogin` on any host is a two-file change: the NixOS config AND `~/.ssh/config`. Treat them as an atomic pair.
 
 <!-- /entry -->
+
+<!-- entry:G-devops-2026-06-02-001 -->
+---
+id: G-devops-2026-06-02-001
+type: gotcha
+domain: devops
+tags: [nfs, synology, ds214play, permissions, nat, nfsv3]
+since_version: "1.0.5"
+status: active
+scope: transferable
+related: [L-devops-2026-06-02-001]
+graduated_to: ""
+---
+
+## Synology DS214play NFS: v3-only, and mangles a 777 share root to 000 for NAT'd clients — 2026-06-02 · Claude
+
+**Problem:** Two DS214play NFS surprises. (1) No NFSv4.1 — a v4.1 mount fails `Protocol not supported`; this model is NFSv3-only regardless of the DSM NFSv4 toggle. (2) The export root `/volume1/<share>`, mode `0777` on the NAS, was presented to a NAT-masqueraded client as mode `000` — root could traverse (ignores perms) but a *service user* got EACCES on the directory even though the file inside was world-readable. `ls -ld` showed `d---------` on the consumer while the NAS and a same-subnet client both saw `drwxrwxrwx`.
+
+**Fix:** (1) Mount v3: `nfsvers=3,nolock`. (2) `chmod 755` the share dir and `644` the files (from a host with rw access) — `755` passes the NAS's NFS perm mapping cleanly where `777` got mangled to `000`. Persist it; files later downloaded into the share need the same chmod.
+
+**Rule:** On Synology NFS prefer `755/644` over `777` — `777` can come across the wire as `000` for masqueraded/mapped clients — and treat DS214play as NFSv3-only. Diagnosis: if root reads a file fine but a service user gets EACCES, check the mount-root dir mode the *service user* sees (`ls -ld`), not the file's mode.
+
+<!-- /entry -->
