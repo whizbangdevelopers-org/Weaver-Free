@@ -976,3 +976,26 @@ graduated_to: ".claude/rules/workflow-review.md"
 **Rule:** When inheriting or scaffolding a demo workflow, ask: is the demo stateful (real API, real data) or stateless (static mock)? Stateless demos cannot be polluted — no reset workflow, no sample-data directories, deploy-only CI.
 
 <!-- /entry -->
+
+<!-- entry:G-devops-2026-06-02-030 -->
+---
+id: G-devops-2026-06-02-030
+type: gotcha
+domain: devops
+tags: [llama-cpp, tool-calling, peg-native, claude-code, anthropic-endpoint, qwen]
+since_version: "1.0.5"
+status: active
+scope: transferable
+related: [L-devops-2026-06-02-014]
+graduated_to: ""
+---
+
+## llama.cpp peg-native leaks tool calls as text on preamble; Anthropic endpoint doesn't parse tools at all — 2026-06-02 · Claude
+
+**Problem:** llama.cpp's `peg-native` tool-call parser (auto-selected for Qwen chat templates) fails to extract calls in two cases: (1) the model writes explanatory text BEFORE the `<tool_call>` — the PEG root expects the call at the start, so any preamble breaks it (upstream #20260); (2) some models emit a near-miss tag (Qwen2.5-Coder emitted `<tools>` not `<tool_call>`). In both, the call lands in `message.content` as raw text with `finish_reason: stop` and `tool_calls: null` — so Claude Code never sees a `tool_use` and nothing executes. Confirmed independent of streaming and toolset size; reproduces exactly when the model preambles. Separately: llama.cpp's Anthropic `/v1/messages` endpoint does NOT translate tool calls (text only) even when the OpenAI `/v1/chat/completions` endpoint on the same server parses them fine.
+
+**Fix (cleanest first):** (1) use a model whose agentic tool-calling is already fixed (Qwen3.5 ships community-fixed templates) — newer wins, see [[L-devops-2026-06-02-014]]; (2) a chat template that forbids preamble + does C++/minijinja-safe `<function=>` parsing (froggeric Qwen-Fixed-Chat-Templates); (3) a thin proxy that routes through the OpenAI endpoint and regex-extracts `<function=NAME><parameter=K>V</parameter></function>` from leaked content into `tool_use`. `--chat-template-file` of the official template alone does NOT help (peg-native overrides the template's tool handling) and there is no flag to force a different parser.
+
+**Rule:** For Claude Code + local llama.cpp, route through the **OpenAI `/v1/chat/completions`** endpoint (it parses tools; the Anthropic endpoint doesn't), and choose a model with known-good agentic tool-calling instead of fighting peg-native. Symptom signature: the tool call appears as raw `<function=>`/`<tool_call>` text in the reply, `finish_reason: stop`, no structured `tool_calls`.
+
+<!-- /entry -->
