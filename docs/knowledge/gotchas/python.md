@@ -33,3 +33,41 @@ graduated_to: ""
 **Rule:** Any change to extra content in `pyproject.toml` requires an explicit `uv lock` run before rebuilding. The lock file is not a snapshot of installed state — it is a snapshot of the resolved plan, and that plan must be re-solved when extras change.
 
 <!-- /entry -->
+
+<!-- entry:G-python-2026-06-02-001 -->
+---
+id: G-python-2026-06-02-001
+type: gotcha
+domain: python
+tags: [asyncio, gather, concurrency, batching, memory, coroutines]
+since_version: "1.0.5"
+status: active
+scope: transferable
+related: []
+graduated_to: ""
+---
+
+## Unbatched asyncio.gather over a full work set explodes memory — cap concurrency — 2026-06-02 · Claude (migrated from legacy archive, orig. 2026-05-06)
+
+**Problem:** A single `asyncio.gather(*[coro(x) for x in items])` over an entire work set fans out one concurrent coroutine per item, with no upper bound. Each coroutine holds its full working state in memory simultaneously. For a real corpus this is thousands of concurrent coroutines — RSS grows unbounded (observed 11 GB → 19+ GB in 5 minutes), the event loop is blocked for tens of minutes, and any awaited HTTP endpoint goes unresponsive:
+
+```python
+# Anti-pattern: every item becomes a live coroutine at once
+results = await asyncio.gather(*[process(x) for x in all_items])
+```
+
+`asyncio.gather` is not a concurrency cap. It schedules everything passed to it immediately; the count of in-flight coroutines equals `len(items)`. The default "no batching" path is only safe for trivially small inputs.
+
+**Fix:** Bound concurrency. Either chunk the work set and gather one batch at a time, or guard each coroutine with an `asyncio.Semaphore`:
+
+```python
+sem = asyncio.Semaphore(10)
+async def bounded(x):
+    async with sem:
+        return await process(x)
+results = await asyncio.gather(*[bounded(x) for x in all_items])
+```
+
+**Rule:** Never `asyncio.gather` over an unbounded input set. Always cap concurrency — a batch size or a semaphore — sized to the per-coroutine memory cost. Start small (e.g. 10) and reduce if RSS growth is still a problem. The fan-out count, not the total item count, is what determines peak memory and event-loop responsiveness.
+
+<!-- /entry -->
