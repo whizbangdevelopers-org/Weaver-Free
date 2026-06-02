@@ -308,3 +308,49 @@ graduated_to: ""
 **Rule:** Before overriding `services.postgresql.dataDir`, confirm the target directory exists and contains the database files (or is empty and PostgreSQL will init it). A missing directory surfaces as a systemd mount-namespace error, not a PostgreSQL error.
 
 <!-- /entry -->
+
+<!-- entry:G-nixos-2026-06-02-001 -->
+---
+id: G-nixos-2026-06-02-001
+type: gotcha
+domain: nixos
+tags: [networkd, ip-forward, nat, gateway, sysctl, regression]
+since_version: "1.0.5"
+status: active
+scope: transferable
+related: [G-nixos-2026-06-01-001, G-nixos-2026-06-01-002]
+graduated_to: ""
+---
+
+## systemd-networkd silently resets net.ipv4.ip_forward to 0 — kills NAT mid-run — 2026-06-02 · Claude
+
+**Problem:** A NAT gateway relying on `boot.kernel.sysctl."net.ipv4.ip_forward" = 1` had forwarding flipped back to `0` by systemd-networkd on a reconfigure event — no log line. Downstream hosts silently lost their uplink (and NAS access) while the gateway itself stayed pingable. The masquerade iptables rule was still present with frozen counters, so it read like a firewall/routing bug, not a sysctl reset.
+
+**Fix:** Defend in three layers: (1) `boot.kernel.sysctl` sets both `net.ipv4.ip_forward` and `net.ipv4.conf.all.forwarding` to 1; (2) `systemd.network.config.networkConfig.IPv4Forwarding = true` so networkd itself owns the knob and won't reset it (the durable layer); (3) the NAT oneshot re-asserts `sysctl -w net.ipv4.ip_forward=1` on start, ordered `after = [ "systemd-networkd.service" ]`.
+
+**Rule:** When networkd manages interfaces, never rely on `boot.kernel.sysctl` alone for `ip_forward` — set `IPv4Forwarding=true` in networkd's own config. Symptom signature: gateway reachable, masquerade rule present but counters frozen, forwarded hosts dead → check `/proc/sys/net/ipv4/ip_forward` first.
+
+<!-- /entry -->
+
+<!-- entry:G-nixos-2026-06-02-002 -->
+---
+id: G-nixos-2026-06-02-002
+type: gotcha
+domain: nixos
+tags: [llama-cpp, llama-server, cli, flash-attn, service-module]
+since_version: "1.0.5"
+status: active
+scope: transferable
+related: []
+graduated_to: ""
+---
+
+## llama.cpp b9190+ made --flash-attn require a value [on|off|auto] — 2026-06-02 · Claude
+
+**Problem:** A NixOS llama-server module emitted bare `--flash-attn` (boolean-flag style). On llama.cpp build b9190+, `--flash-attn` now takes a value `[on|off|auto]`, so it consumed the *next* arg (`--mlock`) as its value and aborted: `error: unknown value for --flash-attn: '--mlock'`. Confusing — the error blames the next flag, not flash-attn.
+
+**Fix:** Emit `[ "--flash-attn" "on" ]` instead of a bare flag.
+
+**Rule:** llama.cpp CLI flags drift across builds — boolean flags become valued options. When a llama-server arg error blames *one* flag's value using the *next* flag's name, the upstream flag changed from boolean to valued. Pin/track the llama.cpp build and emit explicit values.
+
+<!-- /entry -->
