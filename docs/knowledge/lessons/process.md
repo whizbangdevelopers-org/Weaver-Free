@@ -10,6 +10,7 @@ See `SCHEMA.md` for the entry format and ID convention.
 <!-- entry:L-process-2026-05-10-001 -->
 ---
 id: L-process-2026-05-10-001
+scope: transferable
 type: lesson
 domain: process
 tags: [esm, typescript, dual-mode, import.meta.url, scripts]
@@ -38,6 +39,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
 <!-- entry:L-process-2026-05-10-002 -->
 ---
 id: L-process-2026-05-10-002
+scope: transferable
 type: lesson
 domain: process
 tags: [bash, set-e, arithmetic]

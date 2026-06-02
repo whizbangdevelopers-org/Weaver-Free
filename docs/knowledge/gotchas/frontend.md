@@ -10,6 +10,7 @@ See `SCHEMA.md` for the entry format and ID convention.
 <!-- entry:G-frontend-2026-05-10-001 -->
 ---
 id: G-frontend-2026-05-10-001
+scope: transferable
 type: gotcha
 domain: frontend
 tags: [quasar, q-badge, slots]

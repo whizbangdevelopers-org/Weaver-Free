@@ -10,6 +10,7 @@ See `SCHEMA.md` for the entry format and ID convention.
 <!-- entry:G-devops-2026-05-10-001 -->
 ---
 id: G-devops-2026-05-10-001
+scope: transferable
 type: gotcha
 domain: devops
 tags: [bash, heredoc, for-loop, shell]
