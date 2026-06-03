@@ -999,3 +999,49 @@ graduated_to: ""
 **Rule:** For Claude Code + local llama.cpp, route through the **OpenAI `/v1/chat/completions`** endpoint (it parses tools; the Anthropic endpoint doesn't), and choose a model with known-good agentic tool-calling instead of fighting peg-native. Symptom signature: the tool call appears as raw `<function=>`/`<tool_call>` text in the reply, `finish_reason: stop`, no structured `tool_calls`.
 
 <!-- /entry -->
+
+<!-- entry:G-devops-2026-06-03-001 -->
+---
+id: G-devops-2026-06-03-001
+type: gotcha
+domain: devops
+tags: [llama-cpp, prefill, prompt-caching, vulkan, agentic, gfx1151]
+since_version: "1.0.5"
+status: active
+scope: transferable
+related: [G-devops-2026-06-02-030, L-devops-2026-06-02-014]
+graduated_to: ""
+---
+
+## Local agentic loops: per-turn prompt REprefill is the wall, not generation — 2026-06-03 · Claude
+
+**Problem:** Driving Claude Code against a local llama.cpp server, each agent turn reprocesses the FULL ~21K-token prompt (system + tool schemas) before generating. On Strix Halo gfx1151 Vulkan, prefill is ~470 tok/s = **~45s/turn**, same slot, back-to-back turns, with **no cross-turn prefix reuse** — a ~15-turn task spends ~12 min in pure re-prefill and times out mid-task. Generation (~48 tok/s MoE) is fine; prefill is the bottleneck. `--cache-reuse N` is rejected — *"cache_reuse is not supported by this context, it will be disabled"* — because flash-attn + quantized (q8_0) KV disable the KV-shifting it needs. The failure looks like a hang (0-byte output, killed at timeout) but the model is correctly working, just slowly.
+
+**Fix (ranked):** (1) ROCm prefill on gfx1151 — far faster prompt processing than Vulkan; (2) a dedicated single-slot agent llama-server with **fp16 KV + flash-attn off** so prefix caching engages and turns 2+ skip the re-prefill (separate from any batch/extraction instance); (3) a leaner agent harness — fewer tool schemas = smaller prompt = proportionally less prefill. Until one lands, size the executor timeout for the per-turn floor and keep tasks small.
+
+**Rule:** For a local agentic loop, measure prefill tok/s and per-turn prompt size FIRST — the wall is almost always the prompt being REprocessed every turn, not token generation. Verify cross-turn prefix caching actually engages; flash-attn + quantized KV silently disables `--cache-reuse`, so "same slot" does not imply "cached."
+
+<!-- /entry -->
+
+<!-- entry:G-devops-2026-06-03-002 -->
+---
+id: G-devops-2026-06-03-002
+type: gotcha
+domain: devops
+tags: [ssh, nohup, setsid, background-process, systemd]
+since_version: "1.0.5"
+status: active
+scope: transferable
+related: []
+graduated_to: ""
+---
+
+## A nohup'd process launched over non-interactive SSH dies with the channel; use setsid (or systemd) — 2026-06-03 · Claude
+
+**Problem:** `ssh host 'nohup proc > log 2>&1 &'` followed by the SSH command returning does NOT reliably keep `proc` alive — it shows up in `pgrep` briefly, then the listener is gone and later connects get ConnectionRefused. The non-interactive remote shell exiting tears down the session, and nohup alone did not keep the backgrounded job running across that teardown. Two such "completed with no output" SSH calls in a row were the symptom.
+
+**Fix:** Use `setsid proc > log 2>&1 &` so the process gets its own session/process group and survives the SSH channel closing. For anything load-bearing, don't hand-launch it at all — make it a **systemd service** (`Restart=always`), which is what the forge-proxy became.
+
+**Rule:** Over non-interactive SSH, `nohup … &` is not dependable; reach for `setsid` to detach, and for any process that's part of an architecture, a managed systemd unit — never a setsid/nohup process as the foundation.
+
+<!-- /entry -->
