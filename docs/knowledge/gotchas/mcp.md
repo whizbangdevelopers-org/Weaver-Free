@@ -156,3 +156,26 @@ graduated_to: ""
 **Rule:** For stateless HTTP MCP, the factory pattern is required — fresh server + fresh transport per request. A fresh transport alone is insufficient.
 
 <!-- /entry -->
+
+<!-- entry:G-mcp-2026-06-03-001 -->
+---
+id: G-mcp-2026-06-03-001
+type: gotcha
+domain: mcp
+tags: [mcp-json, json, claude-code, headless, codebase-mcp]
+since_version: "1.0.5"
+status: active
+scope: transferable
+related: []
+graduated_to: ""
+---
+
+## Two silent ways MCP servers fail to load — invalid .mcp.json, and headless -p — 2026-06-03 · Claude
+
+**Problem:** (1) A trailing comma in `.mcp.json` makes it invalid JSON, and Claude Code then loads **zero** servers from it — `claude mcp list` reports *"No MCP servers configured"* rather than a parse error. One stray comma silently disables ALL project MCP servers (codebase-mcp included), on every machine that checks out the repo. An editor may tolerate it; `node -e 'JSON.parse(...)'` does not. (2) In headless `claude -p` mode, project-scoped `.mcp.json` servers are **not auto-loaded** — `claude mcp list` shows none even with valid config — because project MCP servers require trust/approval that `-p` does not grant.
+
+**Fix:** Validate `.mcp.json` with a strict JSON parser in pre-commit/CI (don't trust the editor). For a headless agent, register the needed servers at **user scope** (`claude mcp add`) or pass `--mcp-config <file>` (curated to just the servers the agent needs), instead of relying on the project file.
+
+**Rule:** "No MCP servers configured" or a silently-missing tool ⇒ suspect (a) invalid `.mcp.json` (verify with `node` JSON.parse) and (b) headless mode not auto-approving project servers. A present `.mcp.json` does NOT mean its servers loaded.
+
+<!-- /entry -->
