@@ -323,3 +323,30 @@ await expect(page.getByText('Datasets')).toBeVisible()
 **Rule:** When checking whether a panel is rendered, verify the component's actual outer element or an always-visible header sentinel — never a child list component that is only conditionally rendered.
 
 <!-- /entry -->
+
+<!-- entry:G-testing-2026-06-03-001 -->
+---
+id: G-testing-2026-06-03-001
+type: gotcha
+domain: testing
+tags: [playwright, getbytext, strict-mode, locators, substring]
+since_version: "1.0.5"
+status: active
+scope: transferable
+related: [G-testing-2026-06-02-010]
+graduated_to: ""
+---
+
+## `getByText('X')` is a substring match — new sibling UI text silently breaks it via strict-mode — 2026-06-03 · Claude
+
+**Problem:** The "panel renders" assertion `page.getByText('Datasets')` (recommended by G-testing-2026-06-02-010) passed for months, then broke when an unrelated UI change added an "All datasets" scope toggle elsewhere on the default view. Playwright `getByText` matches **substring, case-insensitive** by default, so `getByText('Datasets')` resolved to three elements ("Datasets" header, "No datasets found", "All datasets" button) → strict-mode violation. The test was correct; a text locator loose enough to be stable was loose enough to collide.
+
+**Fix:** Scope the locator to the container and match exactly:
+
+```ts
+await expect(page.locator('.q-drawer').getByText('Datasets', { exact: true })).toBeVisible()
+```
+
+**Rule:** A bare `getByText(substring)` sentinel is a latent failure that fires when *any* future text on the page contains the substring. For "is this panel rendered?" sentinels, always scope to the panel's container AND pass `{ exact: true }` — the assertion's stability must not depend on the absence of text it doesn't control.
+
+<!-- /entry -->

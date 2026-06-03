@@ -236,3 +236,26 @@ graduated_to: ""
 **Why this shape wins:** The split treats public in-product docs as *code* — held to the same compile-time guardrails (per-doc parity, link integrity) as backend handlers — which is what stops multi-release drift from accumulating on a surface every user sees. Filename-level disambiguation is robust because it survives grep, file listings, and tab titles, whereas H1-only disambiguation is invisible until the file is open. The public side carries category-level coverage rhetoric with no inventory, so the marketing surface never doubles as an attacker's checklist.
 
 <!-- /entry -->
+
+<!-- entry:L-analysis-2026-06-03-001 -->
+---
+id: L-analysis-2026-06-03-001
+type: lesson
+domain: analysis
+tags: [information-architecture, navigation, refactor, ui, first-principles]
+since_version: "1.0.5"
+status: active
+scope: transferable
+related: []
+graduated_to: ""
+---
+
+## Don't encode a per-entity attribute as a top-level navigation axis — 2026-06-03 · Claude
+
+**Root cause:** Engram-UI's top tabs (Knowledge / Graph / Engram) were a projection of each dataset's *processing strategy* (embed-only / embed+graph / full-engram). The same attribute was then encoded a second time as the drawer's grouping. Two symptoms followed inevitably: (1) the most common verb — Recall/search — got trapped under whichever mode happened to match a strategy, so you couldn't search an embed-only dataset at all; and (2) shared surfaces (the Monitor) had to be duplicated per mode, each self-fetching. Switching modes also wiped the selected entity, because the mode *was* the filter.
+
+**Rule:** When a navigation axis turns out to be a filter on one attribute of an entity, it is in the wrong place. Make the entity the noun (selected once, persistently), let its attribute light up *capabilities* within a workspace, and make top-level destinations **verbs/tasks** (Search, Browse, Monitor) that are reachable regardless of any entity's attribute. Test the smell: "to do X I first have to be in mode Y" and "switching tabs clears my selection" both mean the axis is a disguised filter.
+
+**Why this shape wins:** Verbs-as-destinations keep the primary action (search) always one click away instead of N levels deep behind a mode that has nothing to do with searching; capability-gating (show the Graph tab only when the entity supports it) communicates the attribute without making it navigation; and shared/global surfaces collapse to a single instance because they no longer wear a per-mode costume. The attribute still belongs *somewhere* — as a badge/grouping on the entity list — just not as a place you navigate to.
+
+<!-- /entry -->
