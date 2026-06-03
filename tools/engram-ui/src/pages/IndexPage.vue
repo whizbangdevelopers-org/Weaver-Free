@@ -94,11 +94,14 @@
               active-color="primary"
               indicator-color="primary"
             >
-              <q-tab name="search" icon="mdi-magnify"  label="Search" />
               <q-tab name="browse" icon="mdi-bookshelf" label="Browse" />
+              <q-tab name="search" icon="mdi-magnify"  label="Search" />
             </q-tabs>
             <q-separator />
             <q-tab-panels v-model="knowledgeLens" animated style="flex: 1; overflow: hidden;">
+              <q-tab-panel name="browse" class="q-pa-none" style="height: 100%">
+                <RegistryPanel />
+              </q-tab-panel>
               <q-tab-panel name="search" class="q-pa-none" style="height: 100%">
                 <RecallPanel
                   :results="results"
@@ -107,9 +110,6 @@
                   :activeDatasetName="activeDatasetName"
                   @search="onSearch"
                 />
-              </q-tab-panel>
-              <q-tab-panel name="browse" class="q-pa-none" style="height: 100%">
-                <RegistryPanel />
               </q-tab-panel>
             </q-tab-panels>
           </q-tab-panel>
@@ -414,7 +414,7 @@ const {
 
 const drawerOpen = ref(true)
 const activeDest = ref<'knowledge' | 'workspace' | 'monitor' | 'hosts'>('knowledge')
-const knowledgeLens = ref<'search' | 'browse'>('search')
+const knowledgeLens = ref<'search' | 'browse'>('browse')
 const workspaceTab = ref<'files' | 'activity' | 'graph'>('files')
 const settingsOpen = ref(false)
 const keysOpen = ref(false)
