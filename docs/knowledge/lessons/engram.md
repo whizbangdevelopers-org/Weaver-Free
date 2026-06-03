@@ -367,3 +367,26 @@ graduated_to: ""
 **Why this shape wins:** Separating "what happened to this file?" (terminal truth) from "what should I show about this batch?" (most attention-worthy state) stops completed runs displaying as still-running and in-progress batches displaying as done.
 
 <!-- /entry -->
+
+<!-- entry:L-engram-2026-06-03-001 -->
+---
+id: L-engram-2026-06-03-001
+type: lesson
+domain: engram
+tags: [engram-ui, data-sources, registry, graph, panel-placement]
+since_version: "1.0.5"
+status: active
+scope: project
+related: []
+graduated_to: ""
+---
+
+## Engram-UI has two distinct data scopes — place a panel by which scope it reads — 2026-06-03 · Claude
+
+**Root cause:** Engram-UI mixes two scopes of data behind similar-looking surfaces. **Global / dataset-independent:** the knowledge registry (`/engram-query/entries`, `/engram-query/view`) and the knowledge graph (`/engram-query/graph-data`) — these read the whole llgd corpus and take no dataset parameter. **Per-dataset:** the Cognee dataset graph (`/api/v1/datasets/:id/graph`) and files/activity — these require an active dataset. The old IA buried the *global* registry inside Monitor and reached the *per-dataset* graph through a Monitor sub-tab, which is why placement felt wrong.
+
+**Rule:** Decide a panel's home by the scope of the endpoint it calls, not by visual similarity. `/engram-query/*` (global) → a top-level corpus destination (Knowledge: Search + Browse). `/api/v1/datasets/:id/*` (per-dataset) → the dataset Workspace. `recall()` is dual-mode: omit the `datasets` filter for an all-corpus search, pass `[name]` to scope to the active dataset.
+
+**Why this shape wins:** A panel that reads global data does not belong inside a per-dataset view (and vice versa) — co-locating by scope means selecting/clearing a dataset never strands a global panel, and the all/active recall toggle maps cleanly onto "send the filter or don't."
+
+<!-- /entry -->
