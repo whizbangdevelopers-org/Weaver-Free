@@ -5,6 +5,7 @@ import { ref } from 'vue'
 
 export type SidecarStatus = 'checking' | 'available' | 'unavailable'
 export type SearchType = 'CHUNKS' | 'GRAPH_COMPLETION' | 'SUMMARIES' | 'KNOWLEDGE'
+export type RecallScope = 'all' | 'active'
 export type ProcessingStrategy = 'embed-only' | 'embed+graph' | 'full-engram'
 
 export interface Dataset {
@@ -246,7 +247,7 @@ export function useEngram() {
     }
   }
 
-  async function recall(query: string, searchType: SearchType = 'CHUNKS') {
+  async function recall(query: string, searchType: SearchType = 'CHUNKS', scope: RecallScope = 'active') {
     loading.value = true
     error.value = null
     results.value = []
@@ -270,8 +271,10 @@ export function useEngram() {
         return
       }
 
+      // scope='active' filters to the selected dataset; scope='all' omits the
+      // datasets filter so Cognee searches across every dataset.
       const body: Record<string, unknown> = { query, searchType }
-      if (activeDatasetId.value) {
+      if (scope === 'active' && activeDatasetId.value) {
         const ds = datasets.value.find((d) => d.id === activeDatasetId.value)
         if (ds) body.datasets = [ds.name]
       }

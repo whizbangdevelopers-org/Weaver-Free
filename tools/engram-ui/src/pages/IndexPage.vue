@@ -19,14 +19,14 @@
     <!-- Left dataset panel -->
     <q-drawer v-model="drawerOpen" show-if-above :width="220" bordered>
       <DatasetList
-        :datasets="filteredDatasets"
+        :datasets="datasets"
         :activeDatasetId="activeDatasetId"
         :loading="datasetsLoading"
         :strategies="strategies"
         :upgradeQueue="upgradeQueue"
         @select="onSelectDataset"
         @delete="onDeleteDataset"
-        @create="openCreateForMode"
+        @create="openCreate"
         @upgrade="onUpgradeDataset"
       />
     </q-drawer>
@@ -34,28 +34,28 @@
     <!-- Main content -->
     <q-page-container>
       <q-page>
-        <!-- Mode selector -->
+        <!-- Destination selector -->
         <q-tabs
-          v-model="activeMode"
+          v-model="activeDest"
           dense
           align="left"
           class="text-grey-7 bg-grey-1"
           active-color="primary"
           indicator-color="primary"
         >
-          <q-tab name="knowledge" icon="mdi-bookshelf"    label="Knowledge" />
-          <q-tab name="graph"     icon="mdi-graph-outline" label="Graph" />
-          <q-tab name="engram"    icon="mdi-memory"        label="Engram">
+          <q-tab name="knowledge" icon="mdi-book-open-variant" label="Knowledge" />
+          <q-tab name="workspace" icon="mdi-folder-cog-outline" label="Workspace">
             <q-badge v-if="inFlightCount > 0" color="primary" floating rounded>
               {{ inFlightCount }}
             </q-badge>
           </q-tab>
-          <q-tab name="hosts" icon="mdi-server" label="Infrastructure" />
+          <q-tab name="monitor" icon="mdi-gauge" label="Monitor" />
+          <q-tab name="hosts"   icon="mdi-server" label="Infrastructure" />
         </q-tabs>
 
         <q-separator />
 
-        <!-- Last ingestion run — global, shown once above all mode tabs -->
+        <!-- Last ingestion run — global, shown once above all destinations -->
         <div class="row items-center q-px-md q-py-xs bg-grey-1 last-run-strip">
           <q-icon name="mdi-database-import" size="14px" color="grey-6" class="q-mr-xs" />
           <span class="text-caption text-grey-7 q-mr-xs">Last run:</span>
@@ -82,117 +82,131 @@
 
         <q-separator />
 
-        <q-tab-panels v-model="activeMode" animated style="height: calc(100vh - 116px)">
+        <q-tab-panels v-model="activeDest" animated style="height: calc(100vh - 116px)">
 
-          <!-- ── Knowledge mode (embed-only) ─────────────────────────────────── -->
+          <!-- ── Knowledge (Search + Browse) ─────────────────────────────────── -->
           <q-tab-panel name="knowledge" class="q-pa-none" style="height: 100%; display: flex; flex-direction: column;">
-            <div class="row items-center q-px-sm q-py-xs bg-grey-1">
-              <q-btn flat dense icon="mdi-upload" label="Ingest" @click="addOpen = true" />
-            </div>
-            <div style="flex: 1; min-height: 0;">
-              <MonitorPanel
-                mode="knowledge"
-                :activeDatasetId="activeDatasetId"
-                :activeDatasetName="activeDatasetName"
-                :engramStats="engramStats"
-              />
-            </div>
-          </q-tab-panel>
-
-          <!-- ── Graph mode (embed+graph) ────────────────────────────────────── -->
-          <q-tab-panel name="graph" class="q-pa-none" style="height: 100%; display: flex; flex-direction: column;">
-            <div class="row items-center q-px-sm q-py-xs bg-grey-1">
-              <q-btn flat dense icon="mdi-upload" label="Map" @click="addOpen = true" />
-            </div>
-            <div style="flex: 1; min-height: 0;">
-              <MonitorPanel
-                mode="graph"
-                :activeDatasetId="activeDatasetId"
-                :activeDatasetName="activeDatasetName"
-                :engramStats="engramStats"
-                :datasetGraph="graphData"
-                :datasetGraphLoading="graphLoading"
-                :datasetGraphStatus="graphStatus"
-                :datasetGraphError="graphError"
-                @loadDatasetGraph="onLoadGraph"
-                @cancelDatasetGraph="onCancelGraph"
-              />
-            </div>
-          </q-tab-panel>
-
-          <!-- ── Engram mode (full-engram) ──────────────────────────────────── -->
-          <q-tab-panel name="engram" class="q-pa-none" style="height: 100%; display: flex; flex-direction: column;">
-
-            <!-- Engram action bar — full pipeline: ingest files or capture freeform text -->
-            <div class="row items-center q-px-sm q-py-xs bg-grey-1">
-              <q-btn flat dense icon="mdi-upload" label="Ingest" class="q-mr-xs" @click="addOpen = true" />
-              <q-btn flat dense icon="mdi-text-box-plus-outline" label="Capture" @click="rememberOpen = true" />
-            </div>
-
-            <!-- Engram sub-tabs -->
             <q-tabs
-              v-model="engramTab"
+              v-model="knowledgeLens"
               dense
               align="left"
               class="text-grey-7 bg-grey-2"
               active-color="primary"
               indicator-color="primary"
             >
-              <q-tab name="recall"   icon="mdi-magnify"              label="Recall" />
-              <q-tab name="activity" icon="mdi-timeline-clock"       label="Activity">
-                <q-badge v-if="inFlightCount > 0" color="primary" floating rounded>
-                  {{ inFlightCount }}
-                </q-badge>
-              </q-tab>
-              <q-tab name="files"    icon="mdi-file-multiple-outline" label="Files" />
+              <q-tab name="search" icon="mdi-magnify"  label="Search" />
+              <q-tab name="browse" icon="mdi-bookshelf" label="Browse" />
             </q-tabs>
-
-            <!-- Produced card for Engram mode -->
-            <div class="q-px-sm q-pt-xs">
-              <ProducedCard
-                mode="engram"
-                :chunks="activeDatasetId != null ? (engramStats?.pgvector?.chunks ?? 0) : 0"
-                :entities="activeDatasetId != null ? (engramStats?.pgvector?.entities ?? 0) : 0"
-                :summaries="activeDatasetId != null ? (engramStats?.pgvector?.summaries ?? 0) : 0"
-              />
-            </div>
-
             <q-separator />
-
-            <q-tab-panels v-model="engramTab" animated style="flex: 1; overflow: hidden;">
-              <q-tab-panel name="recall" class="q-pa-none" style="height: 100%">
+            <q-tab-panels v-model="knowledgeLens" animated style="flex: 1; overflow: hidden;">
+              <q-tab-panel name="search" class="q-pa-none" style="height: 100%">
                 <RecallPanel
                   :results="results"
                   :loading="recallLoading"
                   :error="recallError"
+                  :activeDatasetName="activeDatasetName"
                   @search="onSearch"
                 />
               </q-tab-panel>
-
-              <q-tab-panel name="activity" class="q-pa-none" style="height: 100%">
-                <ActivityPanel
-                  :pipelineRuns="pipelineRuns"
-                  :loading="activityLoading"
-                  @refresh="loadActivity"
-                  @process="onProcessDataset"
-                />
-              </q-tab-panel>
-
-              <q-tab-panel name="files" class="q-pa-none" style="height: 100%">
-                <DatasetFilesPanel
-                  :datasetFiles="datasetFiles"
-                  :activeDatasetId="activeDatasetId"
-                  :activeDatasetName="activeDatasetName"
-                  :loading="filesLoading"
-                  @refresh="onRefreshFiles"
-                  @delete="onDeleteFile"
-                />
+              <q-tab-panel name="browse" class="q-pa-none" style="height: 100%">
+                <RegistryPanel />
               </q-tab-panel>
             </q-tab-panels>
-
           </q-tab-panel>
 
-          <!-- ── Infrastructure (Hosts) mode ──────────────────────────────── -->
+          <!-- ── Workspace (selected dataset) ────────────────────────────────── -->
+          <q-tab-panel name="workspace" class="q-pa-none" style="height: 100%; display: flex; flex-direction: column;">
+
+            <!-- Action bar — ingest files or capture freeform text into the active dataset -->
+            <div class="row items-center q-px-sm q-py-xs bg-grey-1">
+              <q-btn flat dense icon="mdi-upload" label="Ingest" class="q-mr-xs" @click="addOpen = true" />
+              <q-btn flat dense icon="mdi-text-box-plus-outline" label="Capture" @click="rememberOpen = true" />
+              <q-space />
+              <span v-if="activeDatasetName" class="text-caption text-grey-7">
+                <q-icon name="mdi-database-outline" size="14px" class="q-mr-xxs" />{{ activeDatasetName }}
+              </span>
+            </div>
+
+            <!-- No dataset selected -->
+            <div v-if="!activeDatasetId" class="col flex flex-center column text-grey-6">
+              <q-icon name="mdi-folder-open-outline" size="64px" color="grey-4" />
+              <div class="text-caption q-mt-sm">Select a dataset from the left to work with it</div>
+            </div>
+
+            <template v-else>
+              <!-- Engram sub-tabs -->
+              <q-tabs
+                v-model="workspaceTab"
+                dense
+                align="left"
+                class="text-grey-7 bg-grey-2"
+                active-color="primary"
+                indicator-color="primary"
+              >
+                <q-tab name="files"    icon="mdi-file-multiple-outline" label="Files" />
+                <q-tab name="activity" icon="mdi-timeline-clock"        label="Activity">
+                  <q-badge v-if="inFlightCount > 0" color="primary" floating rounded>
+                    {{ inFlightCount }}
+                  </q-badge>
+                </q-tab>
+                <q-tab v-if="canGraph" name="graph" icon="mdi-graph-outline" label="Graph" />
+              </q-tabs>
+
+              <!-- Produced card for the active dataset -->
+              <div class="q-px-sm q-pt-xs">
+                <ProducedCard
+                  mode="engram"
+                  :chunks="engramStats?.pgvector?.chunks ?? 0"
+                  :entities="engramStats?.pgvector?.entities ?? 0"
+                  :summaries="engramStats?.pgvector?.summaries ?? 0"
+                />
+              </div>
+
+              <q-separator />
+
+              <q-tab-panels v-model="workspaceTab" animated style="flex: 1; overflow: hidden;">
+                <q-tab-panel name="files" class="q-pa-none" style="height: 100%">
+                  <DatasetFilesPanel
+                    :datasetFiles="datasetFiles"
+                    :activeDatasetId="activeDatasetId"
+                    :activeDatasetName="activeDatasetName"
+                    :loading="filesLoading"
+                    @refresh="onRefreshFiles"
+                    @delete="onDeleteFile"
+                  />
+                </q-tab-panel>
+
+                <q-tab-panel name="activity" class="q-pa-none" style="height: 100%">
+                  <ActivityPanel
+                    :pipelineRuns="pipelineRuns"
+                    :loading="activityLoading"
+                    @refresh="loadActivity"
+                    @process="onProcessDataset"
+                  />
+                </q-tab-panel>
+
+                <q-tab-panel v-if="canGraph" name="graph" class="q-pa-none" style="height: 100%">
+                  <GraphPanel
+                    :graphData="graphData"
+                    :activeDatasetId="activeDatasetId"
+                    :activeDatasetName="activeDatasetName"
+                    :loading="graphLoading"
+                    :loadingStatus="graphStatus"
+                    :error="graphError"
+                    @load="onLoadGraph"
+                    @cancel="onCancelGraph"
+                  />
+                </q-tab-panel>
+              </q-tab-panels>
+            </template>
+          </q-tab-panel>
+
+          <!-- ── Monitor (system ops) ─────────────────────────────────────────── -->
+          <q-tab-panel name="monitor" class="q-pa-none" style="height: 100%">
+            <MonitorPanel />
+          </q-tab-panel>
+
+          <!-- ── Infrastructure (Hosts) ──────────────────────────────────────── -->
           <q-tab-panel name="hosts" class="q-pa-none" style="height: 100%">
             <HostsPanel
               :hosts="hosts"
@@ -308,10 +322,11 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import type { ProcessingStrategy } from '../composables/useEngram'
 import { useQuasar } from 'quasar'
 import { useEngram, STALE_MS, DEFAULT_STALE_MS } from '../composables/useEngram'
-import type { Settings, SearchType } from '../composables/useEngram'
+import type { Settings, SearchType, RecallScope } from '../composables/useEngram'
 import StatusBar from '../components/StatusBar.vue'
 import DatasetList from '../components/DatasetList.vue'
 import RecallPanel from '../components/RecallPanel.vue'
+import RegistryPanel from '../components/RegistryPanel.vue'
 import RememberDialog from '../components/RememberDialog.vue'
 import AddDataDialog from '../components/AddDataDialog.vue'
 import GraphPanel from '../components/GraphPanel.vue'
@@ -398,8 +413,9 @@ const {
 
 
 const drawerOpen = ref(true)
-const activeMode = ref<'knowledge' | 'graph' | 'engram' | 'hosts'>('knowledge')
-const engramTab = ref<'recall' | 'activity' | 'files'>('recall')
+const activeDest = ref<'knowledge' | 'workspace' | 'monitor' | 'hosts'>('knowledge')
+const knowledgeLens = ref<'search' | 'browse'>('search')
+const workspaceTab = ref<'files' | 'activity' | 'graph'>('files')
 const settingsOpen = ref(false)
 const keysOpen = ref(false)
 const rememberOpen = ref(false)
@@ -421,11 +437,11 @@ const loginLoading = ref(false)
 const createOpen = ref(false)
 const createLoading = ref(false)
 const createInitialName = ref<string | undefined>(undefined)
-const createInitialStrategy = ref<ProcessingStrategy>('embed-only')
+const createInitialStrategy = ref<ProcessingStrategy>('full-engram')
 
-function openCreateForMode() {
+function openCreate() {
   createInitialName.value = undefined
-  createInitialStrategy.value = MODE_STRATEGY[activeMode.value] ?? 'embed-only'
+  createInitialStrategy.value = 'full-engram'
   createOpen.value = true
 }
 const upgradeOpen = ref(false)
@@ -436,19 +452,14 @@ const activeDatasetName = computed(
   () => datasets.value.find((d) => d.id === activeDatasetId.value)?.name ?? null,
 )
 
-const MODE_STRATEGY: Record<string, ProcessingStrategy> = {
-  knowledge: 'embed-only',
-  graph:     'embed+graph',
-  engram:    'full-engram',
-}
-
-const filteredDatasets = computed(() => {
-  const strategy = MODE_STRATEGY[activeMode.value]
-  if (!strategy) return datasets.value
-  return datasets.value.filter(
-    (d) => (strategies.value[d.name] ?? 'full-engram') === strategy,
-  )
+// The active dataset's strategy decides which workspace capabilities are available.
+// embed-only datasets have no graph; embed+graph and full-engram do.
+const activeStrategy = computed<ProcessingStrategy>(() => {
+  const name = activeDatasetName.value
+  if (!name) return 'full-engram'
+  return strategies.value[name] ?? 'full-engram'
 })
+const canGraph = computed(() => activeStrategy.value !== 'embed-only')
 
 function isRunStale(r: { status: string | null; pipeline_name: string | null; created_at: string | null }) {
   if (!r.created_at) return false
@@ -483,7 +494,7 @@ onUnmounted(() => {
 async function onRefresh() {
   await checkStatus()
   await Promise.all([loadDatasets(), loadActivity()])
-  if (activeMode.value === 'engram' && engramTab.value === 'files' && activeDatasetId.value) {
+  if (activeDest.value === 'workspace' && workspaceTab.value === 'files' && activeDatasetId.value) {
     await listDatasetFiles(activeDatasetId.value)
   }
 }
@@ -501,7 +512,7 @@ async function onLogin(email: string, password: string) {
     graphData.value = null
     datasetFiles.value = []
     await Promise.all([loadDatasets(), loadActivity()])
-    if (activeMode.value === 'engram' && engramTab.value === 'files' && activeDatasetId.value) {
+    if (activeDest.value === 'workspace' && workspaceTab.value === 'files' && activeDatasetId.value) {
       await listDatasetFiles(activeDatasetId.value)
     }
     if (settingsOpen.value) {
@@ -582,10 +593,10 @@ function onCancelGraph() {
 
 // ── Recall ───────────────────────────────────────────────────────────────────
 
-async function onSearch(query: string, searchType: SearchType) {
+async function onSearch(query: string, searchType: SearchType, scope: RecallScope) {
   recallLoading.value = true
   recallError.value = null
-  try { await recall(query, searchType) }
+  try { await recall(query, searchType, scope) }
   catch (e) { recallError.value = e instanceof Error ? e.message : 'Search failed' }
   finally { recallLoading.value = false }
 }
@@ -625,7 +636,7 @@ async function onAddData(files: File[], datasetName: string) {
     })
     addOpen.value = false
     await Promise.all([loadDatasets(), loadActivity()])
-    if (activeMode.value === 'engram' && engramTab.value === 'files' && activeDatasetId.value) {
+    if (activeDest.value === 'workspace' && workspaceTab.value === 'files' && activeDatasetId.value) {
       await listDatasetFiles(activeDatasetId.value)
     }
     if (strategy !== 'embed-only') await onProcessDataset(datasetName, '')
@@ -704,8 +715,8 @@ async function onProcessDataset(datasetName: string, datasetId: string) {
     const byName = !datasetId && datasetName ? [datasetName] : undefined
     await processDataset(byName, byId, true)
     $q.notify({ type: 'positive', message: `Cognify started for "${datasetName || datasetId}"`, timeout: 2000 })
-    activeMode.value = 'engram'
-    engramTab.value = 'activity'
+    activeDest.value = 'workspace'
+    workspaceTab.value = 'activity'
   } catch (e) {
     $q.notify({
       type: 'negative',
@@ -819,50 +830,25 @@ async function onSyncHosts() {
   }
 }
 
-// ── Lazy-load ────────────────────────────────────────────────────────────────
+// ── Lazy-load + reactivity ─────────────────────────────────────────────────────
 
-watch(activeMode, (newMode) => {
-  if (newMode === 'hosts' && hosts.value.length === 0) {
-    void fetchHosts()
-    return
-  }
-  const strategy = MODE_STRATEGY[newMode]
-  if (!strategy || !activeDatasetId.value) return
-  const current = datasets.value.find((d) => d.id === activeDatasetId.value)
-  if (current && (strategies.value[current.name] ?? 'full-engram') !== strategy) {
-    activeDatasetId.value = null
-  }
+watch(activeDest, (dest) => {
+  if (dest === 'hosts' && hosts.value.length === 0) void fetchHosts()
 })
 
-watch(engramTab, async (tab) => {
-  if (tab === 'files') {
-    if (!activeDatasetId.value && datasets.value.length > 0) {
-      activeDatasetId.value = datasets.value[0]!.id
-    }
-    if (activeDatasetId.value) await listDatasetFiles(activeDatasetId.value)
-  }
+// embed-only datasets have no graph tab — bounce off it if the dataset changes under us
+watch(canGraph, (ok) => {
+  if (!ok && workspaceTab.value === 'graph') workspaceTab.value = 'files'
 })
 
-watch(settingsOpen, async (open) => {
-  if (open && !settings.value) {
-    settingsLoading.value = true
-    try { await getSettings() }
-    finally { settingsLoading.value = false }
-  }
-})
-
-watch(keysOpen, async (open) => {
-  if (open && apiKeys.value.length === 0) {
-    keysLoading.value = true
-    try { await listApiKeys() }
-    finally { keysLoading.value = false }
-  }
+watch(workspaceTab, async (tab) => {
+  if (tab === 'files' && activeDatasetId.value) await listDatasetFiles(activeDatasetId.value)
 })
 
 watch(activeDatasetId, async (id) => {
   results.value = []
   recallError.value = null
-  if (activeMode.value === 'engram' && engramTab.value === 'files' && id) {
+  if (activeDest.value === 'workspace' && workspaceTab.value === 'files' && id) {
     await listDatasetFiles(id)
   }
 })

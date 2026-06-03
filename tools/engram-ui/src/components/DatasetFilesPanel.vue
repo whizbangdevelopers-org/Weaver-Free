@@ -76,9 +76,9 @@
 
 <script setup lang="ts">
 import { useQuasar } from 'quasar'
-import type { DataFile } from '../composables/useCognee'
+import type { DataFile } from '../composables/useEngram'
 
-const props = defineProps<{
+defineProps<{
   datasetFiles: DataFile[]
   activeDatasetId: string | null
   activeDatasetName: string | null

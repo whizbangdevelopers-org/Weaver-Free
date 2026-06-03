@@ -43,7 +43,7 @@
 </template>
 
 <script setup lang="ts">
-import type { SidecarStatus } from '../composables/useCognee'
+import type { SidecarStatus } from '../composables/useEngram'
 
 defineProps<{
   status: SidecarStatus
