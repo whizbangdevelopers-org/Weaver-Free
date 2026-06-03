@@ -1005,7 +1005,7 @@ graduated_to: ""
 id: G-devops-2026-06-03-001
 type: gotcha
 domain: devops
-tags: [llama-cpp, prefill, prompt-caching, vulkan, agentic, gfx1151]
+tags: [llama-cpp, prompt-caching, prefix-cache, billing-header, proxy, agentic]
 since_version: "1.0.5"
 status: active
 scope: transferable
@@ -1013,13 +1013,13 @@ related: [G-devops-2026-06-02-030, L-devops-2026-06-02-014]
 graduated_to: ""
 ---
 
-## Local agentic loops: per-turn prompt REprefill is the wall, not generation — 2026-06-03 · Claude
+## Local agentic loop reprocesses the full prompt every turn — a per-request system-prompt header (NOT a llama limit) breaks the prefix cache — 2026-06-03 · Claude
 
-**Problem:** Driving Claude Code against a local llama.cpp server, each agent turn reprocesses the FULL ~21K-token prompt (system + tool schemas) before generating. On Strix Halo gfx1151 Vulkan, prefill is ~470 tok/s = **~45s/turn**, same slot, back-to-back turns, with **no cross-turn prefix reuse** — a ~15-turn task spends ~12 min in pure re-prefill and times out mid-task. Generation (~48 tok/s MoE) is fine; prefill is the bottleneck. `--cache-reuse N` is rejected — *"cache_reuse is not supported by this context, it will be disabled"* — because flash-attn + quantized (q8_0) KV disable the KV-shifting it needs. The failure looks like a hang (0-byte output, killed at timeout) but the model is correctly working, just slowly.
+**Problem:** Driving Claude Code against a local llama.cpp server, each agent turn reprocesses the FULL ~21K-token prompt (system + tool schemas) before generating (~45s/turn on Strix Halo gfx1151 Vulkan) — a ~15-turn task spends ~12 min in pure re-prefill and times out. It *looks* like llama can't cache. **It can** — a controlled test (send a prompt, then prompt+appended) reuses the prefix perfectly: `prompt_tokens_details.cached_tokens` jumps to 3525/3548, llama "restored context checkpoint", processes only the ~23 new tokens. The real cause: the agent's prompt **prefix is not byte-stable across turns**. Dumping the proxy's outgoing requests and diffing consecutive turns shows the divergence at **~char 75 of the system message**: Claude Code prepends a per-request line `x-anthropic-billing-header: cc_version=2.1.160.<X>; cc_entrypoint=sdk-cli; cch=<hash>;` whose `cc_version` suffix and `cch` hash **change every single turn**. That breaks the cache match at ~token 20 → full reprefill. Compounded by `parallel>1`: the agent's turns bounce between slots, so even a stable prefix half-misses on a cold slot (intermittent full reprocess). (Red herrings: `--cache-reuse` being rejected by flash-attn+quant-KV, ROCm vs Vulkan, KV type — none of these were the cause; basic prefix caching already works.)
 
-**Fix (ranked):** (1) ROCm prefill on gfx1151 — far faster prompt processing than Vulkan; (2) a dedicated single-slot agent llama-server with **fp16 KV + flash-attn off** so prefix caching engages and turns 2+ skip the re-prefill (separate from any batch/extraction instance); (3) a leaner agent harness — fewer tool schemas = smaller prompt = proportionally less prefill. Until one lands, size the executor timeout for the per-turn floor and keep tasks small.
+**Fix (both, proxy/config-side):** (1) In the Anthropic→OpenAI proxy, strip the billing header from the system message: `sys = sys.replace(/^(?:x-)?anthropic-billing-header:[^\n]*\n/, '')` — note the `x-` prefix (without it the regex silently no-ops). (2) `parallel = 1` on the agent's llama instance (one warm slot, no bouncing; fine when that instance serves only the agent). Result: turns 2+ reuse the ~20K prefix and process only the new tokens — **~45s/turn → ~0.5–2s/turn** (measured: 326/524/1035-token turns). The unavoidable FIRST (cold) turn still pays a full prefill; ROCm would speed *that* but isn't needed for the per-turn wall.
 
-**Rule:** For a local agentic loop, measure prefill tok/s and per-turn prompt size FIRST — the wall is almost always the prompt being REprocessed every turn, not token generation. Verify cross-turn prefix caching actually engages; flash-attn + quantized KV silently disables `--cache-reuse`, so "same slot" does not imply "cached."
+**Rule:** When a local agentic loop reprocesses the whole prompt every turn, do NOT assume a llama KV/flash-attn/cache-reuse limitation. First prove caching works in isolation (request, then request+append; check `cached_tokens`). If it works alone but not for the agent, the **prefix is changing across turns** — dump the proxy's outgoing requests and diff them; the culprit is usually a per-request header/timestamp near the START of the system prompt (here: Claude Code's `x-anthropic-billing-header`). Strip it, and pin the agent to one slot (`parallel=1`).
 
 <!-- /entry -->
 
