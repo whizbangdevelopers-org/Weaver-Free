@@ -58,7 +58,7 @@ _336 entries across 26 category files._
 | `G-devops-2026-06-02-028` | gotcha | devops | openssf, scorecard, badge, api-domain, shields, rename | active | OpenSSF Scorecard API domain changed securityscorecards.dev → scorecard.dev |
 | `G-devops-2026-06-02-029` | gotcha | devops | github-actions, demo, dead-code, static-spa, workflow, billing | active → `.claude/rules/workflow-review.md` | Demo-reset workflow is dead code for a static mock demo |
 | `G-devops-2026-06-02-030` | gotcha | devops | llama-cpp, tool-calling, peg-native, claude-code, anthropic-endpoint, qwen | active | llama.cpp peg-native leaks tool calls as text on preamble; Anthropic endpoint doesn't parse tools at all |
-| `G-devops-2026-06-03-001` | gotcha | devops | llama-cpp, prefill, prompt-caching, vulkan, agentic, gfx1151 | active | Local agentic loops: per-turn prompt REprefill is the wall, not generation |
+| `G-devops-2026-06-03-001` | gotcha | devops | llama-cpp, prompt-caching, prefix-cache, billing-header, proxy, agentic | active | Local agentic loop reprocesses the full prompt every turn |
 | `G-devops-2026-06-03-002` | gotcha | devops | ssh, nohup, setsid, background-process, systemd | active | A nohup'd process launched over non-interactive SSH dies with the channel; use setsid (or systemd) |
 | `G-engram-2026-05-12-001` | gotcha | engram | cognee, auth, namespaces, datasets, anonymous-user | active | REQUIRE_AUTHENTICATION=false still enforces per-user data namespaces |
 | `G-engram-2026-05-12-002` | gotcha | engram | cognee, cognify, async, fetch, pipeline-runs | active | cognify is fire-and-forget |
