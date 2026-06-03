@@ -171,7 +171,7 @@
 import { ref, computed } from 'vue'
 import type { HostRecord, HostInput, HostPatch } from '../composables/useEngramMonitor'
 
-const props = defineProps<{
+defineProps<{
   hosts:   HostRecord[]
   loading: boolean
   syncing: boolean

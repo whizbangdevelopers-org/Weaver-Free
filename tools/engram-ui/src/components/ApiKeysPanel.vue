@@ -115,9 +115,9 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useQuasar } from 'quasar'
-import type { ApiKey } from '../composables/useCognee'
+import type { ApiKey } from '../composables/useEngram'
 
-const props = defineProps<{
+defineProps<{
   apiKeys: ApiKey[]
   loading: boolean
   error: string | null

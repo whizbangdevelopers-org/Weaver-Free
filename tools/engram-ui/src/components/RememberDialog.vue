@@ -49,7 +49,6 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { useQuasar } from 'quasar'
 
 const props = defineProps<{
   modelValue: boolean
@@ -62,7 +61,6 @@ const emit = defineEmits<{
   submit: [text: string, datasetName: string]
 }>()
 
-const $q = useQuasar()
 const open = ref(props.modelValue)
 const text = ref('')
 const datasetName = ref(props.defaultDataset ?? '')

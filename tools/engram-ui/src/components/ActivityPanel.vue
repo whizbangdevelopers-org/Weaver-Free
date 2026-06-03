@@ -121,8 +121,8 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { PipelineRun } from '../composables/useCognee'
-import { STALE_MS, DEFAULT_STALE_MS } from '../composables/useCognee'
+import type { PipelineRun } from '../composables/useEngram'
+import { STALE_MS, DEFAULT_STALE_MS } from '../composables/useEngram'
 
 interface GroupedRun extends PipelineRun {
   fileCount: number
