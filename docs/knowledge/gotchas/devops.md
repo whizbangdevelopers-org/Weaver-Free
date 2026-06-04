@@ -1045,3 +1045,26 @@ graduated_to: ""
 **Rule:** Over non-interactive SSH, `nohup … &` is not dependable; reach for `setsid` to detach, and for any process that's part of an architecture, a managed systemd unit — never a setsid/nohup process as the foundation.
 
 <!-- /entry -->
+
+<!-- entry:G-devops-2026-06-04-001 -->
+---
+id: G-devops-2026-06-04-001
+type: gotcha
+domain: devops
+tags: [docker, podman, enumeration, json, cli]
+since_version: "1.0.5"
+status: active
+scope: transferable
+related: []
+graduated_to: ""
+---
+
+## Docker and Podman `ps` JSON output have different shapes — a single parser fails on one of them — 2026-06-04 · Claude
+
+**Problem:** Enumerating containers from both runtimes with one code path breaks because the CLIs disagree on format and field shapes. `docker ps --format '{{json .}}'` emits **newline-delimited** JSON objects (one per line) with `Names` (string), `ID`, and `Ports` (string like `0.0.0.0:80->80/tcp`). `podman ps --format json` emits a **single JSON array** with `Names` (**array**), `Id` (lowercase d), and `Ports` (**array of objects** `{host_ip, host_port, container_port, protocol}`). Container *state* strings also differ from VM state strings (libvirt: `running`/`shut off`/`paused`/`crashed`).
+
+**Fix:** Parse each runtime separately. Docker: split stdout on `\n`, `JSON.parse` each line. Podman: `JSON.parse` the whole stdout as an array, read `r.Id`, `r.Names[0]`, and rebuild port strings from the object array. Map both native state vocabularies onto your canonical enum in one shared function. IP needs a separate batched `inspect -f '{{.Id}} {{range .NetworkSettings.Networks}}{{.IPAddress}} {{end}}' <ids…>` — `ps` does not expose it; `mem`/`vcpu` need `stats`/cgroup reads, not `ps`.
+
+**Rule:** Never assume Docker and Podman are CLI-compatible for machine parsing. `--format json` ≠ `--format '{{json .}}'`, and field names/shapes diverge. Write and test a parser per runtime; this bites the eventual Rust port of `weaver-observer` exactly as it bit the Node prototype.
+
+<!-- /entry -->

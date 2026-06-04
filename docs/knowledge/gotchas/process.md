@@ -484,3 +484,26 @@ graduated_to: ""
 **Rule:** When doing "stash-revert-test-restore" cycles on uncommitted work, always use `git stash pop` to restore. `git checkout <file>` + `git stash drop` is an unsafe shortcut that silently loses the stashed content if the stash hasn't been popped back first.
 
 <!-- /entry -->
+
+<!-- entry:G-process-2026-06-04-001 -->
+---
+id: G-process-2026-06-04-001
+type: gotcha
+domain: process
+tags: [tier-parity, rename, auditor, data-contract, tier-matrix]
+since_version: "1.0.5"
+status: active
+scope: project
+related: []
+graduated_to: ""
+---
+
+## A tier-guard rename spans code + data contract + auditor — not "mechanical via TypeScript" — 2026-06-04 · Claude
+
+**Problem:** Renaming the `isWeaver` tier guard (v1.1 `isWeaver`→`isSolo`) looked like a pure-TypeScript mechanical rename ("TS flags every site, so it's complete"). It is NOT — the guard NAME is hardcoded in THREE coordinated places: (1) the code (getter def + ~71 call sites in `src`); (2) `tier-matrix.json` — the `"guard": "isWeaver"` entries (the tier-parity DATA contract, ~11 features); (3) `scripts/verify-tier-parity.ts` — the auditor's hardcoded guard name (a union-type member, the `/\b(isWeaver|isFabrick)\b/` regex, and `content.includes('isWeaver')`). Renaming only the code leaves `typecheck` GREEN but `audit:tier-parity` RED with 11 `FRONTEND_MISSING_GUARD` errors.
+
+**Fix:** Rename the guard across all three artifacts in one transform. Updating the auditor's expected value alongside the code is **legitimate, not gaming** (see never-game-auditors): the guard name genuinely changed, so the auditor's hardcoded expectation changes with it; the auditor's detection LOGIC stays intact (still cross-checks tier-matrix guards against frontend usage).
+
+**Rule:** A tier-guard / cross-cutting identifier rename is not "mechanical via TypeScript." `grep` the identifier across DATA contracts (`*.json`) and AUDITORS (`scripts/`), not just `src` — typecheck-green ≠ contract-complete.
+
+<!-- /entry -->

@@ -647,3 +647,26 @@ graduated_to: ""
 **Rule:** NixOS packages with native library chains need both the env var (for the binary path) AND the `path` list entry (for transitive deps). Setting only the env var gives you the binary but not its runtime dependency closure.
 
 <!-- /entry -->
+
+<!-- entry:G-nixos-2026-06-04-001 -->
+---
+id: G-nixos-2026-06-04-001
+type: gotcha
+domain: nixos
+tags: [microvm, systemd, qemu, run-state, process-detection]
+since_version: "1.0.5"
+status: active
+scope: transferable
+related: []
+graduated_to: ""
+---
+
+## microvm.nix run-state is the `microvm@<name>.service` unit, not a `qemu-system` process match — 2026-06-04 · Claude
+
+**Problem:** Detecting whether a `microvm.nix` MicroVM is running by grepping the process table for `qemu-system|cloud-hypervisor|firecracker|crosvm` reports every VM as **stopped** even when they're up. On a microvm.nix host the running guests had `-name <vm>` in their args but the launcher binary was **not** literally named `qemu-system-*`, so the hypervisor-binary regex missed them entirely. (Contrast: Weaver launches bare `qemu-system-x86_64 -name <vm>`, which *does* match — so a process-only detector silently works on Weaver hosts and silently fails on microvm.nix hosts.)
+
+**Fix:** Use the canonical signal — the systemd template unit: `systemctl is-active microvm@<name>` (microvm.nix registers one `microvm@<name>.service` per declared VM). For a launcher-agnostic process fallback, match the `-name <name>` flag broadly rather than requiring a specific hypervisor binary name. Declared inventory is the set of subdirs under `MICROVMS_DIR` (default `/var/lib/microvms`, world-readable 755).
+
+**Rule:** On NixOS, treat `microvm@<name>.service` as the authoritative MicroVM run-state. Process-name matching on the hypervisor binary is non-portable across launchers (microvm.nix vs Weaver vs raw libvirt) and will produce false "stopped" readings. (Note: per [[L-analysis-2026-06-04-003]] the *Observer* deliberately does not enumerate MicroVMs at all — this detection knowledge is for Weaver-side / host tooling that legitimately needs MicroVM run-state.)
+
+<!-- /entry -->

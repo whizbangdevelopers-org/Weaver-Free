@@ -408,3 +408,49 @@ graduated_to: ""
 **Why this shape wins:** Starting old means paying a download + debug cycle for every rung you climb to discover newer was the answer all along (this session: 3 generations, 3 cycles). The NAS-passthrough model storage makes swapping cheap, so the cost of biasing toward newer is low and the upside is large. See [[G-devops-2026-06-02-030]].
 
 <!-- /entry -->
+
+<!-- entry:L-devops-2026-06-04-001 -->
+---
+id: L-devops-2026-06-04-001
+type: lesson
+domain: devops
+tags: [local-llm, model-selection, agentic, coder, moe, tool-calling]
+since_version: "1.0.5"
+status: active
+scope: transferable
+related: [L-devops-2026-06-02-014, G-devops-2026-06-03-001]
+graduated_to: ""
+---
+
+## Pick a local agentic CODE executor for coding ability, not for tool-calling — 2026-06-04 · Claude
+
+**Root cause:** Climbing the model ladder to fix agentic TOOL-CALLING landed us on a general/uncensored MoE (Qwen3.x-35B-A3B, ~3B ACTIVE params). It drove Claude Code's tools fine but **wandered on real code** — made one correct edit on a multi-file rename, then lost the thread and timed out. The "newest model" heuristic ([[L-devops-2026-06-02-014]]) optimized the wrong axis. Swapping to a **coder-tuned** model (Qwen3-Coder-30B-A3B-Instruct) on the same harness completed the same task.
+
+**Rule:** For an agentic code executor, select for **coding capability** — coder-tuned, and enough ACTIVE params (a 3B-active MoE is far weaker at code than a dense ~32B, regardless of total params). **Decouple tool-calling from model choice** with a proxy (route the OpenAI endpoint, strip the per-turn billing header for caching, recover leaked `<function=>` calls — see [[G-devops-2026-06-03-001]]). Then you're free to pick the best coder instead of the cleanest native tool-caller.
+
+**Why this shape wins:** tool-calling is a *harness* problem — solve it once in the proxy and it's done for any model. Coding ability is the model's irreducible job. Optimizing the model pick for the harness problem starves the real one.
+
+<!-- /entry -->
+
+<!-- entry:L-devops-2026-06-04-002 -->
+---
+id: L-devops-2026-06-04-002
+type: lesson
+domain: devops
+tags: [ssh, agentless, fleet, observability, heterogeneous]
+since_version: "1.0.5"
+status: active
+scope: transferable
+related: []
+graduated_to: ""
+---
+
+## Agentless SSH-stdin collection beats deploy-an-agent for heterogeneous fleets without a common runtime — 2026-06-04 · Claude
+
+**Root cause:** The first fleet-view cut required Node ≥18 on each target (rsync the tool, `ssh host node observer.mjs`). A real fleet sweep killed that assumption: of 11 hosts, only 2 had modern Node — the rest were CentOS 7 (Node 14/16), a Synology NAS, and Node-less NixOS/Ubuntu boxes. Deploying a runtime to each (or installing the agent) is a non-starter for "observe now."
+
+**Rule:** To collect from a heterogeneous fleet *now*, push a **POSIX `sh` collector over SSH stdin** (`ssh host 'sh -s' < collect.sh`, or spawn ssh and write the script to stdin) and parse a simple delimited line protocol on the aggregator. Nothing installed, nothing copied, no runtime assumed beyond `sh`/`awk`/`grep`. Run the aggregator from any one host that *does* have your tooling. This reached all 9 reachable hosts in one pass.
+
+**Why this shape wins:** it cleanly separates the prototype-now bridge from the shipping answer. Agentless SSH is a *pull from a privileged box* — fine for dogfooding, wrong as a foundation (no security boundary, needs SSH to every host). The permanent answer for no-runtime hosts is a **static binary** (Rust here) with zero deps, installed once. Use agentless to prove value and discover the fleet's real shape; let what it can't do (permanent, secured, on-host presence) define the binary's spec.
+
+<!-- /entry -->
