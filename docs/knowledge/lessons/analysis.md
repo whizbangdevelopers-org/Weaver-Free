@@ -259,3 +259,72 @@ graduated_to: ""
 **Why this shape wins:** Verbs-as-destinations keep the primary action (search) always one click away instead of N levels deep behind a mode that has nothing to do with searching; capability-gating (show the Graph tab only when the entity supports it) communicates the attribute without making it navigation; and shared/global surfaces collapse to a single instance because they no longer wear a per-mode costume. The attribute still belongs *somewhere* — as a badge/grouping on the entity list — just not as a place you navigate to.
 
 <!-- /entry -->
+
+<!-- entry:L-analysis-2026-06-04-001 -->
+---
+id: L-analysis-2026-06-04-001
+type: lesson
+domain: analysis
+tags: [agentic, task-design, bulk-transform, spec, executor]
+since_version: "1.0.5"
+status: active
+scope: transferable
+related: [L-devops-2026-06-04-001]
+graduated_to: ""
+---
+
+## Direct the script approach for bulk transforms — don't let an agent edit file-by-file — 2026-06-04 · Claude
+
+**Root cause:** A broad mechanical rename (18 files / 71 sites) handed to a local agentic executor as "rename X to Y everywhere" → the model reads and edits **file-by-file**, ~1 file per several turns → impractically slow (est. ~70 min) and times out mid-task. Even a capable model is slow doing a bulk transform as N agentic read-edit cycles; for a local model it blows the time budget outright.
+
+**Rule:** When the task is a BULK mechanical transform, the spec (the DESIGN) must direct the **script** approach — e.g. `grep -rl X | xargs sed -i 's/X/Y/g'`, then `typecheck` — not leave the model to choose. Specify the HOW, not just the WHAT, for bulk work. (Same task, directive spec: minutes instead of timing out.)
+
+**Why this shape wins:** agentic file-by-file is right when each file needs *judgment*; a cross-cutting identifier rename has no per-file judgment, so it's a one-command job. Match the execution shape to the task shape — route only the judgment work through turns.
+
+<!-- /entry -->
+
+<!-- entry:L-analysis-2026-06-04-002 -->
+---
+id: L-analysis-2026-06-04-002
+type: lesson
+domain: analysis
+tags: [observer, fabrick, prototype, fleet, architecture]
+since_version: "1.0.5"
+status: active
+scope: project
+related: []
+graduated_to: ""
+---
+
+## Observer's cost is the fleet plumbing, not the binary — scope a pull-forward by the unbuilt dependency stack, not the headline feature — 2026-06-04 · Claude
+
+**Root cause:** "What would it take to build `weaver-observer` now?" reads as "write the agent binary." A one-session Node dogfood proved the actual collection core (enumerate Docker/Podman/libvirt + host telemetry, normalized to `vmInfoResponseSchema`) is a few hours and OS-agnostic. The real cost is everything the binary *reports to*, none of which exists: a fleet **gRPC** protocol (needed by Managed hosts too, not just Observer), the **hub** (`backend/src/routes/fabrick/*` is an empty placeholder — no registry, no fleet map, no poller), and **mTLS + pairing-token + `weaverRole=observer` x509** (Decision #101). So pulling Observer forward = pulling the entire multi-host on-ramp forward.
+
+**Rule:** When scoping a pull-forward of a planned feature, cost the **unbuilt dependency stack it lands on**, not the headline artifact. The feature that names the request is often the cheap leaf; the platform it assumes is the spend. Build the cheap leaf as a throwaway prototype first precisely to expose where the real cost sits before committing a version slot.
+
+**Why this shape wins:** the prototype reused the existing single-host REST contract (`vmInfoResponseSchema`, `/api/workload`, `/api/containers`) as the Observer's output shape, making "Observer mimics a Weaver host" nearly free and forward-compatible — gRPC+mTLS later becomes a transport swap, not a rewrite. Structuring the prototype so the enumeration logic is the keeper and the REST transport is explicitly throwaway (marked in-file) avoids the dead-code/architecture-mismatch trap when the real transport lands.
+
+<!-- /entry -->
+
+<!-- entry:L-analysis-2026-06-04-003 -->
+---
+id: L-analysis-2026-06-04-003
+type: lesson
+domain: analysis
+tags: [observer, fabrick, microvm, scope, boundary]
+since_version: "1.0.5"
+status: active
+scope: project
+related: [L-analysis-2026-06-04-002]
+graduated_to: ""
+---
+
+## Observer never enumerates MicroVMs — that is Weaver's job; sharpens Decision #101 — 2026-06-04 · Mark
+
+**Root cause:** Building the Observer prototype, it was tempting to make it enumerate everything a host runs, including MicroVMs (read `/var/lib/microvms`, reconcile against `microvm@<name>.service` units / bare `qemu -name` processes). That crosses a product boundary: MicroVMs are Weaver's primitive. A host with MicroVMs is a *Managed* host (or should be) — Weaver itself reports its MicroVMs. Having the Observer also enumerate them duplicates and competes with Weaver's own reporting.
+
+**Rule:** Observer scope = **containers (Docker/Podman) + traditional libvirt/QEMU VMs + host telemetry**, on hosts Weaver does NOT manage. **MicroVMs are out of scope.** If you want MicroVM visibility on a host, the answer is "run Weaver there" (it becomes Managed), not "teach the Observer to read MicroVM state." This is the Managed-vs-Observed line drawn at the workload level, sharpening Decision #101's "read-only visibility."
+
+**Why this shape wins:** the boundary keeps Observer cheap and the tier story clean — Observer is the land (read-only, free up to 5× headroom, Decision #102), and MicroVM management is the expand (run Weaver → Managed). Letting Observer reach into MicroVMs would blur the conversion lever Observer exists to create. When a feature can technically do more, scope it by *which product owns the primitive*, not by what the code can reach.
+
+<!-- /entry -->
