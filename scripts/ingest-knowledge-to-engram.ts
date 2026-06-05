@@ -43,7 +43,7 @@ import {
 import { engramConfig } from '../codebase-mcp/src/utils/engram-config.js'
 import {
   openEngramGraphWriter, resolveEngramGraphPath,
-} from './engram-graph.js'
+} from '../codebase-mcp/src/utils/engram-graph.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
