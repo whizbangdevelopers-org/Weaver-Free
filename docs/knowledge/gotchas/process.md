@@ -551,3 +551,25 @@ graduated_to: ""
 
 **Rule:** Treat workflow subagents as flaky at the StructuredOutput boundary: isolate each with `.catch`, prefer text output for analysis, reserve schemas for short extract-style agents, and never let a barrier's success depend on all agents succeeding.
 <!-- /entry -->
+
+<!-- entry:G-process-2026-06-05-002 -->
+---
+id: G-process-2026-06-05-002
+type: gotcha
+domain: process
+tags: [ci, branch-protection, github-actions, release-only]
+since_version: "1.0.5"
+status: active
+scope: transferable
+related: [L-process-2026-06-05-001]
+graduated_to: ""
+---
+
+## Moving CI to release-only orphans branch-protection required status checks — every push then needs a bypass — 2026-06-05 · Claude
+
+**Problem:** After switching CI to release-tags-only (dropping `test.yml`'s push/PR trigger), the FIRST push to `main` reported `remote: Bypassed rule violations for refs/heads/main: 5 of 5 required status checks are expected.` Branch protection still **required** 5 status checks (`Unit Tests`, `Backend Tests`, `TUI Tests`, `Compliance Auditors`, `Build`) sourced from `test.yml` — but that workflow no longer runs on push, so those checks can NEVER report green. The push only succeeded because admin-bypass was available (`enforce_admins:false`); every subsequent push would silently rely on the same bypass — protection theater, not protection.
+
+**Fix:** Reconcile branch protection in the SAME change that alters CI triggers. If a required status check's workflow no longer runs on push, it must be removed from (or realigned in) branch protection, or it blocks all pushes. For the release-only model, drop the orphaned required checks surgically (preserve the rest): `gh api --method DELETE repos/<org>/<repo>/branches/main/protection/required_status_checks` — this nulls `required_status_checks` while leaving `allow_force_pushes:false` / `allow_deletions:false` intact. Correctness is then gated by the pre-push hook (every push) + the release `verify` job (every tag), not by GitHub push-time checks. Verify with `gh api .../protection --jq .required_status_checks`.
+
+**Rule:** A required status check is only protection if its workflow actually reports on the protected event. Whenever you change a workflow's `on:` triggers, audit `branches/<b>/protection/required_status_checks.contexts` for checks that just went dark — orphaned required checks degrade to mandatory bypasses, which is worse than no requirement.
+<!-- /entry -->
