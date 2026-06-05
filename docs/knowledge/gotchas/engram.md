@@ -997,3 +997,35 @@ graduated_to: ""
 **Rule:** Enabling auth on a service that ran open is a *provisioning* task, not a flag flip — register + prove a working login first, or every client breaks simultaneously.
 
 <!-- /entry -->
+
+<!-- entry:G-engram-2026-06-05-002 -->
+---
+id: G-engram-2026-06-05-002
+type: gotcha
+domain: engram
+tags: [cognee, auth, access-control, datasets]
+since_version: "1.0"
+status: active
+scope: transferable
+related: [G-engram-2026-06-05-001]
+graduated_to: ""
+---
+
+## cognee REQUIRE_AUTHENTICATION ≠ ENABLE_BACKEND_ACCESS_CONTROL — 2026-06-05 · Claude
+
+**Problem:** When enabling auth on a shared cognee/Engram sidecar it's tempting to flip both
+`ENABLE_BACKEND_ACCESS_CONTROL` and `REQUIRE_AUTHENTICATION` to `true` together (the env comment
+even implies "both flags required"). They are independent: `REQUIRE_AUTHENTICATION` enforces a
+valid login on every request; `ENABLE_BACKEND_ACCESS_CONTROL` turns on per-resource ACLs that
+scope datasets to their owner. Enabling ACCESS_CONTROL on an install with a shared corpus (e.g. one
+`project_knowledge` dataset every consumer reads) hides that dataset from any user who isn't its
+owner — breaking recall for everyone.
+
+**Fix:** For "require a login but keep data shared," set `REQUIRE_AUTHENTICATION=true` and leave
+`ENABLE_BACKEND_ACCESS_CONTROL=false`. Only enable ACCESS_CONTROL when you genuinely want
+per-user/per-tenant dataset isolation.
+
+**Rule:** Authentication (who are you) and authorization/ACLs (what can you see) are separate flags
+— flip only the one the requirement names. Don't bundle ACLs into an "add auth" change.
+
+<!-- /entry -->

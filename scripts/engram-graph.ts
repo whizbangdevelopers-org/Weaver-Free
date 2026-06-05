@@ -29,7 +29,7 @@
  *   g.close()
  */
 
-import kuzu, { type KuzuValue } from 'kuzu'
+import kuzu, { type KuzuValue, type Connection, type QueryResult } from 'kuzu'
 import { mkdirSync, existsSync } from 'node:fs'
 import { resolve, dirname } from 'node:path'
 
@@ -66,6 +66,8 @@ export interface KnowledgeEntryNode {
   type: string
   scope: string
   status: string
+  // Node records are also passed as Cypher $param maps (Record<string, unknown>).
+  [key: string]: unknown
 }
 
 export interface EntityNodeRecord {
@@ -73,6 +75,7 @@ export interface EntityNodeRecord {
   name: string
   type: string
   description: string
+  [key: string]: unknown
 }
 
 export interface EngramGraphStats {
@@ -104,8 +107,8 @@ export interface EngramGraphHandle {
 
 // kuzu 0.11+: conn.query() accepts no params (2nd arg is progressCallback).
 // Parameterized queries require conn.prepare() + conn.execute(prepared, params).
-async function runQuery(conn: kuzu.Connection, q: string, params?: Record<string, unknown>): Promise<void> {
-  let raw: kuzu.QueryResult | kuzu.QueryResult[]
+async function runQuery(conn: Connection, q: string, params?: Record<string, unknown>): Promise<void> {
+  let raw: QueryResult | QueryResult[]
   if (params) {
     const prepared = await conn.prepare(q)
     raw = await conn.execute(prepared, params as unknown as Record<string, KuzuValue>)
@@ -116,8 +119,8 @@ async function runQuery(conn: kuzu.Connection, q: string, params?: Record<string
   result.close()
 }
 
-async function fetchAll<T>(conn: kuzu.Connection, q: string, params?: Record<string, unknown>): Promise<T[]> {
-  let raw: kuzu.QueryResult | kuzu.QueryResult[]
+async function fetchAll<T>(conn: Connection, q: string, params?: Record<string, unknown>): Promise<T[]> {
+  let raw: QueryResult | QueryResult[]
   if (params) {
     const prepared = await conn.prepare(q)
     raw = await conn.execute(prepared, params as unknown as Record<string, KuzuValue>)
@@ -130,7 +133,7 @@ async function fetchAll<T>(conn: kuzu.Connection, q: string, params?: Record<str
   return rows
 }
 
-function buildHandle(conn: kuzu.Connection): EngramGraphHandle {
+function buildHandle(conn: Connection): EngramGraphHandle {
   return {
     async upsertEntry(entry) {
       await runQuery(conn,
