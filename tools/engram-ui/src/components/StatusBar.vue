@@ -34,6 +34,9 @@
       <q-chip dense color="white" text-color="primary" class="q-ml-sm" icon="mdi-account-circle">
         {{ currentUser }}
       </q-chip>
+      <q-btn flat dense round icon="mdi-account-plus" class="q-ml-xs" @click="emit('users')">
+        <q-tooltip>Add user</q-tooltip>
+      </q-btn>
       <q-btn flat dense round icon="mdi-logout" class="q-ml-xs" @click="emit('logout')">
         <q-tooltip>Sign out</q-tooltip>
       </q-btn>
@@ -57,5 +60,6 @@ const emit = defineEmits<{
   refresh: []
   login: []
   logout: []
+  users: []
 }>()
 </script>
