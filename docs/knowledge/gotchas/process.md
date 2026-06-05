@@ -573,3 +573,26 @@ graduated_to: ""
 
 **Rule:** A required status check is only protection if its workflow actually reports on the protected event. Whenever you change a workflow's `on:` triggers, audit `branches/<b>/protection/required_status_checks.contexts` for checks that just went dark — orphaned required checks degrade to mandatory bypasses, which is worse than no requirement.
 <!-- /entry -->
+
+<!-- entry:G-process-2026-06-05-003 -->
+---
+id: G-process-2026-06-05-003
+type: gotcha
+domain: process
+tags: [sudo, nopasswd, debugging, root]
+since_version: "1.0"
+status: active
+scope: project
+related: []
+graduated_to: ""
+---
+
+## NOPASSWD sudo allowlist excludes ls/cat → silent failure → misdiagnosis — 2026-06-05 · Claude
+
+**Problem:** When sudo is a NOPASSWD *allowlist* (specific binaries: `nix`, `nixos-rebuild`, `systemctl`, `cp`, `rm`…), a non-allowlisted command like `sudo ls /run/secrets` or `sudo cat <file>` prompts for a password. In a non-interactive shell that prompt fails to **stderr** (`sudo: a terminal is required…`); with `2>/dev/null` the call returns *empty stdout*, which reads as "directory empty / file missing." This produced a false "king's sops secrets aren't mounting" diagnosis — they were mounting fine.
+
+**Fix:** Run reads as root *via* an allowlisted binary: `sudo nix shell nixpkgs#coreutils --command ls -la /run/secrets/`. Check `sudo -n -l` first to see what's allowlisted. Never trust empty output from a `sudo <non-allowlisted>` call.
+
+**Rule:** Before concluding "file/dir empty/missing" from a `sudo` read, verify the binary is in the NOPASSWD set; if not, re-run via an allowlisted wrapper.
+
+<!-- /entry -->

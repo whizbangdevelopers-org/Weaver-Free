@@ -1090,3 +1090,26 @@ graduated_to: ""
 
 **Rule:** For any ssh-dispatched command, assume one layer of shell quoting is consumed by the transport. Pass data with spaces/quotes/parens (messages, bodies) as files, not inline arguments — and verify the remote command's exit status instead of trusting it ran.
 <!-- /entry -->
+
+<!-- entry:G-devops-2026-06-05-001 -->
+---
+id: G-devops-2026-06-05-001
+type: gotcha
+domain: devops
+tags: [synology, ssh, scp, sftp, backup]
+since_version: "1.0"
+status: active
+scope: transferable
+related: []
+graduated_to: ""
+---
+
+## scp to Synology (and similar appliances) fails — use an ssh cat-pipe — 2026-06-05 · Claude
+
+**Problem:** Modern `scp` defaults to the SFTP subsystem. Synology DSM sshd does not expose the SFTP subsystem to ordinary users, so `scp file host:/path` fails `subsystem request failed on channel 0 / scp: Connection closed`, while plain `ssh host "<cmd>"` works fine.
+
+**Fix:** Transfer over a shell pipe: `ssh host "cat > /dest/file" < localfile`, then `ssh host "stat -c%s /dest/file"` to verify size. `scp -O` (legacy protocol) sometimes works too, but the cat-pipe needs nothing special on the far end.
+
+**Rule:** `scp` to an appliance NAS failing on "subsystem request failed" = missing SFTP subsystem → switch to an `ssh cat`-pipe; don't chase keys/perms.
+
+<!-- /entry -->
