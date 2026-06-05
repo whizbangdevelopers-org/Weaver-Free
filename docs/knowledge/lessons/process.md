@@ -679,3 +679,25 @@ graduated_to: ""
 **Why this shape wins:** A single mechanical test ("does it reference MASTER-PLAN / Decision / Forge / agents / test infra?") classifies every doc deterministically, so the next doc added doesn't require a judgment call about whether it leaks internal posture — it either trips the test or it doesn't.
 
 <!-- /entry -->
+
+<!-- entry:L-process-2026-06-05-001 -->
+---
+id: L-process-2026-06-05-001
+type: lesson
+domain: process
+tags: [ci, release, github-actions, pre-push-hook]
+since_version: "1.0.5"
+status: active
+scope: transferable
+related: []
+graduated_to: ""
+---
+
+## "CI on releases only" is only safe if the release tag re-verifies — 2026-06-05 · Claude
+
+**Root cause:** To save runner minutes, the goal was "local CI (the pre-push hook) is the gate; GitHub Actions runs on release tags only." But the release workflow only built + signed + published — it never ran the test/typecheck/compliance suite. So dropping the PR test trigger would leave the LOCAL hook as the *only* gate before a release — and a hook is bypassable (`--no-verify`) and runs on a developer's env, not clean infra. A tag could ship code that never passed CI anywhere.
+
+**Rule:** When you move test CI to release-only, the release tag must be SELF-SUFFICIENT: add a `verify` job that re-runs the full suite (lint/typecheck/unit/compliance) on clean infra and gate build→sign→publish on it. Then the local hook is the per-push gate and the release tag is the independent backstop. Keep security scanners (CodeQL) on PR/push — those minutes are worth it. E2E that only runs in Docker on a dedicated host stays out of the GitHub job; the hook owns it.
+
+**Why this shape wins:** two real verification points (every push via the hook, every release via the self-sufficient tag) with zero redundant per-PR runs — the cost saving without the "no GitHub-side verification ever" hole.
+<!-- /entry -->

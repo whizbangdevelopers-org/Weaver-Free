@@ -282,3 +282,47 @@ graduated_to: ""
 **Why this shape wins:** Classifying by *location* (production vs test/script/docs) maps directly onto release-blocking severity, and deduping by normalized path removes the synced-mirror inflation. Putting the fetch+classify in CI means the gate runs the same way for every author with no local credentials, and post-release verification confirms the gate actually ran rather than assuming it did.
 
 <!-- /entry -->
+
+<!-- entry:L-security-2026-06-05-001 -->
+---
+id: L-security-2026-06-05-001
+type: lesson
+domain: security
+tags: [ai-agents, supply-chain, containment, selvedge, red-team]
+since_version: "1.0.5"
+status: active
+scope: transferable
+related: []
+graduated_to: ""
+---
+
+## Containing an autonomous AI code pipeline — the judge isn't the hole, the trust spine is — 2026-06-05 · Claude
+
+**Root cause:** When red-teaming an autonomous AI-dev loop (a model that writes code, self-reviews, and merges), the instinct is to attack the LLM reviewer. But a well-prompted reviewer is robust: 0/7 crafted prompt-injections subverted it (it flagged embedded "approve this" instructions as findings, not commands). The real holes are all OUTSIDE the diff the reviewer reads — "the only guarded door in a building with three open windows": (1) the **executor** runs with no tool sandbox (`--dangerously-skip-permissions`, full Bash) while the reviewer/decomposer tiers are correctly read-only; (2) **design-tier artifacts** — an AI-authored gate/test command run as `bash` BEFORE review is RCE-by-construction (`curl|sh`); (3) the **state store** the scheduler trusts is an attacker-writable plain file (forgeable `DONE`); (4) the **supply chain** — `npm ci` runs lifecycle scripts before any test.
+
+**Rule:** Sandbox the executor to the minimum tools (file-editing only — mirror the reviewer's allowlist; deny Bash/network/sub-agents). Treat every AI-authored command string as untrusted: allowlist + argv, never `bash "$string"`, and validate it at AUTHORING time (decomposer emit) AND at execution. Feed the reviewer `git status --porcelain --ignored` so off-diff payloads (`node_modules`, `.git/hooks`) aren't invisible behind `git diff --cached`. Re-assert dependency manifests + run installs `--ignore-scripts` from a vetted mirror.
+
+**Why this shape wins:** the reviewer's strength is *judgment*, and judgment must be the LAST line of defense, not the only one. Structural controls (allowlist, manifest immutability, state integrity) make a single poisoned input — one comment, one lock entry, one state file — non-fatal. Bonus: red-teaming your own pipeline *is* how you author the spec for a host-level AI-shell-containment product — the threat model from a real adversary, dogfooded on the most demanding workload (an AI writing code unattended).
+<!-- /entry -->
+
+<!-- entry:L-security-2026-06-05-002 -->
+---
+id: L-security-2026-06-05-002
+type: lesson
+domain: security
+tags: [integrity, hmac, control-flow, state-store]
+since_version: "1.0.5"
+status: active
+scope: transferable
+related: [L-security-2026-06-05-001]
+graduated_to: ""
+---
+
+## Any control-flow decision derived from an attacker-writable file must be integrity-signed — 2026-06-05 · Claude
+
+**Root cause:** A scheduler that decides dispatch/unblock/accept by reading a plain `state/<id>.json` is trivially subverted: write `{state:"DONE"}` by hand and the dependents launch with no gate and no review ever having run. Confirmed working in a probe — a forged record flipped a blocked task to ready. The record *asserts* that review happened; nothing verifies it did.
+
+**Rule:** HMAC-sign every control-state record with a key the untrusted tiers do NOT hold (orchestrator-owned, mode 600, gitignored), re-signing on every legitimate write. Verify the signature on the trust-critical READ — specifically the predicate that unblocks downstream work (`task_done`) — and treat a record that fails verification as TAMPERED (surface to a human), never as its claimed state. Keep an append-only transition journal for tamper-evidence. Migrate existing legit records by signing them once.
+
+**Why this shape wins:** it converts forgery from "write any file" to "hold the signing key," which raises the bar to a full orchestrator-host compromise. The control is cheap (one `openssl dgst -sha256 -hmac` per write/read) and localized — the writers sign, one read predicate verifies, and the whole forgery class closes without changing the state-machine logic.
+<!-- /entry -->

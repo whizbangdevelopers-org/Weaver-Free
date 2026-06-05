@@ -507,3 +507,47 @@ graduated_to: ""
 **Rule:** A tier-guard / cross-cutting identifier rename is not "mechanical via TypeScript." `grep` the identifier across DATA contracts (`*.json`) and AUDITORS (`scripts/`), not just `src` — typecheck-green ≠ contract-complete.
 
 <!-- /entry -->
+
+<!-- entry:G-process-2026-06-04-002 -->
+---
+id: G-process-2026-06-04-002
+type: gotcha
+domain: process
+tags: [git, reset, executor, worktree, forge-loop]
+since_version: "1.0.5"
+status: active
+scope: transferable
+related: []
+graduated_to: ""
+---
+
+## `git reset --hard` on a shared/executor working branch silently discards uncommitted work — 2026-06-04 · Claude
+
+**Problem:** To get a clean base for an autonomous loop run, I `git reset --hard main` on the executor's feature branch. The branch carried uncommitted slice output (a modified layout + a staged new spec) from a prior run that had never been committed (see the commit-quoting gotcha). The hard reset reverted the tracked file and dropped the staged file — recoverable here only because the slice diff happened to be preserved on the conductor, but it was unguarded data loss on a checkout that other runs/sessions share.
+
+**Fix:** Don't `reset --hard` a working branch you don't own outright. For a clean base, branch off the base ref (`git checkout -b <fresh> <base>`) and run there, leaving the existing branch untouched. If you must reset, first capture the working tree (`git stash` or a diff to a file) and tag any commit you're about to discard so it's recoverable by design, not by luck.
+
+**Rule:** Treat an executor/shared checkout's working tree as someone else's uncommitted work (it usually is). Prefer a fresh branch over an in-place destructive reset; make discarded state recoverable *before* discarding it.
+<!-- /entry -->
+
+<!-- entry:G-process-2026-06-05-001 -->
+---
+id: G-process-2026-06-05-001
+type: gotcha
+domain: process
+tags: [workflow, subagents, structured-output, orchestration]
+since_version: "1.0.5"
+status: active
+scope: transferable
+related: []
+graduated_to: ""
+---
+
+## Multi-agent Workflow authoring footguns — schema agents that fail, and backticks that break parsing — 2026-06-05 · Claude
+
+**Problem:** Two recurring ways a `Workflow` run dies. (1) A subagent given a `schema` that ALSO does heavy work (long reads, a nested `claude -p`, deep reasoning) often "completed without calling StructuredOutput (after 2 in-conversation nudges)" — and that single failure propagates past `parallel()`/`pipeline()` and kills the WHOLE run, discarding every sibling's completed work. Using `agentType:'Explore'` makes it worse: Explore is built to *locate* code, not to reason or emit structured output. (2) An inline backtick inside a prompt **template literal** (e.g. wrapping a field name in `` `analysis` ``) prematurely closes the JS template string → `Unexpected token` parse error before the workflow even launches.
+
+**Fix:** (1) Add `.catch(() => null)` to EVERY `agent()` call inside `parallel`/`pipeline` so one failure degrades to a filtered-out null instead of aborting the barrier. Don't use `agentType:'Explore'` for reasoning/structured tasks — use the default agent. For analysis lanes that don't need machine-parsing, drop the `schema` entirely and return text (text agents don't hit the StructuredOutput failure). When a schema run dies, the partial work is often recoverable from disk (e.g. files the agents already wrote) — read it rather than re-running. (2) Never put raw backticks in a prompt template literal; use single quotes or escape them. Validate JS syntax before launch: `cp wf.js /tmp/x.mjs && node --check /tmp/x.mjs` (an "Illegal return" warning is expected — top-level `return` is workflow-legal).
+
+**Rule:** Treat workflow subagents as flaky at the StructuredOutput boundary: isolate each with `.catch`, prefer text output for analysis, reserve schemas for short extract-style agents, and never let a barrier's success depend on all agents succeeding.
+<!-- /entry -->

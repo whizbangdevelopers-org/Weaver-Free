@@ -2,8 +2,11 @@
 # Proprietary and confidential. Do not distribute.
 # Tests and CI
 # CREATED IN: Dev repo
-# USED BY: CI pipeline on push/PR to main
-# TRIGGERS: push to main, pull_request to main
+# USED BY: badge updates on release tags only
+# TRIGGERS: release tags (badge refresh) + manual dispatch.
+#   PR/push test runs are intentionally DROPPED — the Weaver CI (pre-push hook) gates
+#   every push to main, and release.yml's `verify` job re-runs the full suite on the
+#   release tag. GitHub spends test minutes on releases only.
 #
 # REQUIRED SECRETS (optional, for dynamic badges):
 #   - GIST_TOKEN: PAT with gist scope for updating CI badges
@@ -20,9 +23,7 @@ name: Tests
 
 on:
   push:
-    tags: ['v*']         # Badge updates on release only — pre-push hook covers main
-  pull_request:
-    branches: [main]
+    tags: ['v*']         # Badge refresh on release only — pre-push hook + release.yml verify cover correctness
   workflow_dispatch:       # Manual trigger for debugging
 
 permissions:
