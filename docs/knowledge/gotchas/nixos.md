@@ -670,3 +670,50 @@ graduated_to: ""
 **Rule:** On NixOS, treat `microvm@<name>.service` as the authoritative MicroVM run-state. Process-name matching on the hypervisor binary is non-portable across launchers (microvm.nix vs Weaver vs raw libvirt) and will produce false "stopped" readings. (Note: per [[L-analysis-2026-06-04-003]] the *Observer* deliberately does not enumerate MicroVMs at all — this detection knowledge is for Weaver-side / host tooling that legitimately needs MicroVM run-state.)
 
 <!-- /entry -->
+
+<!-- entry:G-nixos-2026-06-05-001 -->
+---
+id: G-nixos-2026-06-05-001
+type: gotcha
+domain: nixos
+tags: [systemd, users, sops, debugging]
+since_version: "1.0"
+status: active
+scope: transferable
+related: []
+graduated_to: ""
+---
+
+## systemd User=<nonexistent> → 217/USER → dead service → downstream 502 — 2026-06-05 · Claude
+
+**Problem:** A systemd unit whose `serviceConfig.User`/`Group` names a user no module actually defines fails at exec with status **217/USER**. The service never binds its port; anything proxying to it (e.g. nginx) returns **502**, misdirecting debugging toward the proxy. A transient `/run/systemd/system/<unit>.d/override.conf` overriding `User=` to a real account can mask it — but `/run` is tmpfs, so the fix evaporates on reboot and the next `nixos-rebuild` re-bakes the broken source.
+
+**Fix:** Set `User`/`Group` to a user the config actually creates (`users.users.<name>.isSystemUser = true`); match a sibling service that already runs. Remove any `/run` drop-in once the source is fixed, then `daemon-reload` + restart to prove the source stands alone.
+
+**Rule:** A 502 from a reverse proxy to a local service → check the upstream unit's `systemctl status` for `217/USER` before touching nginx. A service held up only by a `/run` drop-in is a quick-fix masking a source bug.
+
+<!-- /entry -->
+
+<!-- entry:G-nixos-2026-06-05-002 -->
+---
+id: G-nixos-2026-06-05-002
+type: gotcha
+domain: nixos
+tags: [sops, nix, flakes, cli, bootstrap]
+since_version: "1.0"
+status: active
+scope: transferable
+related: [G-nixos-2026-06-05-001]
+graduated_to: ""
+---
+
+## Three sops/nix CLI footguns when bootstrapping a host into fleet sops — 2026-06-05 · Claude
+
+**Problem / Fix (three traps hit in one bootstrap):**
+1. **`sops.defaultSopsFile = ./secrets/x.yaml` in a nested host module resolves relative to the *module file*, not the flake root.** From `hosts/<host>/default.nix`, `./secrets/x.yaml` means `hosts/<host>/secrets/x.yaml`; dry-build fails `path '.../hosts/<host>/secrets/x.yaml' does not exist`. Fix: `../../secrets/x.yaml` to reach a repo-root `secrets/`, or co-locate the file under the module dir.
+2. **`sops --encrypt --age "<recipients>"` still errors `no matching creation rules found`** when a `.sops.yaml` is discoverable from cwd and the input path matches no rule — even with `--age` explicit. Fix: add `--config /dev/null` to bypass `.sops.yaml` when passing recipients by hand.
+3. **`nix flake lock` fails `opening Git repository ".../.cache/nix/tarball-cache": could not find repository`** when that cache is stale/missing. Fix: `rm -rf ~/.cache/nix/tarball-cache` and re-run.
+
+**Rule:** `dry-build` before `switch` on any host you can't afford to break — it catches the module-relative path bug at eval time, before activation.
+
+<!-- /entry -->

@@ -974,3 +974,26 @@ graduated_to: ""
 **Rule:** Never count or group raw pipeline-run rows — they are status events, not file counts. Always deduplicate by `pipeline_run_id` first. Use two separate rank functions: `dedupeRank` (terminal states win) for collapsing a single run's events; `groupRank` (active states win) for surfacing the most notable status across a batch.
 
 <!-- /entry -->
+
+<!-- entry:G-engram-2026-06-05-001 -->
+---
+id: G-engram-2026-06-05-001
+type: gotcha
+domain: engram
+tags: [cognee, auth, registration, fastapi-users]
+since_version: "1.0"
+status: active
+scope: transferable
+related: []
+graduated_to: ""
+---
+
+## Cognee auth=false means no user is ever registered — flipping to true bricks every consumer — 2026-06-05 · Claude
+
+**Problem:** With `REQUIRE_AUTHENTICATION=false`, cognee accepts unauthenticated requests, so no client ever logs in — and therefore **no user account is ever registered**. `POST /api/v1/auth/login` returns `400 LOGIN_BAD_CREDENTIALS` for *every* email, even the configured/seeded one, because the record doesn't exist. Flipping `REQUIRE_AUTHENTICATION=true` in this state 400s every consumer (MCP, ingest, UI, memory clients) at once. The flake's `/api/v1/users/me` stub is also **only active when auth=false**, so under auth=true the UI must perform a real login.
+
+**Fix:** Before flipping auth on, **register the admin user** while still auth=false: `POST /api/v1/auth/register {email,password}` (expect 201), then confirm `POST /api/v1/auth/login` returns 200 with an `access_token`. Register with the same credential the sops secret holds so all consumers share it. Only then set `REQUIRE_AUTHENTICATION=true`.
+
+**Rule:** Enabling auth on a service that ran open is a *provisioning* task, not a flag flip — register + prove a working login first, or every client breaks simultaneously.
+
+<!-- /entry -->

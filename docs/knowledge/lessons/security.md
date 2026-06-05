@@ -326,3 +326,30 @@ graduated_to: ""
 
 **Why this shape wins:** it converts forgery from "write any file" to "hold the signing key," which raises the bar to a full orchestrator-host compromise. The control is cheap (one `openssl dgst -sha256 -hmac` per write/read) and localized — the writers sign, one read predicate verifies, and the whole forgery class closes without changing the state-machine logic.
 <!-- /entry -->
+
+<!-- entry:L-security-2026-06-05-003 -->
+---
+id: L-security-2026-06-05-003
+type: lesson
+domain: security
+tags: [sops, sops-nix, fleet, key-management, threat-model]
+since_version: "1.0"
+status: active
+scope: transferable
+related: []
+graduated_to: ""
+---
+
+## Fleet sops-nix: shared key registry, but per-secret recipient scoping — 2026-06-05 · Claude
+
+**Root cause:** "Every host holds every host's public key" (a uniform recipient registry) gets conflated with "every secret is encrypted to every host." They are independent — and conflating them hands the most-exposed host the keys to the trust root.
+
+**Rule:**
+- Put **all** fleet public age keys in every host's `.sops.yaml` `keys:` block (uniform registry — a fleet-wide secret becomes a one-line recipient add).
+- Scope each secret via `creation_rules`: host-local → `[host, admin-master]`; fleet-wide → all (opt-in per secret).
+- **Never encrypt a trust-root secret to a host you are hardening *against*.** If host X runs untrusted/automated workloads (a CI/agent executor), X must not be a recipient of the control host's secrets — an X compromise would otherwise decrypt the trust root.
+- Use a dedicated, backed-up **admin master key** as a recipient on every secret so management survives a control-host reinstall; back its private key up encrypted, off-host.
+
+**Why this shape wins:** Powered-off hosts are a non-issue — a host must be online only to *decrypt its own* secrets (automatic at boot via its host key). You can `updatekeys`/add secrets for it anytime from the registry and it self-decrypts on next boot. The registry stays uniform and trivial to extend while decrypt capability stays least-privilege and matches the threat model.
+
+<!-- /entry -->
