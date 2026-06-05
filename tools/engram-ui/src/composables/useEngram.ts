@@ -498,6 +498,26 @@ export function useEngram() {
     }
   }
 
+  // Register a new Engram user. Requires an authenticated admin session — apiFetch
+  // attaches the admin Bearer token. Surfaces cognee's POST /api/v1/auth/register
+  // (fastapi-users) for the engram-UI "Add user" action. Returns the created user.
+  async function addUser(email: string, password: string) {
+    loading.value = true
+    error.value = null
+    try {
+      return await apiFetch<{ id: string; email: string }>('/api/v1/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      })
+    } catch (err) {
+      error.value = extractError(err, 'Failed to add user')
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
   async function fetchCurrentUser() {
     try {
       const data = await apiFetch<{ email: string }>('/api/v1/auth/me')
@@ -621,6 +641,7 @@ export function useEngram() {
     listApiKeys,
     createApiKey,
     deleteApiKey,
+    addUser,
     listDatasetFiles,
     deleteDatasetFile,
     deleteDataset,

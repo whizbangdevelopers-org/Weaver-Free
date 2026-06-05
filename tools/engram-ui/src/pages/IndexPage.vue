@@ -13,6 +13,7 @@
         @refresh="onRefresh"
         @login="loginOpen = true"
         @logout="onLogout"
+        @users="usersOpen = true"
       />
     </q-header>
 
@@ -307,6 +308,14 @@
       @skip="loginOpen = false"
     />
 
+    <!-- Add-user dialog (admin only — shown when signed in) -->
+    <AddUserDialog
+      ref="addUserDialogRef"
+      v-model="usersOpen"
+      :loading="userLoading"
+      @submit="onAddUser"
+    />
+
     <!-- Remember dialog -->
     <RememberDialog
       v-model="rememberOpen"
@@ -335,6 +344,7 @@ import SettingsPanel from '../components/SettingsPanel.vue'
 import ApiKeysPanel from '../components/ApiKeysPanel.vue'
 import DatasetFilesPanel from '../components/DatasetFilesPanel.vue'
 import LoginDialog from '../components/LoginDialog.vue'
+import AddUserDialog from '../components/AddUserDialog.vue'
 import MonitorPanel from '../components/MonitorPanel.vue'
 import ProducedCard from '../components/ProducedCard.vue'
 import CreateDatasetDialog from '../components/CreateDatasetDialog.vue'
@@ -391,6 +401,7 @@ const {
   fetchCurrentUser,
   login,
   logout,
+  addUser,
   listDatasets,
   recall,
   remember,
@@ -434,6 +445,9 @@ const rememberLoading = ref(false)
 const addLoading = ref(false)
 const loginOpen = ref(false)
 const loginLoading = ref(false)
+const usersOpen = ref(false)
+const userLoading = ref(false)
+const addUserDialogRef = ref<InstanceType<typeof AddUserDialog> | null>(null)
 const createOpen = ref(false)
 const createLoading = ref(false)
 const createInitialName = ref<string | undefined>(undefined)
@@ -531,6 +545,21 @@ async function onLogin(email: string, password: string) {
     })
   } finally {
     loginLoading.value = false
+  }
+}
+
+async function onAddUser(email: string, password: string) {
+  userLoading.value = true
+  try {
+    await addUser(email, password)
+    usersOpen.value = false
+    $q.notify({ type: 'positive', message: `Added user ${email}`, timeout: 2500 })
+  } catch (e) {
+    // Keep the dialog open and surface cognee's message (e.g. weak password,
+    // already-exists) inline so the admin can correct without retyping.
+    addUserDialogRef.value?.setError(e instanceof Error ? e.message : 'Failed to add user')
+  } finally {
+    userLoading.value = false
   }
 }
 
