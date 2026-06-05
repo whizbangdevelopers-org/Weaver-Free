@@ -1068,3 +1068,25 @@ graduated_to: ""
 **Rule:** Never assume Docker and Podman are CLI-compatible for machine parsing. `--format json` ≠ `--format '{{json .}}'`, and field names/shapes diverge. Write and test a parser per runtime; this bites the eventual Rust port of `weaver-observer` exactly as it bit the Node prototype.
 
 <!-- /entry -->
+
+<!-- entry:G-devops-2026-06-04-002 -->
+---
+id: G-devops-2026-06-04-002
+type: gotcha
+domain: devops
+tags: [ssh, git, bash, quoting, forge-loop]
+since_version: "1.0.5"
+status: active
+scope: transferable
+related: []
+graduated_to: ""
+---
+
+## ssh-dispatched `git commit -m '<msg>'` silently fails when the wrapper runs `bash -lc '...'` — 2026-06-04 · Claude
+
+**Problem:** A remote commit dispatched as `ssh host "bash -lc '<body>'"` whose `<body>` ends in `git commit -m 'msg (with parens)'` silently fails. The inner single quotes around the message collide with the `bash -lc '...'` single-quote wrapping, and `(` `)` then parse as shell metacharacters on the remote — the commit aborts (often "switch `m' requires a value") but the loop swallowed stderr to `/dev/null` and printed its `[COMMIT]` line unconditionally. Net effect in forge-loop: every feature-branch slice commit failed for two sessions while the loop *looked* green — diffs were still captured (that command had no quotes/parens) and REVIEW ran off the captured diff, so nothing surfaced. A prior "set the `forge` git identity or commits silently no-op" note was a misdiagnosis of this exact symptom.
+
+**Fix:** Never pass a commit message inline through a nested-quoted ssh body. Write the message to a file and use `git commit -F <file>` (forge-loop ships it via the same stdin→file channel it uses for spec/gate). And **gate the success message on the exit code** — never send a state-changing remote command's output to `/dev/null` with an unconditional success echo; check `rc` and record a failure artifact.
+
+**Rule:** For any ssh-dispatched command, assume one layer of shell quoting is consumed by the transport. Pass data with spaces/quotes/parens (messages, bodies) as files, not inline arguments — and verify the remote command's exit status instead of trusting it ran.
+<!-- /entry -->

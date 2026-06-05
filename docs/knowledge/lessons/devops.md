@@ -454,3 +454,25 @@ graduated_to: ""
 **Why this shape wins:** it cleanly separates the prototype-now bridge from the shipping answer. Agentless SSH is a *pull from a privileged box* — fine for dogfooding, wrong as a foundation (no security boundary, needs SSH to every host). The permanent answer for no-runtime hosts is a **static binary** (Rust here) with zero deps, installed once. Use agentless to prove value and discover the fleet's real shape; let what it can't do (permanent, secured, on-host presence) define the binary's spec.
 
 <!-- /entry -->
+
+<!-- entry:L-devops-2026-06-04-003 -->
+---
+id: L-devops-2026-06-04-003
+type: lesson
+domain: devops
+tags: [forge-loop, review, diff, orchestrator, accumulate]
+since_version: "1.0.5"
+status: active
+scope: transferable
+related: []
+graduated_to: ""
+---
+
+## A review tier must judge the cumulative slice, not the incremental fix, across reject cycles — 2026-06-04 · Claude
+
+**Root cause:** In an accumulate-on-a-feature-branch loop, capturing each gate-green diff as `git diff --cached HEAD` (vs the immediate parent) means that after a review-reject re-execute, the reviewer sees only the *patch* the executor just made — not the whole slice. It loses the context to judge whether the slice as a whole is correct, and an accept on a fix-only diff is judging the wrong artifact.
+
+**Rule:** Record the slice's BASE ref (the feature-branch tip when the slice first started) once, and diff every gate-green state against that base (`git diff --cached <slice_base>`). The review tier then always evaluates the cumulative slice, stable across any number of reject→re-execute cycles. Store the base in the task's runtime record so a resumed/re-executed run reuses it.
+
+**Why this shape wins:** the gate proves *behavior* on the current tree regardless of diff framing, but the human-replacing REVIEW is only as good as the artifact it reads. Anchoring the review diff to the slice base decouples "what the reviewer sees" from "how many commits the executor needed" — exactly the property you want when the executor iterates.
+<!-- /entry -->

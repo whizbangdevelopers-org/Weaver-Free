@@ -328,3 +328,25 @@ graduated_to: ""
 **Why this shape wins:** the boundary keeps Observer cheap and the tier story clean — Observer is the land (read-only, free up to 5× headroom, Decision #102), and MicroVM management is the expand (run Weaver → Managed). Letting Observer reach into MicroVMs would blur the conversion lever Observer exists to create. When a feature can technically do more, scope it by *which product owns the primitive*, not by what the code can reach.
 
 <!-- /entry -->
+
+<!-- entry:L-analysis-2026-06-04-004 -->
+---
+id: L-analysis-2026-06-04-004
+type: lesson
+domain: analysis
+tags: [forge-loop, review-agent, validation, adversarial, gaming]
+since_version: "1.0.5"
+status: active
+scope: transferable
+related: [L-analysis-2026-06-04-001]
+graduated_to: ""
+---
+
+## Validate a judgment-tier agent adversarially before it replaces a human gate — 2026-06-04 · Claude
+
+**Root cause:** Before letting an Opus review-agent replace the human merge gate in the FORGE-LOOP, "it seems to work" is not evidence — the catastrophic error (accepting a gamed/broken diff) is invisible on happy-path diffs.
+
+**Rule:** Validate with an adversarial gauntlet: N planted gaming vectors (stubbed test, disabled/scope-narrowed auditor, `return true`, unjustified suppression, hidden TODO, rename-to-dodge, excluded path, threshold fudge, command-injection on an untested path, raw-error leak) that MUST be rejected/escalated, plus a clean control and a coordinated-rename control that MUST be accepted. A parallel-agent workflow (one adversary per vector + an independent judge per case) is the right harness. Result here: 12/12 correct, including the subtle gate-blind ones.
+
+**Why this shape wins:** two non-obvious findings fell out. (1) The agent was *stricter and better-grounded than the hand-review it replaced* — it rejected gate-green code for real convention gaps (missing error-response schema, raw `err.message` leak) that the gate and a human had missed. (2) It honored the literal spec **prose** over a narrower `acceptance` list, rejecting a "clean" control whose diff skipped a doc deliverable the prose required. Implication for any spec generator/decomposer: the spec prose and the acceptance criteria must be internally consistent, or the reviewer will (correctly) hold the executor to the stricter prose.
+<!-- /entry -->
