@@ -390,3 +390,37 @@ graduated_to: ""
 **Why this shape wins:** A panel that reads global data does not belong inside a per-dataset view (and vice versa) — co-locating by scope means selecting/clearing a dataset never strands a global panel, and the all/active recall toggle maps cleanly onto "send the filter or don't."
 
 <!-- /entry -->
+
+<!-- entry:L-engram-2026-06-05-001 -->
+---
+id: L-engram-2026-06-05-001
+type: lesson
+domain: engram
+tags: [cognee, auth, credentials, sops, config]
+since_version: "1.0"
+status: active
+scope: transferable
+related: [G-engram-2026-06-05-001]
+graduated_to: ""
+---
+
+## One default in the shared config wires every Engram consumer's credential — 2026-06-05 · Claude
+
+**Root cause:** When Engram flips to `REQUIRE_AUTHENTICATION=true`, every consumer (codebase-mcp,
+ingest scripts) suddenly needs a credential. Wiring each call site (npm-script env, `.mcp.json`
+env, per-invocation exports) is N places to keep in sync and easy to miss — a missed one 401s
+silently after the flip.
+
+**Rule:** Default the credential in the single shared config module every consumer already imports
+(`engram-config.ts`): default the email and read the sops secret file by default
+(`/run/secrets/engram-cognee-password`). Order precedence so explicit env still wins
+(`*_FILE` env → explicit `*_PASSWORD` env → default on-host sops path → `''`); a missing file
+(dev machines) degrades to no-auth unchanged.
+
+**Why this shape wins:** one edit covers every current and future consumer that reads
+`engramConfig`; nothing needs per-invocation env; explicit overrides still work; non-host
+environments without the secret keep working. Verify by importing the config and doing a real login
+*before* flipping enforcement — if `engramConfig` login returns 200 under `auth=false`, it will
+under `auth=true`.
+
+<!-- /entry -->
