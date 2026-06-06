@@ -701,3 +701,25 @@ graduated_to: ""
 
 **Why this shape wins:** two real verification points (every push via the hook, every release via the self-sufficient tag) with zero redundant per-PR runs — the cost saving without the "no GitHub-side verification ever" hole.
 <!-- /entry -->
+
+<!-- entry:L-process-2026-06-06-001 -->
+---
+id: L-process-2026-06-06-001
+type: lesson
+domain: process
+tags: [memory, infrastructure, verification, anvil, subagent]
+since_version: "1.0"
+status: graduated
+scope: transferable
+related: []
+graduated_to: "~/.claude/rules/verify-infra-from-anvil.md"
+---
+
+## Treat "X doesn't exist / X lives in Y" memory + docs as hypotheses, not facts — 2026-06-06 · Claude
+
+**Root cause:** An always-loaded memory line asserted a negative+location fact ("`test-infra/` doesn't exist; weaver-lab config lives in Forge"). It was relayed into a subagent prompt as a constraint; the subagent then read a stale `Forge/infrastructure/weaverlab.md` (Proxmox era) that *agreed*, and the two stale sources reinforced each other into a confidently-wrong assessment (weaver-lab "pending Proxmox→NixOS" when it was already a deployed NixOS host). Two stale sources agreeing is not verification.
+
+**Rule:** Before answering an infrastructure question, read the live source of truth (`anvil/hosts/inventory.yaml` + `anvil/flake.nix` + `anvil/hosts/<host>/`) first; treat memory and prose docs as hints. Distrust especially **negative claims** ("doesn't exist"), **status claims** ("pending"/"planned"), and **location claims** ("lives in repo W") — one `ls`/`grep` settles them. When you find drift, fix the stale source the same turn so it can't re-poison the next session, and record infra facts in memory as *pointers* to the live source, not copied values.
+
+**Why this shape wins:** copied facts rot the instant the thing changes; pointers to a structured source can't rot the same way. Killing the stale assertion and redirecting to the live source removes the poison for every future session instead of correcting one answer.
+<!-- /entry -->
