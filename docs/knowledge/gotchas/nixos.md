@@ -717,3 +717,82 @@ graduated_to: ""
 **Rule:** `dry-build` before `switch` on any host you can't afford to break — it catches the module-relative path bug at eval time, before activation.
 
 <!-- /entry -->
+
+<!-- entry:G-nixos-2026-06-05-003 -->
+---
+id: G-nixos-2026-06-05-003
+type: gotcha
+domain: nixos
+tags: [networkmanager, ensureprofiles, nixos-rebuild, networking]
+since_version: "1.0.5"
+status: active
+scope: transferable
+related: [G-nixos-2026-06-05-002]
+graduated_to: ""
+---
+
+## NetworkManager ensureProfiles rewrites the keyfile but does NOT reapply a live connection — 2026-06-05 · Claude
+
+**Problem:** Changing `networking.networkmanager.ensureProfiles.profiles.<name>` (DNS, routes, gateway) and running `nixos-rebuild switch` rewrites the connection keyfile on disk, but the **already-active** connection keeps its old settings. After a switch that pointed a host's DNS at a new resolver and removed its default route, the live box still showed the old `nameserver` and default route — the new keyfile was on disk, unapplied.
+
+**Fix:** Reload + reapply the connection (non-disruptive — the IP is unchanged, so SSH survives):
+```
+nmcli connection reload && nmcli device reapply <iface>
+```
+A reboot also applies it (NM reads the profile fresh on boot — verified reboot-persistent). Prefer `device reapply` over `connection up` (no down/up cycle that could strand the link).
+
+**Rule:** Any deploy that changes NM profile networking needs a one-time `nmcli device reapply <iface>` after the switch (or a reboot). Don't assume `nixos-rebuild switch` applied it — verify `ip route` / `resolv.conf` against the intended state.
+
+<!-- /entry -->
+
+<!-- entry:G-nixos-2026-06-05-004 -->
+---
+id: G-nixos-2026-06-05-004
+type: gotcha
+domain: nixos
+tags: [disko, filesystems, boot, migration]
+since_version: "1.0.5"
+status: active
+scope: transferable
+related: []
+graduated_to: ""
+---
+
+## disko-config in a running system declares fileSystems — it does NOT reformat on switch — 2026-06-05 · Claude
+
+**Problem:** Fear that importing `disko.nixosModules.disko` + a `disko-config.nix` into a host originally installed via a hand-written `hardware-configuration.nix` (fileSystems by-uuid) would repartition/reformat the disk on `nixos-rebuild switch`. It does not — in a *running* system disko only generates the `fileSystems`/`swapDevices` mount config; formatting happens only when you explicitly run the `disko` CLI (`zap_create_mount`).
+
+**Fix / safe-migration check:** Switching a host from by-uuid `hardware-configuration.nix` to disko-generated mounts is safe **only if the disk was originally disko-partitioned**, because disko's generated `fileSystems` reference `by-partlabel`/`by-label` (e.g. `disk-main-ESP`, `disk-main-root`, label `nixos`). Verify first: `lsblk -o NAME,PARTLABEL,LABEL` and confirm `/dev/disk/by-partlabel/*` + `by-label/*` resolve to the right partitions; then `nix store diff-closures /run/current-system <new>` should show no fileSystems churn. If the disk was hand-partitioned (no `disk-main-*` partlabels), disko's mounts won't resolve → boot failure; keep the by-uuid fileSystems instead.
+
+**Rule:** Before adopting disko mounts on a live host, prove the `by-partlabel`/`by-label` paths resolve on the actual disk. Trim the old `hardware-configuration.nix` to hardware-only (initrd modules, microcode) so it doesn't double-declare fileSystems with disko.
+
+<!-- /entry -->
+
+<!-- entry:G-nixos-2026-06-05-005 -->
+---
+id: G-nixos-2026-06-05-005
+type: gotcha
+domain: nixos
+tags: [airgap, networking, routing, vlan]
+since_version: "1.0.5"
+status: active
+scope: transferable
+related: [L-nixos-2026-06-05-001]
+graduated_to: ""
+---
+
+## Airgapping a host by removing its default route also kills cross-subnet reach — 2026-06-05 · Claude
+
+**Problem:** To airgap a host from the WAN, the instinct is "remove the gateway / default route." On a multi-VLAN fleet that also severs the host's path to anything on *other* internal subnets — its NAS (Trust VLAN), its DNS resolver (DMZ VLAN) — because those were reached *through* the same gateway via the default route. Result: no NAS mount, no DNS, while you thought you only blocked the internet.
+
+**Fix:** Airgap means *no default route*, not *no routing*. Keep explicit static routes to the internal subnets the host needs, via the same router, and omit only `0.0.0.0/0`:
+```nix
+# NetworkManager keyfile profile — IP with NO gateway, plus internal routes:
+address1 = "192.168.20.20/24";              # no gateway -> no default route -> no WAN
+route1   = "192.168.0.0/24,192.168.20.30";  # Trust (NAS) via the router
+route2   = "192.168.30.0/24,192.168.20.30"; # DMZ   (DNS) via the router
+```
+
+**Rule:** "Airgapped" = can't reach `0.0.0.0/0`, but still reaches the internal subnets it depends on. Enumerate those (package cache, NAS, resolver), add explicit static routes, then remove the default route. Verify: `ping <other-internal-subnet>` succeeds, `ping 1.1.1.1` fails.
+
+<!-- /entry -->

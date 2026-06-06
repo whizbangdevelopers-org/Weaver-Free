@@ -1013,7 +1013,7 @@ graduated_to: ""
 
 ## cognee REQUIRE_AUTHENTICATION ≠ ENABLE_BACKEND_ACCESS_CONTROL — 2026-06-05 · Claude
 
-**Problem:** When enabling auth on a shared cognee/Engram sidecar it's tempting to flip both
+**Problem:** When enabling auth on the shared Engram service it's tempting to flip both
 `ENABLE_BACKEND_ACCESS_CONTROL` and `REQUIRE_AUTHENTICATION` to `true` together (the env comment
 even implies "both flags required"). They are independent: `REQUIRE_AUTHENTICATION` enforces a
 valid login on every request; `ENABLE_BACKEND_ACCESS_CONTROL` turns on per-resource ACLs that

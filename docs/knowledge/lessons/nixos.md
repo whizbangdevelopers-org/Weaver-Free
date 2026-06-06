@@ -247,3 +247,52 @@ Retry every 2s up to 120s, using full Nix store paths for every binary (systemd 
 **Why this shape wins:** The probe converts process-level ordering into endpoint-level readiness, covering both cold-start model-load time and restart races in one place. It fails loud after a bounded timeout rather than letting A crash-loop against a not-yet-ready B.
 
 <!-- /entry -->
+
+<!-- entry:L-nixos-2026-06-05-001 -->
+---
+id: L-nixos-2026-06-05-001
+type: lesson
+domain: nixos
+tags: [airgap, deployment, closures, nixos-rebuild, supply-chain]
+since_version: "1.0.5"
+status: active
+scope: transferable
+related: [G-nixos-2026-06-05-005]
+graduated_to: ""
+---
+
+## Airgapped NixOS host: build on a WAN host and push closures — don't local-build with a WAN toggle — 2026-06-05 · Claude
+
+**Root cause:** An airgapped host still needs new system closures when its config or nixpkgs changes. The tempting design is "let the host build locally and open a temporary WAN path during the release cycle" — but that makes the airgap a *toggle you must remember to flip off*, and the host periodically touches the internet.
+
+**Rule (call it Option A):** Build on a WAN-connected control host and *push the closure* to the airgapped target — it only activates, never fetches:
+```
+nixos-rebuild switch --flake <repo>#<host> --target-host root@<host>
+```
+With no `--build-host`, the build runs locally (on the WAN-connected host) and `--target-host` copies the realised closure over SSH and activates it. The airgapped host never needs WAN — not even for an nixpkgs bump — so there is no toggle to forget.
+
+**Why this shape wins:** "True airgap" becomes the permanent default instead of a transient state. It is exactly what an air-gapped *customer* appliance does (build elsewhere, deliver the closure), so the homelab deployment doubles as the reference for the product's air-gapped-install story. Pairs with [[G-nixos-2026-06-05-005]] (keep internal routes; drop only the default route). Verify post-deploy: the box still resolves/mounts internal services but `ping 1.1.1.1` fails.
+
+<!-- /entry -->
+
+<!-- entry:L-nixos-2026-06-06-001 -->
+---
+id: L-nixos-2026-06-06-001
+type: lesson
+domain: nixos
+tags: [refactor, modules, nix-eval, verification, microvm]
+since_version: "1.0"
+status: active
+scope: transferable
+related: []
+graduated_to: ""
+---
+
+## Prove a NixOS module refactor is a no-op with a toplevel outPath diff — 2026-06-06 · Claude
+
+**Root cause:** Promoting a shared module (antsle's `common-vm.nix` → a parameterized `modules/microvm-common-vm.nix`) on a *production* host needs proof it changed nothing — eyeballing a diff is not proof.
+
+**Rule:** Capture a baseline before touching anything: `nix eval --raw .#nixosConfigurations.<host>.config.system.build.toplevel.outPath`. Refactor so every new option's default reproduces the old hardcoded value exactly. Re-eval. **Identical outPath = byte-identical system derivation = provable no-op** (no rebuild, no behavioral change) — the store hash is a pure function of all inputs, so equality is dispositive and needs only eval, not a build. Two footguns: (1) a brand-new `.nix` file is invisible to flake eval until `git add`, even in a dirty tree (eval fails with `path … does not exist`); (2) adding NixOS options can shift the hash via the generated options manual when `documentation.nixos.enable` is on — if the hash moves, eval the specific runtime attrs (`systemd.network`, `users.users.root.openssh.authorizedKeys.keys`, `microvm.interfaces`) to confirm it's doc churn, not config drift.
+
+**Why this shape wins:** turns "I think this refactor is safe" into a one-command proof, cheaply (eval, not build) — exactly what you want before consolidating a single-source module that a live host depends on.
+<!-- /entry -->

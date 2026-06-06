@@ -268,3 +268,34 @@ graduated_to: ".claude/rules/security.md"
 **Rule:** When using Helmet/CSP with an HTTP backend behind a reverse proxy, disable `upgrade-insecure-requests` at the app level (`upgradeInsecureRequests: null`) — set it at the proxy if needed. Leaving the default on produces ServiceWorker / mixed-content failures that look like app bugs.
 
 <!-- /entry -->
+
+<!-- entry:G-security-2026-06-05-001 -->
+---
+id: G-security-2026-06-05-001
+type: gotcha
+domain: security
+tags: [sops, sops-nix, age, keys, fleet-secrets]
+since_version: "1.0.5"
+status: active
+scope: transferable
+related: []
+graduated_to: ""
+---
+
+## sops-nix: the admin/management key is root-owned in /var/lib/sops-nix, NOT in the user's keys.txt — 2026-06-05 · Claude
+
+**Problem:** A long detour concluded the fleet "admin master key" was missing from the management host, because `~/.config/sops/age/keys.txt` (the user's interactive key) couldn't decrypt any `[admin, *]` secret. Three distinct age keys were conflated:
+- **workstation editing key** (`age180y…`, in `~/.config/sops/age/keys.txt`) — only a recipient of secrets it's explicitly listed on;
+- **host key** (`age12gxqr…`, `ssh-to-age` of `/etc/ssh/ssh_host_ed25519_key`) — auto-decrypts that host's own secrets at activation;
+- **admin master key** (`age15qx3awx…`, **`/var/lib/sops-nix/admin-master-key.txt`, root-owned**) — recipient on every `[admin,*]` secret.
+Naming made it worse: the workstation key and the host key were *both* labeled `&king` in different registries.
+
+**Fix:** To decrypt/edit an `[admin,*]` secret as a human, point sops at the root-owned master key — don't expect it in the user keychain:
+```
+sudo env SOPS_AGE_KEY_FILE=/var/lib/sops-nix/admin-master-key.txt sops <secret.yaml>
+```
+Derive any age file's identity with `age-keygen -y <file>` before assuming which key it is.
+
+**Rule:** Before declaring a sops key "missing," check the root-owned `/var/lib/sops-nix/` location, not just `~/.config/sops/age/keys.txt`. Never reuse one anchor name (`&king`) for two different keys — name them by role (`&mark` editing, `&<host>` host, `&admin` master). A master key belongs root-owned, not in a user keychain.
+
+<!-- /entry -->
