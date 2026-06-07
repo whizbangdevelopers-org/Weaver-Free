@@ -909,3 +909,26 @@ graduated_to: ""
 **Rule:** When composing `services.weaver` (provisioning) onto a host, the bridge named in `bridgeInterface` is module-owned and /24. Host config adds only sibling bridges + the explicit NAT the networkd host needs.
 
 <!-- /entry -->
+
+<!-- entry:G-nixos-2026-06-07-006 -->
+---
+id: G-nixos-2026-06-07-006
+type: gotcha
+domain: nixos
+tags: [microvm, slirp, hostfwd, networking, reachability]
+since_version: "1.0.5"
+status: active
+scope: transferable
+related: []
+graduated_to: ""
+---
+
+## A SLIRP microvm hostfwd is host-local — 0.0.0.0 + an open firewall does NOT make it externally reachable — 2026-06-07 · Claude
+
+**Problem:** A microvm.nix guest using `interfaces = [{ type = "user"; }]` (SLIRP) + `forwardPorts` is reachable only from the host (127.0.0.1). Trying to serve fleet clients by setting `host.address = "0.0.0.0"` + opening the port on the host firewall LOOKS like it should work — `ss` shows `0.0.0.0:<port>` and the firewall counter shows the external SYNs being accepted — but the connection **times out**: the SLIRP hostfwd completes no handshake for non-loopback clients. (Verified relocating verdaccio to weaver-lab: foundry + king both timed out; only 127.0.0.1 responded.)
+
+**Fix:** For a fleet-reachable microvm service give the guest a **real IP** via `type = "tap"` / macvtap on a host NIC (the tap + networkd bridge pattern) — not SLIRP. SLIRP is correct only for "reachable from the host" (build/verify, vsock ops). Don't burn time on `0.0.0.0` + firewall; it cannot fix SLIRP.
+
+**Rule:** SLIRP `type="user"` + `forwardPorts` = host-local, full stop. Anything a peer host must reach needs a tap/bridge interface (see the SLIRP-vs-tap lesson in lessons/nixos).
+
+<!-- /entry -->
