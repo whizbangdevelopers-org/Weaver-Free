@@ -796,3 +796,70 @@ route2   = "192.168.30.0/24,192.168.20.30"; # DMZ   (DNS) via the router
 **Rule:** "Airgapped" = can't reach `0.0.0.0/0`, but still reaches the internal subnets it depends on. Enumerate those (package cache, NAS, resolver), add explicit static routes, then remove the default route. Verify: `ping <other-internal-subnet>` succeeds, `ping 1.1.1.1` fails.
 
 <!-- /entry -->
+
+<!-- entry:G-nixos-2026-06-07-001 -->
+---
+id: G-nixos-2026-06-07-001
+type: gotcha
+domain: nixos
+tags: [microvm, systemd, restart, declarative]
+since_version: "1.0.5"
+status: active
+scope: transferable
+related: []
+graduated_to: ""
+---
+
+## microvm.nix declarative VM: `switch` reboots `booted`, not the new `current` — 2026-06-07 · Claude
+
+**Problem:** After editing `microvm.vms.<name>.config` and `nixos-rebuild switch`, the new config built into the `current` symlink but the running VM kept the OLD config. `restartIfChanged` did restart `microvm@<name>`, yet the change still didn't take effect (the restart raced the `install-microvm` step that advances `current`; `booted` stayed on the old runner). Silent — the switch "succeeds" but the VM is stale.
+**Fix:** After the switch, explicitly `systemctl restart microvm@<name>`. Its ExecStart is `…/current/bin/microvm-run`, so an explicit restart (with `current` now updated) boots the new config. Verify: `readlink /var/lib/microvms/<name>/booted` == `readlink …/current`.
+**Rule:** For declarative microvms, treat `switch` as "build new current"; always `systemctl restart microvm@<name>` to actually boot it, and assert booted==current.
+
+<!-- /entry -->
+
+<!-- entry:G-nixos-2026-06-07-002 -->
+---
+id: G-nixos-2026-06-07-002
+type: gotcha
+domain: nixos
+tags: [weaver-module, nat, sysctl, ip-forward, module-conflict]
+since_version: "1.0.5"
+status: active
+scope: transferable
+related: []
+graduated_to: ""
+---
+
+## services.weaver provisioning collides with a host's existing NAT on net.ipv4.ip_forward — 2026-06-07 · Claude
+
+**Problem:** Adding `services.weaver` (`provisioningEnabled = true`) to a host that already runs a NAT gateway (forge-nat sets `boot.kernel.sysctl."net.ipv4.ip_forward" = 1`) fails eval: *"option `boot.kernel.sysctl."net.ipv4.ip_forward"` is defined multiple times while it's expected to be unique."* Both set it to `1`, but a scalar sysctl can't have two plain definitions.
+
+**Fix:** Lower the host side's priority — `"net.ipv4.ip_forward" = lib.mkDefault 1;` (add `lib` to the module args). The Weaver module's plain `1` wins when provisioning is on; the host's `mkDefault 1` still applies when it isn't, so forwarding stays on either way.
+
+**Rule:** Composing the Weaver module onto a host with pre-existing networking → expect scalar-option collisions on shared sysctls; `mkDefault` on the host value is the clean resolve. `nix eval …toplevel.outPath` catches it before the rebuild — always eval after wiring a new module onto a live host.
+
+<!-- /entry -->
+
+<!-- entry:G-nixos-2026-06-07-003 -->
+---
+id: G-nixos-2026-06-07-003
+type: gotcha
+domain: nixos
+tags: [disko, disks, lsblk, post-install, filesystems]
+since_version: "1.0.5"
+status: active
+scope: transferable
+related: []
+graduated_to: ""
+---
+
+## disko-config declares a SUBSET of a host's physical disks — verify with lsblk, not the config — 2026-06-07 · Claude
+
+**Problem:** weaver-lab's `disko-config.nix` declared 2 disks; `lsblk` on the live host showed **4** (two left unprovisioned at install) — including a free SSD ideal for VM overlays. Trusting the config under-counted storage by ~536 GB. disko-config is the *install* layout, not an inventory of what's physically present.
+
+**Fix:** For any disk question read the live host (`lsblk -d -o NAME,SIZE,MODEL,ROTA`, `blkid`), not the config. Adding a disk to a *running* host: `mkfs` it manually (disko only formats at install, not on `switch`), then declare it — a plain `fileSystems` entry, or a disko `disk.X = { content = { type = "filesystem"; … mountpoint; }; }` (whole-disk, no gpt) whose generated mount the rebuild picks up.
+
+**Rule:** disko-config ≠ physical reality. Verify disks on the box; pre-`mkfs` new disks before the rebuild that mounts them.
+
+<!-- /entry -->

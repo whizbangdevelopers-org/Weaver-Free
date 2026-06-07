@@ -353,3 +353,24 @@ graduated_to: ""
 **Why this shape wins:** Powered-off hosts are a non-issue — a host must be online only to *decrypt its own* secrets (automatic at boot via its host key). You can `updatekeys`/add secrets for it anytime from the registry and it self-decrypts on next boot. The registry stays uniform and trivial to extend while decrypt capability stays least-privilege and matches the threat model.
 
 <!-- /entry -->
+
+<!-- entry:L-security-2026-06-07-001 -->
+---
+id: L-security-2026-06-07-001
+type: lesson
+domain: security
+tags: [mirror, proxy, verdaccio, airgap, egress]
+since_version: "1.0.5"
+status: active
+scope: transferable
+related: []
+graduated_to: ""
+---
+
+## A caching proxy's "no uplinks" config is not a seal — cut network egress — 2026-06-07 · Claude
+
+**Root cause:** A caching registry proxy (verdaccio) stores, alongside each cached packument, the *upstream* tarball URLs (`_distfiles`). Once a package's packument is cached, the proxy fetches arbitrary tarball *versions* straight from those URLs — bypassing `uplinks: {}` entirely. The app-level "no fall-through" is real for packages with no cached packument, and a no-op for ones that do.
+**Rule:** Enforce a cache/proxy seal at the **network layer** (block the guest's egress), not just in app config. "No uplinks" is necessary but insufficient. Pair it with a build-time assertion that the egress block is present whenever the proxy is in "sealed" mode.
+**Why this shape wins:** verified empirically — `express-3.0.0` (never warmed, not allowlisted) was served despite `uplinks: {}` until a firewall `OUTPUT … REJECT` cut egress; then it 500s. The network cut is the only layer that holds once *any* packument is cached.
+
+<!-- /entry -->
