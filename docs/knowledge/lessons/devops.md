@@ -476,3 +476,31 @@ graduated_to: ""
 
 **Why this shape wins:** the gate proves *behavior* on the current tree regardless of diff framing, but the human-replacing REVIEW is only as good as the artifact it reads. Anchoring the review diff to the slice base decouples "what the reviewer sees" from "how many commits the executor needed" — exactly the property you want when the executor iterates.
 <!-- /entry -->
+
+<!-- entry:L-devops-2026-06-07-001 -->
+---
+id: L-devops-2026-06-07-001
+type: lesson
+domain: devops
+tags: [playwright, mcp, cdp, ssh-tunnel, airgap]
+since_version: "1.0.5"
+status: active
+scope: transferable
+related: [G-devops-2026-06-07-001]
+graduated_to: ""
+---
+
+## Relocate the Playwright MCP browser to a remote (even airgapped) host via SSH tunnel — zero .mcp.json change — 2026-06-07 · Claude
+
+**Root cause:** The Playwright MCP doesn't hold a persistent browser — it attaches to an external Chromium over CDP (`@playwright/mcp --cdp-endpoint`). `code/.mcp.json` points it at `http://localhost:3222`. To move that browser off the dev box (e.g. onto a dedicated/airgapped host) the naive moves both fail: pointing the endpoint at `remote:3222` won't work (Chrome binds remote-debugging to loopback), and binding it to `0.0.0.0` to "make it reachable" exposes an **unauthenticated** full-control CDP port on the LAN.
+
+**Rule:**
+- Keep the browser bound to the remote host's **loopback** (`--remote-debugging-address=127.0.0.1`). CDP has no auth — never bind `0.0.0.0`.
+- Bridge from the MCP host with an SSH tunnel: `ssh -N -L 127.0.0.1:3222:127.0.0.1:3222 <remote>`. The MCP host's `localhost:3222` now *is* the remote browser, and CDP never leaves loopback on either end.
+- Because `.mcp.json` already says `localhost:3222`, the relocation needs **zero config change** — same endpoint, different backend.
+- Run the tunnel supervised (systemd user service, `Restart=always`, `loginctl enable-linger`), not a bare backgrounded `ssh`.
+- Airgapped remote (no registry egress): deliver the image with `docker save <img> | ssh <remote> docker load`. The compose `browser` service is `image:` not `build:`, so no build context/npm is needed — that's why the *browser* is easy to relocate while the *runners* (which `build:`) are not.
+
+**Why this shape wins:** `cdp-endpoint=localhost` + SSH tunnel decouples *where the browser runs* from *what the MCP connects to* — relocate to any host (airgapped included) with no client reconfig, and the unauthenticated CDP surface stays loopback-only on both ends. Portability and security at once. Operational topology + recovery live in Forge `infrastructure/e2e.md`. Verified by driving the remote browser through the tunnel with `chromium.connectOverCDP('http://localhost:3222')`.
+
+<!-- /entry -->
