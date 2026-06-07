@@ -723,3 +723,52 @@ graduated_to: "~/.claude/rules/verify-infra-from-anvil.md"
 
 **Why this shape wins:** copied facts rot the instant the thing changes; pointers to a structured source can't rot the same way. Killing the stale assertion and redirecting to the live source removes the poison for every future session instead of correcting one answer.
 <!-- /entry -->
+
+<!-- entry:L-process-2026-06-07-001 -->
+---
+id: L-process-2026-06-07-001
+type: lesson
+domain: process
+tags: [engram, auth, migration, silent-failure, health-check]
+since_version: "1.0.5"
+status: active
+scope: transferable
+related: []
+graduated_to: ""
+---
+
+## Flipping auth on a shared service is a fleet-wide change — sweep every consumer; health checks lie — 2026-06-07 · Claude
+
+**Root cause:** Engram/Cognee was flipped to require authentication (FI-4 / Decision #171), but the rollout updated only some consumers. A missed one — the foundry forge-loop agent's MCP config — still passed only `ENGRAM_COGNEE_URL`, no credentials, so its knowledge calls (`cogRecall`/`queryKnowledge`/`cogRemember`) 401'd. Nothing surfaced it: the agent's status probe (`cogStatus` → `/health`) stayed **green** because health endpoints don't require auth. Net effect — the dark-factory agents silently stopped reading institutional knowledge, discoverable only by asking "does it actually see the registry?"
+
+**Rule:**
+- Enabling auth on a shared backend is a **fleet-wide change**. In the same change, enumerate EVERY consumer — MCP configs, Claude hooks, services, scripts, UIs — and give each credentials. `grep` the endpoint/port (`:8765`, `ENGRAM_COGNEE_URL`) across all repos + host configs to find them; the "URL set, creds absent" pairing is the silent-401 signature.
+- **Health ≠ function.** A green `/health` (or any unauthenticated probe) does NOT mean a consumer can authenticate. Verify an *authenticated* call per consumer (`/api/v1/datasets` → 200, not just `/health` → 200), ideally as the consumer's actual runtime user.
+- A consumer that authenticates via a **hardcoded credential** (e.g. a password baked into a hook script) is a related smell — it "works" but leaks the secret into source and the template. Provision the secret to the consumer's user and read it from a file instead.
+
+**Why this shape wins:** auth migrations fail *open-ended and silent* — the server is up, health is green, only the authenticated code path breaks — so the failure surfaces weeks later as "the agent isn't using knowledge," not as an error at migration time. Sweeping all consumers + verifying one authenticated call each converts a silent, deferred failure into a checked invariant at the moment you flip the switch.
+
+<!-- /entry -->
+
+<!-- entry:L-process-2026-06-07-002 -->
+---
+id: L-process-2026-06-07-002
+type: lesson
+domain: process
+tags: [relocation, security-boundary, ownership, cross-session, microvm]
+since_version: "1.0.5"
+status: active
+scope: transferable
+related: []
+graduated_to: ""
+---
+
+## Relocating a sealed service: the data migrates trivially; the security boundary stays with its designers — 2026-06-07 · Claude
+
+**Root cause:** Relocating a verdaccio mirror (built + sealed by another session) king → weaver-lab, the easy parts went fast — port the module, copy the storage image, the mirror serves. But the reachability change entangled the **two-layer egress seal** (designed for SLIRP's network model), and reworking that seal for a real-NIC model risks silently *un-sealing* the air-gapped mirror (a supply-chain regression). I started down that path before recognizing it wasn't mine to change blind.
+
+**Rule:** When relocating a service that carries a security boundary (a seal, a firewall posture, an auth model) built by another track, split the work: **do the boundary-agnostic parts** (config port, data migration, storage) and **hand the boundary itself back to the team that designed it** — or change it only with their explicit verification. Data is portable; a security invariant is not a refactor you do on someone else's behalf.
+
+**Why this shape wins:** getting a security boundary subtly wrong fails *silent* (it still "works," just insecurely) and the cost lands on the people who own it. Keeping the boundary with its designers preserves both the invariant and the accountability, while the cheap split (data now, boundary by the owner) unblocks the relocation without gating it on a risky rewrite.
+
+<!-- /entry -->
