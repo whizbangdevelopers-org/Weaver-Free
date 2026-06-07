@@ -863,3 +863,49 @@ graduated_to: ""
 **Rule:** disko-config ≠ physical reality. Verify disks on the box; pre-`mkfs` new disks before the rebuild that mounts them.
 
 <!-- /entry -->
+
+<!-- entry:G-nixos-2026-06-07-004 -->
+---
+id: G-nixos-2026-06-07-004
+type: gotcha
+domain: nixos
+tags: [tmpfiles, mounts, nixos-rebuild, switch, ordering]
+since_version: "1.0.5"
+status: active
+scope: transferable
+related: []
+graduated_to: ""
+---
+
+## tmpfiles dirs on a NEWLY-added mount aren't created during the switch that adds the mount — 2026-06-07 · Claude
+
+**Problem:** Added a disk mounted at `/cache` plus a `systemd.tmpfiles.rules` dir `/cache/attic/store` in the same rebuild. After `nixos-rebuild switch`, atticd was active but `/cache/attic/store` did not exist on the mounted fs. The switch ran `systemd-tmpfiles --create` **before** the new `/cache` mount unit started, so the dir was created on the underlying root dir and then **shadowed** by the mount — invisible on the mounted filesystem.
+
+**Fix:** Create it on the live mount once (`mkdir -p /cache/attic/store && chmod …`), then restart the consumer. It **self-heals on the next reboot** (at boot, `local-fs.target` mounts precede `systemd-tmpfiles-setup`), so the config is durable — only the in-place switch that *introduces* the mount misses it.
+
+**Rule:** When a single rebuild both adds a mount and declares tmpfiles dirs under it, expect the dirs missing post-switch — create them manually (or reboot). Verify on the mounted fs (`findmnt`, `ls` on the mount), not just that the service is "active".
+
+<!-- /entry -->
+
+<!-- entry:G-nixos-2026-06-07-005 -->
+---
+id: G-nixos-2026-06-07-005
+type: gotcha
+domain: nixos
+tags: [weaver-module, provisioning, bridge, networking-nat, networkd]
+since_version: "1.0.5"
+status: active
+scope: project
+related: [L-nixos-2026-06-01-002]
+graduated_to: ""
+---
+
+## services.weaver provisioning OWNS bridgeInterface — don't double-define it; and its networking.nat no-ops on networkd dual-NIC hosts — 2026-06-07 · Claude
+
+**Problem:** With `provisioningEnabled`, the Weaver module creates the bridge itself — `networking.bridges.${bridgeInterface}`, `networking.interfaces.${bridgeInterface}.ipv4.addresses = [{ … prefixLength = 24; }]` (hardcoded /24), `networking.nat`, and `ip_forward`. A host that *also* defined `br-vmtest` in networkd ended up with **two addresses** (`172.16.0.1/16` mine + `/24` Weaver's). Separately, Weaver's `networking.nat` adds no working POSTROUTING rule on this dual-NIC `useNetworkd` host (same failure as forge-nat — see [[L-nixos-2026-06-01-002]]); the only working masquerade was the explicit-iptables one.
+
+**Fix:** Let the Weaver module own `bridgeInterface` (device + IP + nat-enable). Do **not** redeclare that bridge in host config — only declare *additional* bridges the module doesn't know about (e.g. an air-gapped bridge). Because `networking.nat` no-ops here, keep an **explicit iptables masquerade** for the bridge subnet, scoped to the module's **/24** (not a wider /16).
+
+**Rule:** When composing `services.weaver` (provisioning) onto a host, the bridge named in `bridgeInterface` is module-owned and /24. Host config adds only sibling bridges + the explicit NAT the networkd host needs.
+
+<!-- /entry -->
