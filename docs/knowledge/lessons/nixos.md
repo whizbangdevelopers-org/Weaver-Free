@@ -296,3 +296,66 @@ graduated_to: ""
 
 **Why this shape wins:** turns "I think this refactor is safe" into a one-command proof, cheaply (eval, not build) — exactly what you want before consolidating a single-source module that a live host depends on.
 <!-- /entry -->
+
+<!-- entry:L-nixos-2026-06-07-001 -->
+---
+id: L-nixos-2026-06-07-001
+type: lesson
+domain: nixos
+tags: [buildNpmPackage, packaging, npm, prebuilt]
+since_version: "1.0.5"
+status: active
+scope: transferable
+related: []
+graduated_to: ""
+---
+
+## Package an npm tool absent from nixpkgs via its PUBLISHED prebuilt tarball — 2026-06-07 · Claude
+
+**Root cause:** A tool dropped from nixpkgs (verdaccio) builds from a pnpm/nx monorepo (painful in Nix). But its npm-*published* package is prebuilt JS with a `bin` — no build step needed, only dependency resolution.
+**Rule:** `buildNpmPackage` with `src = fetchurl` of the npm `.tgz` (`hash` = the registry `dist.integrity` sha512 SRI, used verbatim); inject a generated `package-lock.json` (`npm install --package-lock-only`) via `postPatch`; `npmDepsHash` from that lock; `dontNpmBuild = true`; `npmFlags = ["--ignore-scripts"]`.
+**Why this shape wins:** turns a "real effort" monorepo build into a today-sized job; reproducible + air-gappable (deps fetched once at build time, baked into the store); `--ignore-scripts` keeps dependency lifecycle scripts inert.
+
+<!-- entry:L-nixos-2026-06-07-002 -->
+---
+id: L-nixos-2026-06-07-002
+type: lesson
+domain: nixos
+tags: [microvm, networking, slirp, forwardPorts]
+since_version: "1.0.5"
+status: active
+scope: transferable
+related: [G-nixos-2026-06-07-001]
+graduated_to: ""
+---
+
+## SLIRP user-net + forwardPorts: a host-reachable microvm with zero host-network footprint — 2026-06-07 · Claude
+
+**Root cause:** Putting a service VM on a bridge/NAT/networkd on a NetworkManager host risks the host's live networking (the NM×networkd integration trap), and a `nixos-rebuild switch` that touches host networking is risky on the box you're working from.
+**Rule:** For a VM that only needs to be reachable **from the host** (not the LAN), use `microvm.interfaces = [{ type = "user"; … }]` (SLIRP) + `microvm.forwardPorts` (hostfwd to 127.0.0.1). No bridge, no NAT, no networkd, no NM interaction — the switch is network-safe. To **seal** egress, drop the default route AND add a firewall `OUTPUT … REJECT` (route removal alone did **not** hold); SLIRP `restrict=on` isn't exposed by microvm.
+**Why this shape wins:** zero host-network change → safe to switch on a session host; matches a "reachable from host only" requirement exactly. For LAN-reachable VMs use tap+bridge instead (e.g. the fleet's `vm-*`→networkd-bridge pattern).
+
+<!-- /entry -->
+
+<!-- entry:L-nixos-2026-06-07-003 -->
+---
+id: L-nixos-2026-06-07-003
+type: lesson
+domain: nixos
+tags: [flake, install, forgejo, mirror, customer-experience, buildnpmpackage]
+since_version: "1.0.5"
+status: active
+scope: transferable
+related: []
+graduated_to: ""
+---
+
+## Emulate the customer install by consuming the released artifact from a git mirror via flake — not a dev path: input — 2026-06-07 · Claude
+
+**Root cause:** king consumes Weaver via `weaver.url = "path:/…/code"` — the dev loop (live tree, instant, no fetch). A customer never has the source tree; they add the published flake from a git URL and `nixos-rebuild`. Testing on the dev path input never exercises the real install surface.
+
+**Rule:** For the test host, consume the product the customer's way — `weaver.url = "git+http://<forgejo>/<org>/Weaver-Free"` (the GitHub-mirrored Free artifact), `inputs.nixpkgs.follows`, import `nixosModules.default`, configure `services.weaver` (no license key → free tier). It builds `buildNpmPackage` from the *fetched* tree, so only what's pushed+mirrored is built (Dev→sync→GitHub→forgejo→host). Two footguns: the Free mirror flattens `code/`→root so the flake is at the repo root (no `?dir=code`); a public repo needs no auth (a private forge repo would need nix-daemon netrc/access-tokens).
+
+**Why this shape wins:** it tests the actual onboarding (fetch → buildNpmPackage → first-run admin), surfaces install-UX bugs before customers hit them (feed fixes to docs/UPGRADE.md), and `github:` later swaps in the true public path with the same shape. See `test-infra/harness/NODE-ENABLEMENT.md`.
+
+<!-- /entry -->

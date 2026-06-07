@@ -299,3 +299,24 @@ Derive any age file's identity with `age-keygen -y <file>` before assuming which
 **Rule:** Before declaring a sops key "missing," check the root-owned `/var/lib/sops-nix/` location, not just `~/.config/sops/age/keys.txt`. Never reuse one anchor name (`&king`) for two different keys — name them by role (`&mark` editing, `&<host>` host, `&admin` master). A master key belongs root-owned, not in a user keychain.
 
 <!-- /entry -->
+
+<!-- entry:G-security-2026-06-07-001 -->
+---
+id: G-security-2026-06-07-001
+type: gotcha
+domain: security
+tags: [testing, mirror, cache, fail-closed]
+since_version: "1.0.5"
+status: active
+scope: transferable
+related: [L-security-2026-06-07-001]
+graduated_to: ""
+---
+
+## Testing a cache/proxy seal pollutes the cache and gives false readings — 2026-06-07 · Claude
+
+**Problem:** Verifying "fail-closed" by requesting real package names while the proxy still had egress up made the proxy **fetch and cache** those names. Later requests then served them (200) → a false "still leaking" reading **and** permanent cache pollution (non-allowlisted packages now resident).
+**Fix:** Test the seal only **after** egress is actually cut, and only with **fresh, never-requested** names (and fresh *versions* of already-warmed packages). If you polluted during testing, wipe the volume and re-warm from the allowlist.
+**Rule:** A fail-closed/seal test must not mutate the thing it tests. Use throwaway probe names, post-cut.
+
+<!-- /entry -->

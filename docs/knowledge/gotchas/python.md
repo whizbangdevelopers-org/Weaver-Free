@@ -71,3 +71,24 @@ results = await asyncio.gather(*[bounded(x) for x in all_items])
 **Rule:** Never `asyncio.gather` over an unbounded input set. Always cap concurrency — a batch size or a semaphore — sized to the per-coroutine memory cost. Start small (e.g. 10) and reduce if RSS growth is still a problem. The fan-out count, not the total item count, is what determines peak memory and event-loop responsiveness.
 
 <!-- /entry -->
+
+<!-- entry:G-python-2026-06-07-001 -->
+---
+id: G-python-2026-06-07-001
+type: gotcha
+domain: python
+tags: [uvx, uv, wheels, native-build, guarddog, yara]
+since_version: "1.0.5"
+status: active
+scope: transferable
+related: []
+graduated_to: ""
+---
+
+## `uvx`/pip tool fails its C build on a too-new Python — pin to a wheel'd minor — 2026-06-07 · Claude
+
+**Problem:** `uvx guarddog` failed building `yara-python` (`error: command 'cc' failed: No such file or directory`). uv's default interpreter was CPython 3.14, which has no prebuilt `yara-python` wheel → uv built from source → needs a C toolchain (absent in the ephemeral env).
+**Fix:** `uvx --python 3.12 guarddog …` — 3.12 has a prebuilt wheel, so no compiler is needed.
+**Rule:** When a `uvx`/pip tool fails on a native dep's C build, pin to a Python minor that has prebuilt wheels (`--python 3.12`) before reaching for `gcc`/`nix-shell`. The newest CPython often lacks wheels for native packages.
+
+<!-- /entry -->
