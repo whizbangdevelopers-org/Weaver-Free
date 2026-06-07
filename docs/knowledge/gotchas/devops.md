@@ -1113,3 +1113,26 @@ graduated_to: ""
 **Rule:** `scp` to an appliance NAS failing on "subsystem request failed" = missing SFTP subsystem → switch to an `ssh cat`-pipe; don't chase keys/perms.
 
 <!-- /entry -->
+
+<!-- entry:G-devops-2026-06-07-001 -->
+---
+id: G-devops-2026-06-07-001
+type: gotcha
+domain: devops
+tags: [docker, e2e, disk, image-prune, teardown]
+since_version: "1.0.5"
+status: graduated
+scope: transferable
+related: []
+graduated_to: ".claude/rules/testing.md#e2e-docker-teardown-must-prune-images"
+---
+
+## E2E `docker compose up --build` leaks a dangling image every run — prune in teardown — 2026-06-07 · Claude
+
+**Problem:** Every E2E runner does `docker compose up --build` with the whole repo as build context (`../..`). Any source change busts the layer cache, so the prior run's image is left untagged (`<none>`). `docker compose down --remove-orphans` removes containers but **never images**. The dangling ~6 GB layers accumulate unboundedly — on king they reached **585 images / 548 GB and filled root to 93%** before anyone noticed. `du` as a non-root user under-reports this: `/var/lib/docker` is `drwx--x---` (root-only), so a `du` run as `mark` silently skips it and the space looks "missing." `docker system df` is the tool that finds it.
+
+**Fix:** Shared `testing/e2e-docker/scripts/prune-docker-artifacts.sh`, wired into every batch runner's teardown right after the final `down`. It runs `docker image prune -f` (dangling only) + `docker builder prune -f --filter until=168h`. **Deliberately NOT `docker image prune -a`** in the recurring path — `-a` deletes the freshly built *tagged* image too (no container references it once `down` ran), forcing a full no-cache rebuild next run. Use `-af` only for a one-time reclaim; steady-state teardown uses `-f` so the current image stays for cache reuse and only the superseded `<none>` layer is dropped. Bounds the set to one image per service instead of one per run.
+
+**Rule:** Any Docker test harness that runs `up --build` MUST prune dangling images in teardown — `down` alone leaks one image per run forever. When disk space goes "missing" and `du` doesn't account for it, check `docker system df` before chasing the filesystem.
+
+<!-- /entry -->
