@@ -424,3 +424,26 @@ environments without the secret keep working. Verify by importing the config and
 under `auth=true`.
 
 <!-- /entry -->
+
+<!-- entry:L-engram-2026-06-08-001 -->
+---
+id: L-engram-2026-06-08-001
+type: lesson
+domain: engram
+tags: [codebase-mcp, cognee, http-client, kuzu, foundry, airgap]
+since_version: "1.0"
+status: active
+scope: project
+related: [L-engram-2026-06-05-001]
+graduated_to: ""
+---
+
+## codebase-mcp ↔ Cognee is a thin HTTP client — KuzuDB stays server-side — 2026-06-08 · Claude
+
+**Root cause:** codebase-mcp's `cognee-memory` tools (`cogStatus`/`cogRecall`/`cogRemember`/`cogImprove`/`cogForget`) are a **pure HTTP client** over Node's native `fetch` — codebase-mcp's *only* runtime dep is `@modelcontextprotocol/sdk` (no DB driver, no client lib). It talks to the **Cognee sidecar** at `engramConfig.cognee.url` (`ENGRAM_COGNEE_URL`, default `http://127.0.0.1:8765`): `POST /api/v1/auth/login` (form-encoded, cred from the sops-backed `engramConfig`) → Bearer token cached to JWT `exp`; then `/health`, `/api/v1/datasets`, `/api/v1/search` (recall; default `CHUNKS` — `GRAPH_COMPLETION` needs the KuzuDB graph), `/api/v1/cognify/improve`. Every call fails graceful — `{ available: false, error }`, never throws.
+
+**Rule:** The native stores (KuzuDB graph + better-sqlite3) live **only in the Cognee/Engram service** (a Python NixOS service — the sidecar runs on Foundry when `services.weaver`'s cognee module is up, or on king). Consumers (codebase-mcp, the Weaver backend's ai-memory service) are HTTP clients holding none of it.
+
+**Why this shape wins:** Because the integration is over HTTP, a consumer pulls **zero native deps** into its own build — which is exactly why an airgapped executor building Weaver-Free has no kuzu/better-sqlite3 to compile (they're not in its dep tree; they're the *service's* concern, built with WAN). When asked "do the Engram native deps break the airgap build?", trace whether the thing references Engram as a *client* (HTTP → no) or *embeds* it (npm dep → yes). Here it's always a client.
+
+<!-- /entry -->

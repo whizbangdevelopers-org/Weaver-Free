@@ -320,3 +320,26 @@ graduated_to: ""
 **Rule:** A fail-closed/seal test must not mutate the thing it tests. Use throwaway probe names, post-cut.
 
 <!-- /entry -->
+
+<!-- entry:G-security-2026-06-08-001 -->
+---
+id: G-security-2026-06-08-001
+type: gotcha
+domain: security
+tags: [secrets, build-artifacts, dist, mcp, false-positive]
+since_version: "1.0"
+status: active
+scope: transferable
+related: [L-engram-2026-06-05-001]
+graduated_to: ""
+---
+
+## A hardcoded-cred match in `dist/` can be a stale-build false positive — verify the source + the launch path — 2026-06-08 · Claude
+
+**Problem:** A grep of `codebase-mcp/dist/tools/cognee-memory.js` showed `process.env.COGNEE_PASSWORD ?? 'weaver-dev-2026'` — read as a live hardcoded credential and nearly "fixed." But the **source** (`src/tools/cognee-memory.ts` → `src/utils/engram-config.ts`) already reads the cred via `readSecretFile('ENGRAM_COGNEE_PASSWORD_FILE', …, '/run/secrets/engram-cognee-password')` — the fleet sops pattern, **no hardcoded default**. The `dist/` was a **stale, gitignored, untracked build artifact** from before the engram-config refactor (older `COGNEE_*` env scheme), and `.mcp.json` launches `tsx codebase-mcp/src/index.ts` — the **source**, never `dist/`. The literal was also a *dead* cred (already rotated). Net: a false positive on three counts — stale, not-run, not-committed.
+
+**Fix:** Nothing in the source. Rebuild (`npm run build` → tsc) regenerated a clean `dist/` (or just `rm -rf dist/`, since it's gitignored and unused).
+
+**Rule:** When a secret-scan hits a **built/`dist/` artifact**, before concluding a leak: (1) check the **source** — is the literal still there? (2) check the **launch path** (`tsx src/` vs `node dist/`) — is the artifact even run? (3) check if it's **committed** (`git ls-files`) vs gitignored cruft. Stale build output retains old literals after a source sweep; `dist/` is not the source of truth. Don't patch clean source for a stale-artifact match.
+
+<!-- /entry -->
