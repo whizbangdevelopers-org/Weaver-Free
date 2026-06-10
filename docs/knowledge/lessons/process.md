@@ -772,3 +772,61 @@ graduated_to: ""
 **Why this shape wins:** getting a security boundary subtly wrong fails *silent* (it still "works," just insecurely) and the cost lands on the people who own it. Keeping the boundary with its designers preserves both the invariant and the accountability, while the cheap split (data now, boundary by the owner) unblocks the relocation without gating it on a risky rewrite.
 
 <!-- /entry -->
+
+<!-- entry:L-process-2026-06-10-001 -->
+---
+id: L-process-2026-06-10-001
+scope: transferable
+type: lesson
+domain: process
+tags: [auditor, decision-conflict, amendment-chain, false-positive, calibration, master-plan]
+since_version: "1.0.5"
+status: active
+related: [G-process-2026-06-10-001]
+graduated_to: ""
+---
+
+## Decision-conflict auditor — calibrate patterns against the live corpus, walk amendment chains forward — 2026-06-10 · Claude
+
+**Context:** Built `audit:decision-conflict`, which flags planning artifacts (agents/**.md, plans/**.md) for claims contradicting a resolved decision in MASTER-PLAN.md (retired tier names → #137, EA → #136, à la carte → #96), with a 3-layer design (direct pattern / structured table / LLM-judge scaffold).
+
+**Root cause / key patterns discovered:**
+
+1. **Resolve the *effective* decision state, not the original.** A decision's current meaning lives at the end of its amendment chain (`*Amended by Decision #M*` / `*Amended by #M*` — both notations appear in the table). The walker must follow amendment edges **forward to strictly-higher decision numbers** — an amendment is always a later decision. That monotone-increasing constraint is both correct and the structural guard against cycles (a back-edge to a lower number is filtered out, so the walk terminates). A visited-set is belt-and-suspenders. Known live chains to verify by hand: #3→#96, #41→#49, #76→#185, #87→#185.
+
+2. **Calibrate the default scan against the real corpus before declaring green.** The retired term "premium" appears in ~15 non-archive plan/agent files — but almost always adjectivally ("Apptainer visibility (premium)", "buy extensions à la carte" in revenue prose), NOT as a current tier identifier. Precise patterns (`Premium tier`, `tier:'premium'`, `Free / Premium / Enterprise`) flag the genuine "used as current" drift and produce **zero** false positives on the live default scan, while `--include-archive` surfaces the real historical backlog (24 conflicts, all in `*/archive/` or the prompt file). The lesson: a vocabulary-style auditor's value is in the *narrowness* of its patterns — measure the false-positive rate against the actual repo, not against a fixture, before wiring it into `test:compliance`.
+
+3. **Guard the source of truth and the historical voice.** Two false-positive classes must be filtered: (a) the Decisions-Resolved table rows themselves (a line starting `| N |` is the decision, not a claim against it); (b) explicitly-historical references ("originally called premium (renamed by #137)", "à la carte … retired"). A single historical-context regex + a table-row skip covers both.
+
+4. **Adding the auditor to `run-compliance.ts` PHASES auto-bumps the marker docs.** The `auditor-count` / `auditor-list` markers derive from PHASES via `sync:markers`; with the repo's git hooks inactive (`core.hooksPath` default), run `npm run sync:markers` by hand after editing PHASES, then `npm run audit:marker-sync` must pass. No hand-editing of the count in CLAUDE.md/NOTES/etc.
+
+**Rule:** When building an auditor that reads MASTER-PLAN.md as data: (1) reuse the canonical table parser shape from `verify-decision-parity.ts`; (2) resolve amendment chains forward-only and test the resolver directly; (3) externalize claim patterns to JSON and prove zero false positives on the live default scan before wiring into the compliance chain; (4) report the `--include-archive` backlog as a finding, never weaken patterns to swallow it.
+
+<!-- /entry -->
+
+<!-- entry:L-process-2026-06-10-002 -->
+---
+id: L-process-2026-06-10-002
+scope: transferable
+type: lesson
+domain: process
+tags: [auditor, vocabulary-current, prose-drift, never-game-auditors, calibration, scope-boundary]
+since_version: "1.0.5"
+status: active
+related: [L-process-2026-06-10-001]
+graduated_to: ""
+---
+
+## Vocabulary-current auditor — scope a rename to YOUR product, not the word — 2026-06-10 · Claude
+
+**Root cause:** Building `audit:vocabulary-current` (flags pre-rename terms used as current in prose), the bare word `plugin` produced 54 hits on the default corpus — but only ~6 were genuine drift. The other ~48 were legitimate references to *third-party* plugin ecosystems (CoreDNS, Fastify, Capacitor, dnsmasq, SLURM GRes, Attic plugins), code identifiers (`requirePlugin`, `PluginManifest`, `"plugin": null` JSON keys), and tokens inside inline code spans / fenced code blocks. Decision #51 renamed **Weaver's own** extension system from "plugin" to "Integrated Extension" — it did **not** rename other vendors' plugin terminology. A rename rule that flags the *word* rather than *the product's use of the word* is mis-scoped.
+
+**Rule:** When a rename auditor fires on a ubiquitous word, the calibration boundary is **ownership**, not spelling:
+1. **Exclude external-tech qualifiers** — a config list of vendor names (CoreDNS, Fastify, Capacitor, …); a line naming one is out of your decision's scope.
+2. **Exclude code surfaces structurally** — inline code spans (`` `X` ``), fenced code blocks (``` ``` ```), and a code-identifier regex (declarations, `.member`, `"key":` JSON). A token in backticks is a code reference, not a prose label.
+3. **Prove the narrowing didn't gut detection** — after each exclusion, run a probe with the genuine drift class ("Weaver's plugin marketplace is the upsell") and confirm it STILL fires. Never-game-auditors cuts both ways: don't reword the corpus to dodge the rule, and don't widen the exclusion so far the rule stops catching the class it exists for.
+4. **Genuine residue is fixed in the input, not swallowed by the rule.** The 3–4 real live-corpus hits left after narrowing were genuine drift (a pre-#51 DECIDED analysis doc that said "Plugins" where its own heading said "Extensions"). Those got a faithful 3-line correction to the canonical term — that is response-#1 ("fix the input"), distinct from the full historical backlog (the `--include-archive` set, 65 occurrences) which is deferred to corpus-normalization. Compliance goes green because the live corpus is *actually* clean, not because the auditor was blunted.
+
+**Companion mechanics (reused from the sibling `audit:decision-conflict`):** externalize the rename map + exclusions to `scripts/data/*.json` (reviewable as data); historical-context filter skips NOTES dated blocks, Decisions-table rows, `> Previously` blockquotes, and `<!-- historical -->` spans; `--include-archive` surfaces the backlog without gating; the auditor's own spec + detector source legitimately quote retired terms, so exempt them by name in `audit:vocabulary` (verify-vocabulary-sync.ts) — and verify a probe file in a non-exempt path is still flagged, so the exemption is narrow.
+
+<!-- /entry -->
