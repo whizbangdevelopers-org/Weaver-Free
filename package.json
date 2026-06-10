@@ -77,6 +77,8 @@
     "audit:legal": "npx tsx scripts/verify-legal-ip.ts",
     "audit:routes": "npx tsx scripts/verify-route-auth.ts",
     "audit:tier-parity": "npx tsx scripts/verify-tier-parity.ts",
+    "audit:harness-tier-parity": "npx tsx scripts/verify-harness-tier-parity.ts",
+    "generate:tier-capabilities": "npx tsx scripts/gen-tier-capabilities.ts",
     "audit:tui-parity": "npx tsx scripts/verify-tui-parity.ts",
     "audit:cli-args": "npx tsx scripts/verify-cli-args.ts",
     "audit:contrast": "npx tsx scripts/verify-contrast.ts",

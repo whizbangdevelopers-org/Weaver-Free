@@ -83,6 +83,7 @@ export const PHASES: Phase[] = [
       'audit:legal',
       'audit:doc-freshness',
       'audit:tier-parity',
+      'audit:harness-tier-parity',
       'audit:tui-parity',
       'audit:cli-args',
       'audit:contrast',
