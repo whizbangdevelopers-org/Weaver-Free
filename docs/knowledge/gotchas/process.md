@@ -596,3 +596,27 @@ graduated_to: ""
 **Rule:** Before concluding "file/dir empty/missing" from a `sudo` read, verify the binary is in the NOPASSWD set; if not, re-run via an allowlisted wrapper.
 
 <!-- /entry -->
+
+<!-- entry:G-process-2026-06-10-001 -->
+---
+id: G-process-2026-06-10-001
+scope: transferable
+type: gotcha
+domain: process
+tags: [regex, unicode, word-boundary, auditor, decision-conflict, false-negative]
+since_version: "1.0.5"
+status: active
+related: [L-process-2026-06-10-001]
+graduated_to: ""
+---
+
+## JS regex `\b` before a non-ASCII letter never matches — silently breaks `à la carte` detection — 2026-06-10 · Claude
+
+**Problem:** The à la carte claim pattern `\b(?:à\s*la\s*carte)\s+extension` matched **nothing**, so the auditor silently missed every "à la carte extension" claim (a false-negative — worse than a false-positive because it looks green). Cause: JavaScript's default `\b` word boundary is defined only over the ASCII `[A-Za-z0-9_]` class. `à` is not a "word character" to the engine, so between a preceding space and `à` there is *no* boundary — `\bà` can never match `"an à"`. The leading `\b` killed the whole alternation.
+
+**Fix:** Drop the `\b` before the non-ASCII branch and anchor the ASCII branch separately:
+`(?:à\s*la\s*carte|\ba\s+la\s+carte)\s+(?:extension|model|...)`. The accented form needs no `\b` (the literal `à` is specific enough); the plain-ASCII "a la carte" keeps its `\b` and requires real spaces (`\s+`) so it doesn't fire mid-word.
+
+**Rule:** Never put `\b` immediately before a non-ASCII letter in a JS regex without the `u` flag + Unicode property escapes. For accented/multilingual terms, either omit the boundary (rely on the literal's specificity) or use `\p{L}` boundaries under the `u` flag. Always assert the regex matches a positive fixture **and** rejects a near-miss — a pattern that matches nothing passes a "no conflicts" test for the wrong reason.
+
+<!-- /entry -->

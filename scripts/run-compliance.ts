@@ -75,6 +75,8 @@ export const PHASES: Phase[] = [
     parallel: true,
     entries: [
       'audit:vocabulary',
+      'audit:decision-conflict',
+      'audit:vocabulary-current',
       'audit:engram-naming',
       'audit:forms',
       'audit:routes',
