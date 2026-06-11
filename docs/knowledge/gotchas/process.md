@@ -620,3 +620,26 @@ graduated_to: ""
 **Rule:** Never put `\b` immediately before a non-ASCII letter in a JS regex without the `u` flag + Unicode property escapes. For accented/multilingual terms, either omit the boundary (rely on the literal's specificity) or use `\p{L}` boundaries under the `u` flag. Always assert the regex matches a positive fixture **and** rejects a near-miss — a pattern that matches nothing passes a "no conflicts" test for the wrong reason.
 
 <!-- /entry -->
+
+<!-- entry:G-process-2026-06-11-001 -->
+---
+id: G-process-2026-06-11-001
+type: gotcha
+domain: process
+tags: [hook, regex, command-guard, quoting, false-positive]
+since_version: "1.0"
+status: active
+scope: transferable
+related: [L-process-2026-06-11-001]
+graduated_to: ""
+---
+
+## A regex command-guard keyed on shell separators must strip quoted substrings first — 2026-06-11 · Claude
+
+**Problem:** A `PreToolUse(Bash)` guard blocking unpinned `npm` ops detected "command position" by matching `npm` after `^`, `&&`, `;`, `|`, or `(`. It false-fired on `grep -nE 'prepush|compliance|npm run' file` — the `|` *inside the quoted regex* looked like a shell pipe before `npm run`. Same class for `git commit -m "fix x && npm run y"`. The guard couldn't tell a real separator from one inside a string literal.
+
+**Fix:** Strip quoted substrings before scanning: `sed -E "s/'[^']*'//g; s/\"[^\"]*\"//g"`, then run the separator/keyword regex on the unquoted skeleton. Quoted pipes/`&&`/keywords vanish; real structure remains — `cat f | npm run x` (genuine pipe into npm) still blocks.
+
+**Rule:** Any command-interception guard reasoning about shell structure via regex must first remove quoted spans — else every grep pattern, commit message, or `echo` string containing a separator or the guarded keyword is a false positive. Re-test against (a) the in-quote false-positive, (b) a real separator usage, (c) the bare target — all three must land correctly. (Corollary of never-game-auditors: when your own guard false-fires, fix the guard, don't reword the command.)
+
+<!-- /entry -->

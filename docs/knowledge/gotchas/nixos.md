@@ -932,3 +932,51 @@ graduated_to: ""
 **Rule:** SLIRP `type="user"` + `forwardPorts` = host-local, full stop. Anything a peer host must reach needs a tap/bridge interface (see the SLIRP-vs-tap lesson in lessons/nixos).
 
 <!-- /entry -->
+
+<!-- entry:G-nixos-2026-06-11-001 -->
+---
+id: G-nixos-2026-06-11-001
+type: gotcha
+domain: nixos
+tags: [deadnix, flake, outputs, self, linter]
+since_version: "1.0"
+status: active
+scope: transferable
+related: []
+graduated_to: ""
+---
+
+## deadnix `--edit` strips `self` from a flake's `outputs` and breaks eval — 2026-06-11 · Claude
+
+**Problem:** `deadnix` reports `self` as an unused lambda pattern in `outputs = { self, nixpkgs }:` when the body never references it — and `--edit` removes it. But Nix **always injects `self`** into `outputs`. On a *closed* pattern (no `...`), removing `self` makes Nix's call fail: `error: function 'outputs' called with unexpected argument 'self'`. The flake stops evaluating. deadnix is "right" that the binding is unused, but `self` on `outputs` is a structural interface arg, not dead code.
+
+**Fix:** Keep flake `outputs` patterns **open** — `outputs = { nixpkgs, ... }:`. The `...` absorbs the `self`/inputs Nix always passes, so deadnix has no named `self` to flag AND the flake still evaluates. (Only the one closed-pattern flake broke; flakes already carrying `...` survived `deadnix --edit` untouched.)
+
+**Rule:** Always write flake `outputs` as `{ <used-inputs>, ... }:`. After any `deadnix --edit` on flakes, force-eval (`nix eval .#<output>`) before trusting it — this class is invisible to deadnix's own re-scan (it reports 0 findings on the now-broken file).
+
+<!-- /entry -->
+
+<!-- entry:G-nixos-2026-06-11-002 -->
+---
+id: G-nixos-2026-06-11-002
+type: gotcha
+domain: nixos
+tags: [statix, linter, modules, repeated-keys, empty-pattern]
+since_version: "1.0"
+status: active
+scope: transferable
+related: [G-nixos-2026-06-11-001]
+graduated_to: ""
+---
+
+## statix `repeated_keys` + `empty_pattern` are false-positive classes on NixOS modules — 2026-06-11 · Claude
+
+**Problem:** Adopting `statix` as a gate, two lints fired ~70× across the fleet config, all idiomatic NixOS, none real:
+- **`repeated_keys` (W20):** flags two `systemd.services.*`, two `nixosConfigurations.<host>`, `interfaces.eno1` + `interfaces.eno2`, even `boot.initrd.*` inside a **machine-generated** `hardware-configuration.nix`. Consolidating is worse code; generated files can't be hand-edited.
+- **`empty_pattern` (W10):** flags `{ ... }:` — the **canonical NixOS module header** — and suggests `_:`, which breaks the module-signature convention.
+
+**Fix:** Repo-root `statix.toml` with `disabled = ["repeated_keys", "empty_pattern"]` and a comment documenting WHY. Every *other* lint stays enabled — genuine findings (`manual_inherit` / `manual_inherit_from`: `x = cfg.x` → `inherit (cfg) x`) are fixed in source via `statix fix`, never suppressed.
+
+**Rule:** For a NixOS-module repo, scope `statix` by disabling the two module-idiom lints in config (documented), not by per-site `# statix:ignore`. This is "fix the auditor's scope" (legitimate input, wrong rule), not gaming. Verify narrowness: `statix check` must still fail on a real anti-pattern after the config lands.
+
+<!-- /entry -->

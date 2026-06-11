@@ -830,3 +830,26 @@ graduated_to: ""
 **Companion mechanics (reused from the sibling `audit:decision-conflict`):** externalize the rename map + exclusions to `scripts/data/*.json` (reviewable as data); historical-context filter skips NOTES dated blocks, Decisions-table rows, `> Previously` blockquotes, and `<!-- historical -->` spans; `--include-archive` surfaces the backlog without gating; the auditor's own spec + detector source legitimately quote retired terms, so exempt them by name in `audit:vocabulary` (verify-vocabulary-sync.ts) — and verify a probe file in a non-exempt path is still flagged, so the exemption is narrow.
 
 <!-- /entry -->
+
+<!-- entry:L-process-2026-06-11-001 -->
+---
+id: L-process-2026-06-11-001
+type: lesson
+domain: process
+tags: [auditor, compliance, severity, warning, never-game-auditors]
+since_version: "1.0"
+status: active
+scope: transferable
+related: []
+graduated_to: ""
+---
+
+## An auditor's "this is a warning, not an error" comment is not enforcement — partition severity in code — 2026-06-11 · Claude
+
+**Root cause:** `audit:agent-knowledge-coverage` documented two gates: (a) a `ready:true` spec with a knowledge stub hard-fails; (b) calendar staleness is *"a reminder, not a regression."* But the code pushed BOTH into one `violations` array and exited 1 if non-empty. So 10 not-yet-ready specs with stubs 4 days past a 45-day threshold blocked ALL of compliance — the implementation contradicted its own stated design. The handoff had it flagged red as "expired stubs to retrofit"; the real defect was the auditor, not the specs.
+
+**Rule:** When an auditor distinguishes warning-class from error-class findings, the distinction must live in the *exit logic*, not a comment: tag each finding `severity: 'error' | 'warn'`, partition before the verdict, exit non-zero only on errors, still PRINT warnings (visible, non-blocking — silencing them would be gaming the other way). When a check fires on legitimate input, the never-game-auditors response is "fix the auditor to match its spec." **Validate the fix still catches the class:** a synthetic spec with a missing knowledge section / broken ref must still hard-fail after the change.
+
+**Why this shape wins:** A warning that exits 1 is indistinguishable from an error to CI — "non-blocking reminder" semantics that aren't encoded in the exit path are a latent false-block waiting for the calendar. Encoding severity makes the documented intent executable and keeps the reminder signal without holding compliance hostage to future-dated work.
+
+<!-- /entry -->
