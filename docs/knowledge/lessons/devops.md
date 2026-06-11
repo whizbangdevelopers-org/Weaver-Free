@@ -504,3 +504,29 @@ graduated_to: ""
 **Why this shape wins:** `cdp-endpoint=localhost` + SSH tunnel decouples *where the browser runs* from *what the MCP connects to* — relocate to any host (airgapped included) with no client reconfig, and the unauthenticated CDP surface stays loopback-only on both ends. Portability and security at once. Operational topology + recovery live in Forge `infrastructure/e2e.md`. Verified by driving the remote browser through the tunnel with `chromium.connectOverCDP('http://localhost:3222')`.
 
 <!-- /entry -->
+
+<!-- entry:L-devops-2026-06-11-001 -->
+---
+id: L-devops-2026-06-11-001
+type: lesson
+domain: devops
+tags: [nix, gate, substituter, cache, deadnix, statix]
+since_version: "1.0"
+status: active
+scope: transferable
+related: []
+graduated_to: ""
+---
+
+## A Nix-tooling gate pulls tools from the registry (`nix run nixpkgs#`), not the flake's pinned nixpkgs via `nix develop` — 2026-06-11 · Claude
+
+**Root cause:** Wiring deadnix/statix as a gate, the first design ran them via `nix develop -c` on each repo's pinned nixpkgs. That forced `nix develop` to realize tool paths NOT in the local store (the flake's nixpkgs rev ≠ the registry's), so Nix queried the configured substituters — and a configured internal cache (`cache.weaver-lab.home.lan`) was unreachable, producing 15s×N timeouts and a failed gate. The heavy devShell (qemu, node) was being built just to lint two `.nix` files.
+
+**Rule:**
+- Gate Nix linters with `nix run nixpkgs#deadnix -- --fail .` / `nix run nixpkgs#statix -- check .` — the registry copies are already realized locally (anything run once is cached), so the gate needs no fetch and no substituter round-trip.
+- Don't add lint-only tools to the project devShell: it makes `nix develop` (used by real workflows) slower and couples it to substituter reachability.
+- A gate's tool supply chain must depend only on locally-cached / registry tools — never on a possibly-down internal cache realizing a pinned-nixpkgs path.
+
+**Why this shape wins:** Pinning the *linter version* to the repo's nixpkgs buys ~nothing (deadnix/statix output is stable) but costs robustness (every cache hiccup blocks commits). Registry `nix run` decouples the gate from fleet cache health. (statix still finds `./statix.toml` when run from the repo root.)
+
+<!-- /entry -->
