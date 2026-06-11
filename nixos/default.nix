@@ -355,7 +355,7 @@ in
       # System user (only created when using the default dedicated user)
       users.users.${user} = mkIf isDefaultUser {
         isSystemUser = true;
-        group = group;
+        inherit group;
         home = cfg.dataDir;
         createHome = true;
         # "users" group membership lets the service traverse /home/mark/Projects (750 users).

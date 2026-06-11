@@ -23,7 +23,7 @@
     weaver.inputs.nixpkgs.follows = "nixpkgs";
   };
 
-  outputs = { self, nixpkgs, weaver, ... }@inputs: {
+  outputs = { nixpkgs, weaver, ... }@inputs: {
     nixosConfigurations.weaver-free = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
       modules = [

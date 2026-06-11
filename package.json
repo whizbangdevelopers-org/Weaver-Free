@@ -56,6 +56,7 @@
     "audit:openssf-baseline": "npx tsx scripts/verify-openssf-baseline.ts",
     "audit:mcp-coverage": "npx tsx scripts/verify-mcp-coverage.ts",
     "audit:nix-deps-hash": "npx tsx scripts/verify-nix-deps-hash.ts",
+    "audit:nix": "nix run nixpkgs#deadnix -- --fail . && nix run nixpkgs#statix -- check .",
     "audit:sync-exclude-cruft": "npx tsx scripts/verify-sync-exclude-cruft.ts",
     "audit:release-rsync-paths": "npx tsx scripts/verify-release-rsync-paths.ts",
     "audit:nur-dispatch-completeness": "npx tsx scripts/verify-nur-dispatch-completeness.ts",

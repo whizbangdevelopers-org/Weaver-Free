@@ -31,7 +31,7 @@
 
   # TODO (v1.1.0): implement outputs with three NixOS profiles.
   # See README.md for the planned structure.
-  outputs = { self, nixpkgs, nixos-hardware, cognee-nix, ... }: {
+  outputs = { ... }: {
     # Placeholder — populated at v1.1.0 implementation.
   };
 }

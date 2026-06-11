@@ -33,6 +33,10 @@
  *
  * Enforcement mode:
  *   - Default: errors on all specs missing sections or with broken refs.
+ *   - Freshness staleness (gate b) is a non-blocking WARNING, not an error —
+ *     only a `ready:true` spec with a stub (gate a) hard-fails. Staleness on a
+ *     not-yet-ready spec is a periodic-review reminder, surfaced but not a
+ *     compliance regression. (See checkFreshnessMarker for the two gates.)
  *   - --staged mode: only fails on specs modified in the current git
  *     working tree (pre-commit-friendly). Existing specs without full
  *     coverage are grandfathered; any edit triggers full checks.
@@ -66,6 +70,9 @@ interface Violation {
   spec: string
   check: string
   detail: string
+  // 'warn' surfaces but never blocks compliance (exit 0). Default 'error' fails.
+  // Used for gate (b) calendar-stale freshness stubs — see checkFreshnessMarker.
+  severity?: 'error' | 'warn'
 }
 
 // Find all executable agent specs. Exclude MANIFEST.md, archive, templates, gtm.
@@ -380,13 +387,17 @@ function checkFreshnessMarker(specPath: string, content: string): Violation[] {
     }
   }
 
-  // Gate (b) — calendar warning.
+  // Gate (b) — calendar WARNING. Non-blocking by design: the stub means
+  // "acknowledged pending work", so staleness is a periodic-review reminder,
+  // not a regression. Only gate (a) (ready:true) hard-blocks. The warn/error
+  // split is realized in main(); this severity tag is what carries it.
   const ageMs = Date.now() - stamp.getTime()
   const ageDays = Math.floor(ageMs / (1000 * 60 * 60 * 24))
   if (ageDays > STALE_DAYS) {
     violations.push({
       spec: relative(PROJECT_ROOT, specPath),
       check: 'freshness-marker',
+      severity: 'warn',
       detail: `knowledge-freshness stub is ${ageDays} days old (threshold ${STALE_DAYS}) — retrofit MCP tool citations before this spec enters the Forge queue, then update the stub date or remove the stub`,
     })
   }
@@ -484,22 +495,36 @@ function main(): void {
     }`,
   )
 
-  if (violations.length === 0) {
+  const errors = violations.filter((v) => v.severity !== 'warn')
+  const warnings = violations.filter((v) => v.severity === 'warn')
+
+  // Surface warnings (calendar-stale freshness stubs) but never block on them.
+  for (const v of warnings) {
+    console.log(`  ${YELLOW}⚠${RESET} [${v.check}] ${v.spec} — ${v.detail}`)
+  }
+
+  if (errors.length === 0) {
     console.log(`  ${GREEN}✓${RESET} All specs have knowledge-section present`)
     console.log(`  ${GREEN}✓${RESET} All header references present`)
     console.log(`  ${GREEN}✓${RESET} All cited paths resolve`)
     console.log(`  ${GREEN}✓${RESET} All cited decisions exist in MASTER-PLAN`)
     console.log(`  ${GREEN}✓${RESET} All cited MCP tools exist`)
     console.log()
-    console.log(`${GREEN}${BOLD}RESULT: PASS${RESET} — agent knowledge coverage intact`)
+    const warnNote =
+      warnings.length > 0
+        ? ` (${warnings.length} non-blocking freshness reminder${warnings.length === 1 ? '' : 's'})`
+        : ''
+    console.log(
+      `${GREEN}${BOLD}RESULT: PASS${RESET} — agent knowledge coverage intact${warnNote}`,
+    )
     process.exit(0)
   }
 
-  for (const v of violations) {
+  for (const v of errors) {
     console.log(`  ${RED}✗${RESET} [${v.check}] ${v.spec} — ${v.detail}`)
   }
   console.log()
-  console.log(`${RED}${BOLD}RESULT: FAIL${RESET} — ${violations.length} violation(s)`)
+  console.log(`${RED}${BOLD}RESULT: FAIL${RESET} — ${errors.length} error(s)${warnings.length > 0 ? `, ${warnings.length} warning(s)` : ''}`)
   process.exit(1)
 }
 

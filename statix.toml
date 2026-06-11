@@ -1,0 +1,17 @@
+# statix configuration — Nix anti-pattern linter (companion to deadnix).
+#
+# Disabled lints are NixOS-module false-positive classes (legitimate input, wrong
+# rule — scoping the auditor, never gaming it; see ~/.claude/rules/never-game-auditors.md):
+#
+#   repeated_keys (W20): fires on idiomatic NixOS attr paths — two different
+#     `systemd.services.*`, two `nixosConfigurations.*` hosts, `interfaces.*`, or
+#     `boot.initrd.*` in a MACHINE-GENERATED hardware-configuration.nix. Consolidating
+#     these is worse code, and generated files cannot be hand-edited. Idiomatic, not dup.
+#
+#   empty_pattern (W10): fires on `{ ... }:` — the canonical NixOS module header.
+#     statix suggests `_:`, which is wrong for modules (it breaks the module-signature
+#     convention). `{ ... }:` is correct and intentional.
+#
+# Every OTHER lint (incl. manual_inherit / manual_inherit_from) stays ENABLED and is
+# fixed in source — disabling a genuine finding would be gaming the auditor.
+disabled = ["repeated_keys", "empty_pattern"]

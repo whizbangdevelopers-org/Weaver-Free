@@ -7,7 +7,7 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.11";
   };
 
-  outputs = { self, nixpkgs }:
+  outputs = { nixpkgs, ... }:
   let
     system = "x86_64-linux";
     pkgs = nixpkgs.legacyPackages.${system};
@@ -16,13 +16,13 @@
   in {
     packages.${system} = {
       default = weaver;
-      weaver = weaver;
+      inherit weaver;
     };
 
     nixosModules.default = ./nixos/default.nix;
 
     overlays.default = _final: _prev: {
-      weaver = weaver;
+      inherit weaver;
     };
 
     devShells.${system}.default = pkgs.mkShell {
