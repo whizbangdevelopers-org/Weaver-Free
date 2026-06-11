@@ -350,3 +350,72 @@ graduated_to: ""
 
 **Why this shape wins:** two non-obvious findings fell out. (1) The agent was *stricter and better-grounded than the hand-review it replaced* — it rejected gate-green code for real convention gaps (missing error-response schema, raw `err.message` leak) that the gate and a human had missed. (2) It honored the literal spec **prose** over a narrower `acceptance` list, rejecting a "clean" control whose diff skipped a doc deliverable the prose required. Implication for any spec generator/decomposer: the spec prose and the acceptance criteria must be internally consistent, or the reviewer will (correctly) hold the executor to the stricter prose.
 <!-- /entry -->
+
+<!-- entry:L-analysis-2026-06-11-001 -->
+---
+id: L-analysis-2026-06-11-001
+type: lesson
+domain: analysis
+tags: [licensing, architecture, protocol, agpl, separate-program]
+since_version: "1.0.5"
+status: active
+scope: transferable
+related: []
+graduated_to: ""
+---
+
+## The protocol boundary is the license (and tier) boundary — 2026-06-11 · Claude
+
+**Root cause:** When deciding how to license a component that ships to foreign hosts (Observer: a Rust agent that runs on non-NixOS Linux and reports to the Weaver hub), the instinct is to reason about the *binary* — "is shipping a binary closed-source?" That framing is wrong. A program that communicates with your codebase **only over a documented network protocol** is a *separate program* (mere aggregation), not a derivative work of your AGPL code. The binary is a packaging/provisioning detail; the protocol is the legal seam.
+
+**Rule:** When a component talks to the rest of the system only across a documented wire contract (protobuf/gRPC/REST), treat that wire contract as the license boundary. Each side may carry its own license, and you may split tiers across the seam without copyleft infection. Decide *source availability* (do we publish the agent's source for review?) as a **separate** question from *binary distribution* — they are independent. "It's a binary" is never the reason a thing is closed; "it's a separate program over a protocol" is the reason it *can* be licensed independently.
+
+**Why this shape wins:** it lets the Free-facing half be genuinely AGPL-open (court-tested copyleft, real trust signal) while the paid half stays BSL-gated, with neither inheriting the other's terms — and it decouples the component's release cadence from the main product's version train, because nothing links across the seam at build time.
+
+<!-- /entry -->
+
+<!-- entry:L-analysis-2026-06-11-002 -->
+---
+id: L-analysis-2026-06-11-002
+type: lesson
+domain: analysis
+tags: [template, abstraction, dry, forge, archetype]
+since_version: "1.0.5"
+status: active
+scope: transferable
+related: []
+graduated_to: ""
+---
+
+## Extract the template from the first instance; generalize the system at N≥2 — 2026-06-11 · Claude
+
+**Root cause:** Two opposite failure modes bracket reuse. Build the reusable template *before* the first real instance and you abstract over assumptions you haven't tested — you DRY a pattern that doesn't exist yet. Refactor the *surrounding system* (registry, multi-variant tooling, Forge archetype switch) on a *single* data point and you over-fit the abstraction to that one instance's accidents. This session hit both temptations building Observer → `rust-agent-template` → multi-archetype Forge registry.
+
+**Rule:** Two distinct thresholds. (1) Extract a **template** from the first concrete instance — not before it (the instance proves the structure is real), and not by hand-copying a second time. (2) Generalize the **system that selects between templates** (the registry, the archetype-aware scaffolder) only when a *second* archetype actually exists — N≥2 is what reveals the variation axis, and an axis inferred from N=1 is a guess. Observer was the first Rust headless-agent → it earned the template extraction; the quasar-ts + rust-agent pair (N=2) earned the archetype registry.
+
+**Why this shape wins:** the cost of a wrong abstraction is paid by every future instance that has to fight it; deferring the *system* generalization to N≥2 makes the first axis of variation observed rather than predicted, while still extracting the cheap, obviously-correct template at N=1.
+
+<!-- /entry -->
+
+<!-- entry:L-analysis-2026-06-11-003 -->
+---
+id: L-analysis-2026-06-11-003
+type: lesson
+domain: analysis
+tags: [resource-awareness, scheduling, multi-tenant, jacquard, ops]
+since_version: "1.0.5"
+status: active
+scope: transferable
+related: []
+graduated_to: ""
+---
+
+## Resource-awareness has two axes: hardware (static ceiling) vs ops (dynamic allocation) — 2026-06-11 · Claude
+
+**Root cause:** "Make the scheduler resource-aware" reads as one feature but is two. A one-time local hardware probe (cores, RAM, GPU) yields a *static ceiling* for a single node. But on a shared/multi-tenant host — king runs Engram + sidecars + other work; foundry runs the Forge llama-server — the ceiling is not the *available* capacity, because you are one tenant among several whose demands move over time. A scheduler that sizes concurrency from the hardware probe alone will over-allocate exactly when the host is already busy.
+
+**Rule:** Separate the two axes explicitly. **Hardware axis** = static, per-node, discovered once (the ceiling). **Ops axis** = dynamic, fleet- and tenant-aware, observed continuously (what's actually free *right now*, given co-tenants and live load). Resource-aware scheduling needs both; the ops axis is the larger surface and belongs in the fleet-intelligence layer (Jacquard), not in a node's static profile. Capturing "ops as a resource-awareness domain" is a dogfood input to that layer, gated on having real multi-host operational history to learn from.
+
+**Why this shape wins:** conflating the two ships a scheduler that looks correct on an idle single node and thrashes on a loaded shared one — the failure only appears under contention, which is precisely when you needed it to behave.
+
+<!-- /entry -->
