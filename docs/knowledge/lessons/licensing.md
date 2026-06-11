@@ -127,3 +127,26 @@ graduated_to: ""
 **Root cause (historical):** Original two-row strategy table — "Free & Premium → AGPL-3.0 + Commons Clause + AI Training Restriction" and "Enterprise → BSL" — predated both the Decision #137 tier rename and the Commons Clause drop. Kept here for lineage; do not reintroduce "Premium"/"Enterprise" tier names or Commons Clause in any license claim.
 
 <!-- /entry -->
+
+<!-- entry:L-licensing-2026-06-11-001 -->
+---
+id: L-licensing-2026-06-11-001
+type: lesson
+domain: licensing
+tags: [agpl, bsl, dual-license, tier-split, monorepo, mirror]
+since_version: "1.0.5"
+status: active
+scope: transferable
+related: []
+graduated_to: ""
+---
+
+## Tier-keyed AGPL/BSL split for a separate off-host binary — one dev codebase, two license faces — 2026-06-11 · Claude
+
+**Root cause:** A binary that is free to *use* but part of a tiered product (Observer: Free-floored host-local agent, Fabrick-gated cross-host features) has no off-the-shelf license. Closing it forfeits the open-source trust signal; opening all of it under AGPL gives away the paid surface; inventing a "closed freeware" license is a novel legal category nobody wants to defend in court.
+
+**Rule:** Split the codebase by tier at the *crate/module* granularity, not the repo granularity. Free-facing crates → AGPL-3.0 (synced to the public mirror, like the main product's Free tier). Paid crates → BSL-1.1 (never synced, never NUR-dispatched). Crates *shared* by both faces are **dual-licensed AGPL-3.0 OR BSL-1.1**, so the paid build links them under BSL and inherits no copyleft — the dual grant is what stops AGPL infecting the Fabrick binary. Maintain it as *one* dev repo that *provisions* the Free mirror (same `sync-to-free.yml` exclusion model as Weaver: Dev is private, the mirror is the AGPL projection), not two hand-kept codebases. A license-matrix.json + parity auditor keeps the per-crate tier→license claim honest.
+
+**Why this shape wins:** every part has a court-tested license (AGPL or BSL — no bespoke terms), the paid IP stays protected, and there's a single source tree so a fix lands once. The "what license is the binary?" question dissolves: the binary inherits whichever license its highest-tier linked crate carries, decided per build target. Pairs with [[L-analysis-2026-06-11-001]] — the protocol seam is why the agent can be licensed independently of the hub at all.
+
+<!-- /entry -->
