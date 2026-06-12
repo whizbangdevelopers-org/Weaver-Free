@@ -145,7 +145,7 @@ function loadDecisions(): Set<number> {
   if (!existsSync(MASTER_PLAN)) return new Set()
   const text = readFileSync(MASTER_PLAN, 'utf8')
   const decisions = new Set<number>()
-  for (const m of text.matchAll(/^\|\s*(\d+)\s*\|/gm)) {
+  for (const m of text.matchAll(/^\|\s*WVR-(\d+)\s*\|/gm)) {
     decisions.add(parseInt(m[1]!, 10))
   }
   return decisions
@@ -237,14 +237,14 @@ function checkCitedDecisions(
   decisions: Set<number>,
 ): Violation[] {
   const vs: Violation[] = []
-  // Match `Decision #N` or standalone `#N` adjacent to Decision word.
-  for (const m of content.matchAll(/Decision(?:s)?\s+(?:#|)(\d+)/gi)) {
+  // Match `Decision WVR-N` / `Decisions WVR-N` (namespaced IDs, FORGE-1).
+  for (const m of content.matchAll(/Decision(?:s)?\s+WVR-(\d+)/gi)) {
     const n = parseInt(m[1]!, 10)
     if (!decisions.has(n)) {
       vs.push({
         spec: relative(PROJECT_ROOT, specPath),
         check: 'cited-decisions',
-        detail: `cited Decision #${n} does not exist in MASTER-PLAN Decisions Resolved table`,
+        detail: `cited Decision WVR-${n} does not exist in MASTER-PLAN Decisions Resolved table`,
       })
     }
   }

@@ -93,6 +93,7 @@
     "audit:demo-parity": "npx tsx scripts/verify-demo-parity.ts",
     "audit:demo-guards": "npx tsx scripts/verify-demo-guards.ts",
     "audit:decision-parity": "npx tsx scripts/verify-decision-parity.ts",
+    "audit:decision-refs": "npx tsx scripts/verify-decision-refs.ts",
     "audit:decision-conflict": "npx tsx scripts/audit-decision-conflict.ts",
     "audit:vocabulary-current": "npx tsx scripts/audit-vocabulary-current.ts",
     "audit:doc-parity": "npx tsx scripts/verify-doc-parity.ts",

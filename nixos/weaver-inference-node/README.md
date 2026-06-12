@@ -2,7 +2,7 @@
 <!-- Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE. -->
 # Weaver Inference Node — NixOS Module
 
-**Decision #152. Status: STUB — implementation scheduled for v1.1.0 (Forge Foundry Phase 2).**
+**Decision WVR-152. Status: STUB — implementation scheduled for v1.1.0 (Forge Foundry Phase 2).**
 
 This directory contains the NixOS flake for the Weaver Inference Node SKU and the Forge Foundry dark factory.
 
@@ -57,9 +57,9 @@ See [code/docs/ai-ops/INFERENCE-NODE-SPEC.md](../docs/ai-ops/INFERENCE-NODE-SPEC
 
 ## Tier Gating
 
-Offered at Weaver Team (128GB license unit threshold) and above. Default-included in Fabrick. Required for Compliance Pack. See Decision #152 for tier details.
+Offered at Weaver Team (128GB license unit threshold) and above. Default-included in Fabrick. Required for Compliance Pack. See Decision WVR-152 for tier details.
 
 ---
 
 *Implementation: v1.1.0 dev phase (Forge Foundry Phase 2). Customer SKU ships at v1.4.0.*
-*Full spec: [Decision #152 in MASTER-PLAN.md](../../MASTER-PLAN.md)*
+*Full spec: [Decision WVR-152 in MASTER-PLAN.md](../../MASTER-PLAN.md)*

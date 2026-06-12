@@ -207,7 +207,7 @@ export const useAppStore = defineStore('app', {
     /** Demo mode only: step to a specific version in the version-switcher toolbar */
     setDemoVersion(version: string) {
       if (!isDemoMode()) return
-      // Public demo: only allow Free versions up to v1.3 (Decision #135)
+      // Public demo: only allow Free versions up to v1.3 (Decision WVR-135)
       if (isPublicDemo()) {
         const publicVersions = getPublicDemoSteps().filter(s => s.type === 'version')
         if (!publicVersions.find(s => s.id === version)) return

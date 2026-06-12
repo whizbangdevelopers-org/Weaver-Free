@@ -41,7 +41,7 @@ const routes: RouteRecordRaw[] = [
         meta: { title: 'Strands' },
       },
       {
-        // Shed — unified workload creation (Decision #92)
+        // Shed — unified workload creation (Decision WVR-92)
         path: 'shed',
         component: () => import('pages/ShedPage.vue'),
         meta: { title: 'Shed' },
@@ -121,7 +121,7 @@ const routes: RouteRecordRaw[] = [
           component: () => import('pages/fabrick/GroupsPage.vue'),
           meta: { requiresFabrick: true, title: 'Groups' },
         },
-        // Public demo funnel pages (Decision #135)
+        // Public demo funnel pages (Decision WVR-135)
         {
           path: 'explore/solo',
           component: () => import('pages/funnel/SoloTeaserPage.vue'),

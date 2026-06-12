@@ -3,7 +3,7 @@
 #
 # Weaver Inference Node — NixOS Flake
 #
-# Decision #152. STUB — implementation scheduled for v1.1.0 (Forge Foundry Phase 2).
+# Decision WVR-152. STUB — implementation scheduled for v1.1.0 (Forge Foundry Phase 2).
 #
 # Three profiles:
 #   forge-foundry         — dark factory (shared modules + agent execution + CI runner)

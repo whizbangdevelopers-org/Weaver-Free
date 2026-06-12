@@ -1,5 +1,5 @@
 {
-  "$comment": "Canonical tier → license mapping (Decision #137). Source of truth for scripts/verify-license-parity.ts.",
+  "$comment": "Canonical tier → license mapping (Decision WVR-137). Source of truth for scripts/verify-license-parity.ts.",
   "tiers": {
     "free": {
       "license": "AGPL-3.0",

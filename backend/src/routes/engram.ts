@@ -11,7 +11,7 @@ import { join, resolve, dirname } from 'node:path'
 import { Pool } from 'pg'
 import { probeEngramInfrastructure } from '../services/engram-infra.js'
 import { engramConfig } from '../services/engram-config.js'
-// Auth deferred — RBAC gates added at Weaver Team/Fabrick integration (Decision #160).
+// Auth deferred — RBAC gates added at Weaver Team/Fabrick integration (Decision WVR-160).
 
 type ProcessingStrategy = 'embed-only' | 'embed+graph' | 'full-engram'
 type UpgradeMethod = 'gradual' | 'additive' | 'priorityTrickle' | 'bulkReprocess' | 'parallelAtomic'
