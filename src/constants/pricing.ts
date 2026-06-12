@@ -12,8 +12,8 @@
  * When FM window closes, set `fmAvailable = false` — all FM pricing references
  * throughout the UI will hide automatically.
  *
- * Decision #142: Smart Bridges baked into base price. AI Pro/AI Fleet retired.
- * Team +$50/user (Smart Bridges basic), FabricK +$500 first node (Smart Bridges full + inference).
+ * Smart Bridges are included in the paid-tier base price: Team includes basic
+ * Smart Bridges; FabricK includes full Smart Bridges plus inference.
  */
 
 // ── Founding Member availability ────────────────────────────────────────────
@@ -64,7 +64,7 @@ export const PRICING = {
   } satisfies TierPricing,
 } as const
 
-// ── FabricK volume node pricing (Decision #142) ────────────────────────────
+// ── FabricK volume node pricing ────────────────────────────────────────────
 
 export const FABRICK_NODE_PRICING = {
   first: '$2,000/yr',
