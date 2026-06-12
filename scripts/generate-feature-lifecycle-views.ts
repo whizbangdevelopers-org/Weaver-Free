@@ -191,7 +191,7 @@ function renderPartnerRoadmap(features: Feature[]): string {
       }
       lines.push('')
       lines.push(
-        `Decision: [#${f.decision}](../../../MASTER-PLAN.md#decisions-resolved) · Lifecycle detail: [FEATURE-LIFECYCLES.md#${f.slug}](../../../plans/cross-version/FEATURE-LIFECYCLES.md#${f.slug})`,
+        `Decision: [WVR-${f.decision}](../../../MASTER-PLAN.md#decisions-resolved) · Lifecycle detail: [FEATURE-LIFECYCLES.md#${f.slug}](../../../plans/cross-version/FEATURE-LIFECYCLES.md#${f.slug})`,
       )
       lines.push('')
       lines.push('---')
@@ -236,7 +236,7 @@ function renderInvestorTimeline(features: Feature[]): string {
     for (const f of withLaunch) {
       const pricing = f.skuLaunch!.pricing ?? '—'
       lines.push(
-        `| \`${f.skuLaunch!.version}\` | [${f.name}](../../plans/cross-version/FEATURE-LIFECYCLES.md#${f.slug}) | ${pricing} | #${f.decision} |`,
+        `| \`${f.skuLaunch!.version}\` | [${f.name}](../../plans/cross-version/FEATURE-LIFECYCLES.md#${f.slug}) | ${pricing} | WVR-${f.decision} |`,
       )
     }
     lines.push('')

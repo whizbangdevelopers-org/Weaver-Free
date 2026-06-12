@@ -2,7 +2,7 @@
 <!-- Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE. -->
 <template>
   <div class="demo-tier-switcher row items-center no-wrap">
-    <!-- Tier buttons hidden in public demo — funnel lives in the version switcher (Decision #135) -->
+    <!-- Tier buttons hidden in public demo — funnel lives in the version switcher (Decision WVR-135) -->
     <template v-if="!isPublic">
       <span class="text-grey-9 text-no-wrap q-mr-sm gt-xs">Tier:</span>
       <q-btn
@@ -98,7 +98,7 @@ const appStore = useAppStore()
 
 const isPublic = computed(() => isPublicDemo())
 
-// Public demo funnel routes — tier buttons navigate here instead of switching tiers (Decision #135)
+// Public demo funnel routes — tier buttons navigate here instead of switching tiers (Decision WVR-135)
 const PUBLIC_FUNNEL_ROUTES: Record<string, string> = {
   free: '/weaver',
   solo: '/explore/solo',
@@ -205,7 +205,7 @@ const visibleTierOptions = computed<TierOption[]>(() => {
 })
 
 function isTierActive(opt: TierOption): boolean {
-  // Public demo: active state based on current route (Decision #135)
+  // Public demo: active state based on current route (Decision WVR-135)
   if (isPublic.value) {
     const route = PUBLIC_FUNNEL_ROUTES[opt.key]
     if (!route) return false
@@ -236,7 +236,7 @@ const TIER_CEILING_VERSIONS: Record<string, string> = {
 }
 
 function selectTier(opt: TierOption) {
-  // Public demo: navigate to funnel pages instead of switching tiers (Decision #135)
+  // Public demo: navigate to funnel pages instead of switching tiers (Decision WVR-135)
   if (isPublic.value) {
     const route = PUBLIC_FUNNEL_ROUTES[opt.key]
     if (route) void router.push(route)

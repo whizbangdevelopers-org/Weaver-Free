@@ -38,7 +38,7 @@ const PUBLIC_ROUTES = [
   '/api/health/',
   '/api/stripe/webhook',
   '/api/stripe/webhook/',
-  // Engram monitoring — auth deferred to RBAC at Team/Fabrick integration (Decision #160)
+  // Engram monitoring — auth deferred to RBAC at Team/Fabrick integration (Decision WVR-160)
   '/api/engram/status',
   '/api/engram/queries',
   '/api/engram/ingestion-history',
@@ -46,16 +46,16 @@ const PUBLIC_ROUTES = [
   '/api/engram/view',
   '/api/engram/graph-data',
   '/api/engram/stats',
-  // Engram dataset management (Layer 1+2) — same deferral as above (Decision #160)
+  // Engram dataset management (Layer 1+2) — same deferral as above (Decision WVR-160)
   '/api/engram/infrastructure',
   '/api/engram/strategies',
   '/api/engram/queue',
-  // Host inventory — same deferral (Decision #160)
+  // Host inventory — same deferral (Decision WVR-160)
   '/api/engram/hosts',
   '/api/engram/hosts/sync',
 ]
 
-// Dynamic Engram routes with :name or :id segments — Decision #160 deferral applies
+// Dynamic Engram routes with :name or :id segments — Decision WVR-160 deferral applies
 const PUBLIC_PREFIXES = [
   '/api/engram/datasets/',
   '/api/engram/queue/',

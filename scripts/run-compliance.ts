@@ -76,6 +76,7 @@ export const PHASES: Phase[] = [
     entries: [
       'audit:vocabulary',
       'audit:decision-conflict',
+      'audit:decision-refs',
       'audit:vocabulary-current',
       'audit:engram-naming',
       'audit:forms',

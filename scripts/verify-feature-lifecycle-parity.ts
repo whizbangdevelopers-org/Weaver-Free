@@ -290,8 +290,8 @@ function checkDecisionBackReference(features: Feature[]): Violation[] {
 
   for (const f of features) {
     if (f.decision === undefined) continue // already caught by schema check
-    // Match `| NNN | ...` at start of a table row.
-    const rowRe = new RegExp(`^\\| ${f.decision} \\|`, 'm')
+    // Match `| WVR-NNN | ...` at start of a table row (FORGE-1).
+    const rowRe = new RegExp(`^\\| WVR-${f.decision} \\|`, 'm')
     if (!rowRe.test(masterPlanText)) {
       vs.push({
         check: 'decision',

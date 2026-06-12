@@ -59,7 +59,7 @@ export const DEMO_LINKS = {
   demo: 'https://weaver-dev.github.io',
 } as const
 
-/** Links for the public demo funnel — CTAs point to WBD website Divi forms (Decision #135). */
+/** Links for the public demo funnel — CTAs point to WBD website Divi forms (Decision WVR-135). */
 export const PUBLIC_DEMO_LINKS = {
   fmProgram: 'https://whizbangdevelopers.com/founding-member',
   contact: 'https://whizbangdevelopers.com/contact',

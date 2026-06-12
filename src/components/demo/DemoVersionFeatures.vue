@@ -9,7 +9,7 @@
   appear (e.g., 'settings', 'workload-detail', 'weaver', 'network').
 -->
 <template>
-  <!-- Hidden entirely in public demo — no roadmap leaks (Decision #135) -->
+  <!-- Hidden entirely in public demo — no roadmap leaks (Decision WVR-135) -->
   <div v-if="!isPublicDemo()" class="demo-version-features">
 
     <!-- ═══════════════════════════════════════════════════════════════════ -->
@@ -868,7 +868,7 @@ defineProps<{
 const appStore = useAppStore()
 
 function atLeast(v: string): boolean {
-  // Public demo: only show features that are in the current released Free version (Decision #135)
+  // Public demo: only show features that are in the current released Free version (Decision WVR-135)
   // Never show unreleased future features — they leak roadmap info
   if (isPublicDemo()) {
     const ver = parseFloat(v)
@@ -879,7 +879,7 @@ function atLeast(v: string): boolean {
 }
 
 function showNag(v: string): boolean {
-  // Public demo: never show version nags — no roadmap leaks (Decision #135)
+  // Public demo: never show version nags — no roadmap leaks (Decision WVR-135)
   if (isPublicDemo()) return false
   return isDemoMode() && !appStore.isDemoVersionAtLeast(v)
 }

@@ -79,7 +79,7 @@ registerMarker({
 })
 
 // Decision count. Source: table rows in MASTER-PLAN.md Decisions
-// Resolved section, matching `| <digits> | ...`. verify-decision-parity
+// Resolved section, matching `| WVR-<digits> | ...`. verify-decision-parity
 // does the same parse for its own check; this source mirrors that logic.
 registerMarker({
   name: 'decision-count',
@@ -88,7 +88,7 @@ registerMarker({
     const plan = readFileSync(resolve(PROJECT_ROOT, 'MASTER-PLAN.md'), 'utf8')
     const afterHeader = plan.split('## Decisions Resolved')[1] ?? ''
     const untilNext = afterHeader.split(/\n## [A-Z]/)[0] ?? ''
-    const rows = untilNext.match(/^\| \d+ \|/gm) ?? []
+    const rows = untilNext.match(/^\| WVR-\d+ \|/gm) ?? []
     return String(rows.length)
   },
   docs: [
