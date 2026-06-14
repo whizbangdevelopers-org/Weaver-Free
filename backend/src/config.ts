@@ -80,8 +80,18 @@ export function loadConfig(): DashboardConfig {
   let licenseExpiry: Date | null = null
   let licenseGraceMode = false
 
-  // HMAC secret for license key validation
+  // HMAC secret for license key validation.
+  // LICENSE_HMAC_SECRET_FILE (e.g. NixOS sops-nix) is preferred — it keeps the secret out of the
+  // world-readable Nix store, unlike a literal LICENSE_HMAC_SECRET. See G-security-2026-06-14-001.
   let hmacSecret = process.env.LICENSE_HMAC_SECRET
+  if (!hmacSecret && process.env.LICENSE_HMAC_SECRET_FILE) {
+    try {
+      hmacSecret = readFileSync(process.env.LICENSE_HMAC_SECRET_FILE, 'utf-8').trim()
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unknown error'
+      console.error(`[license] Failed to read LICENSE_HMAC_SECRET_FILE: ${message}`)
+    }
+  }
   if (!hmacSecret) {
     if (process.env.NODE_ENV !== 'production') {
       hmacSecret = randomBytes(32).toString('hex')

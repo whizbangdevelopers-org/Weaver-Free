@@ -61,7 +61,22 @@ in
     licenseHmacSecret = mkOption {
       type = types.nullOr types.str;
       default = null;
-      description = "HMAC secret for license key validation";
+      description = ''
+        HMAC secret for license key validation, as a literal string.
+        WARNING: this lands in the world-readable Nix store. Prefer
+        licenseHmacSecretFile (sops-nix) for any real deployment.
+      '';
+    };
+
+    licenseHmacSecretFile = mkOption {
+      type = types.nullOr types.str;
+      default = null;
+      description = ''
+        Path to a file containing the HMAC secret for license validation.
+        Use this with secret management (sops-nix) so the secret never enters
+        the Nix store. Read at runtime via LICENSE_HMAC_SECRET_FILE; takes
+        precedence over licenseHmacSecret.
+      '';
     };
 
     # DEPRECATED OPTION: name retained for backward compatibility with existing
@@ -435,6 +450,8 @@ in
           LICENSE_KEY_FILE = cfg.licenseKeyFile;
         } // optionalAttrs (cfg.licenseHmacSecret != null) {
           LICENSE_HMAC_SECRET = cfg.licenseHmacSecret;
+        } // optionalAttrs (cfg.licenseHmacSecretFile != null) {
+          LICENSE_HMAC_SECRET_FILE = cfg.licenseHmacSecretFile;
         } // optionalAttrs (cfg.distroCatalogUrl != null) {
           DISTRO_CATALOG_URL = cfg.distroCatalogUrl;
         } // optionalAttrs (cfg.jwtSecret != null) {

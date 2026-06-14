@@ -478,8 +478,17 @@ try {
     webPushSubscriptionStore, networkManager: networkManager as any,
   })
   fastify.log.info('Weaver-tier routes loaded')
-} catch {
-  fastify.log.info('Weaver-tier routes not available (free tier)')
+} catch (err) {
+  // routes/weaver/ (provisioning + network) is BSL and sync-excluded from the AGPL Free
+  // mirror, so on a Free build this import is EXPECTED to be absent. Distinguish that from a
+  // genuine load failure at weaver tier — never mislabel either as "free tier" (the tier is
+  // set by the license, not by whether this module loaded). See G-backend-2026-06-14-001.
+  const code = (err as NodeJS.ErrnoException)?.code
+  if (code === 'ERR_MODULE_NOT_FOUND' || code === 'MODULE_NOT_FOUND') {
+    fastify.log.info('Weaver-tier routes absent (Free build) — provisioning/network disabled')
+  } else {
+    fastify.log.error({ err }, 'Weaver-tier routes present but FAILED to load — provisioning/network unavailable')
+  }
 }
 
 // Serve frontend SPA if STATIC_DIR is set
