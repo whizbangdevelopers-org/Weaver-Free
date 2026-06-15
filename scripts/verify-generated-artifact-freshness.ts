@@ -19,12 +19,18 @@
  * that class at push time.
  *
  * Pattern for each generator:
- *   1. Snapshot the committed artifact content
- *   2. Run the generator (it writes to disk)
- *   3. Diff the new content against the snapshot
- *   4. If different, the commit needs the regenerated artifact too — FAIL
- *      with a remediation message. The working tree already has the fresh
- *      content, so `git add <artifact>` + re-commit fixes it.
+ *   1. Read the BASELINE from git (the index, falling back to HEAD) — NOT
+ *      the working tree. This is the load-bearing detail: the working tree
+ *      can be mutated in-place by an earlier auditor's generator within the
+ *      same compliance run, so a working-tree baseline would compare
+ *      fresh-vs-fresh and mask a stale *committed* artifact — the exact
+ *      class this auditor exists to catch. The git blob is immutable for the
+ *      run, so it cannot be masked.
+ *   2. Run the generator (it writes to the working tree)
+ *   3. Diff the generator output against the git baseline
+ *   4. If different, the committed artifact is stale — FAIL with a
+ *      remediation message. The working tree already has the fresh content,
+ *      so `git add <artifact>` + re-commit fixes it.
  *
  * The auditor leaves the working tree "regenerated" — acceptable because:
  *   (a) in CI the working tree is ephemeral
@@ -32,6 +38,8 @@
  *       pre-commit hook would have done)
  *   (c) the failure message points at `git add` to pick up the fresh
  *       artifact
+ *   (d) on PASS the output equals the committed blob, so a clean tree stays
+ *       clean — no spurious dirt
  *
  * When to add a new entry to GENERATORS below:
  *   - Any time you add a script that writes to a committed file
@@ -116,9 +124,31 @@ interface Violation {
   diffSummary: string
 }
 
+// Working-tree content (what the generator just wrote).
 function snapshot(path: string): string {
   const abs = resolve(PROJECT_ROOT, path)
   return existsSync(abs) ? readFileSync(abs, 'utf8') : ''
+}
+
+// Baseline = git-tracked content (index, then HEAD), NEVER the working tree.
+// Immune to in-place regeneration by another auditor earlier in the same run
+// — which is exactly the masking bug this auditor must not have. `git show
+// :path` is the staged blob (what the next commit will contain); HEAD is the
+// fallback when nothing is staged for that path; '' means untracked (no
+// committed baseline to drift from yet).
+function gitBaseline(relPath: string): string {
+  for (const ref of [`:${relPath}`, `HEAD:${relPath}`]) {
+    try {
+      return execFileSync('git', ['show', ref], {
+        cwd: PROJECT_ROOT,
+        stdio: ['ignore', 'pipe', 'ignore'],
+        encoding: 'utf8',
+      })
+    } catch {
+      // not staged / not committed under this ref — try the next
+    }
+  }
+  return ''
 }
 
 function runGenerator(g: Generator): string | null {
@@ -154,10 +184,11 @@ function audit(): Violation[] {
   const violations: Violation[] = []
 
   for (const g of GENERATORS) {
-    // Snapshot each artifact before running the generator.
+    // Baseline each artifact from git (NOT the working tree) before running
+    // the generator — so a prior in-place regeneration this run can't mask drift.
     const before = new Map<string, string>()
     for (const a of g.artifacts) {
-      before.set(a, snapshot(a))
+      before.set(a, gitBaseline(a))
     }
 
     const err = runGenerator(g)
