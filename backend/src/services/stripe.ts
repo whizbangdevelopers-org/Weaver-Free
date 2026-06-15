@@ -15,15 +15,15 @@ export interface StripeProductMap {
   fabrickProductId: string
 }
 
-const PRODUCT_TO_TIER: Record<string, typeof TIERS.SOLO | typeof TIERS.FABRICK> = {}
+const PRODUCT_TO_TIER: Record<string, typeof TIERS.SOLO | typeof TIERS.TEAM | typeof TIERS.FABRICK> = {}
 
 export function initProductMap(map: StripeProductMap): void {
   PRODUCT_TO_TIER[map.soloProductId] = TIERS.SOLO
-  PRODUCT_TO_TIER[map.teamProductId] = TIERS.SOLO
+  PRODUCT_TO_TIER[map.teamProductId] = TIERS.TEAM
   PRODUCT_TO_TIER[map.fabrickProductId] = TIERS.FABRICK
 }
 
-export function tierForProduct(productId: string): typeof TIERS.SOLO | typeof TIERS.FABRICK | null {
+export function tierForProduct(productId: string): typeof TIERS.SOLO | typeof TIERS.TEAM | typeof TIERS.FABRICK | null {
   return PRODUCT_TO_TIER[productId] ?? null
 }
 

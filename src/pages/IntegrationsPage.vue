@@ -136,6 +136,7 @@ const currentTierBadgeColor = computed(() => {
     demo: 'grey',
     free: 'positive',
     weaver: 'amber-8',
+    team: 'amber-9',
     fabrick: 'purple',
   }
   return colors[appStore.effectiveTier] ?? 'grey'

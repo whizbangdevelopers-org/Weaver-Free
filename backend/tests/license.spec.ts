@@ -83,10 +83,10 @@ describe('License Key System', () => {
       expect(result.graceMode).toBe(false)
     })
 
-    it('should parse a valid weaver key (WVT — Team)', () => {
+    it('should parse a valid team key (WVT → team, distinct tier)', () => {
       const key = generateKey('WVT', new Date(), new Date('2027-12-31'), 'TST2')
       const result = parseLicenseKey(key, TEST_SECRET)
-      expect(result.tier).toBe('weaver')
+      expect(result.tier).toBe('team')
     })
 
     it('should parse a valid fabrick key (FAB)', () => {

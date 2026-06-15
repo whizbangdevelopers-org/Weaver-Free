@@ -9,7 +9,7 @@ export { TIER_ORDER }
 const TIER_CODE_MAP: Record<string, Tier> = {
   FRE: TIERS.FREE,
   WVS: TIERS.SOLO,  // Weaver Solo
-  WVT: TIERS.SOLO,  // Weaver Team (same internal tier)
+  WVT: TIERS.TEAM,  // Weaver Team (distinct tier — Solo/Team code split pulled forward from v2.2)
   FAB: TIERS.FABRICK, // Fabrick
   // Legacy codes — still accepted for backward compatibility
   PRE: TIERS.SOLO,
@@ -131,11 +131,11 @@ export function parseLicenseKey(key: string, hmacSecret: string): LicenseResult 
  * Useful for E2E testing and admin tooling.
  */
 export function generateLicenseKey(
-  tier: typeof TIERS.FREE | typeof TIERS.SOLO | typeof TIERS.FABRICK,
+  tier: typeof TIERS.FREE | typeof TIERS.SOLO | typeof TIERS.TEAM | typeof TIERS.FABRICK,
   hmacSecret: string,
   options?: { expiry?: Date; customerId?: string }
 ): string {
-  const tierCode = { [TIERS.FREE]: 'FRE', [TIERS.SOLO]: 'WVS', [TIERS.FABRICK]: 'FAB' }[tier]
+  const tierCode = { [TIERS.FREE]: 'FRE', [TIERS.SOLO]: 'WVS', [TIERS.TEAM]: 'WVT', [TIERS.FABRICK]: 'FAB' }[tier]
   const issueDate = encodeDateToBase36(new Date())
   const expiryEncoded = options?.expiry ? encodeDateToBase36(options.expiry) : 'ZZZZ'
   const customerId = (options?.customerId ?? '0000').padStart(4, '0').slice(0, 4).toUpperCase()

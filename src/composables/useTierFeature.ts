@@ -9,12 +9,13 @@ const TIER_ORDER: Record<Tier, number> = {
   [TIERS.DEMO]: 0,
   [TIERS.FREE]: 1,
   [TIERS.SOLO]: 2,
-  [TIERS.FABRICK]: 3,
+  [TIERS.TEAM]: 3,
+  [TIERS.FABRICK]: 4,
 }
 
 interface TierFeatureOptions {
   /** Minimum tier required to access this feature */
-  minimumTier: typeof TIERS.SOLO | typeof TIERS.FABRICK
+  minimumTier: typeof TIERS.SOLO | typeof TIERS.TEAM | typeof TIERS.FABRICK
   /** Dynamic import for the tier-gated component */
   loader: () => Promise<{ default: Component }>
   /** Display name shown in the upgrade nag */

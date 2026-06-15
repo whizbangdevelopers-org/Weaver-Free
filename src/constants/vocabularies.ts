@@ -23,6 +23,7 @@ export const TIERS = {
   DEMO: 'demo',
   FREE: 'free',
   SOLO: 'weaver',
+  TEAM: 'team',
   FABRICK: 'fabrick',
 } as const
 
@@ -32,13 +33,15 @@ export const TIER_ORDER: Record<TierName, number> = {
   [TIERS.DEMO]: 0,
   [TIERS.FREE]: 1,
   [TIERS.SOLO]: 2,
-  [TIERS.FABRICK]: 3,
+  [TIERS.TEAM]: 3,
+  [TIERS.FABRICK]: 4,
 }
 
 export const TIER_LABELS: Record<TierName, string> = {
   [TIERS.DEMO]: 'Demo',
   [TIERS.FREE]: 'Weaver Free',
   [TIERS.SOLO]: 'Weaver Solo',
+  [TIERS.TEAM]: 'Weaver Team',
   [TIERS.FABRICK]: 'FabricK',
 }
 
