@@ -79,6 +79,7 @@ export const PHASES: Phase[] = [
       'audit:decision-refs',
       'audit:vocabulary-current',
       'audit:engram-naming',
+      'audit:synonym-dictionary',
       'audit:forms',
       'audit:routes',
       'audit:e2e-coverage',
