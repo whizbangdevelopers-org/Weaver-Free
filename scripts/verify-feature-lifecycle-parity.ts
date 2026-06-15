@@ -8,7 +8,7 @@
  * (`business/sales/partners/ROADMAP.md`,
  *  `business/investor/LIFECYCLE-REVENUE-TIMELINE.md`).
  *
- * Four checks, all mechanically verifiable:
+ * Three checks, all mechanically verifiable:
  *
  *   1. SCHEMA VALIDITY — every feature YAML block parses, required
  *      fields present, version strings well-formed (`v<M>.<m>(.<p>)?`).
@@ -23,11 +23,13 @@
  *      as a row in MASTER-PLAN.md's Decisions Resolved table. Missing
  *      decisions mean the feature hasn't been formally resolved.
  *
- *   4. GENERATED-VIEW FRESHNESS — running the generator now must
- *      produce output byte-identical to the checked-in derived views.
- *      Catches the case where FEATURE-LIFECYCLES.md was edited but the
- *      pre-commit hook didn't run (or was bypassed). Backs the
- *      one-source-of-truth guarantee.
+ * GENERATED-VIEW FRESHNESS is intentionally NOT checked here. It is owned
+ * solely by `audit:generated-artifact-freshness`, which registers the same
+ * two derived views (ROADMAP.md, LIFECYCLE-REVENUE-TIMELINE.md). Two auditors
+ * both running the generator in-place created a self-masking footgun: the
+ * first run regenerated the working tree, so the second (and every rerun)
+ * compared fresh-vs-fresh and passed even when the *committed* views were
+ * stale. Single ownership + a git (not working-tree) baseline there is the fix.
  *
  * Checks NOT yet implemented (deferred until the schema has 3+ features
  * to calibrate rules on):
@@ -57,7 +59,6 @@ import { readFileSync, existsSync, readdirSync } from 'fs'
 import { resolve, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import { load as parseYaml } from 'js-yaml'
-import { execFileSync } from 'child_process'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -67,11 +68,6 @@ const PROJECT_ROOT = resolve(CODE_ROOT, '..')
 const SCHEMA = resolve(PROJECT_ROOT, 'plans', 'cross-version', 'FEATURE-LIFECYCLES.md')
 const MASTER_PLAN = resolve(PROJECT_ROOT, 'MASTER-PLAN.md')
 const PLANS_DIR = resolve(PROJECT_ROOT, 'plans')
-
-const PARTNER_VIEW = resolve(PROJECT_ROOT, 'business', 'sales', 'partners', 'ROADMAP.md')
-const INVESTOR_VIEW = resolve(PROJECT_ROOT, 'business', 'investor', 'LIFECYCLE-REVENUE-TIMELINE.md')
-
-const GENERATOR = resolve(CODE_ROOT, 'scripts', 'generate-feature-lifecycle-views.ts')
 
 const VERSION_RE = /^v\d+\.\d+(\.\d+)?$/
 
@@ -303,63 +299,6 @@ function checkDecisionBackReference(features: Feature[]): Violation[] {
   return vs
 }
 
-// ─── Check 4: Generated-view freshness ───────────────────────────────────
-
-function checkGeneratedViewFreshness(): Violation[] {
-  const vs: Violation[] = []
-  if (!existsSync(GENERATOR)) {
-    vs.push({ check: 'view-freshness', detail: 'generator script missing' })
-    return vs
-  }
-
-  // Run the generator in a subprocess, capture what it would write, and
-  // compare against the checked-in files. We don't want the auditor to
-  // mutate anything, so a "dry-run" pattern is ideal — but the generator
-  // writes directly. Instead, snapshot the current checked-in views, run
-  // the generator, compare, and (if different) record a violation; the
-  // on-disk state is already the new content (user can commit it to fix).
-  //
-  // Rationale: this is acceptable because (a) the auditor runs in CI where
-  // the working tree is ephemeral, and (b) locally, if a user ran the
-  // generator and then forgot to stage, the pre-commit hook catches that
-  // before the auditor ever runs. The auditor's role is to catch the
-  // "bypassed hooks" case.
-
-  const before = {
-    partner: existsSync(PARTNER_VIEW) ? readFileSync(PARTNER_VIEW, 'utf8') : '',
-    investor: existsSync(INVESTOR_VIEW) ? readFileSync(INVESTOR_VIEW, 'utf8') : '',
-  }
-
-  try {
-    execFileSync('npx', ['tsx', GENERATOR], { cwd: CODE_ROOT, stdio: 'pipe' })
-  } catch (e) {
-    vs.push({
-      check: 'view-freshness',
-      detail: `generator failed to run: ${(e as Error).message}`,
-    })
-    return vs
-  }
-
-  const after = {
-    partner: existsSync(PARTNER_VIEW) ? readFileSync(PARTNER_VIEW, 'utf8') : '',
-    investor: existsSync(INVESTOR_VIEW) ? readFileSync(INVESTOR_VIEW, 'utf8') : '',
-  }
-
-  if (before.partner !== after.partner) {
-    vs.push({
-      check: 'view-freshness',
-      detail: `${PARTNER_VIEW} was stale vs. generator output. Already regenerated; run git diff to see what changed, then commit the update. (The pre-commit hook auto-regenerates; this path indicates the hook was bypassed.)`,
-    })
-  }
-  if (before.investor !== after.investor) {
-    vs.push({
-      check: 'view-freshness',
-      detail: `${INVESTOR_VIEW} was stale vs. generator output. Already regenerated; run git diff to see what changed, then commit the update.`,
-    })
-  }
-  return vs
-}
-
 // ─── Helpers ─────────────────────────────────────────────────────────────
 
 function compareVersions(a: string, b: string): number {
@@ -386,9 +325,9 @@ const RESET = '\x1b[0m'
 function main(): void {
   console.log(`${BOLD}Feature Lifecycle Parity Audit${RESET}`)
   console.log(
-    `${DIM}Verifies plans/cross-version/FEATURE-LIFECYCLES.md schema integrity${RESET}`,
+    `${DIM}Verifies plans/cross-version/FEATURE-LIFECYCLES.md schema integrity.${RESET}`,
   )
-  console.log(`${DIM}and that its derived views are fresh.${RESET}`)
+  console.log(`${DIM}(view freshness is owned by audit:generated-artifact-freshness)${RESET}`)
   console.log()
 
   let features: Feature[]
@@ -407,13 +346,11 @@ function main(): void {
   allViolations.push(...checkSchemaValidity(features))
   allViolations.push(...checkVersionToPlan(features))
   allViolations.push(...checkDecisionBackReference(features))
-  allViolations.push(...checkGeneratedViewFreshness())
 
   if (allViolations.length === 0) {
     console.log(`  ${GREEN}✓${RESET} Schema validity — all fields present, versions well-formed`)
     console.log(`  ${GREEN}✓${RESET} Version-to-plan binding — every version has a plans/v<X>.<Y>.0/ dir`)
     console.log(`  ${GREEN}✓${RESET} Decision back-reference — all schema decisions exist in MASTER-PLAN`)
-    console.log(`  ${GREEN}✓${RESET} Generated-view freshness — partner + investor views match generator output`)
     console.log()
     console.log(`${GREEN}${BOLD}RESULT: PASS${RESET} — feature lifecycles are in parity`)
     process.exit(0)
