@@ -104,7 +104,7 @@ export function constructWebhookEvent(
 
 export interface GeneratedLicense {
   key: string
-  tier: typeof TIERS.SOLO | typeof TIERS.FABRICK
+  tier: typeof TIERS.SOLO | typeof TIERS.TEAM | typeof TIERS.FABRICK
   customerId: string
   subscriptionId: string
   expiresAt: Date
