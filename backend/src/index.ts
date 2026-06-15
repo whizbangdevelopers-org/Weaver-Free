@@ -232,8 +232,24 @@ if (config.provisioningEnabled) {
     setProvisioner(provisioner)
     fastify.log.info('VM provisioning enabled')
     await provisioner!.autostartCloudVms()
-  } catch {
-    fastify.log.info('Provisioning services not available')
+  } catch (err) {
+    // services/weaver/ (provisioner) is BSL and sync-excluded from the AGPL Free mirror, so on a
+    // Free build this import is EXPECTED to be absent. Distinguish that from a genuine load failure
+    // — the tier is set by the license, never by whether this module loaded. See G-backend-2026-06-14-001.
+    const code = (err as NodeJS.ErrnoException)?.code
+    if (code === 'ERR_MODULE_NOT_FOUND' || code === 'MODULE_NOT_FOUND') {
+      // Free/AGPL build has no provisioner. If the license nonetheless permits provisioning, the
+      // operator deployed the wrong artifact for the tier — surface it loudly, else the resulting
+      // create-time 400s are baffling (this is what bit F1, 2026-06-14). A keyless install is Free
+      // tier and provisions nothing, so no warning there.
+      if (config.tier !== TIERS.FREE && config.tier !== TIERS.DEMO) {
+        fastify.log.warn(`Provisioning unavailable: services/weaver absent (Free/AGPL build) but license tier '${config.tier}' permits provisioning — deploy the BSL (Solo+) artifact to enable cloud-vm creation.`)
+      } else {
+        fastify.log.info('VM provisioning not available (Free build — services/weaver absent)')
+      }
+    } else {
+      fastify.log.error({ err }, 'Provisioner present but FAILED to load — provisioning unavailable')
+    }
   }
 }
 
@@ -246,8 +262,15 @@ try {
   // @ts-ignore - tier-gated path sync-excluded from Free repo
   const { NetworkManager } = await import('./services/weaver/network-manager.js')
   networkManager = new NetworkManager(networkStore, config)
-} catch {
-  fastify.log.info('Network management not available (weaver-tier feature)')
+} catch (err) {
+  // services/weaver/ (network-manager) is BSL and sync-excluded from the Free mirror — absent on a
+  // Free build is EXPECTED. Distinguish that from a real load failure. See G-backend-2026-06-14-001.
+  const code = (err as NodeJS.ErrnoException)?.code
+  if (code === 'ERR_MODULE_NOT_FOUND' || code === 'MODULE_NOT_FOUND') {
+    fastify.log.info('Network management not available (Free build — services/weaver absent)')
+  } else {
+    fastify.log.error({ err }, 'Network manager present but FAILED to load — network management unavailable')
+  }
 }
 
 // Initialize authentication

@@ -212,6 +212,12 @@ interface ImportRef {
    * lines, e.g., a ternary that starts 4 lines earlier.
    */
   contextBefore: string
+  /**
+   * A window of lines from the import forward, used to inspect the `catch`
+   * of a try-guarded import — a try/catch only counts as a guard if the catch
+   * distinguishes module-absent (expected on Free) from a real load failure.
+   */
+  contextAfter: string
 }
 
 const STATIC_IMPORT_RE = /^\s*import\s+(?:(?:type\s+)?[^'"`]+\s+from\s+)?['"]([^'"]+)['"]/gm
@@ -241,6 +247,14 @@ function extractImports(content: string): ImportRef[] {
     return lines.slice(start, line).join('\n')
   }
 
+  const getContextAfter = (line: number) => {
+    // From the import line forward far enough to reach its catch block. One try
+    // can wrap several imports over a multi-case switch and share a single catch
+    // (notification.ts spans ~58 lines), so the window must be generous.
+    const end = Math.min(lines.length, line + 70)
+    return lines.slice(line - 1, end).join('\n')
+  }
+
   for (const [re, kind] of [
     [STATIC_IMPORT_RE, 'static'] as const,
     [DYNAMIC_IMPORT_RE, 'dynamic'] as const,
@@ -257,6 +271,7 @@ function extractImports(content: string): ImportRef[] {
         col,
         lineText,
         contextBefore: getContextBefore(line),
+        contextAfter: getContextAfter(line),
       })
     }
   }
@@ -275,14 +290,31 @@ function extractImports(content: string): ImportRef[] {
  *   2. `try {` — the import is inside a try/catch block that catches
  *      the missing-module error at runtime. Applies to backend files
  *      that aren't Vite-bundled and so can't use the ternary pattern.
+ *      The catch MUST distinguish module-absent (expected on a Free build)
+ *      from a genuine load failure — i.e. inspect the error code. A bare
+ *      `catch {}` silently swallows a real BSL load failure and mislabels
+ *      it (this is what shipped F1/F2, 2026-06-14). See G-backend-2026-06-14-001.
  *
  *   3. `import.meta.glob(` — declared elsewhere (already handled by
  *      the 'glob' ref kind), never reaches this check.
  */
-function isGuarded(ref: ImportRef): boolean {
-  const freeBuildGuard = /VITE_FREE_BUILD\s*===?\s*['"]true['"]\s*\?/
-  const tryGuard = /\btry\s*\{/
-  return freeBuildGuard.test(ref.contextBefore) || tryGuard.test(ref.contextBefore)
+const FREE_BUILD_GUARD = /VITE_FREE_BUILD\s*===?\s*['"]true['"]\s*\?/
+const TRY_GUARD = /\btry\s*\{/
+// The only correct way for a try/catch to distinguish "module absent on Free"
+// from "module present but failed to load" is to inspect the thrown error's
+// code. A catch that re-throws is also acceptable (it doesn't swallow).
+const CATCH_INSPECTS_ERROR = /ERR_MODULE_NOT_FOUND|MODULE_NOT_FOUND|\bthrow\b/
+
+type GuardStatus = 'ok' | 'unguarded' | 'swallowing'
+
+function guardStatus(ref: ImportRef): GuardStatus {
+  // Build-time tree-shaken (frontend) — the import is eliminated, never evaluated.
+  if (FREE_BUILD_GUARD.test(ref.contextBefore)) return 'ok'
+  // Runtime try/catch (backend) — only a guard if the catch doesn't swallow real failures.
+  if (TRY_GUARD.test(ref.contextBefore)) {
+    return CATCH_INSPECTS_ERROR.test(ref.contextAfter) ? 'ok' : 'swallowing'
+  }
+  return 'unguarded'
 }
 
 // ---------------------------------------------------------------------------
@@ -293,6 +325,7 @@ interface Violation {
   file: string
   ref: ImportRef
   target: string
+  reason: GuardStatus
 }
 
 function main(): void {
@@ -325,13 +358,14 @@ function main(): void {
 
       // Static imports are always violations
       if (ref.kind === 'static') {
-        violations.push({ file: rel, ref, target })
+        violations.push({ file: rel, ref, target, reason: 'unguarded' })
         continue
       }
 
-      // Dynamic imports: violation unless guarded
-      if (ref.kind === 'dynamic' && !isGuarded(ref)) {
-        violations.push({ file: rel, ref, target })
+      // Dynamic imports: violation unless properly guarded (try/catch must not swallow)
+      if (ref.kind === 'dynamic') {
+        const status = guardStatus(ref)
+        if (status !== 'ok') violations.push({ file: rel, ref, target, reason: status })
       }
     }
   }
@@ -348,14 +382,23 @@ function main(): void {
   console.log(`${RED}${BOLD}RESULT: FAIL${RESET} — ${violations.length} unguarded import(s) of sync-excluded paths.`)
   console.log()
   for (const v of violations) {
-    console.log(`${YELLOW}${v.file}${RESET}:${v.ref.line}:${v.ref.col}`)
+    const tag = v.reason === 'swallowing'
+      ? `${RED}swallowing catch${RESET}`
+      : `${RED}unguarded${RESET}`
+    console.log(`${YELLOW}${v.file}${RESET}:${v.ref.line}:${v.ref.col}  [${tag}]`)
     console.log(`  ${RED}\u2717${RESET} ${v.ref.kind} import of ${BOLD}${v.ref.specifier}${RESET} \u2192 ${DIM}${v.target}${RESET}`)
+    if (v.reason === 'swallowing') {
+      console.log(`     ${DIM}try/catch guards the import but the catch ignores the error code \u2014 a real BSL`)
+      console.log(`     load failure would be silently swallowed and mislabeled (cf. F1/F2 2026-06-14).${RESET}`)
+    }
     if (verbose) console.log(`     ${DIM}${v.ref.lineText.trim()}${RESET}`)
   }
   console.log()
   console.log(`Fix: either (a) wrap dynamic imports in a \`VITE_FREE_BUILD === 'true' ? [] : [...]\` ternary,`)
-  console.log(`(b) use \`import.meta.glob\` for filesystem-driven collections, or (c) restructure so the`)
-  console.log(`reference goes through a helper that is itself sync-excluded.`)
+  console.log(`(b) use \`import.meta.glob\` for filesystem-driven collections, (c) restructure so the`)
+  console.log(`reference goes through a helper that is itself sync-excluded, or \u2014 for a try/catch guard \u2014`)
+  console.log(`(d) make the catch inspect the error code (\`ERR_MODULE_NOT_FOUND\` \u21d2 absent on Free = info;`)
+  console.log(`otherwise log at error level), never a bare \`catch {}\`. See G-backend-2026-06-14-001.`)
   process.exit(1)
 }
 

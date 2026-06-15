@@ -316,8 +316,15 @@ export class NotificationService {
         default:
           return null
       }
-    } catch {
-      return null // Weaver-tier adapters not available in free tier
+    } catch (err) {
+      // weaver/adapters/* are BSL and sync-excluded — absent on a Free build is EXPECTED (the channel
+      // is simply unavailable). A real load failure on a build that ships them must NOT be swallowed
+      // as "free tier". See G-backend-2026-06-14-001.
+      const code = (err as NodeJS.ErrnoException)?.code
+      if (code !== 'ERR_MODULE_NOT_FOUND' && code !== 'MODULE_NOT_FOUND') {
+        console.error('[notification] weaver-tier adapter present but failed to load:', err)
+      }
+      return null
     }
   }
 }
