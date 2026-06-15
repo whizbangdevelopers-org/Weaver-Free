@@ -252,8 +252,8 @@ function resolveSessionStoreType(tier: Tier): SessionStoreType {
   const explicit = process.env.SESSION_STORE_TYPE as SessionStoreType | undefined
   if (explicit === 'memory' || explicit === 'sqlite') return explicit
 
-  // Tier-based default: memory for demo/free, sqlite for weaver/fabrick
-  return tier === TIERS.SOLO || tier === TIERS.FABRICK ? 'sqlite' : 'memory'
+  // Tier-based default: memory for demo/free, sqlite for paid tiers (weaver/team/fabrick)
+  return tier === TIERS.SOLO || tier === TIERS.TEAM || tier === TIERS.FABRICK ? 'sqlite' : 'memory'
 }
 
 function resolveSmtpConfig(): SmtpConfig | null {

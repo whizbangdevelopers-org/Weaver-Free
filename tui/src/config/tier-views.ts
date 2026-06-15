@@ -6,7 +6,8 @@ export const TIER_ORDER: Record<string, number> = {
   [TIERS.DEMO]: 99,       // demo sees everything
   [TIERS.FREE]: 1,
   [TIERS.SOLO]: 2,
-  [TIERS.FABRICK]: 3,
+  [TIERS.TEAM]: 3,
+  [TIERS.FABRICK]: 4,
 }
 
 export interface TierViewConfig {

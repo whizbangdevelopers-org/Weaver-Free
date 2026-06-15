@@ -18,8 +18,8 @@ describe('Stripe service', () => {
       expect(tierForProduct('prod_solo_test')).toBe(TIERS.SOLO)
     })
 
-    it('maps team product to weaver tier', () => {
-      expect(tierForProduct('prod_team_test')).toBe(TIERS.SOLO)
+    it('maps team product to team tier', () => {
+      expect(tierForProduct('prod_team_test')).toBe(TIERS.TEAM)
     })
 
     it('maps fabrick product to fabrick tier', () => {
