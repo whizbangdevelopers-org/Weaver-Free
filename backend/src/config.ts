@@ -134,8 +134,15 @@ export function loadConfig(): DashboardConfig {
       licenseExpiry = result.expiry
       licenseGraceMode = result.graceMode
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Unknown error'
-      console.error(`[license] Failed to read LICENSE_KEY_FILE: ${message} — falling back to free tier`)
+      // An ABSENT key file is the normal keyless state — a real install is Free until a key is
+      // installed (LICENSE_KEY_FILE may point at a path that doesn't exist yet). That is not an
+      // error; only a present-but-unreadable/invalid file is. See L-licensing-2026-06-15-001.
+      if ((err as NodeJS.ErrnoException)?.code === 'ENOENT') {
+        console.info(`[license] No license key file at ${licenseKeyFile} — free tier`)
+      } else {
+        const message = err instanceof Error ? err.message : 'Unknown error'
+        console.error(`[license] Failed to read LICENSE_KEY_FILE: ${message} — falling back to free tier`)
+      }
     }
   } else if (toBool(process.env.PREMIUM_ENABLED)) {
     console.warn('[license] PREMIUM_ENABLED is deprecated — use LICENSE_KEY instead. Mapping to weaver tier.')
