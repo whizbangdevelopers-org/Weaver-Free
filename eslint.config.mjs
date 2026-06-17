@@ -11,8 +11,8 @@ export default [
   {
     ignores: [
       'node_modules/',
-      'dist/',
-      '.quasar/',
+      '**/dist/',
+      '**/.quasar/',
       'src-capacitor/',
       'src-cordova/',
       'src-electron/dist/',
