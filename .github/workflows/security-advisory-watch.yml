@@ -1,0 +1,103 @@
+# Copyright (c) 2026 whizBANG Developers LLC. All rights reserved.
+# Proprietary and confidential. Do not distribute.
+# Security Advisory Watch  (release-patch notification layer)
+# CREATED IN: Weaver-Dev
+# USED BY: Scheduled, whitelist-aware advisory watch. Routes through the dynamic
+#          whitelist (code/scripts/baselines/security-allowlist.json via
+#          `npm run test:security`) so only UNKNOWN high/critical advisories alert.
+#          When one is found it opens/updates a single tracking issue so maintainers
+#          triage (fix or acknowledge) and cut a patch release for affected shipped
+#          versions. Complements the manual security-scan.yml (raw npm audit).
+# CONSOLIDATION: the three advisory surfaces (this JSON, .github/audit-exceptions.yml,
+#          dependabot-labeler.yml) should converge on one source — tracked in
+#          plans/cross-version/SECURITY-NOTIFICATIONS-PLAN.md (corp-standard decision).
+# TRIGGERS: Weekly schedule + manual dispatch. Validate the first run via dispatch.
+
+name: Security Advisory Watch
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 9 * * 1'  # Mondays 09:00 UTC
+
+permissions:
+  contents: read
+
+jobs:
+  advisory-watch:
+    name: Whitelist-aware advisory watch
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write   # open / update the advisory-tracking issue
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: code/package-lock.json
+
+      - name: Install dependencies
+        working-directory: code
+        run: npm ci
+
+      - name: Whitelist-aware advisory audit
+        id: audit
+        working-directory: code
+        run: |
+          if npm run test:security; then
+            echo "status=clean" >> "$GITHUB_OUTPUT"
+          else
+            echo "status=action-required" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Open / update advisory-tracking issue
+        if: steps.audit.outputs.status == 'action-required'
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3  # v9.0.0
+        with:
+          script: |
+            const fs = require('fs')
+            let unknown = []
+            try {
+              const r = JSON.parse(fs.readFileSync('code/reports/security-audit/latest.json', 'utf8'))
+              unknown = (r.data && r.data.unknown) || []
+            } catch (e) {
+              core.warning('security-audit report unreadable: ' + e.message)
+            }
+
+            const { owner, repo } = context.repo
+            const marker = '<!-- security-advisory-watch -->'
+            const title = '🔒 Unacknowledged high/critical advisories — patch release needed'
+            const lines = unknown.length
+              ? unknown.map(a => `- \`${a.module}\` ${a.severity} — [${a.ghsa}](${a.url}): ${a.title}`)
+              : ['- (auditor reported action-required; see the workflow run logs for detail)']
+            const body = [
+              marker,
+              `The scheduled advisory watch found **${unknown.length}** high/critical advisory(s) not covered by \`code/scripts/baselines/security-allowlist.json\`.`,
+              '',
+              '**Action:** for each, either **fix** (bump within constraint) or **acknowledge** (add a justified, dated entry to the allowlist — `npm run refresh:security-allowlist` to review), then cut a patch release for any affected shipped version.',
+              '',
+              ...lines,
+              '',
+              '_Updated automatically by Security Advisory Watch._',
+            ].join('\n')
+
+            // Ensure the label exists (idempotent).
+            try {
+              await github.rest.issues.getLabel({ owner, repo, name: 'security-advisory' })
+            } catch {
+              await github.rest.issues.createLabel({ owner, repo, name: 'security-advisory', color: 'b60205', description: 'Unacknowledged dependency advisory needing triage / patch release' })
+            }
+
+            const open = await github.paginate(github.rest.issues.listForRepo, { owner, repo, state: 'open', labels: 'security-advisory' })
+            const existing = open.find(i => i.body && i.body.includes(marker))
+            if (existing) {
+              await github.rest.issues.update({ owner, repo, issue_number: existing.number, title, body })
+              core.notice(`Updated tracking issue #${existing.number}`)
+            } else {
+              const created = await github.rest.issues.create({ owner, repo, title, body, labels: ['security-advisory'] })
+              core.notice(`Opened tracking issue #${created.data.number}`)
+            }
