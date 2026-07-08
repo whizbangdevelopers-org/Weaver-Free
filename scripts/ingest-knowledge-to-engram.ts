@@ -579,7 +579,7 @@ async function main(): Promise<void> {
         else process.stdout.write(`  ${YELLOW}re-embed${RESET} ${entry.id}… `)
         try {
           const embedding = await embedText(text)
-          await upsertChunk(client, { project: 'weaver', entryId: entry.id, content: text, embedding, metadata: { domain: entry.domain, type: entry.type, scope: entry.scope, status: entry.status, tags: entry.tags, related: entry.related, title: entry.title, since_version: entry.since_version } })
+          await upsertChunk(client, { project: 'weaver', entryId: entry.id, content: text, embedding, contentHash: hash, metadata: { domain: entry.domain, type: entry.type, scope: entry.scope, status: entry.status, tags: entry.tags, related: entry.related, title: entry.title, since_version: entry.since_version } })
           upsertIngestedEntry(db, {
             entryId: entry.id,
             contentHash: hash,
@@ -661,7 +661,7 @@ async function main(): Promise<void> {
         process.stdout.write(`  ${isUpdate ? YELLOW + 're-embed' : GREEN + 'embed+graph'}${RESET} ${entry.id}… `)
         try {
           const embedding = await embedText(text)
-          await upsertChunk(client, { project: 'weaver', entryId: entry.id, content: text, embedding, metadata: { domain: entry.domain, type: entry.type, scope: entry.scope, status: entry.status, tags: entry.tags, related: entry.related, title: entry.title, since_version: entry.since_version } })
+          await upsertChunk(client, { project: 'weaver', entryId: entry.id, content: text, embedding, contentHash: hash, metadata: { domain: entry.domain, type: entry.type, scope: entry.scope, status: entry.status, tags: entry.tags, related: entry.related, title: entry.title, since_version: entry.since_version } })
           await graph.upsertEntry({
             entryId: entry.id,
             title: entry.title,
