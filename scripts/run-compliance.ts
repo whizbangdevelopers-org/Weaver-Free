@@ -132,6 +132,7 @@ export const PHASES: Phase[] = [
       'audit:knowledge-schema',
       'audit:knowledge-index-fresh',
       'audit:knowledge-ids-unique',
+      'audit:engram-sync',
     ],
   },
   // Phase 3 — generators that write to the working tree. Isolated.
