@@ -37,14 +37,19 @@ const KNOWLEDGE_ROOT = resolve(CODE_ROOT, 'docs/knowledge')
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const VALID_TYPES = new Set(['lesson', 'gotcha'])
+// Vocab mirrors the structured_entries CHECK constraints (WVR-191 / §10 step 4):
+// the markdown is now a generated projection of the DB, so its frontmatter speaks
+// the DB's vocab. Old markdown-only vocab (transferable/transient, graduated/
+// deprecated/historical) was mapped into this set at migration time (§10 step 4b).
+const VALID_TYPES = new Set(['lesson', 'gotcha', 'pattern', 'rule'])
 const VALID_DOMAINS = new Set([
   'frontend', 'backend', 'testing', 'nixos', 'security',
   'process', 'mcp', 'engram', 'devops', 'licensing', 'analysis',
   'python', 'rust',
 ])
-const VALID_STATUSES = new Set(['active', 'graduated', 'deprecated', 'historical'])
-const VALID_SCOPES = new Set(['project', 'transferable', 'transient'])
+const VALID_STATUSES = new Set(['active', 'superseded', 'retired'])
+const VALID_SCOPES = new Set(['universal', 'language', 'language-version', 'domain', 'project', 'task'])
+const VALID_LAYERS = new Set(['L1-dev', 'L2-product'])
 const REQUIRED_FIELDS = ['id', 'type', 'domain', 'tags', 'since_version', 'status', 'scope', 'related', 'graduated_to']
 const ID_RE = /^[LG]-[a-z]+(-[a-z]+)*-\d{4}-\d{2}-\d{2}-\d{3}$/
 
@@ -135,7 +140,7 @@ function auditFile(filePath: string): Violation[] {
 
     // type
     if (fm['type'] && !VALID_TYPES.has(fm['type'])) {
-      flag(`invalid type "${fm['type']}"; must be lesson or gotcha`)
+      flag(`invalid type "${fm['type']}"; valid: ${[...VALID_TYPES].join(', ')}`)
     }
 
     // domain
@@ -145,7 +150,12 @@ function auditFile(filePath: string): Violation[] {
 
     // status
     if (fm['status'] && !VALID_STATUSES.has(fm['status'])) {
-      flag(`invalid status "${fm['status']}"; valid: active, graduated, deprecated, historical`)
+      flag(`invalid status "${fm['status']}"; valid: ${[...VALID_STATUSES].join(', ')}`)
+    }
+
+    // layer (WVR-191): present on generated entries; validate when set
+    if (fm['layer'] !== undefined && fm['layer'] !== '' && !VALID_LAYERS.has(fm['layer'])) {
+      flag(`invalid layer "${fm['layer']}"; valid: ${[...VALID_LAYERS].join(', ')}`)
     }
 
     // tags and related must look like arrays
@@ -163,7 +173,7 @@ function auditFile(filePath: string): Violation[] {
 
     // scope is required (see REQUIRED_FIELDS) and must be one of VALID_SCOPES
     if (fm['scope'] !== undefined && fm['scope'] !== '' && !VALID_SCOPES.has(fm['scope'])) {
-      flag(`invalid scope "${fm['scope']}"; valid: project, transferable, transient`)
+      flag(`invalid scope "${fm['scope']}"; valid: ${[...VALID_SCOPES].join(', ')}`)
     }
   }
 
