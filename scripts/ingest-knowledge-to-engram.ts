@@ -38,7 +38,7 @@ import {
 } from '../codebase-mcp/src/utils/engram-db.js'
 import {
   getPgPool, closePgPool, ensureSchema, embedText, checkEmbedService,
-  upsertChunk, deleteChunks, clearProjectChunks,
+  upsertChunk, deleteChunks, clearProjectChunks, getProjectHashes,
 } from '../codebase-mcp/src/utils/pgvector-embed.js'
 import { engramConfig } from '../codebase-mcp/src/utils/engram-config.js'
 import {
@@ -419,6 +419,22 @@ function slugify(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
 }
 
+/** §10 step 3B: the incremental-ingest diff key, read from the served store
+ *  (engram_chunks.content_hash) scoped to this ingestor's own (project, chunk_type)
+ *  slice — replaces the SQLite registry as the source of truth for the diff. Manages
+ *  its own pool lifecycle so it is safe to call before the dry-run / metadata-only early returns. */
+async function readWeaverHashes(): Promise<Map<string, string>> {
+  const pool = getPgPool()
+  const client = await pool.connect()
+  try {
+    await ensureSchema(client)
+    return await getProjectHashes(client, 'weaver')
+  } finally {
+    client.release()
+    await closePgPool()
+  }
+}
+
 // ── Main ──────────────────────────────────────────────────────────────────────
 
 async function main(): Promise<void> {
@@ -437,7 +453,10 @@ async function main(): Promise<void> {
 
   console.log(`Collected ${entries.length} entr${entries.length === 1 ? 'y' : 'ies'} from docs/knowledge/`)
 
-  // Compute hashes and diff against registry
+  // §10 step 3B: the served store is the diff source of truth. `existing` (SQLite
+  // registry) is still read only to supply dataId for the retired Cognee path (removed
+  // with those branches at step 3C); it no longer drives the add/update/delete decision.
+  const dbHashes = await readWeaverHashes()
   const existing = getAllIngestedEntries(db)
   const currentIds = new Set(entries.map((e) => e.id))
 
@@ -449,20 +468,20 @@ async function main(): Promise<void> {
   for (const entry of entries) {
     const text = formatEntryForEngram(entry)
     const hash = computeHash(text)
-    const rec = existing.get(entry.id)
+    const dbHash = dbHashes.get(entry.id)
 
-    if (!rec) {
+    if (dbHash === undefined) {
       toAdd.push(entry)
-    } else if (rec.contentHash !== hash) {
+    } else if (dbHash !== hash) {
       toUpdate.push(entry)
     } else {
       skipped.push(entry.id)
     }
   }
 
-  for (const [entryId, rec] of existing) {
+  for (const entryId of dbHashes.keys()) {
     if (!currentIds.has(entryId)) {
-      toDelete.push({ entryId, dataId: rec.dataId })
+      toDelete.push({ entryId, dataId: existing.get(entryId)?.dataId ?? '' })
     }
   }
 
