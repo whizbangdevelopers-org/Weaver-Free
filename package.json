@@ -110,6 +110,7 @@
     "mcp:http": "npx tsx codebase-mcp/src/index.ts --http",
     "audit:inference-node-parity": "npx tsx scripts/audit-inference-node-parity.ts",
     "audit:knowledge-schema": "npx tsx scripts/verify-knowledge-schema.ts",
+    "audit:knowledge-universal-neutral": "npx tsx scripts/verify-knowledge-universal-neutral.ts",
     "audit:knowledge-index-fresh": "npx tsx scripts/verify-knowledge-index-fresh.ts",
     "audit:knowledge-ids-unique": "npx tsx scripts/verify-knowledge-ids-unique.ts",
     "audit:engram-sync": "npx tsx scripts/verify-engram-sync.ts",
