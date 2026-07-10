@@ -130,6 +130,7 @@ export const PHASES: Phase[] = [
       'audit:submit-gate-coverage',
       'audit:inference-node-parity',
       'audit:knowledge-schema',
+      'audit:knowledge-universal-neutral',
       'audit:knowledge-index-fresh',
       'audit:knowledge-ids-unique',
       'audit:engram-sync',
