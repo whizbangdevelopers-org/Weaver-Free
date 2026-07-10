@@ -96,6 +96,41 @@
         </q-card-section>
       </q-card>
 
+      <!-- Knowledge write token (Stage B / WVR-197) — local to this browser -->
+      <div class="text-overline text-grey-7 q-mb-sm">Knowledge write token</div>
+      <q-card flat bordered class="q-mb-md">
+        <q-card-section class="q-gutter-sm">
+          <div class="text-caption text-grey-7">
+            Bearer that authorises writes on the <strong>Author</strong> &amp; <strong>Review</strong> tabs.
+            Read-only browsing needs no token. Stored in this browser only (not sent anywhere else).
+          </div>
+          <q-input
+            v-model="writeToken"
+            outlined
+            dense
+            label="engram-query write token"
+            :type="showWriteToken ? 'text' : 'password'"
+            data-testid="settings-write-token"
+          >
+            <template #append>
+              <q-btn
+                flat
+                dense
+                round
+                :icon="showWriteToken ? 'mdi-eye-off' : 'mdi-eye'"
+                @click="showWriteToken = !showWriteToken"
+              />
+            </template>
+          </q-input>
+          <div class="row items-center">
+            <q-btn dense color="primary" icon="mdi-key" label="Save token" @click="onSaveToken" />
+            <span v-if="tokenSaved" class="text-caption text-positive q-ml-sm">
+              <q-icon name="mdi-check" /> saved to this browser
+            </span>
+          </div>
+        </q-card-section>
+      </q-card>
+
       <div class="row justify-end q-gutter-sm">
         <q-btn flat label="Reset" icon="mdi-refresh" @click="onReset" />
         <q-btn
@@ -113,6 +148,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import type { Settings } from '../composables/useCognee'
+import { getWriteToken, setWriteToken } from '../composables/useKnowledgeEditor'
 
 const props = defineProps<{
   settings: Settings | null
@@ -127,6 +163,17 @@ const emit = defineEmits<{
 const saving = ref(false)
 const showLlmKey = ref(false)
 const showVectorKey = ref(false)
+
+// Knowledge write token — persisted straight to localStorage, independent of the
+// Cognee settings Save flow (WVR-197).
+const writeToken = ref(getWriteToken())
+const showWriteToken = ref(false)
+const tokenSaved = ref(false)
+function onSaveToken() {
+  setWriteToken(writeToken.value.trim())
+  tokenSaved.value = true
+  setTimeout(() => { tokenSaved.value = false }, 2000)
+}
 
 const llmProviders = ['anthropic', 'openai', 'ollama', 'gemini', 'mistral', 'groq']
 const vectorDbProviders = ['lancedb', 'chromadb', 'pgvector', 'weaviate', 'qdrant']
