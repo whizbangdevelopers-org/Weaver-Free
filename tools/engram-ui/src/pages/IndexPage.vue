@@ -50,6 +50,8 @@
               {{ inFlightCount }}
             </q-badge>
           </q-tab>
+          <q-tab name="author"  icon="mdi-text-box-plus-outline" label="Author" />
+          <q-tab name="review"  icon="mdi-check-decagram-outline" label="Review" />
           <q-tab name="monitor" icon="mdi-gauge" label="Monitor" />
           <q-tab name="hosts"   icon="mdi-server" label="Infrastructure" />
         </q-tabs>
@@ -202,6 +204,16 @@
             </template>
           </q-tab-panel>
 
+          <!-- ── Author (Stage B — create a knowledge proposal) ──────────────── -->
+          <q-tab-panel name="author" class="q-pa-none" style="height: 100%">
+            <KnowledgeEditorPanel @created="onProposalCreated" />
+          </q-tab-panel>
+
+          <!-- ── Review (Stage B — Level-1 human-promote approval queue) ─────── -->
+          <q-tab-panel name="review" class="q-pa-none" style="height: 100%">
+            <ApprovalQueuePanel ref="approvalQueueRef" />
+          </q-tab-panel>
+
           <!-- ── Monitor (system ops) ─────────────────────────────────────────── -->
           <q-tab-panel name="monitor" class="q-pa-none" style="height: 100%">
             <MonitorPanel />
@@ -350,6 +362,8 @@ import ProducedCard from '../components/ProducedCard.vue'
 import CreateDatasetDialog from '../components/CreateDatasetDialog.vue'
 import UpgradeDatasetDialog from '../components/UpgradeDatasetDialog.vue'
 import HostsPanel from '../components/HostsPanel.vue'
+import KnowledgeEditorPanel from '../components/KnowledgeEditorPanel.vue'
+import ApprovalQueuePanel from '../components/ApprovalQueuePanel.vue'
 import { useEngramMonitor } from '../composables/useEngramMonitor'
 import type { HostInput, HostPatch } from '../composables/useEngramMonitor'
 
@@ -424,7 +438,14 @@ const {
 
 
 const drawerOpen = ref(true)
-const activeDest = ref<'knowledge' | 'workspace' | 'monitor' | 'hosts'>('knowledge')
+const activeDest = ref<'knowledge' | 'workspace' | 'author' | 'review' | 'monitor' | 'hosts'>('knowledge')
+const approvalQueueRef = ref<InstanceType<typeof ApprovalQueuePanel> | null>(null)
+
+// A freshly authored proposal shows up in Review — refresh the queue if it's mounted,
+// and nudge the user toward it.
+function onProposalCreated() {
+  void approvalQueueRef.value?.load()
+}
 const knowledgeLens = ref<'search' | 'browse'>('browse')
 const workspaceTab = ref<'files' | 'activity' | 'graph'>('files')
 const settingsOpen = ref(false)
