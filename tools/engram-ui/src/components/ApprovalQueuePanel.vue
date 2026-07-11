@@ -11,10 +11,17 @@
     <div class="row items-center q-mb-sm">
       <div class="text-subtitle2"><q-icon name="mdi-check-decagram-outline" class="q-mr-xs" />Review queue</div>
       <q-space />
-      <q-input v-model="actor" dense outlined label="Reviewer (you)" style="width: 180px" class="q-mr-sm" data-testid="aq-actor" />
+      <q-input v-model="actor" dense outlined label="Reviewer (you) *" style="width: 180px" class="q-mr-sm"
+               data-testid="aq-actor" :error="!actor.trim()" hide-bottom-space @blur="rememberActor" />
       <q-toggle v-model="pendingOnly" label="Pending only" @update:model-value="load" />
       <q-btn flat dense round icon="mdi-refresh" class="q-ml-sm" :loading="loading" @click="load" />
     </div>
+
+    <q-banner v-if="!actor.trim()" dense rounded class="bg-grey-2 text-grey-8 q-mb-sm">
+      <template #avatar><q-icon name="mdi-account-alert" color="orange" /></template>
+      Enter your name in <strong>Reviewer (you)</strong> to enable Approve / Reject — every
+      decision is recorded against the actor in the append-only audit log.
+    </q-banner>
 
     <q-table
       :rows="rows"
@@ -28,18 +35,27 @@
       <template #body-cell-status="props">
         <q-td :props="props">
           <q-badge :color="statusColor(props.row.status)">{{ props.row.status }}</q-badge>
-          <q-badge v-if="!props.row.approved_by && props.row.status === 'active'" color="orange" class="q-ml-xs">proposal</q-badge>
+          <q-badge v-if="isProposal(props.row)" color="orange" class="q-ml-xs">proposal</q-badge>
+          <q-badge v-else-if="props.row.source === 'human-llgd'" color="blue-grey" class="q-ml-xs">git-approved</q-badge>
         </q-td>
       </template>
       <template #body-cell-actions="props">
         <q-td :props="props">
-          <q-btn v-if="!props.row.approved_by && props.row.status === 'active'"
+          <!-- Read the body before deciding — always available -->
+          <q-btn flat dense icon="mdi-eye" @click="onView(props.row)">
+            <q-tooltip>View</q-tooltip>
+          </q-btn>
+          <!-- Approve/Reject only on actual proposals (form/ai-agent). human-llgd is
+               pre-approved by git review and is not actioned here. -->
+          <q-btn v-if="isProposal(props.row)"
                  flat dense color="positive" icon="mdi-check" label="Approve"
                  :disable="!actor.trim()" @click="onApprove(props.row)" />
-          <q-btn v-if="props.row.status === 'active'"
+          <q-btn v-if="isProposal(props.row)"
                  flat dense color="negative" icon="mdi-close" label="Reject"
                  :disable="!actor.trim()" @click="onRejectClick(props.row)" />
-          <q-btn flat dense icon="mdi-history" @click="loadEvents(props.row)" />
+          <q-btn flat dense icon="mdi-history" @click="loadEvents(props.row)">
+            <q-tooltip>History</q-tooltip>
+          </q-btn>
         </q-td>
       </template>
     </q-table>
@@ -81,6 +97,37 @@
         </tbody>
       </q-markup-table>
     </div>
+
+    <!-- View the full entry so a reviewer reads the body before deciding -->
+    <q-dialog v-model="viewOpen">
+      <q-card style="width: 820px; max-width: 95vw;">
+        <q-bar class="bg-primary text-white">
+          <q-icon name="mdi-book-open-variant" />
+          <span class="q-ml-sm text-mono">{{ viewEntry?.entry_ref }}</span>
+          <q-space />
+          <q-btn dense flat round icon="mdi-close" v-close-popup />
+        </q-bar>
+        <q-card-section v-if="viewEntry" style="max-height: 78vh; overflow-y: auto;">
+          <div class="row q-gutter-xs q-mb-sm">
+            <q-badge outline color="primary">{{ viewEntry.type }}</q-badge>
+            <q-badge outline color="primary">{{ viewEntry.domain }}</q-badge>
+            <q-badge outline color="secondary">scope: {{ viewEntry.scope }}</q-badge>
+            <q-badge outline>source: {{ viewEntry.source }}</q-badge>
+            <q-badge :color="viewEntry.approved_by ? 'positive' : 'orange'">
+              {{ viewEntry.approved_by ? 'approved by ' + viewEntry.approved_by : 'unapproved' }}
+            </q-badge>
+          </div>
+          <div v-if="viewEntry.title" class="text-subtitle1 q-mb-xs">{{ viewEntry.title }}</div>
+          <pre class="ke-body">{{ viewEntry.body }}</pre>
+        </q-card-section>
+        <q-card-actions align="right" v-if="viewEntry && isProposal(viewEntry as unknown as EntryRow)">
+          <q-btn flat color="negative" icon="mdi-close" label="Reject"
+                 :disable="!actor.trim()" @click="onRejectClick(viewEntry as unknown as EntryRow); viewOpen = false" />
+          <q-btn color="positive" icon="mdi-check" label="Approve"
+                 :disable="!actor.trim()" @click="onApprove(viewEntry as unknown as EntryRow); viewOpen = false" />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
   </div>
 </template>
 
@@ -90,11 +137,31 @@ import { useQuasar, type QTableColumn } from 'quasar'
 import { useKnowledgeEditor, rejectReasonValid, type EntryRow } from '../composables/useKnowledgeEditor'
 
 const $q = useQuasar()
-const { entries: rows, events, gaugeRows, loading, listEntries, getEvents, getGauge, approveEntry, rejectEntry } = useKnowledgeEditor()
+const { entries: rows, events, gaugeRows, loading, listEntries, getEntry, getEvents, getGauge, approveEntry, rejectEntry } = useKnowledgeEditor()
 
 const ACTOR_KEY = 'engram_actor'
 const actor = ref<string>((() => { try { return localStorage.getItem(ACTOR_KEY) ?? '' } catch { return '' } })())
 const pendingOnly = ref(true)
+
+// Persist the reviewer name so it's remembered and shared with the Author tab.
+function rememberActor() { try { localStorage.setItem(ACTOR_KEY, actor.value) } catch { /* ignore */ } }
+
+// A row is an actionable proposal only if a proposing mechanism authored it and it is
+// not yet promoted. human-llgd is pre-approved by git review — never actioned here.
+function isProposal(row: EntryRow): boolean {
+  return !row.approved_by && row.status === 'active' && (row.source === 'form' || row.source === 'ai-agent')
+}
+
+const viewEntry = ref<Record<string, unknown> | null>(null)
+const viewOpen = ref(false)
+async function onView(row: EntryRow) {
+  try {
+    viewEntry.value = await getEntry(row.id)
+    viewOpen.value = true
+  } catch (e) {
+    $q.notify({ type: 'negative', message: e instanceof Error ? e.message : 'Load failed', timeout: 3000 })
+  }
+}
 
 const columns: QTableColumn[] = [
   { name: 'entry_ref', label: 'Entry', field: 'entry_ref', align: 'left', sortable: true },
@@ -167,3 +234,14 @@ async function loadEvents(row: EntryRow) {
 defineExpose({ doReject, onApprove, load })
 onMounted(load)
 </script>
+
+<style scoped>
+.ke-body {
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+</style>
