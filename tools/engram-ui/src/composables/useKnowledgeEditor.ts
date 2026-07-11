@@ -34,8 +34,20 @@ export function bodyRule(v: string): true | string {
 export function actorRule(v: string): true | string {
   return (v ?? '').trim().length > 0 || 'Author is required'
 }
+// The domain embedded in the id (between the prefix and the date) must match the domain
+// field — the convention is L|G-{domain}-{date}-{nnn}. Returns that segment, or null.
+export function entryRefDomain(entry_ref: string): string | null {
+  const m = /^[LG]-(.+)-\d{4}-\d{2}-\d{2}-\d{3}$/.exec((entry_ref ?? '').trim())
+  return m ? m[1] : null
+}
+export function domainMatchRule(entry_ref: string, domain: string): true | string {
+  const d = entryRefDomain(entry_ref)
+  if (d === null) return true // format already covered by entryRefRule
+  return d === domain || `The id's domain (${d}) must match the Domain field (${domain})`
+}
 export function proposalValid(f: { entry_ref: string; domain: string; body: string; actor: string }): boolean {
   return entryRefRule(f.entry_ref) === true && domainRule(f.domain) === true &&
+         domainMatchRule(f.entry_ref, f.domain) === true &&
          bodyRule(f.body) === true && actorRule(f.actor) === true
 }
 // A rejection must carry a reason (also enforced server-side, 422). Pure so it's testable.

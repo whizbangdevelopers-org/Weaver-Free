@@ -19,7 +19,8 @@
       <q-input v-model="actor" class="col-12 col-sm-6" dense outlined label="Author (you) *"
                :rules="[actorRule]" data-testid="ke-actor" />
       <q-input v-model="entryRef" class="col-12 col-sm-6" dense outlined
-               label="Entry ID * (L|G-domain-YYYY-MM-DD-NNN)" :rules="[entryRefRule]" data-testid="ke-entryref" />
+               label="Entry ID * (L|G-domain-YYYY-MM-DD-NNN)"
+               :rules="[entryRefRule, (v) => domainMatchRule(v, domain)]" data-testid="ke-entryref" />
       <q-select v-model="type" class="col-6 col-sm-3" dense outlined label="Type *" :options="TYPES" />
       <q-select v-model="domain" class="col-6 col-sm-3" dense outlined label="Domain *"
                 :options="DOMAINS" :rules="[domainRule]" />
@@ -53,7 +54,7 @@ import { useQuasar } from 'quasar'
 import {
   useKnowledgeEditor, getWriteToken,
   TYPES, DOMAINS, SCOPES, LAYERS,
-  entryRefRule, domainRule, bodyRule, actorRule, proposalValid,
+  entryRefRule, domainRule, domainMatchRule, bodyRule, actorRule, proposalValid,
 } from '../composables/useKnowledgeEditor'
 
 const emit = defineEmits<{ created: [] }>()
