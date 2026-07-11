@@ -126,12 +126,14 @@ export function useKnowledgeEditor() {
   const loading = ref(false)
   const error = ref<string | null>(null)
 
-  async function listEntries(params: { status?: string; domain?: string; project?: string; scope?: string } = {}) {
+  async function listEntries(params: { status?: string; domain?: string; project?: string; scope?: string; review?: boolean } = {}) {
     loading.value = true
     error.value = null
     try {
       const qs = new URLSearchParams(
-        Object.entries(params).filter(([, v]) => v) as [string, string][],
+        Object.entries(params)
+          .filter(([, v]) => v !== undefined && v !== false && v !== '')
+          .map(([k, v]) => [k, String(v)]),
       ).toString()
       const res = await fetch(`${BASE}/entries${qs ? `?${qs}` : ''}`)
       if (!res.ok) throw new Error(await readErr(res))
