@@ -115,8 +115,9 @@ function actionColor(a: string): string {
 
 async function load() {
   try {
-    await listEntries(pendingOnly.value ? { status: 'active' } : {})
-    if (pendingOnly.value) rows.value = rows.value.filter((r: EntryRow) => !r.approved_by)
+    // review=true → only form/ai-agent proposals awaiting promotion (human-llgd is
+    // pre-approved by git review, so it never appears here).
+    await listEntries(pendingOnly.value ? { review: true } : {})
     await getGauge()
   } catch (e) {
     $q.notify({ type: 'negative', message: e instanceof Error ? e.message : 'Load failed', timeout: 3000 })
