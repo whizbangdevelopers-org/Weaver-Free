@@ -1,7 +1,7 @@
 <!-- Copyright (c) 2026 whizBANG Developers LLC. All rights reserved. -->
 <!-- Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE. -->
 <template>
-  <div class="column q-pa-md" style="height: 100%">
+  <div class="q-pa-md">
     <div class="text-subtitle1 q-mb-md">
       <q-icon name="mdi-cog" class="q-mr-xs" />
       Settings
@@ -18,7 +18,10 @@
       <q-spinner-dots color="primary" size="40px" />
     </div>
 
-    <q-scroll-area v-else class="col">
+    <!-- Plain div, not q-scroll-area: the enclosing dialog q-card-section already caps
+         height + scrolls. A q-scroll-area here inherits an auto/0 height and collapses,
+         hiding all cards (only the subtitle showed). -->
+    <div v-else>
       <!-- LLM Settings -->
       <div class="text-overline text-grey-7 q-mb-sm">LLM Provider</div>
       <q-card flat bordered class="q-mb-md">
@@ -141,7 +144,7 @@
           @click="onSave"
         />
       </div>
-    </q-scroll-area>
+    </div>
   </div>
 </template>
 
