@@ -39,7 +39,7 @@ interface KnowledgeEntry {
   domain: string
   tags: string[]
   since_version: string
-  status: 'active' | 'graduated' | 'deprecated' | 'historical'
+  status: 'active' | 'superseded' | 'retired'
   related: string[]
   graduated_to: string
   title: string
@@ -149,15 +149,6 @@ export function collectEntries(): KnowledgeEntry[] {
   return entries.sort((a, b) => a.id.localeCompare(b.id))
 }
 
-function statusBadge(status: KnowledgeEntry['status']): string {
-  switch (status) {
-    case 'active':     return 'active'
-    case 'graduated':  return 'graduated'
-    case 'deprecated': return 'deprecated'
-    case 'historical': return 'historical'
-  }
-}
-
 export function generateIndex(entries: KnowledgeEntry[]): string {
   const fileCount = collectCategoryFiles().length
   const header = [
@@ -182,7 +173,7 @@ export function generateIndex(entries: KnowledgeEntry[]): string {
   const rows = entries.map((e) => {
     const tags = e.tags.length ? e.tags.join(', ') : '—'
     const graduatedNote = e.graduated_to ? ` → \`${e.graduated_to}\`` : ''
-    return `| \`${e.id}\` | ${e.type} | ${e.domain} | ${tags} | ${statusBadge(e.status)}${graduatedNote} | ${e.title} |`
+    return `| \`${e.id}\` | ${e.type} | ${e.domain} | ${tags} | ${e.status}${graduatedNote} | ${e.title} |`
   })
 
   return [...header, ...tableHeader, ...rows, ''].join('\n')
