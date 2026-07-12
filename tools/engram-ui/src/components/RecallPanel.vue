@@ -1,5 +1,11 @@
 <!-- Copyright (c) 2026 whizBANG Developers LLC. All rights reserved. -->
 <!-- Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE. -->
+<!--
+  Search lens — semantic recall over the served pgvector store via
+  /engram-query/search. Knowledge search always spans the full registry
+  (there is no dataset model in the governance console), so there is no search-type
+  or scope selector — just a query box.
+-->
 <template>
   <div class="column q-pa-md" style="height: 100%">
     <!-- Query input row -->
@@ -8,39 +14,15 @@
         v-model="query"
         outlined
         dense
-        placeholder="Enter a recall query…"
+        placeholder="Search the knowledge registry…"
         class="col"
+        data-testid="recall-query"
         @keyup.enter="onSearch"
       >
         <template #prepend>
           <q-icon name="mdi-magnify" size="18px" />
         </template>
       </q-input>
-
-      <q-select
-        v-model="searchType"
-        :options="searchTypeOptions"
-        outlined
-        dense
-        emit-value
-        map-options
-        style="min-width: 200px"
-      >
-        <template #append>
-          <q-icon name="mdi-information-outline" size="18px" class="cursor-pointer" @click.stop>
-            <q-menu anchor="bottom right" self="top right">
-              <q-list dense style="min-width: 260px" class="q-py-xs">
-                <q-item v-for="opt in searchTypeOptions" :key="opt.value" class="q-py-xs">
-                  <q-item-section>
-                    <q-item-label class="text-weight-medium">{{ opt.label }}</q-item-label>
-                    <q-item-label caption>{{ opt.hint }}</q-item-label>
-                  </q-item-section>
-                </q-item>
-              </q-list>
-            </q-menu>
-          </q-icon>
-        </template>
-      </q-select>
 
       <q-btn
         color="primary"
@@ -51,23 +33,9 @@
       />
     </div>
 
-    <!-- Scope toggle + recent queries -->
+    <!-- Recent queries -->
     <div class="row items-center q-gutter-sm q-mt-sm q-mb-md">
-      <q-btn-toggle
-        v-model="scope"
-        flat
-        dense
-        no-caps
-        toggle-color="primary"
-        :options="[
-          { value: 'all', label: 'All datasets', slot: 'all' },
-          { value: 'active', label: scopeActiveLabel, slot: 'active' },
-        ]"
-        :disable="searchType === 'KNOWLEDGE'"
-      />
-      <span v-if="searchType === 'KNOWLEDGE'" class="text-caption text-grey-6">
-        Knowledge search always spans the full registry
-      </span>
+      <span class="text-caption text-grey-6">Semantic recall spans the full registry</span>
 
       <q-space />
 
@@ -103,14 +71,13 @@
     <div v-else-if="!loading && queried && results.length === 0" class="flex flex-center q-pa-xl column items-center">
       <q-icon name="mdi-database-search-outline" size="64px" color="grey-5" />
       <div class="text-h6 text-grey-7 q-mt-sm">No results</div>
-      <div class="text-caption text-grey-6">Try a different query, search type, or scope</div>
+      <div class="text-caption text-grey-6">Try a different query</div>
     </div>
 
     <!-- Results -->
     <q-scroll-area v-else-if="results.length > 0" class="col">
       <div class="text-caption text-grey-7 q-mb-sm">
         {{ results.length }} result{{ results.length !== 1 ? 's' : '' }}
-        <span class="text-grey-5">· {{ scope === 'all' || searchType === 'KNOWLEDGE' ? 'all datasets' : scopeActiveLabel }}</span>
       </div>
       <q-card
         v-for="(r, i) in results"
@@ -163,45 +130,28 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref } from 'vue'
 import { useQuasar } from 'quasar'
-import type { RecallResult, SearchType, RecallScope } from '../composables/useEngram'
+import type { RecallResult } from '../composables/useEngramMonitor'
 
-const props = defineProps<{
+defineProps<{
   results: RecallResult[]
   loading: boolean
   error: string | null
-  activeDatasetName: string | null
 }>()
 
 const emit = defineEmits<{
-  search: [query: string, searchType: SearchType, scope: RecallScope]
+  search: [query: string]
 }>()
 
 const $q = useQuasar()
 
 const query = ref('')
-const searchType = ref<SearchType>('CHUNKS')
-const scope = ref<RecallScope>('all')
 const queried = ref(false)
 const expanded = ref<Set<number>>(new Set())
 
 const RECENT_KEY = 'engram_recent_queries'
 const recent = ref<string[]>(loadRecent())
-
-const searchTypeOptions: Array<{ value: SearchType; label: string; hint: string }> = [
-  { value: 'CHUNKS',           label: 'Chunks',           hint: 'Literal text passages — fast, closest to the source.' },
-  { value: 'SUMMARIES',        label: 'Summaries',        hint: 'Condensed summaries of matched content.' },
-  { value: 'GRAPH_COMPLETION', label: 'Graph completion', hint: 'LLM-generated answer reasoned over the knowledge graph.' },
-  { value: 'KNOWLEDGE',        label: 'Knowledge',        hint: 'Structured registry entries (lessons / gotchas) — spans all datasets.' },
-]
-
-const scopeActiveLabel = computed(() => props.activeDatasetName ?? 'Active dataset')
-
-// When no dataset is selected, "active" scope is meaningless — force "all".
-watch(() => props.activeDatasetName, (name) => {
-  if (!name && scope.value === 'active') scope.value = 'all'
-})
 
 function isLong(text: string): boolean {
   return text.length > 320
@@ -256,8 +206,7 @@ function onSearch() {
   queried.value = true
   expanded.value = new Set()
   pushRecent(q)
-  const effectiveScope: RecallScope = searchType.value === 'KNOWLEDGE' ? 'all' : scope.value
-  emit('search', q, searchType.value, effectiveScope)
+  emit('search', q)
 }
 </script>
 

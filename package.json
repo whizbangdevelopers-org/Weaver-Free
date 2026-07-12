@@ -128,7 +128,6 @@
     "audit:engram-naming": "npx tsx scripts/audit-engram-naming.ts",
     "audit:synonym-dictionary": "npx tsx scripts/verify-synonym-dictionary.ts",
     "engram:ingest-knowledge": "npx tsx scripts/ingest-knowledge-to-engram.ts",
-    "engram:ingest-knowledge:meta": "npx tsx scripts/ingest-knowledge-to-engram.ts --metadata-only",
     "audit:compatibility": "npx tsx scripts/verify-compatibility-sync.ts",
     "audit:license-parity": "npx tsx scripts/verify-license-parity.ts",
     "audit:test-coverage": "npx tsx scripts/verify-test-coverage.ts",

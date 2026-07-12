@@ -6,7 +6,9 @@
   (the knowledge registry) lives in the Knowledge destination, not here.
 -->
 <template>
-  <div style="height: 100%; overflow-y: auto;" class="q-pa-md">
+  <!-- The q-tab-panels .q-panel.scroll wrapper already scrolls; a fixed-height
+       scroll container here + overflow-y:auto (forces overflow-x:auto) broke layout. -->
+  <div class="q-pa-md">
 
     <!-- Header -->
     <div class="row items-center q-mb-md">
