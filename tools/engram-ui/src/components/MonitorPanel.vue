@@ -81,8 +81,8 @@
                 </div>
                 <template v-if="comp.status">
                   <q-badge
-                    :color="comp.status.available ? 'positive' : 'negative'"
-                    :label="comp.status.available ? 'up' : 'down'"
+                    :color="compBadge(comp.status).color"
+                    :label="compBadge(comp.status).label"
                     class="q-mb-xs"
                   />
                   <div v-if="comp.status.available && comp.status.latencyMs !== null" class="text-caption text-grey-7">
@@ -91,7 +91,7 @@
                       &middot; ~{{ infrastructure?.embedding.headroomPer15s }}/15s
                     </template>
                   </div>
-                  <div v-else-if="comp.status.detail" class="text-caption text-negative" style="max-width: 140px; word-break: break-word">
+                  <div v-else-if="comp.status.detail" class="text-caption" :class="compBadge(comp.status).detailClass" style="max-width: 140px; word-break: break-word">
                     {{ comp.status.detail }}
                   </div>
                 </template>
@@ -330,7 +330,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onUnmounted } from 'vue'
 import type { QTableColumn } from 'quasar'
-import { useEngramMonitor } from '../composables/useEngramMonitor'
+import { useEngramMonitor, type EngramComponentStatus } from '../composables/useEngramMonitor'
 
 const {
   status,
@@ -389,6 +389,19 @@ const infraComponents = computed(() =>
       : null,
   }))
 )
+
+// Badge color/label per component state. 'idle' (a power-managed host asleep — foundry) and
+// 'n/a' (not configured on this host) are NOT faults, so they must not render as red 'down'.
+// Falls back to available→up/down for older backends without a `status` field.
+function compBadge(s: EngramComponentStatus) {
+  const st = s.status ?? (s.available ? 'up' : 'down')
+  switch (st) {
+    case 'up':   return { color: 'positive', label: 'up',   detailClass: 'text-grey-7' }
+    case 'idle': return { color: 'amber-7',  label: 'idle', detailClass: 'text-grey-7' }
+    case 'n/a':  return { color: 'grey-5',   label: 'n/a',  detailClass: 'text-grey-6' }
+    default:     return { color: 'negative', label: 'down', detailClass: 'text-negative' }
+  }
+}
 
 const upgradeMethodMeta = [
   { key: 'gradual',         label: 'Gradual' },

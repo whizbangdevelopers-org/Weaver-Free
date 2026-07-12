@@ -84,6 +84,10 @@ export interface EngramEntryDomainRow {
 
 export interface EngramComponentStatus {
   available: boolean
+  // up = reachable & serving; down = a real fault; idle = a power-managed host asleep
+  // (foundry — wakes on demand); n/a = not configured on this host. Falls back to
+  // available→up/down for older backends that don't send it.
+  status?: 'up' | 'down' | 'idle' | 'n/a'
   latencyMs: number | null
   detail: string | null
 }
