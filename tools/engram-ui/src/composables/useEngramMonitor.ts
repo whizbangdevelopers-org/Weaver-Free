@@ -142,6 +142,14 @@ async function weaverFetch<T>(path: string, options: RequestInit = {}): Promise<
     } catch { if (text) msg += `: ${text}` }
     throw new Error(msg)
   }
+  // The /weaver/* backend (:3100) isn't deployed on every host; nginx then serves the SPA
+  // index.html (200 HTML) for these API paths, which res.json() would choke on with a cryptic
+  // "Unexpected token '<'". Detect the non-JSON response and fail with an honest message
+  // instead. (Item 16 — these Monitor/Hosts reads await the repoint to engram-query.)
+  const ct = res.headers.get('content-type') ?? ''
+  if (!ct.includes('application/json')) {
+    throw new Error('Weaver backend not available on this host — this Monitor/Infrastructure view is served by /weaver (:3100), which isn’t deployed here. Its data lives in engram Postgres and is pending repoint to engram-query.')
+  }
   return res.json() as Promise<T>
 }
 
