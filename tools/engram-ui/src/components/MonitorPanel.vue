@@ -31,6 +31,7 @@
       <q-tab name="status"    icon="mdi-gauge"                label="Status" />
       <q-tab name="queries"   icon="mdi-format-list-bulleted" label="Query Log" />
       <q-tab name="ingestion" icon="mdi-database-import"      label="Ingestion" />
+      <q-tab name="usage"     icon="mdi-chart-timeline-variant" label="Usage" />
     </q-tabs>
 
     <q-tab-panels v-model="monitorTab" animated>
@@ -264,6 +265,63 @@
           </div>
         </div>
       </q-tab-panel>
+
+      <!-- ── Usage (WVR-198 §5.3) — per-entry recall analytics feeding the trust gauge ─ -->
+      <q-tab-panel name="usage" class="q-pa-none">
+        <div v-if="usageLoading && !usage" class="text-center q-pa-xl"><q-spinner size="40px" /></div>
+        <q-banner v-else-if="usageError" dense rounded class="bg-orange-1 text-orange-9 q-mb-md">
+          <template #avatar><q-icon name="mdi-alert-circle-outline" color="orange-9" /></template>
+          Usage analytics unavailable: {{ usageError }}
+          <div class="text-caption q-mt-xs">
+            The <span class="text-mono">/usage</span> endpoint deploys with the next engram-query (king) rebuild.
+          </div>
+          <template #action><q-btn flat dense label="Retry" @click="fetchUsage" /></template>
+        </q-banner>
+        <template v-else-if="usage">
+          <div class="row q-gutter-md q-mb-md">
+            <q-card flat bordered class="col-auto"><q-card-section class="q-pa-md">
+              <div class="text-caption text-grey-7">Queries logged</div>
+              <div class="text-body1 q-mt-xs">{{ usage.total_queries.toLocaleString() }}</div>
+            </q-card-section></q-card>
+            <q-card flat bordered class="col-auto"><q-card-section class="q-pa-md">
+              <div class="text-caption text-grey-7">Total recalls</div>
+              <div class="text-body1 q-mt-xs">{{ usage.total_recalls.toLocaleString() }}</div>
+            </q-card-section></q-card>
+            <q-card flat bordered class="col-auto"><q-card-section class="q-pa-md">
+              <div class="text-caption text-grey-7">Served entries</div>
+              <div class="text-body1 q-mt-xs">{{ usage.served_count.toLocaleString() }}</div>
+            </q-card-section></q-card>
+            <q-card flat bordered class="col-auto"><q-card-section class="q-pa-md">
+              <div class="text-caption text-grey-7">Never recalled</div>
+              <div class="text-body1 q-mt-xs">
+                {{ usage.never_recalled_count.toLocaleString() }}
+                <span class="text-caption text-grey-5">/ {{ usage.served_count }}</span>
+              </div>
+            </q-card-section></q-card>
+          </div>
+
+          <q-banner dense rounded class="bg-blue-1 text-blue-10 q-mb-md">
+            <template #avatar><q-icon name="mdi-information-outline" color="blue-8" /></template>
+            "Never recalled" is a deprecation signal only once the query log matures — with
+            {{ usage.total_queries }} quer{{ usage.total_queries === 1 ? 'y' : 'ies' }} logged so far, read it as coverage, not a verdict.
+          </q-banner>
+
+          <div class="text-overline text-grey-7">Most recalled entries</div>
+          <q-markup-table dense flat bordered>
+            <thead><tr>
+              <th class="text-left">Entry</th><th class="text-right">Recalls</th><th class="text-left">Last recalled</th>
+            </tr></thead>
+            <tbody>
+              <tr v-for="e in usage.top" :key="e.entry_id">
+                <td class="text-mono">{{ e.entry_id }}</td>
+                <td class="text-right">{{ e.recalls }}</td>
+                <td>{{ formatTs(e.last_ts) }}</td>
+              </tr>
+              <tr v-if="usage.top.length === 0"><td colspan="3" class="text-grey-6 text-center">No recalls logged yet.</td></tr>
+            </tbody>
+          </q-markup-table>
+        </template>
+      </q-tab-panel>
     </q-tab-panels>
 
   </div>
@@ -297,6 +355,10 @@ const {
   fetchStatus,
   fetchQueries,
   fetchIngestionHistory,
+  usage,
+  usageLoading,
+  usageError,
+  fetchUsage,
 } = useEngramMonitor()
 
 // 10s auto-refresh for infrastructure while Status tab is active
@@ -336,7 +398,7 @@ const upgradeMethodMeta = [
   { key: 'parallelAtomic',  label: 'Parallel/atomic' },
 ] as const
 
-const monitorTab = ref<'status' | 'queries' | 'ingestion'>('status')
+const monitorTab = ref<'status' | 'queries' | 'ingestion' | 'usage'>('status')
 const refreshing = ref(false)
 
 const toolOptions = computed(() =>
@@ -356,6 +418,7 @@ async function onRefreshAll() {
 watch(monitorTab, (t) => {
   if (t === 'queries' && queries.value.length === 0) void fetchQueries(0)
   if (t === 'ingestion' && runs.value.length === 0) void fetchIngestionHistory(0)
+  if (t === 'usage') void fetchUsage()
   if (t === 'status') startInfraPolling()
   else stopInfraPolling()
 })
