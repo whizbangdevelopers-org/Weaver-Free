@@ -6,7 +6,8 @@
   engram-ui house pattern (no <q-form>). A created entry lands in the Review tab.
 -->
 <template>
-  <div class="q-pa-md" style="height: 100%; overflow-y: auto;">
+  <!-- No height:100%/overflow here — the q-tab-panels .q-panel.scroll wrapper scrolls. -->
+  <div class="q-pa-md">
     <div class="text-subtitle2 q-mb-sm">
       <q-icon name="mdi-text-box-plus-outline" class="q-mr-xs" />Author a knowledge proposal
     </div>

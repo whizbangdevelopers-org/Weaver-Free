@@ -7,7 +7,8 @@
   carried forward to Jacquard. Canonical: plans/cross-version/AUTONOMY-GOVERNANCE-PLAN.md.
 -->
 <template>
-  <div class="q-pa-md" style="height: 100%; overflow-y: auto;">
+  <!-- No height:100%/overflow here — the q-tab-panels .q-panel.scroll wrapper scrolls. -->
+  <div class="q-pa-md">
     <div class="row items-center q-mb-sm">
       <div class="text-subtitle2"><q-icon name="mdi-check-decagram-outline" class="q-mr-xs" />Review queue</div>
       <q-space />

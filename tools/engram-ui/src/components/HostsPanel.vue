@@ -1,7 +1,8 @@
 <!-- Copyright (c) 2026 whizBANG Developers LLC. All rights reserved. -->
 <!-- Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE. -->
 <template>
-  <div class="column q-pa-md" style="height: 100%; overflow: auto">
+  <!-- No height:100%/overflow here — the q-tab-panels .q-panel.scroll wrapper scrolls. -->
+  <div class="column q-pa-md">
 
     <!-- Header -->
     <div class="row items-center q-mb-md">

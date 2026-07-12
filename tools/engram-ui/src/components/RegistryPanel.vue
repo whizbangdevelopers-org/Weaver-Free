@@ -7,7 +7,10 @@
   which is why it lives here at top level rather than inside Monitor or a dataset.
 -->
 <template>
-  <div class="column q-pa-md" style="height: 100%; overflow-y: auto">
+  <!-- No height:100% here — the Quasar .q-panel.scroll wrapper (from q-tab-panels)
+       already owns scrolling. A fixed-height scroll container here + overflow-y:auto
+       (which forces overflow-x:auto) broke the layout in graph view / tall content. -->
+  <div class="column q-pa-md">
     <div class="row items-center q-mb-sm">
       <div class="text-subtitle1 text-weight-medium">
         <q-icon name="mdi-bookshelf" class="q-mr-xs" />

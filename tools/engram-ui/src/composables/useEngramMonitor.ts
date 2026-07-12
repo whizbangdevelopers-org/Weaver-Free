@@ -2,7 +2,16 @@
 // Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE.
 
 import { ref } from 'vue'
-import type { ProcessingStrategy } from './useEngram'
+
+// Localized off the deleted useEngram (Cognee) composable (greenfield rebuild, WVR-198).
+export type ProcessingStrategy = 'embed-only' | 'embed+graph' | 'full-engram'
+
+// Semantic-recall result shape (pgvector /engram-query/search) — replaces useEngram.RecallResult.
+export interface RecallResult {
+  text: string
+  score: number
+  metadata?: Record<string, unknown>
+}
 
 // Response types — mirrors backend/src/routes/engram.ts
 // Auth is handled at the RBAC layer (Weaver Team/Fabrick) on integration.
@@ -32,18 +41,6 @@ export interface EngramStatus {
   queryCountsByTool: EngramToolStat[]
 }
 
-export interface EngramPgvectorStats {
-  chunks: number
-  summaries: number
-  entities: number
-}
-
-export interface EngramStats {
-  totalEntries: number
-  strategy: 'embed-only' | 'embed+graph' | 'full-engram'
-  pgvector: EngramPgvectorStats | null
-}
-
 export interface EngramGraphNode {
   id: string
   title: string
@@ -69,17 +66,6 @@ export interface EngramEntryDomainRow {
   type: string
   scope: string
   count: number
-}
-
-export interface UpgradeQueueEntry {
-  id: number
-  datasetName: string
-  targetStrategy: ProcessingStrategy
-  method: string
-  requiredCapability: Record<string, boolean>
-  queuedAt: number
-  status: 'queued' | 'running' | 'complete' | 'failed'
-  startedAt: number | null
 }
 
 export interface EngramComponentStatus {
@@ -196,9 +182,10 @@ export function useEngramMonitor() {
   const entriesLoading = ref(false)
   const entriesError = ref<string | null>(null)
 
-  const engramStats = ref<EngramStats | null>(null)
-  const statsLoading = ref(false)
-  const statsError = ref<string | null>(null)
+  // Semantic recall over the served pgvector store (replaces the deleted useEngram.recall).
+  const results = ref<RecallResult[]>([])
+  const recallLoading = ref(false)
+  const recallError = ref<string | null>(null)
 
   const graphData = ref<EngramGraphData | null>(null)
   const graphLoading = ref(false)
@@ -208,11 +195,18 @@ export function useEngramMonitor() {
   const infraLoading = ref(false)
   const infraError = ref<string | null>(null)
 
-  const upgradeQueue = ref<UpgradeQueueEntry[]>([])
-  const queueLoading = ref(false)
-
-  const strategies = ref<Record<string, ProcessingStrategy>>({})
-  const strategiesLoading = ref(false)
+  // Governance-console health — is engram-query reachable? (replaces the Cognee
+  // sidecar status check the old shell owned.)
+  const health = ref<'checking' | 'available' | 'unavailable'>('checking')
+  async function checkHealth() {
+    health.value = 'checking'
+    try {
+      const res = await fetch('/engram-query/entries')
+      health.value = res.ok ? 'available' : 'unavailable'
+    } catch {
+      health.value = 'unavailable'
+    }
+  }
 
   async function fetchStatus() {
     statusLoading.value = true
@@ -280,19 +274,6 @@ export function useEngramMonitor() {
     }
   }
 
-  async function fetchStats(dataset?: string) {
-    statsLoading.value = true
-    statsError.value = null
-    try {
-      const params = dataset ? `?dataset=${encodeURIComponent(dataset)}` : ''
-      engramStats.value = await weaverFetch<EngramStats>(`/weaver/api/engram/stats${params}`)
-    } catch (err) {
-      statsError.value = err instanceof Error ? err.message : 'Failed to load stats'
-    } finally {
-      statsLoading.value = false
-    }
-  }
-
   async function fetchGraphData() {
     graphLoading.value = true
     graphError.value = null
@@ -304,16 +285,6 @@ export function useEngramMonitor() {
       graphError.value = err instanceof Error ? err.message : 'Failed to load graph data'
     } finally {
       graphLoading.value = false
-    }
-  }
-
-  async function fetchQueue() {
-    queueLoading.value = true
-    try {
-      const data = await weaverFetch<{ queue: UpgradeQueueEntry[] }>('/weaver/api/engram/queue')
-      upgradeQueue.value = data.queue
-    } catch { /* non-critical — leave stale */ } finally {
-      queueLoading.value = false
     }
   }
 
@@ -329,6 +300,29 @@ export function useEngramMonitor() {
     }
   }
 
+  // Knowledge search — semantic recall over engram_chunks via the engram-query FastAPI.
+  async function searchKnowledge(query: string): Promise<void> {
+    recallLoading.value = true
+    recallError.value = null
+    results.value = []
+    try {
+      const res = await fetch(`/engram-query/search?q=${encodeURIComponent(query)}&limit=50`)
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const data = await res.json() as {
+        results: Array<{ project: string; entry_id: string; chunk_type: string; content: string; score: number; metadata?: Record<string, unknown> }>
+      }
+      results.value = (data.results ?? []).map((r) => ({
+        text: r.content,
+        score: r.score,
+        metadata: { project: r.project, entry_id: r.entry_id, chunk_type: r.chunk_type, ...r.metadata },
+      }))
+    } catch (err) {
+      recallError.value = err instanceof Error ? err.message : 'Search failed'
+    } finally {
+      recallLoading.value = false
+    }
+  }
+
   async function viewEntries(domain: string, type?: string, scope?: string, project?: string): Promise<{ entryCount: number; content: string | null; note?: string }> {
     const res = await fetch('/engram-query/view', {
       method: 'POST',
@@ -339,35 +333,8 @@ export function useEngramMonitor() {
     return res.json()
   }
 
-  async function fetchStrategies() {
-    strategiesLoading.value = true
-    try {
-      strategies.value = await weaverFetch<Record<string, ProcessingStrategy>>('/weaver/api/engram/strategies')
-    } catch { /* non-critical — leave stale */ } finally {
-      strategiesLoading.value = false
-    }
-  }
-
-  async function createDatasetConfig(name: string, strategy: ProcessingStrategy): Promise<void> {
-    await weaverFetch(`/weaver/api/engram/datasets/${encodeURIComponent(name)}/config`, {
-      method: 'PUT',
-      body: JSON.stringify({ strategy }),
-    })
-  }
-
-  async function enqueueDatasetUpgrade(
-    name: string,
-    targetStrategy: ProcessingStrategy,
-    method: string,
-  ): Promise<UpgradeQueueEntry> {
-    return weaverFetch<UpgradeQueueEntry>(`/weaver/api/engram/datasets/${encodeURIComponent(name)}/upgrade`, {
-      method: 'POST',
-      body: JSON.stringify({ target_strategy: targetStrategy, method }),
-    })
-  }
-
   async function loadAll() {
-    await Promise.all([fetchStatus(), fetchQueries(0), fetchIngestionHistory(0), fetchEntries(), fetchStats(), fetchGraphData()])
+    await Promise.all([fetchStatus(), fetchQueries(0), fetchIngestionHistory(0), fetchEntries(), fetchGraphData()])
   }
 
   // ── Host inventory ────────────────────────────────────────────────────────
@@ -439,10 +406,6 @@ export function useEngramMonitor() {
     entriesTotal,
     entriesLoading,
     entriesError,
-    engramStats,
-    statsLoading,
-    statsError,
-    fetchStats,
     graphData,
     graphLoading,
     graphError,
@@ -451,15 +414,13 @@ export function useEngramMonitor() {
     infraLoading,
     infraError,
     fetchInfrastructure,
-    upgradeQueue,
-    queueLoading,
-    fetchQueue,
-    strategies,
-    strategiesLoading,
-    fetchStrategies,
-    createDatasetConfig,
-    enqueueDatasetUpgrade,
     viewEntries,
+    results,
+    recallLoading,
+    recallError,
+    searchKnowledge,
+    health,
+    checkHealth,
     loadAll,
     hosts,
     hostsLoading,
