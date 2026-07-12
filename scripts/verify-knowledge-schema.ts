@@ -17,7 +17,7 @@
  *   - id matches the marker ID
  *   - type is "lesson" or "gotcha"
  *   - domain is one of the valid domains
- *   - status is one of: active, graduated, deprecated, historical
+ *   - status is one of: active, superseded, retired (WVR-191)
  *   - tags and related are array-shaped values
  *   - ID format matches: [LG]-{domain}-YYYY-MM-DD-NNN
  *
@@ -164,11 +164,6 @@ function auditFile(filePath: string): Violation[] {
     }
     if (fm['related'] !== undefined && !looksLikeArray(fm['related'])) {
       flag(`related must be array-shaped (e.g. [] or [id1, id2]); got: ${fm['related']}`)
-    }
-
-    // graduated_to must be set when status=graduated
-    if (fm['status'] === 'graduated' && !fm['graduated_to']) {
-      flag('status is "graduated" but graduated_to is empty — add the destination path')
     }
 
     // scope is required (see REQUIRED_FIELDS) and must be one of VALID_SCOPES
