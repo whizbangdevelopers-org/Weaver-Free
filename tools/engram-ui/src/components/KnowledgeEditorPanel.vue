@@ -41,26 +41,90 @@
     <div class="row items-center q-mt-md">
       <q-btn color="primary" icon="mdi-send" label="Submit proposal"
              :disable="!canSubmit || busy" :loading="busy" data-testid="ke-submit" @click="onSubmit" />
+      <q-btn flat color="primary" icon="mdi-robot-outline" label="Consult" class="q-ml-sm"
+             :loading="consultLoading" :disable="!body.trim()" data-testid="ke-consult" @click="onConsult" />
       <q-space />
       <span v-if="!getWriteToken()" class="text-caption text-negative">
         <q-icon name="mdi-key-alert" /> Set a write token in Settings first
       </span>
     </div>
+
+    <!-- AI consult (WVR-198 §5.1) — advisory, non-blocking: feedback only, submit anyway. -->
+    <q-card v-if="consultRan" flat bordered class="q-mt-md" data-testid="ke-consult-result">
+      <q-card-section class="q-pb-none">
+        <div class="text-caption text-grey-7">
+          <q-icon name="mdi-robot-outline" size="14px" class="q-mr-xxs" />
+          Advisory consult — feedback only. You decide; you can submit anyway.
+        </div>
+      </q-card-section>
+
+      <!-- Similar entries — semantic recall over the served store -->
+      <q-card-section class="q-pb-sm">
+        <div class="text-overline text-grey-7">Similar entries</div>
+        <q-banner v-if="consultError" dense class="bg-orange-1 text-orange-9 q-my-xs">
+          <template #avatar><q-icon name="mdi-alert-circle-outline" color="orange-9" /></template>
+          Duplicate check unavailable: {{ consultError }}
+        </q-banner>
+        <div v-else-if="dups.length === 0" class="text-caption text-positive">
+          <q-icon name="mdi-check" /> No close matches — safe to add as a new entry.
+        </div>
+        <div v-for="d in dups" :key="d.entry_id" class="row items-start q-py-xs no-wrap">
+          <q-badge :color="d.supersedeCandidate ? 'deep-orange' : 'blue-grey'" class="q-mr-sm q-mt-xxs">
+            {{ (d.score * 100).toFixed(0) }}%
+          </q-badge>
+          <div class="col">
+            <div class="text-caption text-weight-medium">
+              {{ d.entry_id }} <span class="text-grey-5">· {{ d.project }}</span>
+              <span v-if="d.supersedeCandidate" class="text-deep-orange text-weight-bold"> · supersede instead of add?</span>
+            </div>
+            <div class="text-caption text-grey-7 consult-snippet">{{ d.snippet }}</div>
+          </div>
+        </div>
+      </q-card-section>
+
+      <q-separator />
+
+      <!-- Quality checks — deterministic lint of the authoring conventions -->
+      <q-card-section class="q-pt-sm">
+        <div class="text-overline text-grey-7">Quality checks</div>
+        <div v-for="(q, i) in quality" :key="i" class="row items-start q-py-xs no-wrap text-caption">
+          <q-icon :name="SEV_ICON[q.severity]" :color="SEV_COLOR[q.severity]" size="16px" class="q-mr-xs q-mt-xxs" />
+          <div class="col">{{ q.message }}</div>
+        </div>
+        <div class="text-caption text-grey-5 q-mt-xs">
+          <q-icon name="mdi-flask-outline" size="13px" /> LLM metadata suggestions (domain/scope/tags from the body) arrive with foundry inference.
+        </div>
+      </q-card-section>
+    </q-card>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useQuasar } from 'quasar'
 import {
   useKnowledgeEditor, getWriteToken,
   TYPES, DOMAINS, SCOPES, LAYERS,
   entryRefRule, domainRule, domainMatchRule, bodyRule, actorRule, proposalValid,
 } from '../composables/useKnowledgeEditor'
+import { useConsult, type ConsultSeverity } from '../composables/useConsult'
 
 const emit = defineEmits<{ created: [] }>()
 const $q = useQuasar()
 const { createEntry } = useKnowledgeEditor()
+
+// AI-consult (WVR-198 §5.1) — advisory, non-blocking.
+const { dups, quality, loading: consultLoading, error: consultError, ran: consultRan, runConsult, reset: resetConsult } = useConsult()
+
+function onConsult() {
+  void runConsult({
+    type: type.value, scope: scope.value, domain: domain.value,
+    entry_ref: entryRef.value, title: title.value, body: body.value, tags: tags.value,
+  })
+}
+
+const SEV_ICON: Record<ConsultSeverity, string> = { warn: 'mdi-alert', suggest: 'mdi-lightbulb-outline', ok: 'mdi-check-circle' }
+const SEV_COLOR: Record<ConsultSeverity, string> = { warn: 'deep-orange', suggest: 'blue-7', ok: 'positive' }
 
 const ACTOR_KEY = 'engram_actor'
 const actor = ref<string>((() => { try { return localStorage.getItem(ACTOR_KEY) ?? '' } catch { return '' } })())
@@ -76,6 +140,11 @@ const language = ref<string[]>([])
 const project = ref('')
 const sinceVersion = ref('')
 const busy = ref(false)
+
+// A consult reflects the draft at consult-time — invalidate it once the author edits any
+// consult-relevant field, so stale advice never lingers next to changed content. (Declared
+// after the watched refs to avoid a TDZ on the immediate array eval.)
+watch([body, title, type, domain, scope, entryRef], () => { if (consultRan.value) resetConsult() })
 
 const canSubmit = computed(() => proposalValid({
   entry_ref: entryRef.value, domain: domain.value, body: body.value, actor: actor.value,
@@ -99,6 +168,7 @@ async function onSubmit() {
     // reset (keep actor)
     entryRef.value = ''; title.value = ''; body.value = ''
     tags.value = []; language.value = []; project.value = ''; sinceVersion.value = ''
+    resetConsult()
     emit('created')
   } catch (e) {
     $q.notify({ type: 'negative', message: e instanceof Error ? e.message : 'Create failed', timeout: 4000 })
@@ -107,3 +177,11 @@ async function onSubmit() {
   }
 }
 </script>
+
+<style scoped>
+.consult-snippet {
+  white-space: pre-wrap;
+  word-break: break-word;
+  opacity: 0.85;
+}
+</style>
