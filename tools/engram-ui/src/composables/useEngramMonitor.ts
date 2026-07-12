@@ -13,6 +13,20 @@ export interface RecallResult {
   metadata?: Record<string, unknown>
 }
 
+// Per-entry recall analytics (WVR-198 §5.3) — mirrors engram-query GET /usage.
+export interface EngramUsageEntry {
+  entry_id: string
+  recalls: number
+  last_ts: number
+}
+export interface EngramUsage {
+  total_queries: number
+  total_recalls: number
+  served_count: number
+  never_recalled_count: number
+  top: EngramUsageEntry[]
+}
+
 // Response types — mirrors backend/src/routes/engram.ts
 // Auth is handled at the RBAC layer (Weaver Team/Fabrick) on integration.
 
@@ -194,6 +208,25 @@ export function useEngramMonitor() {
   const infrastructure = ref<EngramInfrastructure | null>(null)
   const infraLoading = ref(false)
   const infraError = ref<string | null>(null)
+
+  // Per-entry recall analytics (WVR-198 §5.3) — served by engram-query /usage.
+  const usage = ref<EngramUsage | null>(null)
+  const usageLoading = ref(false)
+  const usageError = ref<string | null>(null)
+  async function fetchUsage() {
+    usageLoading.value = true
+    usageError.value = null
+    try {
+      const res = await fetch('/engram-query/usage')
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      usage.value = await res.json() as EngramUsage
+    } catch (err) {
+      usageError.value = err instanceof Error ? err.message : 'Failed to load usage'
+      usage.value = null
+    } finally {
+      usageLoading.value = false
+    }
+  }
 
   // Governance-console health — is engram-query reachable? (replaces the Cognee
   // sidecar status check the old shell owned.)
@@ -419,6 +452,10 @@ export function useEngramMonitor() {
     recallLoading,
     recallError,
     searchKnowledge,
+    usage,
+    usageLoading,
+    usageError,
+    fetchUsage,
     health,
     checkHealth,
     loadAll,
