@@ -18,6 +18,14 @@
       <q-btn flat dense round icon="mdi-refresh" class="q-ml-sm" :loading="loading" @click="load" />
     </div>
 
+    <!-- Quarantine model (WVR-198 §5.2) -->
+    <q-banner dense rounded class="bg-blue-1 text-blue-10 q-mb-sm">
+      <template #avatar><q-icon name="mdi-shield-alert-outline" color="blue-8" /></template>
+      Proposals here are <strong>quarantined</strong> — held out of the served store (recall &amp;
+      committed markdown) until promoted. <strong>Approve</strong> promotes to served;
+      <strong>Reject</strong> retires. Git-approved (llgd) entries are already served.
+    </q-banner>
+
     <q-banner v-if="!actor.trim()" dense rounded class="bg-grey-2 text-grey-8 q-mb-sm">
       <template #avatar><q-icon name="mdi-account-alert" color="orange" /></template>
       Enter your name in <strong>Reviewer (you)</strong> to enable Approve / Reject — every
@@ -50,7 +58,9 @@
                pre-approved by git review and is not actioned here. -->
           <q-btn v-if="isProposal(props.row)"
                  flat dense color="positive" icon="mdi-check" label="Approve"
-                 :disable="!actor.trim()" @click="onApprove(props.row)" />
+                 :disable="!actor.trim()" @click="onApprove(props.row)">
+            <q-tooltip>Promote → served store (becomes recall-visible)</q-tooltip>
+          </q-btn>
           <q-btn v-if="isProposal(props.row)"
                  flat dense color="negative" icon="mdi-close" label="Reject"
                  :disable="!actor.trim()" @click="onRejectClick(props.row)" />
@@ -120,6 +130,40 @@
           </div>
           <div v-if="viewEntry.title" class="text-subtitle1 q-mb-xs">{{ viewEntry.title }}</div>
           <pre class="ke-body">{{ viewEntry.body }}</pre>
+
+          <!-- Moderation consult (WVR-198 §5.2 · reuses §5.1) — advisory dup + quality,
+               auto-run for proposals so the reviewer sees it before promoting. -->
+          <template v-if="consultRan || consultLoading">
+            <q-separator class="q-my-md" />
+            <div class="text-overline text-grey-7">
+              <q-icon name="mdi-robot-outline" size="14px" /> Moderation consult
+              <q-spinner v-if="consultLoading" size="14px" color="primary" class="q-ml-xs" />
+            </div>
+
+            <div class="text-caption text-weight-medium q-mt-xs">Similar served entries</div>
+            <q-banner v-if="consultError" dense class="bg-orange-1 text-orange-9 q-my-xs">
+              Duplicate check unavailable: {{ consultError }}
+            </q-banner>
+            <div v-else-if="!consultLoading && dups.length === 0" class="text-caption text-positive">
+              <q-icon name="mdi-check" /> No close matches in the served store.
+            </div>
+            <div v-for="d in dups" :key="d.entry_id" class="row items-start q-py-xxs no-wrap">
+              <q-badge :color="d.supersedeCandidate ? 'deep-orange' : 'blue-grey'" class="q-mr-sm q-mt-xxs">
+                {{ (d.score * 100).toFixed(0) }}%
+              </q-badge>
+              <div class="col text-caption">
+                <span class="text-weight-medium text-mono">{{ d.entry_id }}</span>
+                <span class="text-grey-5"> · {{ d.project }}</span>
+                <span v-if="d.supersedeCandidate" class="text-deep-orange text-weight-bold"> · likely duplicate — supersede?</span>
+              </div>
+            </div>
+
+            <div class="text-caption text-weight-medium q-mt-sm">Quality</div>
+            <div v-for="(q, i) in quality" :key="i" class="row items-start q-py-xxs no-wrap text-caption">
+              <q-icon :name="SEV_ICON[q.severity]" :color="SEV_COLOR[q.severity]" size="15px" class="q-mr-xs q-mt-xxs" />
+              <div class="col">{{ q.message }}</div>
+            </div>
+          </template>
         </q-card-section>
         <q-card-actions align="right" v-if="viewEntry && isProposal(viewEntry as unknown as EntryRow)">
           <q-btn flat color="negative" icon="mdi-close" label="Reject"
@@ -133,12 +177,19 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import { useQuasar, type QTableColumn } from 'quasar'
 import { useKnowledgeEditor, rejectReasonValid, type EntryRow } from '../composables/useKnowledgeEditor'
+import { useConsult, type ConsultSeverity } from '../composables/useConsult'
 
 const $q = useQuasar()
 const { entries: rows, events, gaugeRows, loading, listEntries, getEntry, getEvents, getGauge, approveEntry, rejectEntry } = useKnowledgeEditor()
+
+// AI-moderation (WVR-198 §5.2) — reuse the §5.1 consult so a reviewer sees the dup/quality
+// feedback before promoting a quarantined proposal into the served store.
+const { dups, quality, loading: consultLoading, error: consultError, ran: consultRan, runConsult, reset: resetConsult } = useConsult()
+const SEV_ICON: Record<ConsultSeverity, string> = { warn: 'mdi-alert', suggest: 'mdi-lightbulb-outline', ok: 'mdi-check-circle' }
+const SEV_COLOR: Record<ConsultSeverity, string> = { warn: 'deep-orange', suggest: 'blue-7', ok: 'positive' }
 
 const ACTOR_KEY = 'engram_actor'
 const actor = ref<string>((() => { try { return localStorage.getItem(ACTOR_KEY) ?? '' } catch { return '' } })())
@@ -155,10 +206,25 @@ function isProposal(row: EntryRow): boolean {
 
 const viewEntry = ref<Record<string, unknown> | null>(null)
 const viewOpen = ref(false)
+
+// Drop stale moderation feedback when the view dialog closes.
+watch(viewOpen, (open) => { if (!open) resetConsult() })
+
 async function onView(row: EntryRow) {
+  resetConsult()
   try {
     viewEntry.value = await getEntry(row.id)
     viewOpen.value = true
+    // Auto-run the moderation consult for actionable proposals so the reviewer sees
+    // dup/quality feedback alongside the body before deciding whether to promote.
+    if (isProposal(viewEntry.value as unknown as EntryRow)) {
+      const e = viewEntry.value
+      void runConsult({
+        type: String(e.type ?? ''), scope: String(e.scope ?? ''), domain: String(e.domain ?? ''),
+        entry_ref: String(e.entry_ref ?? ''), title: String(e.title ?? ''),
+        body: String(e.body ?? ''), tags: Array.isArray(e.tags) ? (e.tags as string[]) : [],
+      })
+    }
   } catch (e) {
     $q.notify({ type: 'negative', message: e instanceof Error ? e.message : 'Load failed', timeout: 3000 })
   }
