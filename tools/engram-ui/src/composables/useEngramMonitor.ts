@@ -253,7 +253,7 @@ export function useEngramMonitor() {
     statusLoading.value = true
     statusError.value = null
     try {
-      status.value = await weaverFetch<EngramStatus>('/weaver/api/engram/status')
+      status.value = await weaverFetch<EngramStatus>('/engram-query/status')
     } catch (err) {
       statusError.value = err instanceof Error ? err.message : 'Failed to load status'
     } finally {
@@ -269,7 +269,7 @@ export function useEngramMonitor() {
       const params = new URLSearchParams({ limit: String(LIMIT), offset: String(offset) })
       if (queryToolFilter.value) params.set('tool', queryToolFilter.value)
       const data = await weaverFetch<{ queries: EngramQueryRow[]; total: number }>(
-        `/weaver/api/engram/queries?${params}`,
+        `/engram-query/queries?${params}`,
       )
       queries.value = data.queries
       queriesTotal.value = data.total
@@ -288,7 +288,7 @@ export function useEngramMonitor() {
       const params = new URLSearchParams({ limit: String(LIMIT), offset: String(offset) })
       if (strategy) params.set('strategy', strategy)
       const data = await weaverFetch<{ runs: EngramIngestionRow[]; total: number }>(
-        `/weaver/api/engram/ingestion-history?${params}`,
+        `/engram-query/ingestion?${params}`,
       )
       runs.value = data.runs
       runsTotal.value = data.total
@@ -333,7 +333,7 @@ export function useEngramMonitor() {
     infraLoading.value = true
     infraError.value = null
     try {
-      infrastructure.value = await weaverFetch<EngramInfrastructure>('/weaver/api/engram/infrastructure')
+      infrastructure.value = await weaverFetch<EngramInfrastructure>('/engram-query/infrastructure')
     } catch (err) {
       infraError.value = err instanceof Error ? err.message : 'Failed to probe infrastructure'
     } finally {
@@ -387,7 +387,7 @@ export function useEngramMonitor() {
     hostsLoading.value = true
     hostsError.value   = null
     try {
-      const data = await weaverFetch<{ hosts: HostRecord[] }>('/weaver/api/engram/hosts')
+      const data = await weaverFetch<{ hosts: HostRecord[] }>('/engram-query/hosts')
       hosts.value = data.hosts
     } catch (e) {
       hostsError.value = e instanceof Error ? e.message : 'Failed to load hosts'
@@ -396,6 +396,10 @@ export function useEngramMonitor() {
     }
   }
 
+  // Host-admin WRITES (create/update/delete/sync) still target the weaver backend (/weaver/*);
+  // they need a bearer-gated write path + inventory access, deferred to the bedrock migration.
+  // On a host without :3100 they fail with weaverFetch's honest "backend not available" message.
+  // Reads (fetchHosts + Monitor status/queries/ingestion/infrastructure) are live via engram-query.
   async function createHost(input: HostInput): Promise<HostRecord> {
     const data = await weaverFetch<{ host: HostRecord }>('/weaver/api/engram/hosts', {
       method: 'POST',
