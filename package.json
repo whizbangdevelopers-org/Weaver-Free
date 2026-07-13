@@ -113,7 +113,7 @@
     "audit:knowledge-universal-neutral": "npx tsx scripts/verify-knowledge-universal-neutral.ts",
     "audit:knowledge-index-fresh": "npx tsx scripts/verify-knowledge-index-fresh.ts",
     "audit:knowledge-ids-unique": "npx tsx scripts/verify-knowledge-ids-unique.ts",
-    "audit:engram-sync": "npx tsx scripts/verify-engram-sync.ts",
+    "audit:engram-sync": "./scripts/with-engram-env.sh npx tsx scripts/verify-engram-sync.ts",
     "generate:knowledge-index": "npx tsx scripts/generate-knowledge-index.ts",
     "audit:marker-sync": "npx tsx scripts/verify-marker-sync.ts",
     "sync:markers": "npx tsx scripts/sync-markers.ts",
