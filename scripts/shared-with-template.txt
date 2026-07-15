@@ -1,0 +1,36 @@
+# Files that MUST be byte-identical across quasar-project-template and every project descended
+# from it. Checked deterministically by audit-template-divergence.ts (audit:template-divergence),
+# which runs in each project's compliance chain and WARNS when a listed file has forked.
+#
+# WHY THIS EXISTS
+#
+# The template and its flagship product (Weaver) forked on scripts/audit-sast.ts and nobody
+# caught it: the template was fixed, Weaver kept the broken copy, and the only sync tooling was
+# a sonnet agent someone had to remember to run before a release, whose content check read "the
+# first 20 lines". A fork deep in a rules array is invisible to that. This is the deterministic
+# backstop that a human does not have to remember: it runs every push.
+#
+# WHY THE LIST IS SHORT, AND MUST STAY SHORT
+#
+# A file belongs here ONLY if it is genuinely meant to be the SAME everywhere — a shared guard
+# or a shared contract — NOT a script projects legitimately extend. audit-sast.ts is the
+# cautionary case: Weaver correctly adds 9 product-specific security rules to it, so byte-
+# identity is the wrong invariant for the script itself. What must not fork is the CONTRACT its
+# secret rules are held to — the corpus below. Pin the contract, not the implementation, and
+# each project's own self-test keeps its (extended) rules honest against the shared spec.
+#
+# Divergence WARNS, never fails: which side is authoritative (template moved, or project has a
+# fix to promote) is a human call, and a hard fail would break a project's CI every time the
+# template advanced. The warning makes the fork loud; a human reconciles it.
+#
+# Paths are relative to the repository root. Lines starting with # and blank lines are ignored.
+
+# The secret-detection CONTRACT. If this forks, one project's SAST proves its secret rules
+# against a different spec than the rest of the portfolio — the guarantee silently differs.
+code/scripts/fixtures/sast-secret-corpus.txt
+
+# This auditor and its manifest — self-checking. If the divergence machinery itself forks, the
+# turtles-all-the-way-down failure (a broken checker reporting green) is exactly what goes
+# uncaught. So the checker checks itself.
+code/scripts/audit-template-divergence.ts
+code/scripts/shared-with-template.txt
