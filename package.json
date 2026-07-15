@@ -165,7 +165,8 @@
     "e2e:live:free": "./scripts/with-lock.sh e2e ./scripts/nix-fresh-test.sh --tier free",
     "e2e:live:skip-build": "./scripts/with-lock.sh e2e ./scripts/nix-fresh-test.sh --skip-build",
     "browser:up": "docker compose -f testing/e2e-docker/docker-compose.yml --profile browser up -d",
-    "browser:down": "docker compose -f testing/e2e-docker/docker-compose.yml --profile browser down"
+    "browser:down": "docker compose -f testing/e2e-docker/docker-compose.yml --profile browser down",
+    "audit:hooks": "bash .claude/hooks/block-dangerous.sh --self-test"
   },
   "dependencies": {
     "@quasar/extras": "^1.16.9",
