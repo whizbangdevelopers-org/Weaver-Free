@@ -36,19 +36,19 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
-          cache-dependency-path: code/package-lock.json
+          cache-dependency-path: ${{ github.repository == 'whizbangdevelopers-org/Weaver-Dev' && 'code/package-lock.json' || 'package-lock.json' }}
 
       - name: Install dependencies
-        working-directory: code
+        working-directory: ${{ github.repository == 'whizbangdevelopers-org/Weaver-Dev' && 'code' || '.' }}
         run: npm ci
 
       - name: Run npm audit
-        working-directory: code
+        working-directory: ${{ github.repository == 'whizbangdevelopers-org/Weaver-Dev' && 'code' || '.' }}
         run: npm audit --audit-level=high
         continue-on-error: true
 
       - name: Generate audit report
-        working-directory: code
+        working-directory: ${{ github.repository == 'whizbangdevelopers-org/Weaver-Dev' && 'code' || '.' }}
         run: |
           echo "## Security Audit Report" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -59,7 +59,7 @@ jobs:
           echo '```' >> $GITHUB_STEP_SUMMARY
 
       - name: Check for critical vulnerabilities
-        working-directory: code
+        working-directory: ${{ github.repository == 'whizbangdevelopers-org/Weaver-Dev' && 'code' || '.' }}
         run: |
           # Fail only on critical vulnerabilities
           CRITICAL=$(npm audit --json 2>/dev/null | jq '.metadata.vulnerabilities.critical // 0')
@@ -70,7 +70,7 @@ jobs:
           echo "No critical vulnerabilities found"
 
       - name: Check production audit (--omit=dev)
-        working-directory: code
+        working-directory: ${{ github.repository == 'whizbangdevelopers-org/Weaver-Dev' && 'code' || '.' }}
         run: |
           echo "## Production Audit (--omit=dev)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY

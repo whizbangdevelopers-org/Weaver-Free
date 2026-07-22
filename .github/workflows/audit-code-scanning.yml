@@ -38,16 +38,19 @@ jobs:
         with:
           node-version: '24'
           cache: 'npm'
-          cache-dependency-path: code/package-lock.json
+          cache-dependency-path: ${{ github.repository == 'whizbangdevelopers-org/Weaver-Dev' && 'code/package-lock.json' || 'package-lock.json' }}
 
       - name: Install dependencies
-        working-directory: code
+        working-directory: ${{ github.repository == 'whizbangdevelopers-org/Weaver-Dev' && 'code' || '.' }}
         run: npm ci --ignore-scripts
 
+      # Dev reads Weaver-Free's alerts cross-repo, which GITHUB_TOKEN cannot do — hence the PAT.
+      # On Free the audit reads its OWN alerts, so github.token (security-events: read, declared
+      # above) suffices and no credential need exist on the public repo.
       - name: Run code scanning audit
-        working-directory: code
+        working-directory: ${{ github.repository == 'whizbangdevelopers-org/Weaver-Dev' && 'code' || '.' }}
         env:
-          GH_TOKEN: ${{ secrets.WEAVER_FREE_CODEQL_READ }}
+          GH_TOKEN: ${{ secrets.WEAVER_FREE_CODEQL_READ || github.token }}
         run: |
           npx tsx scripts/audit-code-scanning.ts 2>&1 | tee /tmp/audit-output.txt
           echo "AUDIT_EXIT=${PIPESTATUS[0]}" >> $GITHUB_ENV
