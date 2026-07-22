@@ -147,6 +147,16 @@ function ghFetchAlerts(): Alert[] {
 // Main
 // ---------------------------------------------------------------------------
 
+/**
+ * Exit codes are load-bearing — the workflow reports on them, and conflating these two
+ * turned a permissions error into "Production security findings detected" for as long as
+ * this audit existed (it had never run to completion until 2026-07-22).
+ *   0 — clean
+ *   1 — genuine production security findings
+ *   2 — the audit COULD NOT RUN (not authenticated, fetch failed). Not a finding.
+ */
+const EXIT_CANNOT_RUN = 2
+
 async function main(): Promise<void> {
   const startMs = Date.now()
 
@@ -158,7 +168,7 @@ async function main(): Promise<void> {
     execSync('gh auth status', { stdio: 'pipe' })
   } catch {
     console.error(`\n${C.red}gh CLI not authenticated. Run: gh auth login${C.reset}`)
-    process.exit(1)
+    process.exit(EXIT_CANNOT_RUN)
   }
 
   // Fetch alerts
@@ -167,7 +177,10 @@ async function main(): Promise<void> {
     alerts = ghFetchAlerts()
   } catch (e: unknown) {
     console.error(`\n${C.red}Failed to fetch alerts from GitHub:${C.reset}`, (e as Error).message ?? e)
-    process.exit(1)
+    console.error(`${C.dim}This is an ACCESS failure, not a security finding. A 403 "Resource not accessible`)
+    console.error(`${C.dim}by integration" means GITHUB_TOKEN was used for a cross-repo query — it cannot`)
+    console.error(`${C.dim}reach another repository. Use the WEAVER_FREE_CODEQL_READ PAT instead.${C.reset}`)
+    process.exit(EXIT_CANNOT_RUN)
   }
 
   const dismissed = loadDismissed()

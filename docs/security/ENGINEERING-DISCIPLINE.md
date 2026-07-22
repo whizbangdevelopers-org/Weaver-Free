@@ -4,9 +4,9 @@
 
 **How Weaver's internal CI compares to Enterprise-grade CI practices.**
 
-Weaver ships with engineering discipline you can verify, not just claim. Every commit passes <!-- auditor-count:begin -->63<!-- auditor-count:end --> static auditors. Every release passes a pre-flight simulation of downstream build contexts. Every public artifact carries provenance you can audit.
+Weaver ships with engineering discipline you can verify, not just claim. Every commit passes <!-- auditor-count:begin -->64<!-- auditor-count:end --> static auditors. Every release passes a pre-flight simulation of downstream build contexts. Every public artifact carries provenance you can audit.
 
-This page describes the *coverage shape* of our CI. The exact list of auditors is kept machine-readable in [`package.json`](../../package.json) (`test:compliance` chain) — readers who want to verify the inventory can do so there. This page communicates what the coverage protects against, not the script-by-script plumbing.
+This page describes the *coverage shape* of our CI. The exact list of auditors is kept machine-readable in [`package.json`](https://github.com/whizbangdevelopers-org/Weaver-Free/blob/main/package.json) (`test:compliance` chain) — readers who want to verify the inventory can do so there. This page communicates what the coverage protects against, not the script-by-script plumbing.
 
 ---
 
@@ -14,7 +14,7 @@ This page describes the *coverage shape* of our CI. The exact list of auditors i
 
 | Practice | Enterprise-CI norm (industry baseline) | Weaver internal CI |
 |---|---|---|
-| Static analyzers per push | 1–2 generic tools (ESLint, tsc) | **<!-- auditor-count:begin -->63<!-- auditor-count:end -->** domain-specific auditors across 4 coverage categories |
+| Static analyzers per push | 1–2 generic tools (ESLint, tsc) | **<!-- auditor-count:begin -->64<!-- auditor-count:end -->** domain-specific auditors across 4 coverage categories |
 | Release-build pre-flight | None (release failures surface in user reports) | **Simulated downstream build contexts** before tag push |
 | Compliance framework mapping | Maintained manually, drifts between releases | **Single-source data + generator + parity auditor** across <!-- vertical-count:begin -->14<!-- vertical-count:end --> verticals |
 | Supply-chain pinning | Latest major tags (`@v4`) | **All GitHub Actions SHA-pinned**, verified on every push |
@@ -35,7 +35,7 @@ The industry baseline numbers come from the Google Research *Accelerate* enginee
 
 ## Coverage categories
 
-Every push exercises the full set — failure anywhere blocks the merge. The <!-- auditor-count:begin -->63<!-- auditor-count:end --> auditors group into four coverage categories:
+Every push exercises the full set — failure anywhere blocks the merge. The <!-- auditor-count:begin -->64<!-- auditor-count:end --> auditors group into four coverage categories:
 
 ### Source-code discipline
 
@@ -55,7 +55,7 @@ Docs claims are cross-checked against code: feature rosters match shipped code, 
 
 ### Parity with reality
 
-Each category's coverage claim above is verified by a machine check. The `audit:doc-parity` auditor cross-references every numeric claim on this page (auditor count, vertical count, CII project ID, etc.) against code state. The `audit:engineering-discipline-parity` auditor (this page's own checker) ensures internal consistency — every occurrence of the auditor count throughout this document agrees, and matches the actual `test:compliance` chain in [`package.json`](../../package.json).
+Each category's coverage claim above is verified by a machine check. The `audit:doc-parity` auditor cross-references every numeric claim on this page (auditor count, vertical count, CII project ID, etc.) against code state. The `audit:engineering-discipline-parity` auditor (this page's own checker) ensures internal consistency — every occurrence of the auditor count throughout this document agrees, and matches the actual `test:compliance` chain in [`package.json`](https://github.com/whizbangdevelopers-org/Weaver-Free/blob/main/package.json).
 
 ---
 
@@ -146,7 +146,7 @@ Why this earns the next rating notch: load testing closes the performance-regres
 
 ## What this page is and isn't
 
-**Is:** a statement of our engineering practices with specific, enumerable checks. Every claim here corresponds to an auditor or workflow that runs in public CI. You can verify each one in [github.com/whizbangdevelopers-org/Weaver-Free/actions](https://github.com/whizbangdevelopers-org/Weaver-Free/actions) or by inspecting the `test:compliance` chain in [package.json](../../package.json).
+**Is:** a statement of our engineering practices with specific, enumerable checks. Every claim here corresponds to an auditor or workflow that runs in public CI. You can verify each one in [github.com/whizbangdevelopers-org/Weaver-Free/actions](https://github.com/whizbangdevelopers-org/Weaver-Free/actions) or by inspecting the `test:compliance` chain in [package.json](https://github.com/whizbangdevelopers-org/Weaver-Free/blob/main/package.json).
 
 **Isn't:** a compliance certification. SOC 2 Type II, ISO 27001, CMMC assessments are process-maturity audits performed by external assessors. This page tells you what our *engineering discipline* looks like — the technical artifacts that *would* be evaluated in such an audit.
 
@@ -158,7 +158,7 @@ For compliance framework mappings (NIST 800-171, HIPAA, PCI-DSS, ISO 27001, etc.
 
 | Claim | How to verify |
 |---|---|
-| <!-- auditor-count:begin -->63<!-- auditor-count:end --> auditors on every push | [.github/workflows/test.yml](../../.github/workflows/test.yml) compliance-suite job, or grep `audit:` in [package.json](../../package.json) `test:compliance` script |
+| <!-- auditor-count:begin -->64<!-- auditor-count:end --> auditors on every push | [.github/workflows/test.yml](https://github.com/whizbangdevelopers-org/Weaver-Free/blob/main/.github/workflows/test.yml) compliance-suite job, or grep `audit:` in [package.json](https://github.com/whizbangdevelopers-org/Weaver-Free/blob/main/package.json) `test:compliance` script |
 | SHA-pinned GitHub Actions | `grep "uses:" .github/workflows/*.yml` — every line ends with a 40-char SHA |
 | OpenSSF Scorecard score | [scorecard.dev/viewer](https://scorecard.dev/viewer/?uri=github.com/whizbangdevelopers-org/Weaver-Free) |
 | SBOM present on each release | [github.com/whizbangdevelopers-org/Weaver-Free/releases](https://github.com/whizbangdevelopers-org/Weaver-Free/releases) — `sbom.cdx.json` + `sbom-backend.cdx.json` |

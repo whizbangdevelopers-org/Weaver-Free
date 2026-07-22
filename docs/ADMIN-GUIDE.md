@@ -875,4 +875,5 @@ after every successful build. No manual intervention is needed for routine relea
 The one-time registration PR (adding `whizbangdevelopers-org` to `nix-community/NUR:repos.json`)
 and its maintenance procedure — including rebase steps and troubleshooting — are documented in:
 
-**[docs/operations/NUR-PUBLISHING.md](operations/NUR-PUBLISHING.md)**
+**`docs/operations/NUR-PUBLISHING.md`** — an internal maintainer runbook, kept in Weaver-Dev
+rather than published, since NUR registration is performed by whizBANG Developers only.

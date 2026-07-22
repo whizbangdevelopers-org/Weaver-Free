@@ -32,19 +32,23 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
 
       - name: Setup Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
         with:
           node-version: '20'
           cache: 'npm'
+          cache-dependency-path: code/package-lock.json
 
       - name: Install dependencies
+        working-directory: code
         run: npm ci
 
       - name: Run npm audit
+        working-directory: code
         run: npm audit --audit-level=high
         continue-on-error: true
 
       - name: Generate audit report
+        working-directory: code
         run: |
           echo "## Security Audit Report" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -55,6 +59,7 @@ jobs:
           echo '```' >> $GITHUB_STEP_SUMMARY
 
       - name: Check for critical vulnerabilities
+        working-directory: code
         run: |
           # Fail only on critical vulnerabilities
           CRITICAL=$(npm audit --json 2>/dev/null | jq '.metadata.vulnerabilities.critical // 0')
@@ -65,6 +70,7 @@ jobs:
           echo "No critical vulnerabilities found"
 
       - name: Check production audit (--omit=dev)
+        working-directory: code
         run: |
           echo "## Production Audit (--omit=dev)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY

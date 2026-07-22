@@ -106,5 +106,8 @@ sbom*.json
 .env.local
 .env.*.local
 
-# Personal working notes (not product-bundled)
-docs/security/CII-BEST-PRACTICES-ANSWERS.md
+# CII-BEST-PRACTICES-ANSWERS.md used to be ignored here as a "personal working note".
+# Ignoring a file inside a synced tree keeps it out of the public mirror, but it also
+# keeps it out of git entirely — no history, and no backup, since a git bundle cannot
+# capture what git is told to ignore. It now lives at ../docs/security/ in the private
+# tree: versioned, backed up, and still never synced (the sync source is code/).

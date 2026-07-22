@@ -4,8 +4,9 @@
  * ingest-documents.ts — the **cited document-index** ingest modality (WVR-201 / KNOWLEDGE-ARCHITECTURE §4).
  *
  * Prose (business decisions/sales/strategy, ADRs, vendor/compliance docs) is NOT distilled into
- * `knowledge_entry` lessons — it is **indexed and pointed at**. This tool chunks a markdown document
- * into paragraphs, embeds each, and upserts them into `engram_chunks` as `chunk_type='document_paragraph'`.
+ * distilled `lesson`/`gotcha` entries — it is **indexed and pointed at**. This tool chunks a markdown
+ * document into paragraphs and, per paragraph, authors a `type='document'` structured_entries source row
+ * (entry_ref = `doc::anchor`, title = heading-path) and derives its vector into entry_vectors.
  *
  *   - The **document stays authoritative** in git/forgejo; this index is a DERIVED, regenerable projection
  *     (WVR-202: it needs no backup of its own — re-run this tool to rebuild).
@@ -19,10 +20,14 @@
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { relative, resolve } from 'node:path'
-import { getPgPool, closePgPool, embedText } from '../codebase-mcp/src/utils/pgvector-embed.js'
+import { getPgPool, closePgPool, embedText, upsertVector } from '../codebase-mcp/src/utils/pgvector-embed.js'
 
 const REPO_ROOT = '/home/mark/Projects/active/fabrick-weaver-project'
 const GREEN = '\x1b[32m', DIM = '\x1b[2m', RESET = '\x1b[0m'
+// nomic-embed's context is 2048 tokens; cap the embedded text well under it (~2 chars/token worst case,
+// e.g. a dense table). The FULL paragraph is always stored as the SE body — only the text fed to the
+// embedder is truncated, so the paragraph stays complete + citeable and is still recalled by its prefix.
+const MAX_EMBED_CHARS = 4000
 
 export interface Paragraph {
   text: string
@@ -65,26 +70,41 @@ async function ingestDoc(project: string, absPath: string): Promise<number> {
   const pool = getPgPool()
   const client = await pool.connect()
   try {
-    // A doc-index is a regenerable projection: clear this doc's prior paragraphs, then re-insert.
-    // (WVR-202 — deactivate/rebuild, not destroy: the authoritative document is untouched in git.)
+    // A doc-index is a regenerable projection (WVR-201/202): clear this doc's prior paragraph
+    // rows — entry_vectors cascade on the structured_entries delete — then re-author + re-embed.
+    // The authoritative document is untouched in git.
     await client.query(
-      `DELETE FROM engram_chunks WHERE project=$1 AND chunk_type='document_paragraph' AND metadata->>'doc'=$2`,
+      `DELETE FROM structured_entries
+        WHERE project=$1 AND type='document' AND entry_ref LIKE $2 || '::%'`,
       [project, docRel],
     )
+    let skipped = 0
     for (const p of paras) {
-      const embedding = await embedText(p.text)
-      const entryId = `${docRel}::${p.anchor}`
-      const metadata = { doc: docRel, heading_path: p.headingPath, anchor: p.anchor, para_index: p.paraIndex }
-      await client.query(
-        `INSERT INTO engram_chunks
-           (project, entry_id, chunk_index, chunk_type, content, embedding, embedding_model, metadata, content_hash, created_at)
-         VALUES ($1,$2,0,'document_paragraph',$3,$4::vector,'nomic-embed-text-v1.5',$5,$6,$7)
-         ON CONFLICT (project, entry_id, chunk_index) DO UPDATE
-           SET content=EXCLUDED.content, embedding=EXCLUDED.embedding, metadata=EXCLUDED.metadata, content_hash=EXCLUDED.content_hash`,
-        [project, entryId, p.text, `[${embedding.join(',')}]`, JSON.stringify(metadata), p.anchor, Date.now()],
-      )
+      const entryRef = `${docRel}::${p.anchor}`
+      try {
+        // Embed a bounded prefix (the model's context cap); the full text is stored as the body.
+        const embedding = await embedText(p.text.slice(0, MAX_EMBED_CHARS))
+        // Author the cited-document source row (WVR-201: paragraph-grain, type='document',
+        // entry_ref = doc::anchor = the stable pointer, title = heading-path). content_hash is
+        // DB-generated (WVR-192); paragraphs sharing a doc form the cross-reference graph.
+        const seRes = await client.query<{ id: string; content_hash: string }>(
+          `INSERT INTO structured_entries
+             (entry_ref, layer, scope, project, type, status, title, body, source, author, approved_by)
+           VALUES ($1, 'L1-dev', 'project', $2, 'document', 'active', $3, $4,
+                   'document-index', 'ingest-documents', 'git-review')
+           RETURNING id, content_hash`,
+          [entryRef, project, p.headingPath, p.text],
+        )
+        const row = seRes.rows[0]!
+        // Derive the vector projection off the source row (source_content_hash = SE.content_hash).
+        await upsertVector(client, row.id, embedding, row.content_hash)
+      } catch (e) {
+        // One bad paragraph (e.g. an embed error) must never abort the whole multi-doc run.
+        skipped++
+        console.warn(`  ${DIM}⚠ skipped paragraph in ${docRel} (${p.anchor}): ${e instanceof Error ? e.message : String(e)}${RESET}`)
+      }
     }
-    return paras.length
+    return paras.length - skipped
   } finally {
     client.release()
   }

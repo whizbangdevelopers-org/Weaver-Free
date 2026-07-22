@@ -5,8 +5,8 @@
  * markdown knowledge source for THIS repo (project = 'weaver').
  *
  * The invariant (WVR-188): every ingestable knowledge entry in
- * docs/knowledge/{lessons,gotchas}/*.md must have exactly one knowledge_entry
- * row in the shared engram_chunks pgvector table on king. This is the md->DB
+ * docs/knowledge/{lessons,gotchas}/*.md must have exactly one served (active +
+ * approved) structured_entries row in the bedrock Engram store. This is the md->DB
  * half of the write->md->db chain — the half that silently drifts because the
  * ingest is a manual step. The other two knowledge auditors already guard
  * md->INDEX (audit:knowledge-index-fresh) and id uniqueness
@@ -37,6 +37,11 @@ import { getPgPool, closePgPool } from '../codebase-mcp/src/utils/pgvector-embed
 
 const PROJECT = 'weaver'
 
+// Statuses that map to a NON-active (non-served) structured_entries row (WVR-202 lifecycle,
+// mirrors ingest_knowledge.py STATUS_MAP): these md entries are authored but withheld from
+// recall, so the served DB count excludes them and the md-side count must too.
+const NON_SERVED_STATUSES = new Set(['deprecated', 'historical', 'superseded', 'retired'])
+
 const GREEN = '\x1b[32m'
 const RED = '\x1b[31m'
 const YELLOW = '\x1b[33m'
@@ -53,8 +58,9 @@ async function queryEngramCount(): Promise<{ count: number | null; reason: strin
     const client = await pool.connect()
     try {
       const { rows } = await client.query<{ n: string }>(
-        `SELECT count(DISTINCT entry_id) AS n FROM engram_chunks
-          WHERE project = $1 AND chunk_type = 'knowledge_entry'`,
+        `SELECT count(*) AS n FROM structured_entries
+          WHERE project = $1 AND type IN ('lesson','gotcha','pattern','rule')
+            AND status = 'active' AND approved_by IS NOT NULL`,
         [PROJECT],
       )
       return { count: parseInt(rows[0]?.n ?? '0', 10), reason: '' }
@@ -69,7 +75,9 @@ async function queryEngramCount(): Promise<{ count: number | null; reason: strin
 }
 
 async function main(): Promise<void> {
-  const mdCount = collectEntries().length
+  // Count only SERVED (active-status) markdown entries — the served DB excludes deactivated
+  // ones (WVR-202), so counting all md entries would report a deprecated entry as false drift.
+  const mdCount = collectEntries().filter((e) => !NON_SERVED_STATUSES.has(e.status)).length
   const { count: dbCount, reason } = await queryEngramCount()
 
   if (dbCount === null) {
@@ -98,8 +106,8 @@ async function main(): Promise<void> {
     `${RED}audit:engram-sync FAILED${RESET} — Engram '${PROJECT}' dataset is out of ` +
       `sync with the markdown source.`,
   )
-  console.error(`  markdown entries : ${mdCount}`)
-  console.error(`  Engram pgvector  : ${dbCount}`)
+  console.error(`  markdown (served): ${mdCount}`)
+  console.error(`  Engram (served)  : ${dbCount}`)
   console.error(`  drift            : ${delta > 0 ? '+' : ''}${delta}  (${drift})`)
   console.error(
     `\nFix: ${FIX}\n  (run it plainly, check its own exit code, and reconcile the ` +

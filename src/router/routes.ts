@@ -67,11 +67,6 @@ const routes: RouteRecordRaw[] = [
         meta: { requiresAdmin: true, requiresFabrick: true, title: 'Audit Log' },
       },
       {
-        path: 'engram',
-        component: () => import('pages/EngramPage.vue'),
-        meta: { requiresAdmin: true, title: 'Engram' },
-      },
-      {
         path: 'extensions',
         component: () => import('pages/IntegrationsPage.vue'),
         meta: { title: 'Extensions' },
