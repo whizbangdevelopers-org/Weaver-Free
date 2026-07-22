@@ -38,29 +38,11 @@ const PUBLIC_ROUTES = [
   '/api/health/',
   '/api/stripe/webhook',
   '/api/stripe/webhook/',
-  // Engram monitoring — auth deferred to RBAC at Team/Fabrick integration (Decision WVR-160)
-  '/api/engram/status',
-  '/api/engram/queries',
-  '/api/engram/ingestion-history',
-  '/api/engram/entries',
-  '/api/engram/view',
-  '/api/engram/graph-data',
-  '/api/engram/stats',
-  // Engram dataset management (Layer 1+2) — same deferral as above (Decision WVR-160)
-  '/api/engram/infrastructure',
-  '/api/engram/strategies',
-  '/api/engram/queue',
-  // Host inventory — same deferral (Decision WVR-160)
-  '/api/engram/hosts',
-  '/api/engram/hosts/sync',
 ]
 
-// Dynamic Engram routes with :name or :id segments — Decision WVR-160 deferral applies
-const PUBLIC_PREFIXES = [
-  '/api/engram/datasets/',
-  '/api/engram/queue/',
-  '/api/engram/hosts/',
-]
+// No public prefixes. (/api/engram/* — formerly listed here — was removed 2026-07-20 when the
+// Engram surface migrated to the engram-query service, WVR-160.)
+const PUBLIC_PREFIXES: string[] = []
 
 function isPublicRoute(url: string): boolean {
   const path = url.split('?')[0]

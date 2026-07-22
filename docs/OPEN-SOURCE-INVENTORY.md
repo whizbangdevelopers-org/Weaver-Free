@@ -5,7 +5,11 @@
 
 **Last updated:** 2026-04-02
 
-Non-NixOS open-source dependencies used in this repository. For NixOS-specific integrations (sops-nix, Colmena, impermanence, etc.), see [NIX-ECOSYSTEM-INTEGRATION-PLAN.md](../../plans/cross-version/NIX-ECOSYSTEM-INTEGRATION-PLAN.md). For AI/GPU infrastructure integrations, see [AI-GPU-INFRASTRUCTURE-PLAN.md](../../plans/cross-version/AI-GPU-INFRASTRUCTURE-PLAN.md). For license compliance evaluation, see [SOFTWARE-LICENSE-EVALUATION.md](../../business/legal/SOFTWARE-LICENSE-EVALUATION.md).
+Non-NixOS open-source dependencies used in this repository. NixOS-specific integrations
+(sops-nix, Colmena, impermanence, etc.), AI/GPU infrastructure integrations, and the per-package
+license compliance evaluation are tracked in internal planning documents that are not published
+with the source (`plans/cross-version/NIX-ECOSYSTEM-INTEGRATION-PLAN.md`,
+`plans/cross-version/AI-GPU-INFRASTRUCTURE-PLAN.md`, `business/legal/SOFTWARE-LICENSE-EVALUATION.md`).
 
 ---
 
@@ -119,7 +123,8 @@ Non-NixOS open-source dependencies used in this repository. For NixOS-specific i
 | **cdrkit** | `pkgs.cdrkit` | GPL-2.0 | `genisoimage` — cloud-init ISOs | ISO generation for VM provisioning — subprocess |
 | **Node.js** | `pkgs.nodejs_24` | MIT | JavaScript runtime | Backend server runtime |
 
-> For the complete NixOS dependency table with license analysis, see [SOFTWARE-LICENSE-EVALUATION.md](../../business/legal/SOFTWARE-LICENSE-EVALUATION.md) § 5.
+> The complete NixOS dependency table with license analysis is held internally in
+> `business/legal/SOFTWARE-LICENSE-EVALUATION.md` § 5, which is not published with the source.
 
 ## E2E Infrastructure (Docker)
 
@@ -136,7 +141,8 @@ Non-NixOS open-source dependencies used in this repository. For NixOS-specific i
 - **Backend**: Fastify + SQLite + JWT — no ORM, direct SQL via better-sqlite3
 - **TUI**: React + Ink for composable terminal UI (mirrors web UI feature set)
 - **Validation**: Zod on all API boundaries (backend request/response + TUI)
-- **Testing**: 3-tier pyramid — lint/unit (Vitest) → compliance (<!-- auditor-count:begin -->63<!-- auditor-count:end --> static auditors) → E2E (Playwright in Docker)
+- **Testing**: 3-tier pyramid — lint/unit (Vitest) → compliance (<!-- auditor-count:begin -->64<!-- auditor-count:end --> static auditors) → E2E (Playwright in Docker)
 - **AI**: Claude SDK with BYOK/BYOV pattern — mock mode auto-activates when no API key configured
 
-*This inventory covers runtime and development dependencies. For license compliance status of each package, see [SOFTWARE-LICENSE-EVALUATION.md](../../business/legal/SOFTWARE-LICENSE-EVALUATION.md).*
+*This inventory covers runtime and development dependencies. Per-package license compliance status
+is tracked internally in `business/legal/SOFTWARE-LICENSE-EVALUATION.md`.*

@@ -91,7 +91,7 @@ In your system `flake.nix`, add the Weaver input (and optionally microvm.nix if 
 
 > **Reminder:** Nix flakes only see git-tracked files. After creating or modifying any `.nix` file in `/etc/nixos`, run `sudo git add <file>` before `nixos-rebuild`. See [Section 1](#1-first-time-setup-fresh-nixos) for the one-time setup if this is a fresh NixOS install.
 
-A complete sample `flake.nix` is available at [`nixos/examples/flake.nix`](../../nixos/examples/flake.nix) in the Weaver repo.
+A complete sample `flake.nix` is available at [`nixos/examples/flake.nix`](../../../nixos/examples/flake.nix) in the Weaver repo.
 
 ## 3. Configure Bridge Networking
 

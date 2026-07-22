@@ -91,6 +91,17 @@ $shed-color: #2A9D8F;
   outline-offset: 2px !important;
 }
 
+// q-field inputs: the exclusion above left always-visible inputs (header/help search) with NO
+// outline or box-shadow focus indicator — only Quasar's subtle border/label shift, which fails
+// WCAG 2.4.7 and keyboard-reachability.spec.ts. Restore the ring here in the brand PRIMARY colour
+// instead of currentColor: primary is clearly visible on both light and dark backgrounds and
+// avoids the black box the currentColor outline produced on inputs (the reason they were excluded).
+.q-field__native:focus-visible,
+.q-field__input:focus-visible {
+  outline: 2px solid var(--q-primary) !important;
+  outline-offset: 2px !important;
+}
+
 // Scrollbar styling for dark mode
 .body--dark {
   ::-webkit-scrollbar {

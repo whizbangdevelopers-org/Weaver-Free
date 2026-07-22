@@ -33,10 +33,10 @@ The gaps are real posture items we are working to close, not signs that Weaver i
 | Gap | Roadmap |
 |---|---|
 | **Code-Review** | Addressed structurally when the team grows beyond solo maintainer. First external committer triggers a formal PR-required policy. |
-| **Fuzzing** | Planned for a future release. Weaver's primary attack surface is its Fastify REST API and NixOS system calls — both are candidates for targeted fuzzing. See [CII Best Practices answers](CII-BEST-PRACTICES-ANSWERS.md) for the formal posture statement. |
+| **Fuzzing** | Planned for a future release. Weaver's primary attack surface is its Fastify REST API and NixOS system calls — both are candidates for targeted fuzzing. |
 | **Maintained** | No action needed — this is a heuristic false signal. Weaver ships regular releases. |
 | **SAST** | Weaver's 48-auditor suite covers the pattern-level classes that recognized SAST tools catch, plus Weaver-specific invariants (tier parity, license parity, doc parity). CodeQL runs on every push and PR. Scorecard's SAST check may not fully recognize this toolchain yet. |
-| **Vulnerabilities** | `npm audit` runs on every push (gated in `test:prepush`). Known transient advisories in dev dependencies are triaged in [SECURITY-AUDIT-LATEST.md](SECURITY-AUDIT-LATEST.md). |
+| **Vulnerabilities** | `npm audit` runs on every push (gated in `test:prepush`). Known transient advisories in dev dependencies are triaged in an internal security audit, which is not published because it enumerates attack surface. |
 
 ## Where to verify Weaver's actual security posture
 
@@ -45,6 +45,8 @@ If you want to understand Weaver's security posture rather than its Scorecard sc
 - **[ENGINEERING-DISCIPLINE.md](ENGINEERING-DISCIPLINE.md)** — verifiable engineering practices: auditor inventory, CI pipeline, signing, provenance
 - **[SECURITY-BASELINES.md](SECURITY-BASELINES.md)** — NIST 800-63B and OWASP ASVS 4.0 hardening baselines for authentication, session management, and transport
 - **[COMPENSATING-CONTROLS.md](COMPENSATING-CONTROLS.md)** — formal posture statement for CII Silver/Gold gaps and the controls that compensate for them
-- **[SECURITY-AUDIT-LATEST.md](SECURITY-AUDIT-LATEST.md)** — most recent internal security audit: findings, dispositions, open items
+The most recent internal security audit — findings, dispositions, and open items — is deliberately
+not part of this repository: publishing a live enumeration of attack surface would work against the
+posture the rest of these documents describe.
 
 The Scorecard badge is one signal. It doesn't capture the full picture of what Weaver does to ship secure software.

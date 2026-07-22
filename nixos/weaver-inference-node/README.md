@@ -53,7 +53,9 @@ Drift between `forge-foundry` and `weaver-inference-node` shared modules is caug
 
 ## Hardware Requirements
 
-See [code/docs/ai-ops/INFERENCE-NODE-SPEC.md](../docs/ai-ops/INFERENCE-NODE-SPEC.md) for the full hardware spec, supported hardware classes, benchmark targets, and procurement checklist.
+The full hardware spec, supported hardware classes, benchmark targets, and procurement checklist
+are held in `docs/ai-ops/INFERENCE-NODE-SPEC.md`, an internal design document that is not
+published with the source.
 
 ## Tier Gating
 
@@ -62,4 +64,4 @@ Offered at Weaver Team (128GB license unit threshold) and above. Default-include
 ---
 
 *Implementation: v1.1.0 dev phase (Forge Foundry Phase 2). Customer SKU ships at v1.4.0.*
-*Full spec: [Decision WVR-152 in MASTER-PLAN.md](../../MASTER-PLAN.md)*
+*Full spec: Decision WVR-152, recorded in the internal MASTER-PLAN.*

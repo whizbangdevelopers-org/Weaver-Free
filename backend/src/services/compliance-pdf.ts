@@ -104,8 +104,10 @@ export async function generateCompliancePdf(options: PdfOptions): Promise<Buffer
     // Write to cache (fire-and-forget — serve even if caching fails)
     await mkdir(cacheDir, { recursive: true }).catch(() => {})
     // Atomic cache write: write to temp first, then rename — prevents partial reads on concurrent requests.
-    const tmpCachePath = `${cachePath}.tmp-${randomBytes(4).toString('hex')}`
-    await writeFile(tmpCachePath, pdfBuffer)
+    const tmpCachePath = `${cachePath}.tmp-${randomBytes(12).toString('hex')}`
+    // See storage/lib/atomic-write.ts — exclusive create so a pre-planted symlink at the
+    // temp path cannot redirect the write into the rename.
+    await writeFile(tmpCachePath, pdfBuffer, { flag: 'wx' })
       .then(() => rename(tmpCachePath, cachePath))
       .catch(() => { unlink(tmpCachePath).catch(() => {}) })
 

@@ -559,31 +559,5 @@ export interface EngramStatus {
   totalQueries: number
 }
 
-export class EngramApiService extends ApiService {
-  constructor() {
-    super('/engram')
-  }
-
-  async getStatus(): Promise<EngramStatus> {
-    return this.get<EngramStatus>('/status')
-  }
-
-  async getQueries(params: { tool?: string; limit?: number; offset?: number } = {}): Promise<{ queries: EngramQueryRow[]; total: number }> {
-    const qs = new URLSearchParams()
-    if (params.tool) qs.set('tool', params.tool)
-    if (params.limit !== undefined) qs.set('limit', String(params.limit))
-    if (params.offset !== undefined) qs.set('offset', String(params.offset))
-    const q = qs.toString()
-    return this.get<{ queries: EngramQueryRow[]; total: number }>(`/queries${q ? `?${q}` : ''}`)
-  }
-
-  async getIngestionHistory(params: { limit?: number; offset?: number } = {}): Promise<{ runs: EngramIngestionRow[]; total: number }> {
-    const qs = new URLSearchParams()
-    if (params.limit !== undefined) qs.set('limit', String(params.limit))
-    if (params.offset !== undefined) qs.set('offset', String(params.offset))
-    const q = qs.toString()
-    return this.get<{ runs: EngramIngestionRow[]; total: number }>(`/ingestion-history${q ? `?${q}` : ''}`)
-  }
-}
-
-export const engramApiService = new EngramApiService()
+// EngramApiService removed 2026-07-20 (WVR-160): Weaver's /api/engram/* surface was migrated to
+// the standalone engram-query service; the Engram monitoring UI lives in the engram repo's SPA.

@@ -239,7 +239,9 @@ Before contributing, familiarize yourself with the project structure:
 - **NixOS** (`nixos/`) -- NixOS module for declarative deployment
 - **Testing** (`testing/`) -- Vitest unit tests + Dockerized Playwright E2E
 
-See [docs/DEVELOPER-GUIDE.md](docs/DEVELOPER-GUIDE.md) for full architecture documentation, API reference, and state management details.
+Architecture documentation, API reference, and state management details live in the internal
+Developer Guide (`docs/DEVELOPER-GUIDE.md` in Weaver-Dev, not published). The public surface is
+documented in [docs/ADMIN-GUIDE.md](docs/ADMIN-GUIDE.md) and [docs/USER-GUIDE.md](docs/USER-GUIDE.md).
 
 ## License
 

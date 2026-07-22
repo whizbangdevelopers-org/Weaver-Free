@@ -33,6 +33,7 @@
 import { spawnSync } from 'child_process'
 import { resolve, dirname } from 'path'
 import { fileURLToPath } from 'url'
+import { cpus } from 'os'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -121,6 +122,7 @@ export const PHASES: Phase[] = [
       'audit:nix-deps-hash',
       'audit:sync-exclude-cruft',
       'audit:release-rsync-paths',
+      'audit:workflow-cwd',
       'audit:nur-dispatch-completeness',
       'audit:engineering-discipline-parity',
       'audit:feature-lifecycle-parity',
@@ -203,30 +205,50 @@ function runOne(name: string): Result {
 // run to completion even if one fails — matches the useful "see all the
 // broken things at once" property of test suites). Between phases,
 // we still honor --continue for the overall sequential flow.
+// Concurrency cap for the parallel phase. An unbounded Promise.all spawned ALL
+// ~50 auditors at once — each an npm→node→tsx process, and the heavy ones fan out
+// further (semgrep defaults --jobs to the CPU count). On an N-core box that
+// oversubscribes CPU/memory and starves the heavy auditors into load-dependent
+// flakes (audit:taint failed under exactly this contention). Bound it so no auditor
+// is starved; the per-auditor retry in audit:taint is the belt, this is the braces.
+const PARALLEL_LIMIT = Math.max(1, (cpus().length || 4) - 2)
+
 async function runParallel(names: string[]): Promise<Result[]> {
   const { spawn } = await import('child_process')
-  const tasks = names.map(
-    (name) =>
-      new Promise<Result>((resolveTask) => {
-        const start = Date.now()
-        // Serialize stdout/stderr per-auditor so parallel output doesn't
-        // interleave unreadably. Each auditor's output prints as a block
-        // after it completes.
-        const chunks: Buffer[] = []
-        const child = spawn('npm', ['run', name], {
-          cwd: CODE_ROOT,
-          stdio: ['ignore', 'pipe', 'pipe'],
-        })
-        child.stdout?.on('data', (d: Buffer) => chunks.push(d))
-        child.stderr?.on('data', (d: Buffer) => chunks.push(d))
-        child.on('close', (code: number | null) => {
-          const header = `\n\x1b[2m──── ${name} (${Date.now() - start}ms) ────\x1b[0m\n`
-          process.stdout.write(header + Buffer.concat(chunks).toString('utf8'))
-          resolveTask({ name, ok: code === 0, ms: Date.now() - start })
-        })
-      }),
-  )
-  return Promise.all(tasks)
+
+  const runOneAuditor = (name: string): Promise<Result> =>
+    new Promise<Result>((resolveTask) => {
+      const start = Date.now()
+      // Serialize stdout/stderr per-auditor so parallel output doesn't
+      // interleave unreadably. Each auditor's output prints as a block
+      // after it completes.
+      const chunks: Buffer[] = []
+      const child = spawn('npm', ['run', name], {
+        cwd: CODE_ROOT,
+        stdio: ['ignore', 'pipe', 'pipe'],
+      })
+      child.stdout?.on('data', (d: Buffer) => chunks.push(d))
+      child.stderr?.on('data', (d: Buffer) => chunks.push(d))
+      child.on('close', (code: number | null) => {
+        const header = `\n\x1b[2m──── ${name} (${Date.now() - start}ms) ────\x1b[0m\n`
+        process.stdout.write(header + Buffer.concat(chunks).toString('utf8'))
+        resolveTask({ name, ok: code === 0, ms: Date.now() - start })
+      })
+    })
+
+  // Worker pool: at most PARALLEL_LIMIT auditors run at once; workers pull the next
+  // index until the queue drains. Still runs every auditor to completion (no
+  // short-circuit) and preserves result order.
+  const results: Result[] = new Array(names.length)
+  let next = 0
+  const worker = async (): Promise<void> => {
+    for (let i = next++; i < names.length; i = next++) {
+      results[i] = await runOneAuditor(names[i])
+    }
+  }
+  const workerCount = Math.min(PARALLEL_LIMIT, names.length)
+  await Promise.all(Array.from({ length: workerCount }, () => worker()))
+  return results
 }
 
 async function main(): Promise<void> {
