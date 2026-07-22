@@ -38,15 +38,15 @@ jobs:
         with:
           node-version: '24'
           cache: 'npm'
-          cache-dependency-path: code/package-lock.json
+          cache-dependency-path: ${{ github.repository == 'whizbangdevelopers-org/Weaver-Dev' && 'code/package-lock.json' || 'package-lock.json' }}
 
       - name: Install dependencies
-        working-directory: code
+        working-directory: ${{ github.repository == 'whizbangdevelopers-org/Weaver-Dev' && 'code' || '.' }}
         run: npm ci
 
       - name: Whitelist-aware advisory audit
         id: audit
-        working-directory: code
+        working-directory: ${{ github.repository == 'whizbangdevelopers-org/Weaver-Dev' && 'code' || '.' }}
         run: |
           if npm run test:security; then
             echo "status=clean" >> "$GITHUB_OUTPUT"

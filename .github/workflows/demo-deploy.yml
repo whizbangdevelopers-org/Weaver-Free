@@ -29,6 +29,10 @@ jobs:
   build-and-deploy:
     name: Build and Deploy Demo
     runs-on: ubuntu-latest
+    # Dev-only. This workflow is synced to Weaver-Free but must never fire there:
+    # it needs WEAVER_FREE_DEMO (a secret that exists only on Dev) and publishes to
+    # weaver-dev.github.io. Same gate test.yml uses for its Dev-only jobs.
+    if: github.repository == 'whizbangdevelopers-org/Weaver-Dev'
 
     permissions:
       contents: read
