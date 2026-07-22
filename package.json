@@ -63,6 +63,8 @@
     "audit:workflow-cwd": "npx tsx scripts/verify-workflow-cwd.ts",
     "audit:workflow-node-version": "npx tsx scripts/verify-workflow-node-version.ts",
     "audit:published-entrypoints": "npx tsx scripts/verify-published-entrypoints.ts",
+    "audit:published-secrets": "npx tsx scripts/verify-published-secrets.ts",
+    "refresh:free-secrets": "gh api repos/whizbangdevelopers-org/Weaver-Free/actions/secrets --jq '.secrets[].name'",
     "audit:nur-dispatch-completeness": "npx tsx scripts/verify-nur-dispatch-completeness.ts",
     "audit:engineering-discipline-parity": "npx tsx scripts/verify-engineering-discipline-parity.ts",
     "audit:feature-lifecycle-parity": "npx tsx scripts/verify-feature-lifecycle-parity.ts",
