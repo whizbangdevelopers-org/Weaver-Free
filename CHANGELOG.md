@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **`codeql-feedback.yml` had two issue-openers for one condition; the broken one was removed.** `refresh-codeql-coverage-map.ts` opened a per-rule tracking issue via `gh issue create` with no `--repo`, so it resolved the Weaver-Dev remote while inheriting the Weaver-Free-scoped `WEAVER_FREE_CODEQL_READ` PAT that the same script needs to read alerts. It could never succeed, and it failed inside a `try`/`catch` as a `console.warn` in an otherwise green run. It also had no close path. The workflow's own triage step — added later, `--repo "$GITHUB_REPOSITORY"` with `github.token`, and self-closing when the auditor goes clean — already covers the condition, so the per-rule opener and its `--open-issues` flag are gone rather than repaired.
+
 ## [1.0.5] - 2026-04-26
 
 UX and free-tier gate polish pass. No backend changes.

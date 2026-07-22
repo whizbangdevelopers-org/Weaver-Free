@@ -6,17 +6,25 @@
  * Fetches live CodeQL alerts from Weaver-Free, compares against the committed
  * codeql-semgrep-map.json, and:
  *   - Updates `lastSeen` for rules already in the map
- *   - Adds new rules as `unknown` status (triggers issue creation if --open-issues)
- *   - Opens a tracking issue on Weaver-Dev for each unknown rule
+ *   - Adds new rules as `unknown` status
  *   - Writes the updated map back to disk
+ *
+ * REPORTING IS NOT THIS SCRIPT'S JOB. `codeql-feedback.yml` runs the coverage
+ * auditor after this script and routes the finding to a single self-closing
+ * triage issue on the running repo. A per-rule `gh issue create` lived here
+ * until 2026-07-22: it passed no `--repo`, so it resolved the Dev remote while
+ * inheriting the Weaver-Free-scoped PAT that this script needs to read alerts —
+ * it never once succeeded, and it failed inside a try/catch as a `console.warn`
+ * in an otherwise green run. It also had no close path, so had it worked it
+ * would have accumulated stale open security-labelled issues. Do not
+ * reintroduce it; extend the workflow's triage-issue step instead.
  *
  * Requires: gh CLI authenticated with WEAVER_FREE_CODEQL_READ (security_events: read)
  *
  * Usage:
  *   npx tsx scripts/refresh-codeql-coverage-map.ts \
  *     --repo whizbangdevelopers-org/Weaver-Free \
- *     --map scripts/data/codeql-semgrep-map.json \
- *     [--open-issues]
+ *     --map scripts/data/codeql-semgrep-map.json
  */
 
 import { execSync } from 'node:child_process'
@@ -51,17 +59,15 @@ interface CodeQLAlert {
   state: string
 }
 
-function parseArgs(): { repo: string; mapPath: string; openIssues: boolean } {
+function parseArgs(): { repo: string; mapPath: string } {
   const args = process.argv.slice(2)
   let repo = 'whizbangdevelopers-org/Weaver-Free'
   let mapPath = resolve(__dirname, 'data', 'codeql-semgrep-map.json')
-  let openIssues = false
   for (let i = 0; i < args.length; i++) {
     if (args[i] === '--repo' && args[i + 1]) repo = args[++i]
     else if (args[i] === '--map' && args[i + 1]) mapPath = resolve(process.cwd(), args[++i])
-    else if (args[i] === '--open-issues') openIssues = true
   }
-  return { repo, mapPath, openIssues }
+  return { repo, mapPath }
 }
 
 function fetchAlerts(repo: string): CodeQLAlert[] {
@@ -72,41 +78,8 @@ function fetchAlerts(repo: string): CodeQLAlert[] {
   return JSON.parse(raw) as CodeQLAlert[]
 }
 
-function openIssue(ruleId: string, severity: string, description: string): void {
-  const title = `[security] Unknown CodeQL rule: ${ruleId}`
-  const body = [
-    `A new CodeQL rule was detected on Weaver-Free that is not yet in \`codeql-semgrep-map.json\`.`,
-    ``,
-    `**Rule ID:** \`${ruleId}\``,
-    `**Severity:** ${severity || 'unknown'}`,
-    `**Description:** ${description || 'n/a'}`,
-    ``,
-    `## Action required`,
-    ``,
-    `1. Review the alert on Weaver-Free: https://github.com/whizbangdevelopers-org/Weaver-Free/security/code-scanning?query=${encodeURIComponent(ruleId)}`,
-    `2. Determine whether a Semgrep taint rule covers this class.`,
-    `3. Update \`code/scripts/data/codeql-semgrep-map.json\` with one of:`,
-    `   - \`"covered"\` + \`semgrepRuleId\` — Semgrep rule already catches this`,
-    `   - \`"known-missing"\` — acknowledged gap, document why`,
-    `   - \`"tool-handled"\` + \`tool\` — another tool covers this`,
-    `   - \`"not-applicable"\` — rule class doesn't apply to this codebase`,
-    ``,
-    `See [KNOWN-GOTCHAS.md](code/docs/development/KNOWN-GOTCHAS.md) § Static Analysis for the coverage-map conventions.`,
-  ].join('\n')
-
-  try {
-    execSync(`gh issue create --title ${JSON.stringify(title)} --body ${JSON.stringify(body)} --label "security,triage"`, {
-      encoding: 'utf-8',
-      env: { ...process.env }
-    })
-    console.log(`  ✓ Opened tracking issue: ${title}`)
-  } catch (err) {
-    console.warn(`  ⚠ Could not open issue for ${ruleId}: ${err}`)
-  }
-}
-
 function run(): void {
-  const { repo, mapPath, openIssues } = parseArgs()
+  const { repo, mapPath } = parseArgs()
   const today = new Date().toISOString().slice(0, 10)
 
   console.log(`Fetching CodeQL alerts from ${repo}...`)
@@ -147,9 +120,6 @@ function run(): void {
       }
       changed = true
       newCount++
-      if (openIssues) {
-        openIssue(ruleId, severity, description)
-      }
     }
   }
 
@@ -162,8 +132,9 @@ function run(): void {
     console.log(`  Map unchanged — all rules known, lastSeen current`)
   }
 
-  if (newCount > 0 && !openIssues) {
-    console.log(`  Run with --open-issues to create tracking issues for unknown rules`)
+  if (newCount > 0) {
+    console.log(`  ${newCount} unknown rule(s) recorded — the coverage auditor will fail`)
+    console.log(`  and codeql-feedback.yml routes that to the triage issue.`)
   }
 }
 
