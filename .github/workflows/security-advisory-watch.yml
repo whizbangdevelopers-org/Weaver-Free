@@ -27,6 +27,14 @@ jobs:
   advisory-watch:
     name: Whitelist-aware advisory watch
     runs-on: ubuntu-latest
+    # Dev-only, and it must stay that way. `npm run test:security` resolves to
+    # scripts/audit-security.ts, which is sync-excluded — so on Weaver-Free the
+    # script is ABSENT and npm exits non-zero for ERR_MODULE_NOT_FOUND. The step
+    # below reads any non-zero as "action-required", so a missing file published a
+    # false "patch release needed" security issue on the PUBLIC repo (Free #340,
+    # closed 2026-07-22: it reported 0 advisories in its own body). Advisory triage
+    # belongs on Dev, where the auditor and the allowlist actually live.
+    if: github.repository == 'whizbangdevelopers-org/Weaver-Dev'
     permissions:
       contents: read
       issues: write   # open / update the advisory-tracking issue
@@ -38,15 +46,15 @@ jobs:
         with:
           node-version: '24'
           cache: 'npm'
-          cache-dependency-path: ${{ github.repository == 'whizbangdevelopers-org/Weaver-Dev' && 'code/package-lock.json' || 'package-lock.json' }}
+          cache-dependency-path: code/package-lock.json
 
       - name: Install dependencies
-        working-directory: ${{ github.repository == 'whizbangdevelopers-org/Weaver-Dev' && 'code' || '.' }}
+        working-directory: code
         run: npm ci
 
       - name: Whitelist-aware advisory audit
         id: audit
-        working-directory: ${{ github.repository == 'whizbangdevelopers-org/Weaver-Dev' && 'code' || '.' }}
+        working-directory: code
         run: |
           if npm run test:security; then
             echo "status=clean" >> "$GITHUB_OUTPUT"
