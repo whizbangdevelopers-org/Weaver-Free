@@ -61,6 +61,7 @@
     "audit:sync-exclude-cruft": "npx tsx scripts/verify-sync-exclude-cruft.ts",
     "audit:release-rsync-paths": "npx tsx scripts/verify-release-rsync-paths.ts",
     "audit:workflow-cwd": "npx tsx scripts/verify-workflow-cwd.ts",
+    "audit:published-entrypoints": "npx tsx scripts/verify-published-entrypoints.ts",
     "audit:nur-dispatch-completeness": "npx tsx scripts/verify-nur-dispatch-completeness.ts",
     "audit:engineering-discipline-parity": "npx tsx scripts/verify-engineering-discipline-parity.ts",
     "audit:feature-lifecycle-parity": "npx tsx scripts/verify-feature-lifecycle-parity.ts",
