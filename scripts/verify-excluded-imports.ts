@@ -176,7 +176,19 @@ function isExcluded(codeRelativePath: string, excludes: string[]): boolean {
 // File scanning
 // ---------------------------------------------------------------------------
 
-const SCAN_DIRS = ['src', 'backend/src', 'tui/src']
+/**
+ * `scripts/` is in this list because Weaver-Free EXECUTES published scripts.
+ * Its workflows run `npx tsx scripts/<x>.ts` directly, so a published script that
+ * imports a sync-excluded module is a hard runtime failure on the mirror — exactly
+ * the class this auditor exists to prevent, in a directory it did not look at.
+ *
+ * Found 2026-07-22: `audit-code-scanning.ts` imports `./lib/save-report`, and
+ * `scripts/lib/` is excluded by sync-exclude.yml:130. Free's Code Scanning Audit
+ * died with ERR_MODULE_NOT_FOUND while this auditor reported PASS — its universe
+ * (src, backend/src, tui/src) was narrower than its consumer's. Third instance of
+ * that shape in one session; see .claude/rules/single-source-generated.md.
+ */
+const SCAN_DIRS = ['src', 'backend/src', 'tui/src', 'scripts']
 const SCAN_EXTS = ['.ts', '.tsx', '.js', '.jsx', '.vue', '.mjs', '.cjs']
 const SKIP_DIRS = new Set(['node_modules', 'dist', '.quasar', '.q-cache', 'reports', 'coverage', 'test-results'])
 
