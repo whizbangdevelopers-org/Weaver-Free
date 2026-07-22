@@ -9,7 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`audit:workflow-node-version` (auditor #67)** — every `node-version:` pin in `.github/workflows/` must satisfy `engines.node` from `code/package.json`. `engines.node` and fifteen workflow pins are the same fact written in sixteen places, and a bump of the floor that misses one is silent by construction. Floating aliases (`lts/*`, `latest`) are rejected as unauditable; `${{ }}` expressions are trusted; `# node-version-ok: <reason>` suppresses with a required reason. Self-tests in both directions and refuses to report if it parsed zero pins.
+
 ### Fixed
+
+- **A release candidate could reach the public mirror.** `release.yml`'s `release-to-free` job had no prerelease guard, so an `-rc` tag would force-push the tag to Weaver-Free and create a public release there — while `update-nur`, one job down, has always carried exactly that guard. Consequence beyond the leak: the only way to exercise the tag-triggered release pipeline was to publish for real, which is why `upload-artifact` v6 and `download-artifact` v7 (used *only* in this workflow, unreachable by `workflow_dispatch`) sat unvalidated. `release-to-free` now carries the same `-rc`/`-beta`/`-alpha` guard, making an RC tag a safe dry run against Weaver-Dev alone.
+- **Release artifacts were built and "verified" on Node 22 against a declared floor of Node 24.** `release.yml` pinned `node-version: '22'` in both the `verify` and `build` jobs while both `package.json` files declare `engines.node: ">=24.0.0"`. Neither `.npmrc` sets `engine-strict`, so `npm ci` printed EBADENGINE and the job went green — the `verify` job's claim to re-run "the exact pre-push suite on clean infra" was false on the runtime axis. `security-scan.yml` (Node 20, runs `npm ci`, ships to Weaver-Free) and `version-drift-check.yml` (Node 20) had the same drift. All three bumped to `'24'` and the class is now covered by `audit:workflow-node-version`.
 
 - **`codeql-feedback.yml` had two issue-openers for one condition; the broken one was removed.** `refresh-codeql-coverage-map.ts` opened a per-rule tracking issue via `gh issue create` with no `--repo`, so it resolved the Weaver-Dev remote while inheriting the Weaver-Free-scoped `WEAVER_FREE_CODEQL_READ` PAT that the same script needs to read alerts. It could never succeed, and it failed inside a `try`/`catch` as a `console.warn` in an otherwise green run. It also had no close path. The workflow's own triage step — added later, `--repo "$GITHUB_REPOSITORY"` with `github.token`, and self-closing when the auditor goes clean — already covers the condition, so the per-rule opener and its `--open-issues` flag are gone rather than repaired.
 

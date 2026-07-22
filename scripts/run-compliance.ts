@@ -123,6 +123,7 @@ export const PHASES: Phase[] = [
       'audit:sync-exclude-cruft',
       'audit:release-rsync-paths',
       'audit:workflow-cwd',
+      'audit:workflow-node-version',
       'audit:published-entrypoints',
       'audit:nur-dispatch-completeness',
       'audit:engineering-discipline-parity',
