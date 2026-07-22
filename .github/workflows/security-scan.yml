@@ -2,21 +2,25 @@
 # Proprietary and confidential. Do not distribute.
 # Security Vulnerability Scan
 # CREATED IN: All repos (Dev, Public, Premium, Enterprise, Plugins)
-# USED BY: Dependency vulnerability scanning
-# TRIGGERS: Manual (saves CI minutes on private repos)
+# USED BY: Dependency vulnerability scanning (npm advisory DB — complements Socket's
+#          supply-chain focus and CodeQL's SAST; the only npm-audit signal on Free)
+# TRIGGERS: Manual (both repos) + weekly schedule (PUBLIC Free repo only).
+#   The schedule is Free-only by design. On the public mirror, scheduled dependency
+#   scanning is read-only observation — valuable for trust + OpenSSF Scorecard, and the
+#   only place npm audit runs there (Security Advisory Watch is Dev-gated; Dependabot is
+#   excluded from the mirror because it MUTATES via PRs a force-pushed mirror can't accept).
+#   On private Dev the scheduled run is skipped to save CI minutes; dispatch still works.
+#   (Left commented as "uncomment for public" from 2026-03 until 2026-07-22, so it ran
+#    NOWHERE — an active workflow with zero runs, the demo-reset/e2e-badge class.)
 
 name: Security Scan
 
 on:
-  # Manual trigger only for private repos (saves CI minutes)
-  # For public repos, uncomment the schedule below
   workflow_dispatch:
-  # schedule:
-  #   - cron: '0 9 * * 1'  # Every Monday at 9am UTC
-  # pull_request:
-  #   paths:
-  #     - 'package.json'
-  #     - 'package-lock.json'
+  schedule:
+    - cron: '0 9 * * 1'  # Every Monday 09:00 UTC — gated to the Free repo in the job `if`
+  # pull_request paths trigger intentionally NOT enabled: Dev is private (save minutes)
+  # and Free is a force-pushed mirror that does not receive PRs.
 
 permissions: read-all
 
@@ -24,6 +28,13 @@ jobs:
   audit:
     name: Dependency Audit
     runs-on: ubuntu-latest
+    # A manual dispatch runs on whichever repo triggered it. A SCHEDULED run only executes
+    # on the public Free repo — the file lives on both repos, so without this gate the weekly
+    # cron would also fire on private Dev and burn the CI minutes the "manual only" design
+    # exists to save. Dispatch stays available on both.
+    if: >-
+      github.event_name != 'schedule' ||
+      github.repository == 'whizbangdevelopers-org/Weaver-Free'
 
     permissions:
       contents: read
