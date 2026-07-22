@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`audit:doc-host-locators` (auditor #69)** — a document that reaches Weaver-Free must not name an internal build-fleet host. Writing such a hostname into a customer-facing doc leaks internal infrastructure *and* tells the reader to run a command on a box they do not own; the reader's machine is their own Weaver host. The customer tier is **derived** from `buildPublishedTree` (anything reaching the public mirror), not a restated list, so a newly-published doc or a new `docs/vX.Y` snapshot is covered automatically. A hostname inside a larger identifier is correctly not a host reference. Self-tests both directions and refuses to report if the published set is empty. (This CHANGELOG is itself published — hence no example hostnames here, which is the rule doing its job.)
+
 - **`audit:workflow-node-version` (auditor #67)** — every `node-version:` pin in `.github/workflows/` must satisfy `engines.node` from `code/package.json`. `engines.node` and fifteen workflow pins are the same fact written in sixteen places, and a bump of the floor that misses one is silent by construction. Floating aliases (`lts/*`, `latest`) are rejected as unauditable; `${{ }}` expressions are trusted; `# node-version-ok: <reason>` suppresses with a required reason. Self-tests in both directions and refuses to report if it parsed zero pins.
 
 ### Fixed
