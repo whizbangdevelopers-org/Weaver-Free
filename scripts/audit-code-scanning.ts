@@ -25,7 +25,30 @@ import { execSync } from 'child_process'
 import { readFileSync, existsSync } from 'fs'
 import { resolve, dirname } from 'path'
 import { fileURLToPath } from 'url'
-import { saveReport } from './lib/save-report.js'
+type SaveReportFn = (report: Record<string, unknown>) => void
+
+/**
+ * `scripts/lib/` is sync-excluded, but THIS script ships — Weaver-Free's own
+ * Code Scanning Audit runs it against Free's alerts. A static import therefore
+ * killed the workflow with ERR_MODULE_NOT_FOUND before it could do any auditing.
+ *
+ * Report persistence is a Dev convenience, not part of the audit, so its absence
+ * is informational. The catch inspects the error CODE rather than swallowing
+ * everything (G-backend-2026-06-14-001) — a genuine fault inside save-report must
+ * still be loud, or this guard becomes a place for real bugs to hide.
+ */
+async function loadSaveReport(): Promise<SaveReportFn | null> {
+  try {
+    const mod = await import('./lib/save-report.js')
+    return mod.saveReport as SaveReportFn
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException)?.code === 'ERR_MODULE_NOT_FOUND') {
+      console.log(`${C.dim}Report persistence unavailable (scripts/lib/ is not published) — skipping.${C.reset}`)
+      return null
+    }
+    throw err
+  }
+}
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -293,7 +316,8 @@ async function main(): Promise<void> {
 
   const result = failures.length > 0 ? 'fail' : 'pass'
 
-  saveReport({
+  const saveReport = await loadSaveReport()
+  saveReport?.({
     reportName: 'code-scanning',
     timestamp: new Date().toISOString(),
     durationMs,
