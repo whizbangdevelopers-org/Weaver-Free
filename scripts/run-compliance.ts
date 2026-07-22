@@ -125,6 +125,7 @@ export const PHASES: Phase[] = [
       'audit:workflow-cwd',
       'audit:workflow-node-version',
       'audit:published-entrypoints',
+      'audit:published-secrets',
       'audit:nur-dispatch-completeness',
       'audit:engineering-discipline-parity',
       'audit:feature-lifecycle-parity',
