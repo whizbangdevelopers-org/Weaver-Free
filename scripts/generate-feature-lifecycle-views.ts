@@ -54,17 +54,57 @@ const PROJECT_ROOT = resolve(CODE_ROOT, '..')
 
 const SCHEMA = resolve(PROJECT_ROOT, 'plans', 'cross-version', 'FEATURE-LIFECYCLES.md')
 
-// Use the schema file's last git-commit date so generated output is deterministic
-// (no per-run timestamps that drift daily and trigger false audit failures).
+/**
+ * The schema file's last git-commit date, so generated output is deterministic
+ * (no per-run timestamp that drifts daily and trips audit:generated-artifact-freshness).
+ *
+ * IT IS ONLY DETERMINISTIC WITH FULL HISTORY, and the failure is silent.
+ * In a `--depth 1` checkout git does not return empty — the shallow boundary commit
+ * looks like the commit that introduced every path, so `git log -1 -- <schema>` happily
+ * reports the TIP commit's date. No error, no empty string, so the old `|| new Date()`
+ * fallback never even fired. The generator simply produced a different, entirely
+ * plausible date, and the artifact read as stale.
+ *
+ * That is exactly how it went undetected: `actions/checkout` defaults to depth 1, and
+ * release.yml's verify + build jobs took the default while every local run has full
+ * history. The audit passed on every developer machine and failed only inside the
+ * tag-triggered release pipeline — which nothing had run since 2026-04-26.
+ *
+ * So: no fallbacks. A date this function cannot determine correctly is a hard error
+ * naming the fix, never a substituted "today" — a silent plausible value is worse than
+ * a crash, because it ships.
+ */
 function schemaLastModified(): string {
+  const git = (args: string[]): string =>
+    execFileSync('git', args, { cwd: PROJECT_ROOT, encoding: 'utf-8' }).trim()
+
+  let shallow: string
   try {
-    return execFileSync('git', ['log', '-1', '--format=%cs', '--', SCHEMA], {
-      cwd: PROJECT_ROOT,
-      encoding: 'utf-8',
-    }).trim() || new Date().toISOString().slice(0, 10)
-  } catch {
-    return new Date().toISOString().slice(0, 10)
+    shallow = git(['rev-parse', '--is-shallow-repository'])
+  } catch (err) {
+    throw new Error(
+      `Cannot read git history to date ${SCHEMA}: ${err}\n` +
+      `This generator's output must be byte-identical everywhere, so it will not guess a date.`
+    )
   }
+
+  if (shallow === 'true') {
+    throw new Error(
+      'Refusing to generate from a SHALLOW git clone.\n' +
+      "  `git log` reports the tip commit's date for every path here, so the `**Updated:**`\n" +
+      '  line would silently differ from the committed artifact and read as stale drift.\n' +
+      '  Fix the checkout, not this script: `actions/checkout` needs `fetch-depth: 0`.'
+    )
+  }
+
+  const date = git(['log', '-1', '--format=%cs', '--', SCHEMA])
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    throw new Error(
+      `git log returned no commit date for ${SCHEMA} (got ${JSON.stringify(date)}).\n` +
+      '  The schema must be committed before its views can be generated deterministically.'
+    )
+  }
+  return date
 }
 
 const PARTNER_OUT = resolve(PROJECT_ROOT, 'business', 'sales', 'partners', 'ROADMAP.md')
