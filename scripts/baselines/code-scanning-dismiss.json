@@ -1,6 +1,6 @@
 {
-  "_comment": "Accepted false positives for Weaver-Free GitHub code scanning alerts. Auditor: scripts/audit-code-scanning.ts. Add entries only for confirmed false positives — not for accepted risks. Accepted risks must be tracked in business/legal/SECURITY-AUDIT.md instead.",
-  "_lastReviewed": "2026-04-25",
+  "_comment": "Accepted false positives for Weaver-Free GitHub code scanning alerts. Auditor: scripts/audit-code-scanning.ts. Add entries only for confirmed false positives \u2014 not for accepted risks. Accepted risks must be tracked in business/legal/SECURITY-AUDIT.md instead.",
+  "_lastReviewed": "2026-07-22",
   "dismissed": [
     {
       "rule": "js/syntax-error",
@@ -19,6 +19,18 @@
       "path": "backend/src/services/compliance-pdf.ts",
       "reason": "The cache read already uses the readFile-with-ENOENT-fallthrough pattern that CodeQL's rule prescribes. The slug is validated against the COMPLIANCE_DOCS whitelist before any path construction. CodeQL cannot reason through the whitelist check so this fires as a false positive.",
       "addedDate": "2026-04-25"
+    },
+    {
+      "rule": "js/insecure-temporary-file",
+      "path": "backend/src/storage/lib/atomic-write.ts",
+      "reason": "The rule's own message \u2014 'Insecure creation of file in the os temp dir' \u2014 is factually false here. `os.tmpdir()` occurs EXACTLY ONCE in backend/src (compliance-pdf.ts:94) and this module does not reference it. atomicWriteJson writes `${filePath}.tmp-<hex>` beside its DESTINATION, deliberately, so rename(2) stays atomic on one filesystem; every caller (json-registry, audit-store, catalog-store, distro-store, url-validator) passes a path under the configured dataDir. Verify with: grep -rn 'tmpdir' backend/src. The underlying hardening was still applied rather than argued away \u2014 the write uses flag:'wx' (O_CREAT|O_EXCL, does not follow a symlink) and 12 random bytes \u2014 which did NOT clear the alert, confirming the rule keys on something other than the exclusive-create gap.",
+      "addedDate": "2026-07-22"
+    },
+    {
+      "rule": "js/insecure-temporary-file",
+      "path": "backend/src/services/compliance-pdf.ts",
+      "reason": "Same false claim. The flagged write is the CACHE write, whose path is join(config.dataDir, 'pdf-cache') via routes/compliance.ts:54 \u2014 the configured data dir, not a shared temp dir. This file does use os.tmpdir() at line 94, but through mkdtemp(join(tmpdir(), 'weaver-pdf-')), which is the CORRECT secure pattern (0700, kernel-generated random suffix) and is not the flagged line. Hardened anyway with flag:'wx' and 12 random bytes.",
+      "addedDate": "2026-07-22"
     }
   ]
 }
