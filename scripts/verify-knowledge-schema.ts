@@ -15,7 +15,7 @@
  *   - All required fields are present: id, type, domain, tags, since_version,
  *     status, related, graduated_to
  *   - id matches the marker ID
- *   - type is "lesson" or "gotcha"
+ *   - type is one of the generated knowledge_types (FORGE-18 vocab, not hardcoded)
  *   - domain is one of the valid domains
  *   - status is one of: active, superseded, retired (WVR-191)
  *   - tags and related are array-shaped values
@@ -35,21 +35,58 @@ const __dirname = dirname(__filename)
 const CODE_ROOT = resolve(__dirname, '..')
 const KNOWLEDGE_ROOT = resolve(CODE_ROOT, 'docs/knowledge')
 
-// ── Constants ─────────────────────────────────────────────────────────────────
+// ── Vocab (FORGE-18: read the generated vocab, never hardcode) ──────────────────
+// The substrate vocabulary's single canonical source is engram's schema/engram.proto,
+// projected to schema/vocab.generated.json by gen_from_proto.py. weaver is an offline TS
+// repo that can't reach that file at commit time (unlike anvil, which reads $ENGRAM_VOCAB
+// via the Nix devShell), so a byte-exact VENDORED mirror lives at scripts/data/. Reading it
+// here is what stops this auditor from re-hardcoding a set that silently rots — the previous
+// inline VALID_TYPES was already stale (missing 'heuristic', FORGE-20). Refresh the mirror
+// with `npm run sync:engram-vocab`; audit:engram-vocab-fresh guards it against drift.
+const VOCAB_PATH = resolve(__dirname, 'data/engram-vocab.generated.json')
 
-// Vocab mirrors the structured_entries CHECK constraints (WVR-191 / §10 step 4):
-// the markdown is now a generated projection of the DB, so its frontmatter speaks
-// the DB's vocab. Old markdown-only vocab (transferable/transient, graduated/
-// deprecated/historical) was mapped into this set at migration time (§10 step 4b).
-const VALID_TYPES = new Set(['lesson', 'gotcha', 'pattern', 'rule'])
+interface EngramVocab {
+  enums: Record<string, { target: string; values: string[]; symbols: Record<string, string> }>
+  knowledge_types: string[]
+  knowledge_categories: { subdir: string; label: string; types: string[] }[]
+}
+
+function loadVocab(): EngramVocab {
+  let vocab: EngramVocab
+  try {
+    vocab = JSON.parse(readFileSync(VOCAB_PATH, 'utf8')) as EngramVocab
+  } catch (e) {
+    console.error(`audit:knowledge-schema FAIL — cannot read vendored vocab ${VOCAB_PATH}: ${(e as Error).message}`)
+    console.error('  fix: npm run sync:engram-vocab  (copies schema/vocab.generated.json from the engram repo)')
+    process.exit(1)
+  }
+  // Self-test: a malformed / empty vocab must FAIL LOUD, never silently accept everything
+  // (an auditor that can't find its vocab is not the same as one that found no violations).
+  if (!vocab.knowledge_types?.length || !vocab.knowledge_categories?.length
+    || !vocab.enums?.Status?.values?.length || !vocab.enums?.Scope?.values?.length
+    || !vocab.enums?.Layer?.values?.length) {
+    console.error(`audit:knowledge-schema FAIL — vendored vocab ${VOCAB_PATH} is missing required enum sets`)
+    console.error('  (need knowledge_types + knowledge_categories + enums.Status/Scope/Layer). fix: npm run sync:engram-vocab')
+    process.exit(1)
+  }
+  return vocab
+}
+
+const VOCAB = loadVocab()
+
+// Proto-derived sets (FORGE-18). VALID_DOMAINS is NOT proto-sourced — it mirrors engram's
+// schema/knowledge_domains.sql, a separate source, so it stays inline until that grows its
+// own generated projection.
+const VALID_TYPES = new Set(VOCAB.knowledge_types)
+const VALID_STATUSES = new Set(VOCAB.enums.Status.values)
+const VALID_SCOPES = new Set(VOCAB.enums.Scope.values)
+const VALID_LAYERS = new Set(VOCAB.enums.Layer.values)
+const KNOWLEDGE_SUBDIRS = VOCAB.knowledge_categories.map((c) => c.subdir)
 const VALID_DOMAINS = new Set([
   'frontend', 'backend', 'testing', 'nixos', 'security',
   'process', 'mcp', 'engram', 'devops', 'licensing', 'analysis',
   'python', 'rust',
 ])
-const VALID_STATUSES = new Set(['active', 'superseded', 'retired'])
-const VALID_SCOPES = new Set(['universal', 'language', 'language-version', 'domain', 'project', 'task'])
-const VALID_LAYERS = new Set(['L1-dev', 'L2-product'])
 const REQUIRED_FIELDS = ['id', 'type', 'domain', 'tags', 'since_version', 'status', 'scope', 'related', 'graduated_to']
 const ID_RE = /^[LG]-[a-z]+(-[a-z]+)*-\d{4}-\d{2}-\d{2}-\d{3}$/
 
@@ -76,7 +113,7 @@ function looksLikeArray(val: string): boolean {
 
 function collectCategoryFiles(): string[] {
   const files: string[] = []
-  for (const type of ['lessons', 'gotchas']) {
+  for (const type of KNOWLEDGE_SUBDIRS) {
     const dir = resolve(KNOWLEDGE_ROOT, type)
     let names: string[]
     try {
