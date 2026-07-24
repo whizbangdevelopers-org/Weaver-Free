@@ -19,7 +19,7 @@
  *   - domain is one of the valid domains
  *   - status is one of: active, superseded, retired (WVR-191)
  *   - tags and related are array-shaped values
- *   - ID format matches: [LGH]-{domain}-YYYY-MM-DD-NNN (L lesson/pattern/rule, G gotcha, H heuristic)
+ *   - ID format matches: [LGH]-{domain}-YYYY-MM-DD-{NNN|ULID} (L lesson/pattern/rule, G gotcha, H heuristic; FORGE-23 suffix)
  *
  * Invocation:
  *   npx tsx scripts/verify-knowledge-schema.ts
@@ -89,7 +89,9 @@ const VALID_DOMAINS = new Set([
 ])
 const REQUIRED_FIELDS = ['id', 'type', 'domain', 'tags', 'since_version', 'status', 'scope', 'related', 'graduated_to']
 // Prefixes: L (lesson/pattern/rule), G (gotcha), H (heuristic — FORGE-20, subdir heuristics/).
-const ID_RE = /^[LGH]-[a-z]+(-[a-z]+)*-\d{4}-\d{2}-\d{2}-\d{3}$/
+// Suffix (FORGE-23): legacy `-NNN` (mixed-scheme, immutable) OR a 26-char Crockford-base32 ULID
+// (globally-unique + coordination-free — minted for new entries). Additive: both validate.
+const ID_RE = /^[LGH]-[a-z]+(-[a-z]+)*-\d{4}-\d{2}-\d{2}-(\d{3}|[0-9A-HJKMNP-TV-Z]{26})$/
 
 // ── Parsing helpers ───────────────────────────────────────────────────────────
 
@@ -173,7 +175,7 @@ function auditFile(filePath: string): Violation[] {
 
     // id format
     if (fm['id'] && !ID_RE.test(fm['id'])) {
-      flag(`id "${fm['id']}" does not match format [LGH]-{domain}-YYYY-MM-DD-NNN`)
+      flag(`id "${fm['id']}" does not match format [LGH]-{domain}-YYYY-MM-DD-{NNN|ULID}`)
     }
 
     // type
