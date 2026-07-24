@@ -19,7 +19,7 @@
  *   - domain is one of the valid domains
  *   - status is one of: active, superseded, retired (WVR-191)
  *   - tags and related are array-shaped values
- *   - ID format matches: [LG]-{domain}-YYYY-MM-DD-NNN
+ *   - ID format matches: [LGH]-{domain}-YYYY-MM-DD-NNN (L lesson/pattern/rule, G gotcha, H heuristic)
  *
  * Invocation:
  *   npx tsx scripts/verify-knowledge-schema.ts
@@ -88,7 +88,8 @@ const VALID_DOMAINS = new Set([
   'python', 'rust',
 ])
 const REQUIRED_FIELDS = ['id', 'type', 'domain', 'tags', 'since_version', 'status', 'scope', 'related', 'graduated_to']
-const ID_RE = /^[LG]-[a-z]+(-[a-z]+)*-\d{4}-\d{2}-\d{2}-\d{3}$/
+// Prefixes: L (lesson/pattern/rule), G (gotcha), H (heuristic — FORGE-20, subdir heuristics/).
+const ID_RE = /^[LGH]-[a-z]+(-[a-z]+)*-\d{4}-\d{2}-\d{2}-\d{3}$/
 
 // ── Parsing helpers ───────────────────────────────────────────────────────────
 
@@ -172,7 +173,7 @@ function auditFile(filePath: string): Violation[] {
 
     // id format
     if (fm['id'] && !ID_RE.test(fm['id'])) {
-      flag(`id "${fm['id']}" does not match format [LG]-{domain}-YYYY-MM-DD-NNN`)
+      flag(`id "${fm['id']}" does not match format [LGH]-{domain}-YYYY-MM-DD-NNN`)
     }
 
     // type
