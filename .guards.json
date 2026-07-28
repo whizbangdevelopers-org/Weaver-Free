@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "repo": "weaver",
+  "_what": "This repo's proof-tested guards. Read by Forge/guards/run-guards.py. The `discover` command enumerates every `audit:*` npm script, so --coverage reports the TRUE gap rather than the size of this hand-written list — which is the whole point, and the defect the registry exists to prevent.",
+  "discover": "node -e \"const p=require('./package.json');Object.keys(p.scripts).filter(k=>k.startsWith('audit:')).forEach(k=>console.log(k))\"",
+  "guards": [
+    {
+      "id": "audit:sast",
+      "what": "static secret + injection scan across src, backend, scripts, config, tests, public and root config",
+      "why": "the reference implementation for control corpora. The PREVIOUS hardcoded-secret rule sat green in test:compliance while blind to every real credential — it demanded 20+ chars (the leaked password was 14), excluded punctuation, never read .php or .xml, and skipped any line containing 'test'. It now self-tests against scripts/fixtures/sast-secret-corpus.txt and REFUSES to scan if the corpus fails.",
+      "run": "npm --prefix /home/mark/Projects/active/fabrick-weaver-project/code run audit:sast",
+      "proof": "npm --prefix /home/mark/Projects/active/fabrick-weaver-project/code run audit:sast",
+      "interval_days": 7,
+      "timeout": 600,
+      "proof_note": "the corpus check is IN the run — a corpus failure aborts the scan, so running it is proving it. Split into a distinct --self-test if that coupling ever loosens."
+    },
+    {
+      "id": "audit:vocabulary-current",
+      "what": "vocabulary sync between the canonical term list and its consumers",
+      "why": "verify-vocabulary-sync.ts carries fixture-based cases; registered so the fixtures are exercised on a schedule.",
+      "run": "npm --prefix /home/mark/Projects/active/fabrick-weaver-project/code run audit:vocabulary-current",
+      "proof": null,
+      "unproven_reason": "references fixtures but exposes no --self-test entry point; needs a paired must-catch/must-ignore case before it can be called proven.",
+      "interval_days": 7
+    }
+  ]
+}
