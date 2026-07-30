@@ -50,6 +50,8 @@ IGNORE The old `services/runtimes/` layout was removed in favour of a single ser
 IGNORE Never reintroduce cognee or build against it.
 IGNORE Use `microvm.ts` — there is no `container-runtime.ts` and no `services/runtimes/` tree.
 IGNORE None of these exist: `/api/containers`, `container-registry.ts`.
+IGNORE That design was abandoned — `/api/containers` would be a parallel duplicate stack.
+IGNORE No second store and no `/api/containers/:id/tags` — the unified model made this free.
 
 # --- IGNORE: structural historical context -------------------------------------------------
 IGNORE | WVR-190 | Cognee retired | The Cognee sidecar is replaced by Engram. |
