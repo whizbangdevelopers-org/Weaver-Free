@@ -31,7 +31,7 @@
  */
 
 import { createHash } from 'crypto'
-import { readFileSync, statSync } from 'fs'
+import { readFileSync, readdirSync, statSync } from 'fs'
 import { join, dirname, resolve } from 'path'
 import { fileURLToPath } from 'url'
 
@@ -61,6 +61,86 @@ function findTemplateRoot(): string | null {
     join(process.env.HOME ?? '', 'Projects', 'active', 'quasar-project-template'),
   ].filter((p): p is string => Boolean(p))
   return candidates.find(p => isDir(join(p, '.git'))) ?? null
+}
+
+// ---------------------------------------------------------------------------
+// Reach — is anything portfolio-wide MISSING from the template entirely?
+//
+// The manifest check answers "do the DECLARED shared files still match?". It cannot answer
+// "should this file have been declared in the first place?" — and that is the gap both of this
+// portfolio's real incidents fell through:
+//
+//   - two Weaver knowledge entries sat unprojected into the archetype for 17 days;
+//   - three core rules were weaver-ahead and surfaced only via a hand-written carry-in.
+//
+// Neither was on the manifest, so neither was ever compared. A file nobody declared is a file
+// nobody checks, and "never declared" is indistinguishable from "in sync" when the only control
+// is a declared-list diff.
+//
+// `.claude/rules/core/` is the population with a machine-checkable claim attached: core/ MEANS
+// stack-agnostic — that is the entire premise of the core/stack split, which exists because
+// universal invariants hidden behind a TypeScript glob never loaded in a PHP repo. A core rule
+// that exists in only one repo contradicts its own directory.
+//
+// PRESENCE, not equality. Weaver's core/security.md legitimately names sops-nix and Decision
+// WVR-73; the template's cannot. Demanding byte-equality here would force either a permanent
+// false fork-warning or the deletion of project-specific detail. Presence is the assertion that
+// actually holds for this population — equality is what the manifest above is for.
+// ---------------------------------------------------------------------------
+
+/**
+ * core/ rules that are legitimately project-specific despite living in core/.
+ * Each carries a reason — a bare exemption is gaming (never-game-auditors.md).
+ */
+const REACH_EXEMPT: Record<string, string> = {
+  'terminology.md':
+    'Product vocabulary by definition — tier names, Rethread, Ply, Jacquard, license-key ' +
+    'prefixes. It lives in core/ because it must ALWAYS load, not because it is portfolio-wide. ' +
+    'The template carries its own.',
+}
+
+function checkReach(templateRoot: string): void {
+  const coreDir = join(REPO_ROOT, '.claude', 'rules', 'core')
+  if (!isDir(coreDir)) {
+    console.log('  Reach — no .claude/rules/core/ here; skipped (split not adopted).\n')
+    return
+  }
+
+  let mine: string[]
+  try {
+    mine = readdirSync(coreDir).filter(f => f.endsWith('.md')).sort()
+  } catch {
+    return
+  }
+
+  // Saturation guard: an empty population would report clean forever.
+  if (mine.length === 0) {
+    console.error('  ✗ .claude/rules/core/ exists but holds no rules — this check has gone blind.\n')
+    process.exit(1)
+  }
+
+  const exempt = mine.filter(f => REACH_EXEMPT[f])
+  const missing = mine.filter(
+    f => !REACH_EXEMPT[f] && sha256(join(templateRoot, '.claude', 'rules', 'core', f)) === null,
+  )
+
+  if (missing.length === 0) {
+    const n = mine.length - exempt.length
+    const suffix = exempt.length > 0 ? ` (${exempt.length} exempt)` : ''
+    console.log(`  ✓ reach — all ${n} portfolio-wide core rule(s) reach the template${suffix}.\n`)
+    return
+  }
+
+  for (const f of missing) {
+    console.warn(`  ⚠ NOT IN TEMPLATE (core/ means stack-agnostic): .claude/rules/core/${f}`)
+  }
+  console.warn(
+    '\n    A core/ rule is stack-agnostic by definition, so one that exists only here is either\n' +
+      '      • owed upstream — extract it, editing for generality on the way up; or\n' +
+      '      • not actually portfolio-wide — move it out of core/, or add it to REACH_EXEMPT\n' +
+      '        with a reason.\n' +
+      '    Warning only — which of the two it is, is a human call.\n',
+  )
 }
 
 function main(): void {
@@ -130,6 +210,7 @@ function main(): void {
 
   if (forked.length === 0 && missingHere.length === 0) {
     console.log('  ✓ every shared file matches the template. No forks.\n')
+    checkReach(templateRoot)
     return
   }
 
@@ -142,6 +223,7 @@ function main(): void {
       '      • this project has a fix → promote it up into the template, then re-sync everyone.\n' +
       '    Warning only — not a failure. Divergence direction is a human call.\n',
   )
+  checkReach(templateRoot)
 }
 
 main()
