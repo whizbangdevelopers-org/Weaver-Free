@@ -32,7 +32,7 @@ export async function runMockAgent(
     return mod.runMockAgent(operationId, vmName, action, broadcast)
   } catch (err) {
     // mock-agent-data.ts is BSL and sync-excluded — absent on a Free build is EXPECTED. A real load
-    // failure on a build that ships it must not be mislabeled. See G-backend-2026-06-14-001.
+    // failure on a build that ships it must not be mislabeled. See G-backend-2026-06-14-01KYSBXCJ6839ZDAHSMJ97EQB1.
     const code = (err as NodeJS.ErrnoException)?.code
     if (code !== 'ERR_MODULE_NOT_FOUND' && code !== 'MODULE_NOT_FOUND') {
       console.error('[mock-agent] mock-agent-data present but failed to load:', err)

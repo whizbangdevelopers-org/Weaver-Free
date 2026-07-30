@@ -202,25 +202,108 @@ function checkHeaderReferences(specPath: string, content: string): Violation[] {
   return []
 }
 
+/**
+ * Paths a spec DECLARES IT WILL CREATE — its own Outputs tables, plus those of its siblings in
+ * the same `agents/<version>/` directory.
+ *
+ * A "Context to Read" entry pointing at a file a sibling spec creates (`import.ts` "from 8a") is
+ * a forward reference within one release, not a dead citation. Without this the auditor would
+ * demand that every spec in a wave be executed before the next one may cite its output — which
+ * would train authors to delete correct cross-references, the opposite of what it is for.
+ *
+ * This is the IGNORE half, and it is bounded: only paths a sibling spec explicitly lists as an
+ * output are excused. A path nobody creates and nobody has is still an error.
+ */
+let declaredOutputsCache: Set<string> | null = null
+
+function declaredOutputs(): Set<string> {
+  if (declaredOutputsCache) return declaredOutputsCache
+  const out = new Set<string>()
+  // Every version directory, not just the spec's own. A v2.3 spec citing a file that the v1.4
+  // spec creates is a forward reference along the roadmap — the same legitimate shape as a
+  // same-wave one, just further out. Archived specs are excluded: a path only an archived spec
+  // ever promised is exactly the dead citation this check exists to find.
+  const versionDirs: string[] = []
+  for (const entry of readdirSync(AGENTS_DIR)) {
+    if (entry === 'archive') continue
+    const sub = resolve(AGENTS_DIR, entry)
+    try {
+      if (statSync(sub).isDirectory()) versionDirs.push(sub)
+    } catch {
+      /* not a directory */
+    }
+  }
+
+  for (const dir of versionDirs) {
+    for (const file of readdirSync(dir)) {
+      if (!file.endsWith('.md')) continue
+      let body: string
+      try {
+        body = readFileSync(resolve(dir, file), 'utf-8')
+      } catch {
+        continue
+      }
+      // ALL Outputs sections, not the first. A spec that covers several features carries one
+      // per feature (cross-resource-agent.md has a second for the Selvedge slice), and a
+      // non-global `.match` returns only the first — so every path declared below it looked
+      // undeclared.
+      for (const section of body.matchAll(/##\s+Outputs[\s\S]*?(?=\n##\s+[^#]|\n*$)/gi)) {
+        // Any path-shaped token in ANY column. The house Outputs table puts the path in column 1
+        // ("| `services/export.ts` | New | … |") but not always — cache-foundation.md puts the
+        // description first and the path second, and a column-1-only regex silently missed it.
+        for (const m of section[0].matchAll(
+          /`?((?:\.\.\/)*[\w./-]+\.(?:md|ts|tsx|vue|json|nix|yaml|yml|sh))`?/g,
+        )) {
+          out.add(m[1]!)
+        }
+      }
+    }
+  }
+  declaredOutputsCache = out
+  return out
+}
+
 function checkCitedPathsResolve(specPath: string, content: string): Violation[] {
   const vs: Violation[] = []
   // Extract the knowledge section body.
   const match = content.match(
     /##\s+(?:Context\s+to\s+Read\s+Before\s+Starting|Knowledge\s+Sources)[\s\S]*?(?=\n##\s+|\n*$)/i,
   )
-  const knowledgeBody = match ? match[0] : content // fall back to whole doc
+  // Stop at the first `###` sub-heading. The Context table is always the first block of the
+  // section; what follows it (`### Pre-written test contracts`) names files that MUST NOT exist
+  // yet — they are contracts Forge is about to write. Scanning them turned "this spec is
+  // correctly test-first" into an error.
+  let knowledgeBody = match ? match[0] : content // fall back to whole doc
+  const subHeading = knowledgeBody.search(/\n###\s+/)
+  if (subHeading > 0) knowledgeBody = knowledgeBody.slice(0, subHeading)
+
+  const willBeCreated = declaredOutputs()
 
   // Inline references like `code/.claude/rules/nixos.md` (backtick-quoted or not).
-  // Match paths that start with a known scanned location.
-  const pathRe = /(?:^|[\s(`'"])((?:\.\.\/)*(?:code\/)?(?:\.claude\/rules|plans|agents|business|code\/docs|code\/backend|code\/src|code\/nixos|code\/testing)\/[^\s`'")\]]+\.(?:md|ts|tsx|vue|json|nix|yaml|yml|sh))/g
+  //
+  // The prefix alternation is the whole check — a path shape absent from it is never verified,
+  // and an unverified citation is indistinguishable from a correct one. The original list
+  // required a `code/` prefix on every source path, so the form agent specs ACTUALLY use —
+  // bare `backend/src/services/foo.ts`, as written in every "Context to Read" table — matched
+  // nothing. The old sub-runtime-actions.md cited five files that do not exist
+  // (`container-runtime.ts`, `container-registry.ts`, three `runtimes/*.ts`) and this auditor
+  // passed clean. Both prefixed and bare forms are accepted now, and bare forms additionally
+  // resolve against code/ (see below), which is what they mean in a Weaver spec.
+  const pathRe = /(?:^|[\s(`'"|])((?:\.\.\/)*(?:code\/)?(?:\.claude\/rules|plans|agents|business|docs|backend|src|nixos|testing|tui|scripts|codebase-mcp)\/[^\s`'")\]|]+\.(?:md|ts|tsx|vue|json|nix|yaml|yml|sh))/g
 
   for (const m of knowledgeBody.matchAll(pathRe)) {
     const raw = m[1]!
-    // Strip relative-traversal prefix. Resolve relative to agents/<ver>/ since
-    // that's where the spec lives; fall back to PROJECT_ROOT.
+    // Resolve relative to agents/<ver>/ (where the spec lives), then PROJECT_ROOT, then
+    // CODE_ROOT — the last covers bare `backend/…` / `src/…` / `testing/…` citations, which
+    // in a Weaver spec always mean the path under code/.
     const specDir = dirname(specPath)
     const resolved = resolve(specDir, raw)
-    if (!existsSync(resolved) && !existsSync(resolve(PROJECT_ROOT, raw))) {
+    if (willBeCreated.has(raw)) continue
+    if (
+      !existsSync(resolved) &&
+      !existsSync(resolve(PROJECT_ROOT, raw)) &&
+      !existsSync(resolve(CODE_ROOT, raw))
+    ) {
       vs.push({
         spec: relative(PROJECT_ROOT, specPath),
         check: 'cited-paths',

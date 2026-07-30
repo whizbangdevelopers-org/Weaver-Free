@@ -14,7 +14,7 @@
  *   3. No duplicate canonical terms.
  *   4. adoptIn and avoidIn are disjoint per entry.
  *   5. Product parity — every domain=product `canonical` is a real, defined
- *      Weaver term (appears as a bolded **token** in .claude/rules/terminology.md
+ *      Weaver term (appears as a bolded **token** in .claude/rules/core/terminology.md
  *      or code/.claude/rules/navigation.md). Catches typos / renamed-away drift.
  *   6. Translation-not-adoption — domain=product entries have empty adoptIn
  *      (textile terms are translated, never adopted as our label). Only
@@ -41,7 +41,7 @@ const CODE_ROOT = resolve(__dirname, '..')
 const PROJECT_ROOT = resolve(CODE_ROOT, '..')
 
 const DICT_PATH = resolve(CODE_ROOT, 'scripts/data/synonym-dictionary.json')
-const TERMINOLOGY_PATH = resolve(PROJECT_ROOT, '.claude/rules/terminology.md')
+const TERMINOLOGY_PATH = resolve(PROJECT_ROOT, '.claude/rules/core/terminology.md')
 const NAVIGATION_PATH = resolve(CODE_ROOT, '.claude/rules/navigation.md')
 
 // ANSI colours
@@ -192,7 +192,7 @@ function main(): void {
   }
   console.log()
   console.log(`${RED}${violations.length} violation(s)${RESET}`)
-  console.log(`${DIM}Source: code/scripts/data/synonym-dictionary.json — definitions stay authoritative in .claude/rules/terminology.md${RESET}`)
+  console.log(`${DIM}Source: code/scripts/data/synonym-dictionary.json — definitions stay authoritative in .claude/rules/core/terminology.md${RESET}`)
   process.exit(1)
 }
 
