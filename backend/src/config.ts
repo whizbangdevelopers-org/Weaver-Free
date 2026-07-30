@@ -82,7 +82,7 @@ export function loadConfig(): DashboardConfig {
 
   // HMAC secret for license key validation.
   // LICENSE_HMAC_SECRET_FILE (e.g. NixOS sops-nix) is preferred — it keeps the secret out of the
-  // world-readable Nix store, unlike a literal LICENSE_HMAC_SECRET. See G-security-2026-06-14-001.
+  // world-readable Nix store, unlike a literal LICENSE_HMAC_SECRET. See G-security-2026-06-14-01KYSBXCJAD009N6WQ6GP42V93.
   let hmacSecret = process.env.LICENSE_HMAC_SECRET
   if (!hmacSecret && process.env.LICENSE_HMAC_SECRET_FILE) {
     try {
@@ -136,7 +136,7 @@ export function loadConfig(): DashboardConfig {
     } catch (err) {
       // An ABSENT key file is the normal keyless state — a real install is Free until a key is
       // installed (LICENSE_KEY_FILE may point at a path that doesn't exist yet). That is not an
-      // error; only a present-but-unreadable/invalid file is. See L-licensing-2026-06-15-001.
+      // error; only a present-but-unreadable/invalid file is. See L-licensing-2026-06-15-01KYSBXCJCMVKEQK3KA8F3KRE9.
       if ((err as NodeJS.ErrnoException)?.code === 'ENOENT') {
         console.info(`[license] No license key file at ${licenseKeyFile} — free tier`)
       } else {

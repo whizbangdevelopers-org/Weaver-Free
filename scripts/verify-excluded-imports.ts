@@ -186,7 +186,7 @@ function isExcluded(codeRelativePath: string, excludes: string[]): boolean {
  * `scripts/lib/` is excluded by sync-exclude.yml:130. Free's Code Scanning Audit
  * died with ERR_MODULE_NOT_FOUND while this auditor reported PASS — its universe
  * (src, backend/src, tui/src) was narrower than its consumer's. Third instance of
- * that shape in one session; see .claude/rules/single-source-generated.md.
+ * that shape in one session; see .claude/rules/core/single-source-generated.md.
  */
 const SCAN_DIRS = ['src', 'backend/src', 'tui/src', 'scripts']
 const SCAN_EXTS = ['.ts', '.tsx', '.js', '.jsx', '.vue', '.mjs', '.cjs']

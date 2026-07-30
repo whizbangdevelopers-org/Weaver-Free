@@ -32,7 +32,7 @@
         @click="showCreate = true"
       />
       <HelpTooltip
-        text="Docker + Podman containers are free — start, stop, and create. Apptainer (HPC/research SIF runtimes) requires Weaver Solo."
+        text="Docker + Podman containers are free to see and run — list, inspect, logs, start, stop, restart. Creating one is Live Provisioning and requires Weaver Solo, as does Apptainer (HPC/research SIF runtimes). Decision WVR-207."
         class="q-ml-xs"
       />
     </div>
