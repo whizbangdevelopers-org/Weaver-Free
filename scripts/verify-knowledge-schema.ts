@@ -210,6 +210,33 @@ function auditFile(filePath: string): Violation[] {
     if (fm['scope'] !== undefined && fm['scope'] !== '' && !VALID_SCOPES.has(fm['scope'])) {
       flag(`invalid scope "${fm['scope']}"; valid: ${[...VALID_SCOPES].join(', ')}`)
     }
+
+    // A scope rung that NAMES an axis must carry that axis.
+    //
+    // `scope: language` with no language named is not merely untidy — it is unroutable. The
+    // projection selects BY language (`--include-languages`), so such an entry matches nothing
+    // and silently reaches no consumer. Two Weaver entries sat unprojected into the quasar
+    // archetype for 17 days in exactly this state
+    // (G-frontend-2026-07-11-001, G-testing-2026-07-11-001). The ingester was taught to refuse an
+    // unnamed rung; this is the markdown-side guard, so the same shape cannot be authored back in
+    // by hand. Currently 0 of 51 scope=language entries are affected — a guard added while the
+    // population is clean, which is the only time it is cheap.
+    const isEmpty = (v: unknown): boolean =>
+      v === undefined || v === null || v === '' || v === '[]' || v === '~' || v === 'null'
+
+    if (fm['scope'] === 'language' && isEmpty(fm['language'])) {
+      flag(
+        'scope is "language" but no language is named — the projection selects BY language, so ' +
+          'this entry matches nothing and reaches no consumer. Name the language(s), or use a ' +
+          'scope rung that does not require one (universal / domain / project).',
+      )
+    }
+    if (fm['scope'] === 'language-version' && isEmpty(fm['language_version'])) {
+      flag(
+        'scope is "language-version" but no language_version range is given — same unroutable ' +
+          'shape as an unnamed language rung.',
+      )
+    }
   }
 
   return violations
