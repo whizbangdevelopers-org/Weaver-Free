@@ -99,6 +99,78 @@ const REACH_EXEMPT: Record<string, string> = {
     'The template carries its own.',
 }
 
+/** Entry ids declared `scope: universal` in a project's knowledge store. */
+function universalEntryIds(root: string): Set<string> {
+  const out = new Set<string>()
+  const base = join(root, 'code', 'docs', 'knowledge')
+  for (const cat of ['lessons', 'gotchas']) {
+    const dir = join(base, cat)
+    let files: string[]
+    try {
+      files = readdirSync(dir).filter(f => f.endsWith('.md'))
+    } catch {
+      continue
+    }
+    for (const f of files) {
+      let text: string
+      try {
+        text = readFileSync(join(dir, f), 'utf-8')
+      } catch {
+        continue
+      }
+      const re = /<!--\s*entry:([A-Za-z0-9-]+)\s*-->([\s\S]*?)(?=<!--\s*entry:|$)/g
+      let m: RegExpExecArray | null
+      while ((m = re.exec(text)) !== null) {
+        if (/^scope:\s*universal\s*$/m.test(m[2]!)) out.add(m[1]!)
+      }
+    }
+  }
+  return out
+}
+
+/**
+ * A `scope: universal` entry is, by its own declaration, true for any project on any stack — that
+ * is what the rung MEANS, and it is why the projection copies it into every scaffolding template.
+ * So an entry marked universal that never arrives upstream is contradicting its own scope, in
+ * exactly the way a core/ rule that exists in one repo contradicts its directory.
+ *
+ * This is the half the earlier reach check did not cover, and it is where the 17-day incident
+ * actually happened: two entries were unroutable, reached no consumer, and nothing noticed —
+ * because the only thing watching was a human writing a carry-in note.
+ */
+function checkKnowledgeReach(templateRoot: string): void {
+  const mine = universalEntryIds(REPO_ROOT)
+  if (mine.size === 0) {
+    console.log('  Reach (knowledge) — no scope:universal entries here; skipped.\n')
+    return
+  }
+
+  const theirs = universalEntryIds(templateRoot)
+  if (theirs.size === 0) {
+    console.warn(
+      '  ⚠ the template has NO scope:universal entries — either its store moved, or this check\n' +
+        '    is reading the wrong path and has gone blind. Verify before trusting a later PASS.\n',
+    )
+    return
+  }
+
+  const missing = [...mine].filter(id => !theirs.has(id)).sort()
+  if (missing.length === 0) {
+    console.log(`  ✓ reach (knowledge) — all ${mine.size} scope:universal entr(ies) reach the template.\n`)
+    return
+  }
+
+  for (const id of missing.slice(0, 12)) {
+    console.warn(`  ⚠ UNIVERSAL but NOT IN TEMPLATE: ${id}`)
+  }
+  if (missing.length > 12) console.warn(`  ⚠ …and ${missing.length - 12} more`)
+  console.warn(
+    '\n    These declare themselves true for any project on any stack, but never arrived upstream.\n' +
+      '    Re-run the knowledge projection, or correct the scope if they are not actually universal.\n' +
+      '    Warning only — which of the two it is, is a human call.\n',
+  )
+}
+
 function checkReach(templateRoot: string): void {
   const coreDir = join(REPO_ROOT, '.claude', 'rules', 'core')
   if (!isDir(coreDir)) {
@@ -211,6 +283,7 @@ function main(): void {
   if (forked.length === 0 && missingHere.length === 0) {
     console.log('  ✓ every shared file matches the template. No forks.\n')
     checkReach(templateRoot)
+  checkKnowledgeReach(templateRoot)
     return
   }
 
@@ -224,6 +297,7 @@ function main(): void {
       '    Warning only — not a failure. Divergence direction is a human call.\n',
   )
   checkReach(templateRoot)
+  checkKnowledgeReach(templateRoot)
 }
 
 main()
