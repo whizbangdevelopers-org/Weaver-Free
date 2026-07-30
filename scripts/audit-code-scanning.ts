@@ -34,7 +34,7 @@ type SaveReportFn = (report: Record<string, unknown>) => void
  *
  * Report persistence is a Dev convenience, not part of the audit, so its absence
  * is informational. The catch inspects the error CODE rather than swallowing
- * everything (G-backend-2026-06-14-001) — a genuine fault inside save-report must
+ * everything (G-backend-2026-06-14-01KYSBXCJ6839ZDAHSMJ97EQB1) — a genuine fault inside save-report must
  * still be loud, or this guard becomes a place for real bugs to hide.
  */
 async function loadSaveReport(): Promise<SaveReportFn | null> {

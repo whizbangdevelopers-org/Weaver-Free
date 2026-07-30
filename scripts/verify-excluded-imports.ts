@@ -305,7 +305,7 @@ function extractImports(content: string): ImportRef[] {
  *      The catch MUST distinguish module-absent (expected on a Free build)
  *      from a genuine load failure — i.e. inspect the error code. A bare
  *      `catch {}` silently swallows a real BSL load failure and mislabels
- *      it (this is what shipped F1/F2, 2026-06-14). See G-backend-2026-06-14-001.
+ *      it (this is what shipped F1/F2, 2026-06-14). See G-backend-2026-06-14-01KYSBXCJ6839ZDAHSMJ97EQB1.
  *
  *   3. `import.meta.glob(` — declared elsewhere (already handled by
  *      the 'glob' ref kind), never reaches this check.
@@ -410,7 +410,7 @@ function main(): void {
   console.log(`(b) use \`import.meta.glob\` for filesystem-driven collections, (c) restructure so the`)
   console.log(`reference goes through a helper that is itself sync-excluded, or \u2014 for a try/catch guard \u2014`)
   console.log(`(d) make the catch inspect the error code (\`ERR_MODULE_NOT_FOUND\` \u21d2 absent on Free = info;`)
-  console.log(`otherwise log at error level), never a bare \`catch {}\`. See G-backend-2026-06-14-001.`)
+  console.log(`otherwise log at error level), never a bare \`catch {}\`. See G-backend-2026-06-14-01KYSBXCJ6839ZDAHSMJ97EQB1.`)
   process.exit(1)
 }
 
