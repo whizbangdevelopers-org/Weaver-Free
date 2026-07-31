@@ -82,6 +82,108 @@ function isContainerDef(def: WorkloadDefinition): boolean {
   return def.runtime === 'docker' || def.runtime === 'podman'
 }
 
+// --- Container log surface (pure functions for testability) ---
+
+/**
+ * Check if a runtime uses container logs (docker/podman/apptainer).
+ * An absent runtime is a microvm and must keep the provisioning-log path.
+ */
+export function isContainerLogSource(runtime?: string): boolean {
+  return runtime === 'docker' || runtime === 'podman' || runtime === 'apptainer'
+}
+
+/**
+ * Build argv for docker/podman logs command.
+ * Default lines=200, clamped to [1, 10000].
+ * Never includes -f/--follow which would hang the request.
+ */
+export function containerLogArgs(runtime: string, name: string, lines?: number): string[] {
+  const n = lines ?? 200
+  const clamped = Math.max(1, Math.min(10000, n))
+  return ['logs', '--tail', String(clamped), name]
+}
+
+/**
+ * Parse Apptainer instance list --json output to get log paths.
+ * Apptainer has no 'logs' subcommand; logOutPath/logErrPath are in instance list JSON.
+ * Returns { out, err } or null. Never throws.
+ */
+export function apptainerLogPaths(stdout: string, name: string): { out: string; err: string } | null {
+  try {
+    const parsed = JSON.parse(stdout)
+    if (!parsed || !Array.isArray(parsed.instances)) return null
+    for (const instance of parsed.instances) {
+      if (instance.instance === name &&
+          typeof instance.logOutPath === 'string' &&
+          typeof instance.logErrPath === 'string') {
+        // These paths are about to be read off disk, and they arrive from ANOTHER PROCESS's
+        // stdout. `name` is already regex-constrained by the route, so the caller cannot traverse
+        // through it — but that is not the whole threat. Whatever the binary at APPTAINER_BIN
+        // prints, we would otherwise open: a wrong/shimmed/compromised binary turns this into an
+        // arbitrary-file read as the weaver service user, and `.catch(() => '')` at the read site
+        // means it fails silently rather than loudly.
+        //
+        // So the shape is checked before the read, against the real emitted form (captured from
+        // apptainer-slim 1.5.0 on lab1, 2026-07-31):
+        //   /root/.apptainer/instances/logs/lab1/root/testinst.out
+        // Absolute, under an `.apptainer/instances/logs/` segment, basename exactly `<name>.out` /
+        // `<name>.err`, and no `..` anywhere. This is defence in depth, not the primary control —
+        // it just means trusting the binary's LOCATION rather than its OUTPUT.
+        if (!isApptainerInstanceLogPath(instance.logOutPath, name, 'out')) return null
+        if (!isApptainerInstanceLogPath(instance.logErrPath, name, 'err')) return null
+        return { out: instance.logOutPath, err: instance.logErrPath }
+      }
+    }
+    return null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Is this the shape Apptainer actually emits for an instance log path?
+ * Absolute, no traversal, under `.apptainer/instances/logs/`, basename `<name>.<ext>`.
+ */
+export function isApptainerInstanceLogPath(p: string, name: string, ext: 'out' | 'err'): boolean {
+  if (typeof p !== 'string' || !p.startsWith('/')) return false
+  if (p.includes('..') || p.includes('\0')) return false
+  if (!p.includes('/.apptainer/instances/logs/')) return false
+  return p.endsWith(`/${name}.${ext}`)
+}
+
+/**
+ * Fetch logs for a container workload. Returns null when there are none to serve.
+ *
+ * Lives HERE rather than in the route because in this codebase routes do not touch the system —
+ * services do. That is not only style: `no-raw-execfile-args` (scripts/semgrep-rules/) is a taint
+ * rule from `$REQ.params` to `execFile`, and it fired on the first cut of this feature precisely
+ * because the exec sat in the route file with the request params in scope. Every other system call
+ * — startVm, getContainerStatus, getVmUptime — is on this side of the boundary and none of them
+ * trip it. `name` is regex-constrained by the route's Zod schema before it ever arrives.
+ */
+export async function getContainerLogs(
+  name: string,
+  runtime: string,
+  tailLines = 200,
+): Promise<string | null> {
+  if (runtime === 'apptainer') {
+    const bin = config?.apptainerBin ?? 'apptainer'
+    const { stdout } = await execFileAsync(bin, ['instance', 'list', '--json'])
+    const paths = apptainerLogPaths(stdout, name)
+    if (!paths) return null
+    const { readFile } = await import('node:fs/promises')
+    const [outLog, errLog] = await Promise.all([
+      readFile(paths.out, 'utf-8').catch(() => ''),
+      readFile(paths.err, 'utf-8').catch(() => ''),
+    ])
+    return [outLog, errLog].filter(s => s.length > 0).join('\n')
+  }
+
+  const bin = runtime === 'docker' ? (config?.dockerBin ?? 'docker') : (config?.podmanBin ?? 'podman')
+  const { stdout } = await execFileAsync(bin, containerLogArgs(runtime, name, tailLines))
+  return stdout
+}
+
 function getContainerBin(runtime: ContainerRuntime): string {
   if (runtime === 'docker') return config?.dockerBin ?? 'docker'
   return config?.podmanBin ?? 'podman'
