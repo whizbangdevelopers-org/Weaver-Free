@@ -110,10 +110,28 @@ function run(): void {
   console.log('\x1b[1mTaint Analysis Audit\x1b[0m')
   console.log('\x1b[2mRuns Semgrep custom taint rules on backend/src/\x1b[0m\n')
 
+  // A missing engine is NOT a pass. This used to warn and exit 0, which made "the code is clean"
+  // and "nothing was analysed" the same green tick — and this auditor is the only place taint
+  // analysis happens anywhere: test:compliance runs from the git hooks, no workflow runs semgrep,
+  // so there is no CI backstop to catch what a skipping local run misses. It found 3 real findings
+  // in one route the day this was written; on a machine without semgrep those would have pushed
+  // clean. An auditor that cannot report "I could not look" is indistinguishable from one that
+  // looked and found nothing (core/security.md, "never trust an auditor that has never failed").
+  //
+  // semgrep is in the repo devShell (code/flake.nix), so `nix develop` has it. The escape hatch is
+  // deliberate and visible rather than silent — same shape as a suppression needing a reason.
   if (!checkSemgrep()) {
-    console.log('\x1b[33m⚠ semgrep not found in PATH — skipping taint analysis\x1b[0m')
-    console.log('  Install: nix profile install nixpkgs#semgrep')
-    process.exit(0)
+    if (process.env.ALLOW_MISSING_SEMGREP === '1') {
+      console.log('\x1b[33m⚠ semgrep not found — SKIPPED via ALLOW_MISSING_SEMGREP=1\x1b[0m')
+      console.log('\x1b[33m  Taint analysis did NOT run. This is not a clean result.\x1b[0m')
+      process.exit(0)
+    }
+    console.log('\x1b[31m✗ semgrep not found in PATH — taint analysis cannot run\x1b[0m')
+    console.log('  This fails rather than passing: a check that cannot look must not report clean.')
+    console.log('  Fix:  nix develop   (semgrep is in the devShell)')
+    console.log('  Or:   nix profile install nixpkgs#semgrep')
+    console.log('  Deliberate bypass (records that the check did not run): ALLOW_MISSING_SEMGREP=1')
+    process.exit(1)
   }
 
   const configArgs = RULES.flatMap(r => ['--config', join(RULES_DIR, r)])
