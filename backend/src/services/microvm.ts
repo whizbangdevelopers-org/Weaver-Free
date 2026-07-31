@@ -82,6 +82,73 @@ function isContainerDef(def: WorkloadDefinition): boolean {
   return def.runtime === 'docker' || def.runtime === 'podman'
 }
 
+// --- Pure parsers for container runtime output ---
+
+/**
+ * Parse a single line of `docker ps -a --format '{{json .}}'` output.
+ * Returns { name, id, image, state, ports } or null if the line is invalid.
+ * Never throws. Pure function - no I/O.
+ */
+export function parseDockerPsLine(line: string): { name: string; id?: string; image?: string; state?: string; ports: string[] } | null {
+  try {
+    const parsed = JSON.parse(line) as Record<string, unknown>
+
+    const rawName = typeof parsed['Names'] === 'string' ? parsed['Names'] : null
+    if (!rawName) return null
+    // Strip leading '/' (Docker prefixes container names with '/')
+    const name = rawName.startsWith('/') ? rawName.slice(1) : rawName
+    if (!name) return null
+
+    const id = typeof parsed['ID'] === 'string' ? parsed['ID'] : undefined
+    const image = typeof parsed['Image'] === 'string' ? parsed['Image'] : undefined
+    const state = typeof parsed['State'] === 'string' ? parsed['State'] : undefined
+    const rawPorts = typeof parsed['Ports'] === 'string' ? parsed['Ports'] : ''
+
+    // Split comma-separated port mappings, filter empties
+    const ports = rawPorts ? rawPorts.split(',').map(p => p.trim()).filter(Boolean) : []
+
+    return { name, id, image, state, ports }
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Parse `apptainer instance list --json` output.
+ * Returns an array of { name, image, pid } for each running instance.
+ * Apptainer has no daemon and no stopped-instance record: an instance either exists (running)
+ * or is absent entirely. There is nothing to report as 'exited' or 'failed', so the parser must
+ * not invent a state field — presence IS the state.
+ * Never throws. Pure function - no I/O.
+ */
+export function parseApptainerInstances(stdout: string): { name: string; image: string; pid: number }[] {
+  try {
+    const parsed = JSON.parse(stdout) as { instances?: unknown[] }
+
+    if (!parsed || !Array.isArray(parsed.instances)) {
+      return []
+    }
+
+    const result: { name: string; image: string; pid: number }[] = []
+    for (const instance of parsed.instances) {
+      if (!instance || typeof instance !== 'object') continue
+
+      const record = instance as Record<string, unknown>
+      const name = typeof record['instance'] === 'string' ? record['instance'] : null
+      if (!name) continue
+
+      const image = typeof record['img'] === 'string' ? record['img'] : ''
+      const pid = typeof record['pid'] === 'number' ? record['pid'] : 0
+
+      result.push({ name, image, pid })
+    }
+
+    return result
+  } catch {
+    return []
+  }
+}
+
 // --- Container log surface (pure functions for testability) ---
 
 /**
@@ -569,43 +636,26 @@ export async function scanContainers(runtime: ContainerRuntime): Promise<ScanRes
     for (const line of stdout.trim().split('\n')) {
       if (!line.trim()) continue
 
-      let parsed: Record<string, unknown>
-      try {
-        parsed = JSON.parse(line) as Record<string, unknown>
-      } catch {
-        continue
-      }
+      const parsed = parseDockerPsLine(line)
+      if (!parsed) continue
 
-      // Docker and Podman both use 'Names' (string) and 'ID', 'Image', 'State', 'Ports'
-      const rawName = typeof parsed['Names'] === 'string' ? parsed['Names'] : null
-      if (!rawName) continue
-      // Strip leading '/' (Docker prefixes container names with '/')
-      const name = rawName.startsWith('/') ? rawName.slice(1) : rawName
-      if (!name) continue
+      discovered.push(parsed.name)
 
-      const id = typeof parsed['ID'] === 'string' ? parsed['ID'] : undefined
-      const image = typeof parsed['Image'] === 'string' ? parsed['Image'] : undefined
-      const rawPorts = typeof parsed['Ports'] === 'string' ? parsed['Ports'] : ''
-      // Split comma-separated port mappings, filter empties
-      const ports = rawPorts ? rawPorts.split(',').map(p => p.trim()).filter(Boolean) : []
-
-      discovered.push(name)
-
-      if (await registry.has(name)) {
-        existing.push(name)
+      if (await registry.has(parsed.name)) {
+        existing.push(parsed.name)
       } else {
         await registry.add({
-          name,
+          name: parsed.name,
           ip: '',
           mem: 0,
           vcpu: 0,
           hypervisor: runtime,
           runtime,
-          containerId: id,
-          image,
-          ports: ports.length > 0 ? ports : undefined,
+          containerId: parsed.id,
+          image: parsed.image,
+          ports: parsed.ports.length > 0 ? parsed.ports : undefined,
         })
-        added.push(name)
+        added.push(parsed.name)
       }
     }
   } catch {
