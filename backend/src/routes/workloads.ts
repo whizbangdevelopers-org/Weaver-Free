@@ -171,15 +171,27 @@ export const workloadsRoutes: FastifyPluginAsync<VmsRouteOptions> = async (fasti
       config: { rateLimit: createRateLimit(5) },
     },
     async (request) => {
-      const [microvmResult, dockerResult, podmanResult] = await Promise.all([
+      // Scan the runtimes the operator DECLARED (services.weaver.containerRuntimes), not a
+      // hardcoded pair. Previously this always probed docker and podman — an exec each, on every
+      // scan, on hosts that had neither — and could never probe apptainer no matter how the
+      // workload was declared. Empty list = MicroVMs only; scanMicrovms still runs.
+      // Only the runtimes scanContainers() can actually scan. `apptainer` is declarable and its
+      // binary is exported by the module, but scanContainers has no apptainer branch yet — that
+      // is gap 1 (v1.1-apptainer-runtime / WVR-206). Filtering here rather than casting means the
+      // type system keeps enforcing the ordering: when gap 1 widens ContainerRuntime, apptainer
+      // joins this scan automatically and this filter becomes a no-op.
+      const scannable = new Set(['docker', 'podman'])
+      const runtimes = (config?.containerRuntimes ?? ['docker', 'podman']).filter(
+        (r): r is 'docker' | 'podman' => scannable.has(r),
+      )
+      const [microvmResult, ...containerResults] = await Promise.all([
         scanMicrovms(),
-        scanContainers('docker'),
-        scanContainers('podman'),
+        ...runtimes.map((r) => scanContainers(r)),
       ])
       const result = {
-        discovered: [...microvmResult.discovered, ...dockerResult.discovered, ...podmanResult.discovered],
-        added: [...microvmResult.added, ...dockerResult.added, ...podmanResult.added],
-        existing: [...microvmResult.existing, ...dockerResult.existing, ...podmanResult.existing],
+        discovered: [...microvmResult.discovered, ...containerResults.flatMap((r) => r.discovered)],
+        added: [...microvmResult.added, ...containerResults.flatMap((r) => r.added)],
+        existing: [...microvmResult.existing, ...containerResults.flatMap((r) => r.existing)],
       }
 
       await auditService?.log({
