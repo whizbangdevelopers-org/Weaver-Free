@@ -195,6 +195,38 @@ services.weaver = {
 
 ---
 
+## Container Runtimes
+
+*Available: v1.1+*
+
+Declare which container runtimes Weaver may scan and manage. **The default is empty**
+— Weaver manages MicroVMs only until you list something here:
+
+```nix
+services.weaver.containerRuntimes = [ "docker" "podman" ];   # or "apptainer"
+```
+
+Each declared runtime puts its package on the service's PATH and exports the binary
+path (`DOCKER_BIN`, `PODMAN_BIN`, `APPTAINER_BIN`) to Weaver. Runtimes you do **not**
+declare are not scanned and their binaries are not pulled onto the host — so declaring
+one you have not installed costs you a closure to serve a scan that finds nothing.
+
+Override a binary path only if you need a specific build:
+
+```nix
+services.weaver.apptainerBin = "${pkgs.apptainer}/bin/apptainer";
+```
+
+> **A systemd unit gets a minimal PATH.** A runtime on your login shell's PATH is
+> still invisible to the service. Declaring it here is what makes Weaver able to see
+> it — that is the point of the option, not a convenience.
+
+Apptainer is a Weaver Solo feature and is hidden on Free (WVR-206 (Apptainer stays at
+v1.1.0 — Solo-gated, hidden on Free)). Declaring it on a Free install is harmless but
+has no effect.
+
+---
+
 ## AI Agent Configuration
 
 *Available: v1.0+*
