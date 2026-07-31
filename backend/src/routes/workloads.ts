@@ -3,10 +3,10 @@
 import { FastifyPluginAsync } from 'fastify'
 import { ZodTypeProvider } from 'fastify-type-provider-zod'
 import { z } from 'zod'
-import { listVms, getVm, startVm, stopVm, restartVm, createVm, deleteVm, getWorkloadDefinitions, updateVmField, scanMicrovms, scanContainers } from '../services/microvm.js'
+import { listVms, getVm, startVm, stopVm, restartVm, createVm, deleteVm, getWorkloadDefinitions, updateVmField, scanMicrovms, scanContainers, isContainerLogSource, getContainerLogs } from '../services/microvm.js'
 import { requireRole } from '../middleware/rbac.js'
 import { requireTier } from '../license.js'
-import { TIERS, ROLES, STATUSES, PROVISIONING } from '../constants/vocabularies.js'
+import { TIERS, TIER_ORDER, ROLES, STATUSES, PROVISIONING } from '../constants/vocabularies.js'
 import { checkFreeTierCap as checkFreeTierCapPure } from '../services/free-tier-cap.js'
 import type { Provisioner } from '../services/provisioner-types.js'
 import type { ImageManager } from '../services/image-manager.js'
@@ -421,7 +421,7 @@ export const workloadsRoutes: FastifyPluginAsync<VmsRouteOptions> = async (fasti
     }
   )
 
-  // GET /api/workload/:name/logs — get provisioning logs (operator+)
+  // GET /api/workload/:name/logs — get logs (operator+)
   app.get(
     '/:name/logs',
     {
@@ -436,12 +436,51 @@ export const workloadsRoutes: FastifyPluginAsync<VmsRouteOptions> = async (fasti
     },
     async (request, reply) => {
       const { name } = request.params
+      const workload = await getVm(name)
+      if (!workload) {
+        return reply.status(404).send({ error: `Workload '${name}' not found` })
+      }
+
+      // Container runtimes: docker/podman/apptainer
+      if (isContainerLogSource(workload.runtime)) {
+        if (workload.runtime === 'apptainer') {
+          // Apptainer is Solo-gated and HIDDEN below Solo, not nagged (Decision WVR-206): a Free
+          // user must never see an Apptainer workload or an upgrade prompt for one. So this is a
+          // 404 — the same answer an unknown workload gets — and deliberately NOT requireTier(),
+          // whose 403 ("requires weaver tier or higher") would advertise the feature it is meant
+          // to conceal. WVR-206 puts the primary exclusion at scan time; this is the second half,
+          // because a workload that reaches the registry by another path would otherwise serve
+          // its logs to a tier that cannot see the workload itself.
+          // Fail CLOSED on an absent config: an indeterminate tier must not serve a Solo-gated
+          // feature. Every other config read on this route falls back to a harmless default
+          // (`config?.apptainerBin ?? 'apptainer'`); a tier check is the one place where a
+          // permissive fallback would be the vulnerability rather than a convenience.
+          if (!config || TIER_ORDER[config.tier] < TIER_ORDER[TIERS.SOLO]) {
+            return reply.status(404).send({ error: `No logs found for workload '${name}'` })
+          }
+        }
+
+        // The system call itself lives in the service layer, never here — see getContainerLogs().
+        try {
+          const log = await getContainerLogs(name, workload.runtime!)
+          if (log === null) {
+            return reply.status(404).send({ error: `No container logs found for '${name}'` })
+          }
+          return { name, log }
+        } catch (err) {
+          // Sanitized: the raw error carries the binary path and, for Apptainer, the log path.
+          fastify.log.error({ err, workloadName: name, runtime: workload.runtime }, 'Failed to read container logs')
+          return reply.status(404).send({ error: `Failed to read logs for '${name}'` })
+        }
+      }
+
+      // Otherwise: provisioning log path (microvm)
       if (!provisioner) {
         return reply.status(404).send({ error: 'Provisioning not enabled' })
       }
       const log = await provisioner.getLog(name)
       if (log === null) {
-        return reply.status(404).send({ error: `No logs found for VM '${name}'` })
+        return reply.status(404).send({ error: `No logs found for workload '${name}'` })
       }
       return { name, log }
     }

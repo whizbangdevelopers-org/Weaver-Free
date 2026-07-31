@@ -2,7 +2,14 @@
 // Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE.
 import { describe, it, expect, vi, beforeAll, afterAll, beforeEach } from 'vitest'
 
-vi.mock('../../src/services/microvm.js', () => ({
+// Spread the REAL module before overriding. An enumerated factory silently yields `undefined` for
+// any export it forgets, so it goes stale the moment the route imports something new — and it fails
+// as `x is not a function` inside the handler, far from the omission. The route's log dispatch
+// imports isContainerLogSource / containerLogArgs / apptainerLogPaths, none of which were listed
+// here; nothing broke only because no test reached that path yet. Pure helpers are better exercised
+// real anyway — only the I/O-touching calls below need stubbing.
+vi.mock('../../src/services/microvm.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../src/services/microvm.js')>()),
   listVms: vi.fn(),
   getVm: vi.fn(),
   startVm: vi.fn(),
@@ -256,5 +263,88 @@ describe('VM Routes', () => {
 
       expect(response.statusCode).toBe(403)
     })
+  })
+})
+
+// ── Apptainer log access is tier-gated and HIDDEN (Decision WVR-206) ────────────────────────────
+// WVR-206: Apptainer is Solo-gated and "hidden on Free rather than nagged" — a Free user must
+// never see an Apptainer workload OR an upgrade prompt for one. The gate therefore answers 404
+// (indistinguishable from an unknown workload), never requireTier()'s 403, which would name the
+// tier and advertise the very feature it is meant to conceal.
+//
+// Both directions are asserted. A gate only ever tested in its blocking direction is
+// indistinguishable from a route that is broken for everyone.
+describe('GET /:name/logs — Apptainer tier gate (WVR-206)', () => {
+  const apptainerWorkload = {
+    name: 'sif-hpc', status: 'running', ip: '', mem: 512, vcpu: 1,
+    hypervisor: 'apptainer', uptime: null, runtime: 'apptainer',
+  }
+
+  async function appWithTier(tier: string | undefined) {
+    const f = Fastify().withTypeProvider<ZodTypeProvider>()
+    f.decorateRequest('userId', undefined)
+    f.decorateRequest('userRole', undefined)
+    f.decorateRequest('username', undefined)
+    f.decorateRequest('tokenId', undefined)
+    f.decorateRequest('authRejectionReason', undefined)
+    f.setValidatorCompiler(validatorCompiler)
+    f.setSerializerCompiler(serializerCompiler)
+    f.addHook('onRequest', async (request) => {
+      request.userRole = 'admin'
+      request.userId = 'test-user-id'
+      request.username = 'test-user'
+    })
+    await f.register(workloadsRoutes, {
+      prefix: '/api/workload',
+      // Only `tier` is read on this path; the rest of DashboardConfig is irrelevant here.
+      ...(tier === undefined ? {} : { config: { tier } as never }),
+    })
+    await f.ready()
+    return f
+  }
+
+  beforeEach(() => {
+    mockGetVm.mockReset()
+    mockGetVm.mockResolvedValue(apptainerWorkload)
+  })
+
+  it('hides an Apptainer workload log below Solo — 404, not 403', async () => {
+    const f = await appWithTier('free')
+    const res = await f.inject({ method: 'GET', url: '/api/workload/sif-hpc/logs' })
+    expect(res.statusCode).toBe(404)
+    // The body must not name a tier or hint that upgrading would help.
+    expect(res.body.toLowerCase()).not.toContain('tier')
+    expect(res.body.toLowerCase()).not.toContain('apptainer')
+    await f.close()
+  })
+
+  it('fails CLOSED when no config is present — an indeterminate tier is not Solo', async () => {
+    const f = await appWithTier(undefined)
+    const res = await f.inject({ method: 'GET', url: '/api/workload/sif-hpc/logs' })
+    expect(res.statusCode).toBe(404)
+    await f.close()
+  })
+
+  // The IGNORE half: at Solo the gate must let the request THROUGH to the log lookup. It still
+  // 404s here (no apptainer binary in the test environment, so `instance list` finds nothing) —
+  // the distinguishing evidence is the error body, which is the lookup's message and not the
+  // gate's. Without this case, a gate that rejected every tier would look identical.
+  it('lets Solo through the gate to the instance lookup', async () => {
+    const f = await appWithTier('weaver')
+    const res = await f.inject({ method: 'GET', url: '/api/workload/sif-hpc/logs' })
+    expect(res.statusCode).toBe(404)
+    expect(res.body).not.toBe(JSON.stringify({ error: "No logs found for workload 'sif-hpc'" }))
+    await f.close()
+  })
+
+  it('never applies the Apptainer gate to docker or podman', async () => {
+    for (const runtime of ['docker', 'podman']) {
+      mockGetVm.mockResolvedValue({ ...apptainerWorkload, runtime })
+      const f = await appWithTier('free')
+      const res = await f.inject({ method: 'GET', url: `/api/workload/sif-hpc/logs` })
+      // Reaches the runtime binary (and fails there) rather than being hidden by the tier gate.
+      expect(res.body).not.toBe(JSON.stringify({ error: "No logs found for workload 'sif-hpc'" }))
+      await f.close()
+    }
   })
 })
