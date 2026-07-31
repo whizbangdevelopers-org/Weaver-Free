@@ -122,18 +122,18 @@
           <q-btn
             v-if="authStore.canDeleteVms"
             outline
-            :color="appStore.isWeaver ? 'negative' : 'grey-5'"
-            :text-color="appStore.isWeaver ? undefined : 'grey-6'"
+            :color="appStore.isSolo ? 'negative' : 'grey-5'"
+            :text-color="appStore.isSolo ? undefined : 'grey-6'"
             icon="mdi-delete"
             label="Delete"
-            :disable="!appStore.isWeaver"
+            :disable="!appStore.isSolo"
             :loading="deleteLoading"
             @click="handleDelete"
           >
-            <q-tooltip v-if="!appStore.isWeaver">Deleting Live-Provisioned VMs requires Weaver Solo. Declarative NixOS VMs: remove the definition from your NixOS configuration.</q-tooltip>
+            <q-tooltip v-if="!appStore.isSolo">Deleting Live-Provisioned VMs requires Weaver Solo. Declarative NixOS VMs: remove the definition from your NixOS configuration.</q-tooltip>
           </q-btn>
           <q-btn
-            v-if="isDemoMode() && appStore.isDemoVersionAtLeast('1.1') && appStore.isWeaver"
+            v-if="isDemoMode() && appStore.isDemoVersionAtLeast('1.1') && appStore.isSolo"
             outline
             color="secondary"
             icon="mdi-content-copy"
@@ -470,7 +470,7 @@
           <q-tab-panel name="console">
             <div class="text-h6 q-mb-md">Serial Console</div>
             <div v-if="vm && vm.status === STATUSES.RUNNING">
-              <SerialConsole v-if="appStore.isWeaver" :vm-name="name" :active="activeTab === 'console'" />
+              <SerialConsole v-if="appStore.isSolo" :vm-name="name" :active="activeTab === 'console'" />
               <VmConsole v-else :vm-name="name" :active="activeTab === 'console'" />
             </div>
             <div v-else class="text-center text-grey-8 q-pa-lg">

@@ -22,7 +22,7 @@
         class="q-ml-xs"
         :label="`${rt.runtime} · ${rt.count}`"
       />
-      <q-badge v-if="!appStore.isWeaver && hasApptainer" outline color="grey-6" label="apptainer · Weaver Solo" class="q-ml-xs">
+      <q-badge v-if="!appStore.isSolo && hasApptainer" outline color="grey-6" label="apptainer · Weaver Solo" class="q-ml-xs">
         <q-tooltip>Apptainer visibility requires Weaver Solo</q-tooltip>
       </q-badge>
       <q-btn
@@ -181,7 +181,7 @@ const hasApptainer = computed(() =>
 
 /** Show all containers for weaver+; hide Apptainer for free */
 const visibleContainers = computed(() =>
-  appStore.isWeaver
+  appStore.isSolo
     ? allContainers.value
     : allContainers.value.filter(c => c.runtime !== 'apptainer')
 )

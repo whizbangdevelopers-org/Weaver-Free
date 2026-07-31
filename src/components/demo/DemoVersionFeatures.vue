@@ -23,13 +23,13 @@
         <q-card-section>
           <div class="row items-center q-gutter-md q-mb-md">
             <q-icon name="mdi-check-circle" color="positive" size="20px" />
-            <span class="text-body2">{{ appStore.isWeaver ? 'WireGuard tunnel active' : 'Tailscale tunnel active' }}</span>
+            <span class="text-body2">{{ appStore.isSolo ? 'WireGuard tunnel active' : 'Tailscale tunnel active' }}</span>
             <q-badge color="positive" label="Connected" />
           </div>
           <q-markup-table flat dense bordered>
             <tbody>
-              <tr><td class="text-weight-medium" style="width:160px">Tunnel type</td><td>{{ appStore.isWeaver ? 'WireGuard (self-hosted)' : 'Tailscale (free)' }}</td></tr>
-              <tr><td class="text-weight-medium">Endpoint</td><td>{{ appStore.isWeaver ? '203.0.113.42:51820' : 'weaver-home.tail1a2b3.ts.net' }}</td></tr>
+              <tr><td class="text-weight-medium" style="width:160px">Tunnel type</td><td>{{ appStore.isSolo ? 'WireGuard (self-hosted)' : 'Tailscale (free)' }}</td></tr>
+              <tr><td class="text-weight-medium">Endpoint</td><td>{{ appStore.isSolo ? '203.0.113.42:51820' : 'weaver-home.tail1a2b3.ts.net' }}</td></tr>
               <tr><td class="text-weight-medium">Latency</td><td>12 ms</td></tr>
               <tr><td class="text-weight-medium">Last handshake</td><td>38 seconds ago</td></tr>
             </tbody>
@@ -44,7 +44,7 @@
       <VersionNag v-else-if="showNag('1.3')" version="1.3" title="Remote Access" description="Tailscale (Free) and WireGuard (Weaver) tunnels for mobile + remote access" />
 
       <!-- v1.4 — AI Credential Vault (Weaver+) -->
-      <q-card v-if="atLeast('1.4') && appStore.isWeaver" flat bordered>
+      <q-card v-if="atLeast('1.4') && appStore.isSolo" flat bordered>
         <q-expansion-item icon="mdi-shield-key" label="AI Credential Vault" caption="v1.4.0 — Admin-managed AI credentials (Weaver Solo)" header-class="text-h6">
         <q-card-section>
           <div class="text-caption text-grey-7 q-mb-md">
@@ -102,7 +102,7 @@
       <VersionNag v-else-if="showNag('1.5')" version="1.5" title="Secrets Vault" description="Encrypted credentials injected into workloads — no external secret manager needed" />
 
       <!-- v2.1 — Host Maintenance Manager -->
-      <q-card v-if="atLeast('2.1') && appStore.isWeaver" flat bordered>
+      <q-card v-if="atLeast('2.1') && appStore.isSolo" flat bordered>
         <q-expansion-item icon="mdi-wrench-cog" label="Host Maintenance" caption="v2.1.0 — NixOS store, generations, flake updates (Weaver Solo)" header-class="text-h6">
         <q-card-section>
 
@@ -160,7 +160,7 @@
         </q-card-section>
         </q-expansion-item>
       </q-card>
-      <VersionNag v-else-if="showNag('2.1') && appStore.isWeaver" version="2.1" title="Host Maintenance" description="NixOS store GC, generation management, flake updates, and maintenance windows" />
+      <VersionNag v-else-if="showNag('2.1') && appStore.isSolo" version="2.1" title="Host Maintenance" description="NixOS store GC, generation management, flake updates, and maintenance windows" />
 
     </template>
 
@@ -173,7 +173,7 @@
       <VersionNag v-if="showNag('1.2')" version="1.2" title="Container Management" description="Full lifecycle management for Docker, Podman, and Apptainer containers — v1.1 was read-only" class="q-mt-lg" />
 
       <template v-if="atLeast('1.2')">
-        <q-card v-if="appStore.isWeaver" flat bordered class="q-mt-lg">
+        <q-card v-if="appStore.isSolo" flat bordered class="q-mt-lg">
           <q-card-section>
             <div class="row items-center q-mb-md">
               <q-icon name="mdi-docker" size="24px" class="q-mr-sm" />
@@ -205,7 +205,7 @@
         </q-card>
 
         <!-- Security Hardening -->
-        <q-card v-if="appStore.isWeaver" flat bordered class="q-mt-md">
+        <q-card v-if="appStore.isSolo" flat bordered class="q-mt-md">
           <q-card-section>
             <div class="row items-center q-mb-md">
               <q-icon name="mdi-shield-lock" size="24px" class="q-mr-sm" />
@@ -303,7 +303,7 @@ Confidence: 98%</code>
       <!-- v2.4 — Backup (Weaver) -->
       <VersionNag v-if="showNag('2.4')" version="2.4" title="Backup" description="Scheduled disk snapshots with configurable retention and one-click restore" class="q-mt-lg" />
 
-      <q-card v-if="atLeast('2.4') && appStore.isWeaver" flat bordered class="q-mt-lg">
+      <q-card v-if="atLeast('2.4') && appStore.isSolo" flat bordered class="q-mt-lg">
         <q-card-section>
           <div class="row items-center q-mb-md">
             <q-icon name="mdi-backup-restore" size="24px" class="q-mr-sm" />
@@ -458,7 +458,7 @@ Confidence: 98%</code>
     <template v-if="section === 'network'">
 
       <!-- v1.2 — Firewall Presets -->
-      <q-card v-if="atLeast('1.2') && appStore.isWeaver" flat bordered class="q-mt-lg">
+      <q-card v-if="atLeast('1.2') && appStore.isSolo" flat bordered class="q-mt-lg">
         <q-card-section>
           <div class="row items-center q-mb-md">
             <q-icon name="mdi-shield-lock" size="24px" class="q-mr-sm" />
@@ -798,7 +798,7 @@ Confidence: 98%</code>
     <!-- ═══════════════════════════════════════════════════════════════════ -->
     <template v-if="section === 'weaver-team'">
 
-      <q-card v-if="atLeast('2.2') && appStore.isWeaver && !appStore.isFabrick" flat bordered class="q-mt-lg">
+      <q-card v-if="atLeast('2.2') && appStore.isSolo && !appStore.isFabrick" flat bordered class="q-mt-lg">
         <q-card-section>
           <div class="row items-center q-mb-md">
             <q-icon name="mdi-account-group" size="24px" class="q-mr-sm" />
@@ -837,7 +837,7 @@ Confidence: 98%</code>
           <div class="text-caption text-grey-8 q-mt-xs">Traffic weight: 85% blue / 15% green — AI monitoring health</div>
         </q-card-section>
       </q-card>
-      <VersionNag v-else-if="showNag('2.2') && appStore.isWeaver" version="2.2" title="Weaver Team" description="Peer host federation — see your team's workloads across hosts with blue/green deployment" class="q-mt-lg" />
+      <VersionNag v-else-if="showNag('2.2') && appStore.isSolo" version="2.2" title="Weaver Team" description="Peer host federation — see your team's workloads across hosts with blue/green deployment" class="q-mt-lg" />
 
     </template>
 

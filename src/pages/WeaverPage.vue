@@ -72,7 +72,7 @@
           @click="uiStore.setWeaverActiveFilter('podman')"
         >Podman ({{ runtimeCounts.podman }})</q-chip>
 
-        <q-chip v-if="runtimeCounts.apptainer > 0 && appStore.isWeaver" clickable dense icon="mdi-layers-outline"
+        <q-chip v-if="runtimeCounts.apptainer > 0 && appStore.isSolo" clickable dense icon="mdi-layers-outline"
           :outline="activeFilter !== 'apptainer'" color="deep-purple-6"
           :text-color="activeFilter === 'apptainer' ? 'white' : 'deep-purple-6'"
           @click="uiStore.setWeaverActiveFilter('apptainer')"
@@ -174,14 +174,14 @@
         />
         <q-btn
           v-if="authStore.canManageVms && canProvision"
-          :color="appStore.isWeaver ? 'primary' : 'grey-5'"
-          :text-color="appStore.isWeaver ? undefined : 'grey-7'"
+          :color="appStore.isSolo ? 'primary' : 'grey-5'"
+          :text-color="appStore.isSolo ? undefined : 'grey-7'"
           icon="mdi-plus"
           label="Create VM"
-          :disable="!appStore.isWeaver"
+          :disable="!appStore.isSolo"
           @click="showCreateDialog"
         >
-          <q-tooltip v-if="!appStore.isWeaver">Live Provisioning requires Weaver Solo — upgrade at weaver-dev.github.io/pricing</q-tooltip>
+          <q-tooltip v-if="!appStore.isSolo">Live Provisioning requires Weaver Solo — upgrade at weaver-dev.github.io/pricing</q-tooltip>
         </q-btn>
         <q-btn
           v-if="authStore.canManageVms"
@@ -442,7 +442,7 @@ const visibleContainers = computed(() => {
   if (!hasContainers.value) return []
   if (isDemoMode()) {
     const all = getDemoContainersForTier(appStore.effectiveTier)
-    return appStore.isWeaver ? all : all.filter(c => c.runtime !== 'apptainer')
+    return appStore.isSolo ? all : all.filter(c => c.runtime !== 'apptainer')
   }
   // Real backend: map WorkloadInfo containers to ContainerInfo shape
   return workloadStore.workloads

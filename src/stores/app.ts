@@ -97,7 +97,7 @@ export const useAppStore = defineStore('app', {
     isReady: state => state.initialized && !state.loading,
     isDemo(): boolean { return this.effectiveTier === TIERS.DEMO },
     isFree(): boolean { return this.effectiveTier === TIERS.FREE },
-    isWeaver(): boolean { return TIER_ORDER[this.effectiveTier] >= TIER_ORDER.weaver },
+    isSolo(): boolean { return TIER_ORDER[this.effectiveTier] >= TIER_ORDER.weaver },
     isFabrick(): boolean { return this.effectiveTier === TIERS.FABRICK },
     isLicensed(): boolean { return this.effectiveTier !== TIERS.DEMO },
     /** Organization display name — returns org name if set, otherwise 'Weaver' */

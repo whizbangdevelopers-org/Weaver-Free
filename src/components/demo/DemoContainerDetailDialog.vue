@@ -25,7 +25,7 @@
       </q-card-section>
 
       <!-- Apptainer upgrade nag (free tier) — replaces full content -->
-      <q-card-section v-if="container.runtime === 'apptainer' && !appStore.isWeaver" class="q-pt-sm">
+      <q-card-section v-if="container.runtime === 'apptainer' && !appStore.isSolo" class="q-pt-sm">
         <UpgradeNag feature-name="Apptainer visibility" :required-tier="TIERS.SOLO" />
       </q-card-section>
 

@@ -58,6 +58,57 @@ IGNORE | WVR-190 | Cognee retired | The Cognee sidecar is replaced by Engram. |
 IGNORE | WVR-72 | Unified workload routes | A single prefix removes /api/containers. |
 IGNORE <!-- superseded-ok --> Cognee ran on port 8000 behind the sidecar. <!-- /superseded-ok -->
 
+# --- CATCH: the FRONTEND half of the retired container stack -------------------------------
+# Added 2026-07-30. The pattern list carried only container-registry.ts, container-runtime.ts and
+# services/runtimes/ — the first three entries of the "Files that must NOT be created" block in
+# agents/v1.1.0/container-visibility.md. The other five were unguarded, so a spec could prescribe
+# container-store.ts or ContainerDetailPage and pass clean. A Forge sample did exactly that
+# (v1.1-container-frontend, live in the queue) and this auditor could not see it.
+CATCH Create `code/src/stores/container-store.ts` — a Pinia store for containers.
+CATCH Add `src/services/container-api.ts` extending ApiService.
+CATCH New route plugin: `backend/src/routes/containers.ts`.
+CATCH Zod schemas live in `backend/src/schemas/containers.ts`.
+CATCH Mount the detail view at `ContainerDetailPage.vue`.
+CATCH Expose `GET /api/runtimes` to list available container runtimes.
+
+# --- IGNORE: the live equivalents of that frontend half ------------------------------------
+IGNORE Containers use `src/stores/workload-store.ts` — there is no container-store.ts.
+IGNORE `ContainerDetailPage` was never built; the page is `WorkloadDetailPage.vue`.
+IGNORE Runtimes are reported inline on `/api/workload`; there is no `/api/runtimes` route.
+#
+# NOTE — the bare "no <X> route exists" form is DELIBERATELY NOT a marker, and the IGNORE case
+# above uses "there is no" instead. That is a judgement, not an oversight, so it is recorded here.
+#
+# The phrase is real (sub-archive-export.md, config-export-import.md and
+# AGENT-PROCESSING-REVIEW-SYNTHESIS.md all use it) — but it appears in genuinely PRESCRIPTIVE
+# sentences: "no `/export` route exists anywhere … this agent therefore builds it from zero."
+# Admitting it as a historical marker would suppress exactly the sentence shape
+# "no <retired thing> exists — so create it", which is a real violation and the single worst thing
+# this auditor could learn to ignore. That is the `\breplaces\b` mistake with the polarity
+# reversed, and once was enough.
+#
+# "never built/created/existed/shipped" IS admitted (added alongside these cases): past tense
+# cannot carry a live instruction, so it has no such failure mode.
+CATCH No `container-store.ts` exists yet — create it as a Pinia store for containers.
+
+# --- CATCH: an ORDINARY-ENGLISH verb must not exonerate a live prescription ----------------
+# Added 2026-07-30. `\breplaces\b` sat in same_line_phrases as a bare historical marker and
+# suppressed any line that happened to use the verb in its everyday sense. It hid three real
+# findings while the suite reported 0 across 140 specs — the exact "green that proves nothing"
+# shape core/testing.md warns about. It cannot be narrowed: in both the true and the false case
+# the object of "replaces" is an unrelated noun with the retired token elsewhere on the line, so
+# no lexical form separates them. The phrase was removed; these pin that it stays removed.
+CATCH Toggling to "Run as Container" replaces the preview and routes the import through `POST /api/containers`.
+CATCH | Now | Cognee HTTP API | Shim only replaces cognify pipeline — CSM unaffected |
+CATCH The dialog replaces its body when the user picks a target, then calls `GET /api/vms`.
+
+# --- IGNORE: genuine supersession prose still has to pass -----------------------------------
+# The passive form points at the retirement by construction, and the active form is carried by
+# the decision-id correlation. Citing the decision is the house norm anyway.
+IGNORE `/api/containers` was replaced by the unified `/api/workload` prefix.
+IGNORE Engram replaces the Cognee sidecar (WVR-190).
+IGNORE WVR-72 replaced `/api/containers` with a single workload prefix.
+
 # --- IGNORE: near-misses that must NOT trip the patterns -----------------------------------
 # Live, correct architecture — the replacement itself is never a violation.
 IGNORE Add `POST /api/workload` for unified workload creation.

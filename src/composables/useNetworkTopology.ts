@@ -195,7 +195,7 @@ export function useNetworkTopology() {
     bridges: computed(() => store.bridges),
     nodes: computed(() => store.nodes),
     selectedNode: computed(() => store.selectedNode),
-    isWeaver: computed(() => appStore.isWeaver),
+    isSolo: computed(() => appStore.isSolo),
     loading,
     error,
     connected,

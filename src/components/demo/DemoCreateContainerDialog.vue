@@ -83,8 +83,8 @@
 
         <!-- GPU passthrough (Weaver+) -->
         <div class="row items-center q-gutter-sm">
-          <q-toggle v-model="form.gpuPassthrough" label="GPU passthrough" :disable="!appStore.isWeaver" />
-          <q-badge v-if="!appStore.isWeaver" outline color="amber-9" label="Weaver Solo" />
+          <q-toggle v-model="form.gpuPassthrough" label="GPU passthrough" :disable="!appStore.isSolo" />
+          <q-badge v-if="!appStore.isSolo" outline color="amber-9" label="Weaver Solo" />
         </div>
         <q-select
           v-if="form.gpuPassthrough"
@@ -164,7 +164,7 @@ const runtimeOptions = computed(() => {
     { label: 'Docker', value: 'docker' },
     { label: 'Podman', value: 'podman' },
   ]
-  if (appStore.isWeaver) {
+  if (appStore.isSolo) {
     opts.push({ label: 'Apptainer (SIF)', value: 'apptainer' })
   }
   return opts

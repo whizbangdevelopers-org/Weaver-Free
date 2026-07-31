@@ -7,7 +7,7 @@
       <div class="text-h4">User Management</div>
       <q-space />
       <q-btn
-        v-if="appStore.isWeaver"
+        v-if="appStore.isSolo"
         color="primary"
         icon="mdi-account-plus"
         label="Add User"
@@ -21,7 +21,7 @@
     </div>
 
     <!-- Free tier: upgrade nag -->
-    <q-card v-if="!appStore.isWeaver" flat bordered style="max-width: 600px">
+    <q-card v-if="!appStore.isSolo" flat bordered style="max-width: 600px">
       <q-card-section>
         <div class="row items-center q-gutter-md">
           <q-icon name="mdi-account-group" size="48px" color="grey-4" />

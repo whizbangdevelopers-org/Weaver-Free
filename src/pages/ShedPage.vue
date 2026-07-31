@@ -47,7 +47,7 @@
     </q-card>
 
     <!-- Free-tier browse notice -->
-    <q-banner v-if="showTemplates && !appStore.isWeaver" dense rounded class="bg-amber-1 text-amber-9 q-mb-md">
+    <q-banner v-if="showTemplates && !appStore.isSolo" dense rounded class="bg-amber-1 text-amber-9 q-mb-md">
       <template #avatar>
         <q-icon name="mdi-lock-outline" color="amber-9" />
       </template>
@@ -180,7 +180,7 @@
                   </q-badge>
                   <q-badge v-if="tmpl.wave === 2" outline color="grey-5" label="v2.1" class="q-ml-xs text-caption" />
                 </div>
-                <q-icon v-if="!appStore.isWeaver && tmpl.tier !== TIERS.FREE" name="mdi-lock" color="grey-4" size="18px" />
+                <q-icon v-if="!appStore.isSolo && tmpl.tier !== TIERS.FREE" name="mdi-lock" color="grey-4" size="18px" />
               </q-card-section>
 
               <q-card-section class="q-pt-xs q-pb-sm">
@@ -191,7 +191,7 @@
 
               <q-card-actions class="q-pa-sm">
                 <q-btn
-                  v-if="appStore.isWeaver || tmpl.tier === TIERS.FREE"
+                  v-if="appStore.isSolo || tmpl.tier === TIERS.FREE"
                   flat dense color="primary" label="Deploy" icon="mdi-rocket-launch-outline" size="sm"
                 />
                 <q-btn

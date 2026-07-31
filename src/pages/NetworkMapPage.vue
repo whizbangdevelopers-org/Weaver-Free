@@ -37,7 +37,7 @@
             Network Topology
           </div>
           <!-- Legend: route line -->
-          <div v-if="isDemoMode() && appStore.isWeaver" class="row items-center q-mt-xs" style="gap: 6px">
+          <div v-if="isDemoMode() && appStore.isSolo" class="row items-center q-mt-xs" style="gap: 6px">
             <svg width="28" height="10" style="flex-shrink: 0">
               <line x1="0" y1="5" x2="28" y2="5" :stroke="ROUTE_COLOR" stroke-width="3" stroke-dasharray="6 3" />
             </svg>
@@ -336,7 +336,7 @@ const graphEdges = computed<Edges>(() => {
     }
   }
   // Cross-bridge routing edges (demo data — production routes come from plugins)
-  if (isDemoMode() && appStore.isWeaver) {
+  if (isDemoMode() && appStore.isSolo) {
     const routes = appStore.effectiveTier === TIERS.FABRICK ? ENTERPRISE_ROUTES : PREMIUM_ROUTES
     const vmNames = new Set(vmNodes.value.map((n) => n.name))
     for (const route of routes) {

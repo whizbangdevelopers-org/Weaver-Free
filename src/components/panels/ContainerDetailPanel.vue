@@ -37,7 +37,7 @@
       <div class="text-caption text-grey-6 q-mb-md">{{ container.image }}</div>
 
       <!-- Apptainer upgrade nag (free tier, weaver required) -->
-      <q-card-section v-if="container.runtime === 'apptainer' && !appStore.isWeaver" class="q-pa-none q-mb-md">
+      <q-card-section v-if="container.runtime === 'apptainer' && !appStore.isSolo" class="q-pa-none q-mb-md">
         <UpgradeNag feature-name="Apptainer visibility" :required-tier="TIERS.SOLO" />
       </q-card-section>
 
