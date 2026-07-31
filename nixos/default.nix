@@ -253,6 +253,52 @@ in
       description = "Path to weasyprint binary for compliance PDF generation";
     };
 
+    # ── Container runtimes (Gap 3, agents/v1.1.0/container-visibility.md) ──────────────────
+    #
+    # Every other external binary this module depends on is pinned explicitly (lscpuBin, dfBin,
+    # nixosVersionBin, weasyprintBin). The container runtimes were the inconsistent case: config.ts
+    # reads DOCKER_BIN / PODMAN_BIN / APPTAINER_BIN, the module never exported them, so they fell
+    # back to BARE NAMES resolved against whatever the unit's PATH happened to contain. A systemd
+    # unit gets a minimal PATH, so "it works in my shell" says nothing about the service.
+    containerRuntimes = mkOption {
+      type = types.listOf (types.enum [ "docker" "podman" "apptainer" ]);
+      default = [ ];
+      example = [ "docker" "podman" ];
+      description = ''
+        Which container runtimes Weaver should scan and manage.
+
+        Empty (the default) means Weaver manages MicroVMs only — no container scan is attempted,
+        so a host without a runtime installed does not pay for probing binaries that are not there.
+
+        Declaring a runtime here does NOT install it; it tells Weaver to use it, and adds the
+        matching package to the service PATH. Install the runtime the normal NixOS way
+        (`virtualisation.docker.enable`, `virtualisation.podman.enable`, or `apptainer` in
+        `environment.systemPackages`).
+      '';
+    };
+
+    dockerBin = mkOption {
+      type = types.str;
+      default = "${pkgs.docker}/bin/docker";
+      description = "Path to the docker binary used for container scan and lifecycle";
+    };
+
+    podmanBin = mkOption {
+      type = types.str;
+      default = "${pkgs.podman}/bin/podman";
+      description = "Path to the podman binary used for container scan and lifecycle";
+    };
+
+    apptainerBin = mkOption {
+      type = types.str;
+      default = "${pkgs.apptainer}/bin/apptainer";
+      description = ''
+        Path to the apptainer binary. Apptainer is Solo-gated at every operation (Decision
+        WVR-206) and is not docker-compatible — it has no `logs` subcommand and enumerates
+        instances via `instance list --json`.
+      '';
+    };
+
   };
 
   config = let
@@ -263,6 +309,12 @@ in
     isDefaultGroup = cfg.serviceGroup == "weaver";
     user = cfg.serviceUser;
     group = cfg.serviceGroup;
+
+    # Packages for the runtimes the operator DECLARED — never all three. Putting an undeclared
+    # runtime on the PATH would add its whole closure to every Weaver host (docker and podman are
+    # each hundreds of MiB) to serve a scan that will never run.
+    runtimePackage = { inherit (pkgs) docker podman apptainer; };
+    containerRuntimePackages = map (r: runtimePackage.${r}) cfg.containerRuntimes;
   in mkIf cfg.enable (mkMerge [
     # --- Base configuration (always applied) ---
     {
@@ -325,8 +377,16 @@ in
         after = [ "network.target" ];
         wantedBy = [ "multi-user.target" ];
 
-        # WeasyPrint available to all tiers for compliance PDF export
-        path = [ pkgs.python3Packages.weasyprint ];
+        # WeasyPrint available to all tiers for compliance PDF export.
+        #
+        # Declared container runtimes go on the unit PATH as well as being exported as absolute
+        # *_BIN paths. Both are load-bearing and they are not redundant: the *_BIN vars are what
+        # config.ts reads, while the PATH entry covers anything the runtime itself shells out to
+        # (docker/podman invoke helpers; apptainer resolves `go`, `squashfuse`, `fuse2fs` and
+        # friends through findOnPath at runtime). A systemd unit gets a MINIMAL PATH, so a binary
+        # that resolves in an interactive shell is still invisible to the service — which is the
+        # bug this option exists to end.
+        path = [ pkgs.python3Packages.weasyprint ] ++ containerRuntimePackages;
 
         environment = {
           NODE_ENV = "production";
@@ -374,6 +434,17 @@ in
           LSCPU_BIN = cfg.lscpuBin;
           DF_BIN = cfg.dfBin;
           NIXOS_VERSION_BIN = cfg.nixosVersionBin;
+        } // {
+          # Declared runtimes only. Exporting a bin for a runtime the operator did not declare
+          # would make config.ts believe it is available and scan for containers that cannot
+          # exist — the scan returns empty either way, but it spends an exec per poll doing it.
+          CONTAINER_RUNTIMES = concatStringsSep "," cfg.containerRuntimes;
+        } // optionalAttrs (elem "docker" cfg.containerRuntimes) {
+          DOCKER_BIN = cfg.dockerBin;
+        } // optionalAttrs (elem "podman" cfg.containerRuntimes) {
+          PODMAN_BIN = cfg.podmanBin;
+        } // optionalAttrs (elem "apptainer" cfg.containerRuntimes) {
+          APPTAINER_BIN = cfg.apptainerBin;
         };
 
         serviceConfig = {

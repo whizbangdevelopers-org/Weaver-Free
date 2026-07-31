@@ -11,6 +11,27 @@ export type { Tier }
 
 export type SessionStoreType = 'memory' | 'sqlite'
 
+/** The container runtimes Weaver can manage. Apptainer is Solo-gated (Decision WVR-206). */
+export type ContainerRuntimeName = 'docker' | 'podman' | 'apptainer'
+
+const VALID_RUNTIMES: readonly ContainerRuntimeName[] = ['docker', 'podman', 'apptainer']
+
+/**
+ * Parse CONTAINER_RUNTIMES, declared by the NixOS module.
+ *
+ * The unset/empty distinction is deliberate — see DashboardConfig.containerRuntimes. An unknown
+ * name is DROPPED rather than throwing: this is read at startup, and refusing to boot because a
+ * config file names a runtime this build does not know is a worse failure than scanning one
+ * fewer runtime. It is logged by the caller instead.
+ */
+export function parseContainerRuntimes(raw: string | undefined): ContainerRuntimeName[] {
+  if (raw === undefined) return ['docker', 'podman']
+  return raw
+    .split(',')
+    .map((s) => s.trim().toLowerCase())
+    .filter((s): s is ContainerRuntimeName => (VALID_RUNTIMES as readonly string[]).includes(s))
+}
+
 export interface NotifyConfig {
   ntfyUrl: string | null
   ntfyTopic: string | null
@@ -40,6 +61,20 @@ export interface DashboardConfig {
   dockerBin: string
   /** Path to the podman binary (default: 'podman') */
   podmanBin: string
+  /** Path to the apptainer binary (default: 'apptainer'). Solo-gated, Decision WVR-206. */
+  apptainerBin: string
+  /**
+   * Which container runtimes to scan and manage, declared by the operator.
+   *
+   * UNSET is not the same as EMPTY, and the difference is load-bearing:
+   *   unset (env absent) -> ['docker','podman'] — the historical behaviour, preserved so a dev
+   *                         box or a non-NixOS install keeps scanning as it always has.
+   *   set but empty      -> [] — an operator on NixOS who declared no runtimes. MicroVMs only;
+   *                         no container scan is attempted at all.
+   * The NixOS module always exports CONTAINER_RUNTIMES (even as ""), so on a managed host the
+   * declaration is authoritative and this never silently falls back.
+   */
+  containerRuntimes: ContainerRuntimeName[]
   distroCatalogUrl: string | null
   jwtSecret: string
   sessionStoreType: SessionStoreType
@@ -172,6 +207,8 @@ export function loadConfig(): DashboardConfig {
     nixosVersionBin: process.env.NIXOS_VERSION_BIN ?? '/run/current-system/sw/bin/nixos-version',
     dockerBin: process.env.DOCKER_BIN ?? 'docker',
     podmanBin: process.env.PODMAN_BIN ?? 'podman',
+    apptainerBin: process.env.APPTAINER_BIN ?? 'apptainer',
+    containerRuntimes: parseContainerRuntimes(process.env.CONTAINER_RUNTIMES),
     distroCatalogUrl: process.env.DISTRO_CATALOG_URL || null,
     jwtSecret: resolveJwtSecret(),
     sessionStoreType: resolveSessionStoreType(tier),
