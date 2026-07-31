@@ -348,3 +348,22 @@ describe('GET /:name/logs — Apptainer tier gate (WVR-206)', () => {
     }
   })
 })
+
+// The logs route shells out (docker logs / apptainer instance list + file reads). It must carry an
+// AGGRESSIVE per-route limit, not the global 120/min default that suits ordinary reads.
+// G-backend-2026-06-02-01KYSBXCJ6TK3E22T062RD230G. Asserted here because it was missed once: the
+// route gained its subprocess in the container-logs slice and kept the read-shaped default.
+describe('GET /:name/logs — rate limit (subprocess endpoint)', () => {
+  it('declares its own limit, well below the global default', async () => {
+    const src = await import('node:fs/promises')
+      .then(fs => fs.readFile(new URL('../../src/routes/workloads.ts', import.meta.url), 'utf-8'))
+    // the /:name/logs registration block, up to its handler
+    const block = src.slice(src.indexOf("'/:name/logs'"), src.indexOf("'/:name/logs'") + 2000)
+    const m = block.match(/rateLimit:\s*createRateLimit\((\d+)\)/)
+    expect(m, '/:name/logs must declare config.rateLimit').not.toBeNull()
+    const max = Number(m![1])
+    expect(max).toBeLessThan(120)   // the global default it would otherwise inherit
+    expect(max).toBeLessThanOrEqual(30)
+    expect(max).toBeGreaterThan(0)
+  })
+})
