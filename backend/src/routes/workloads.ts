@@ -433,6 +433,22 @@ export const workloadsRoutes: FastifyPluginAsync<VmsRouteOptions> = async (fasti
         },
       },
       preHandler: [requireRole(ROLES.ADMIN, ROLES.OPERATOR), ...aclPreHandler],
+      // This route SPAWNS A SUBPROCESS now (`docker logs`, or `apptainer instance list` plus two
+      // file reads) where it previously only read a provisioning log off disk.
+      //
+      // To be precise about what this changes: the route was NOT unprotected before. index.ts
+      // registers @fastify/rate-limit with `global: true` at 120/min keyed by userId ?? ip, so
+      // every route without its own config inherits that — which is why 64 of 82 routes carry no
+      // per-route limit and the auditor is right not to demand one. The problem is that 120/min is
+      // a sensible default for reads and far too generous for something that forks a process.
+      //
+      // 10/min applies G-backend-2026-06-02-01KYSBXCJ6TK3E22T062RD230G: an endpoint that spawns
+      // subprocesses gets an aggressive per-route limit and is NEVER polled. It sits between
+      // /scan's 5 (rarer, heavier) and the 30 of the cheap action routes, because opening a few
+      // workloads' logs in a row is ordinary use and must not trip it. Note per-route config
+      // REPLACES the global one rather than merging, so this is the whole limit for this route.
+      // The paired obligation is on the UI: fetch on demand, never on a timer.
+      config: { rateLimit: createRateLimit(10) },
     },
     async (request, reply) => {
       const { name } = request.params
