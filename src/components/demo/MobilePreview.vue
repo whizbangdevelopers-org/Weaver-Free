@@ -38,7 +38,7 @@
             <div class="row items-center no-wrap">
               <q-icon name="mdi-loom" size="14px" color="white" class="q-mr-xs" />
               <span class="weaver-title">Weaver</span>
-              <q-badge v-if="appStore.isWeaver && !appStore.isFabrick" color="white" text-color="primary" class="tier-badge q-ml-sm">
+              <q-badge v-if="appStore.isSolo && !appStore.isFabrick" color="white" text-color="primary" class="tier-badge q-ml-sm">
                 {{ appStore.demoWeaverSubTier === 'team' ? 'Team' : 'Solo' }}
               </q-badge>
             </div>
@@ -124,7 +124,7 @@
           <!-- Tab: Strands (local topology) — Free vs Solo presentation -->
           <template v-if="activeTab === 'strands'">
             <!-- Solo/Weaver: managed bridges with IP pools -->
-            <template v-if="appStore.isWeaver">
+            <template v-if="appStore.isSolo">
               <div class="section-label">MANAGED BRIDGES</div>
               <div class="strands-mini">
                 <div v-for="br in soloBridges" :key="br.name" class="q-mb-sm">
@@ -196,7 +196,7 @@
               <span>Push Notifications</span>
               <q-toggle :model-value="true" dense class="q-ml-auto" disable />
             </div>
-            <div v-if="appStore.isWeaver" class="settings-row">
+            <div v-if="appStore.isSolo" class="settings-row">
               <q-icon name="mdi-console" size="16px" class="q-mr-sm" color="grey-7" />
               <span>Serial Console</span>
               <q-toggle :model-value="false" dense class="q-ml-auto" disable />
@@ -241,7 +241,7 @@
           <div class="feature-item"><q-icon name="mdi-play-pause" size="16px" color="primary" class="q-mr-sm" />Start / stop / restart</div>
           <div class="feature-item"><q-icon name="mdi-bell-ring" size="16px" color="primary" class="q-mr-sm" />Push notifications</div>
           <div class="feature-item"><q-icon name="mdi-fingerprint" size="16px" color="primary" class="q-mr-sm" />Biometric auth</div>
-          <div v-if="appStore.isWeaver" class="feature-item"><q-icon name="mdi-console" size="16px" color="primary" class="q-mr-sm" />Serial console (read-only)</div>
+          <div v-if="appStore.isSolo" class="feature-item"><q-icon name="mdi-console" size="16px" color="primary" class="q-mr-sm" />Serial console (read-only)</div>
           <div v-if="atLeast('1.1')" class="feature-item"><q-icon name="mdi-docker" size="16px" color="primary" class="q-mr-sm" />Container visibility</div>
           <div v-if="atLeast('2.2') && appStore.demoWeaverSubTier === 'team'" class="feature-item"><q-icon name="mdi-server-network" size="16px" color="primary" class="q-mr-sm" />Peer host monitoring</div>
           <div v-if="atLeast('3.0') && appStore.isFabrick" class="feature-item"><q-icon name="mdi-lan" size="16px" color="primary" class="q-mr-sm" />Fleet overview</div>

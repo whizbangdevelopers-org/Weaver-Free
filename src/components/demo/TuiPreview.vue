@@ -55,14 +55,14 @@
       <div class="tui-legend tui-dim">
         [s]tart [S]top [r]estart [d]etail [a]gent [n]ew [/]search [t]filter [f]scan [?]help [L]ogout [q]uit
       </div>
-      <div v-if="appStore.isWeaver" class="tui-legend tui-dim">
+      <div v-if="appStore.isSolo" class="tui-legend tui-dim">
         [N]etwork [D]istros [T]emplates [H]ost [I]nfo [,]settings <template v-if="appStore.isFabrick">[u]sers [A]udit</template>
       </div>
 
       <!-- Version-gated feature indicators -->
       <div class="tui-features q-mt-xs">
         <div v-if="atLeast('1.1')" class="tui-cyan">  ● Containers: docker 3 · podman 2{{ atLeast('1.2') ? ' · [C]reate' : ' (read-only)' }}</div>
-        <div v-if="atLeast('1.3')" class="tui-cyan">  ● Remote: {{ appStore.isWeaver ? 'WireGuard' : 'Tailscale' }} tunnel active · Mobile connected</div>
+        <div v-if="atLeast('1.3')" class="tui-cyan">  ● Remote: {{ appStore.isSolo ? 'WireGuard' : 'Tailscale' }} tunnel active · Mobile connected</div>
         <div v-if="atLeast('1.4')" class="tui-cyan">  ● Cross-resource AI: diagnostics span VMs + containers + networking</div>
         <div v-if="atLeast('1.5')" class="tui-cyan">  ● Secrets: 3 managed · injected into 4 workloads</div>
         <div v-if="atLeast('1.6')" class="tui-cyan">  ● Migration: import/export (Proxmox, Docker Compose, libvirt)</div>

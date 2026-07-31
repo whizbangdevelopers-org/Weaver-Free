@@ -162,7 +162,7 @@ const slugToGlobKey = computed<Record<string, string>>(() => ({
   'runbook-cache-key-compromise': '../../docs/operations/cache-key-compromise-runbook.md',
   'policy-cache-key-retirement': '../../docs/operations/cache-key-retirement-policy.md',
   'attribution': '../../ATTRIBUTION.md',
-  'terms-of-service': (appStore.isWeaver || appStore.isFabrick)
+  'terms-of-service': (appStore.isSolo || appStore.isFabrick)
     ? '../../docs/legal/TERMS-OF-SERVICE-COMMERCIAL.md'
     : '../../docs/legal/TERMS-OF-SERVICE.md',
   'production-deployment': '../../docs/PRODUCTION-DEPLOYMENT.md',
@@ -224,7 +224,7 @@ const docFromSnapshot = ref(false)
 
 // Watch slug + demo version + commercial tier flag so tier changes reload the ToS correctly
 watch(
-  [slug, () => (isDemoMode() ? appStore.demoVersion : null), () => appStore.isWeaver || appStore.isFabrick],
+  [slug, () => (isDemoMode() ? appStore.demoVersion : null), () => appStore.isSolo || appStore.isFabrick],
   async ([s]) => {
     if (!s) {
       docContent.value = null

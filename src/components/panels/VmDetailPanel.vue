@@ -96,12 +96,12 @@
           :loading="actionLoading" @click="handleAction('restart')"
         />
         <q-btn
-          v-if="authStore.canDeleteVms && appStore.isWeaver"
+          v-if="authStore.canDeleteVms && appStore.isSolo"
           outline size="sm" color="negative" icon="mdi-delete" label="Delete"
           :loading="deleteLoading" @click="handleDelete"
         />
         <q-btn
-          v-if="isDemoMode() && appStore.isDemoVersionAtLeast('1.1') && appStore.isWeaver"
+          v-if="isDemoMode() && appStore.isDemoVersionAtLeast('1.1') && appStore.isSolo"
           outline size="sm" color="secondary" icon="mdi-content-copy" label="Clone"
           :loading="cloneLoading" @click="handleClone"
         />
@@ -270,7 +270,7 @@
           <!-- Console -->
           <q-tab-panel name="console">
             <div v-if="vm.status === STATUSES.RUNNING">
-              <SerialConsole v-if="appStore.isWeaver" :vm-name="vmName" :active="activeTab === 'console'" />
+              <SerialConsole v-if="appStore.isSolo" :vm-name="vmName" :active="activeTab === 'console'" />
               <VmConsole v-else :vm-name="vmName" :active="activeTab === 'console'" />
             </div>
             <div v-else class="text-center text-grey-8 q-pa-md">

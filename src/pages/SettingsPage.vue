@@ -10,7 +10,7 @@
     <div class="q-gutter-md" style="max-width: 700px">
 
       <!-- ═══ GROUP: Host (Solo+ only) ════════════════════════════════════ -->
-      <q-item-label v-if="appStore.isWeaver" header class="text-weight-bold text-uppercase text-grey-7 q-px-none">
+      <q-item-label v-if="appStore.isSolo" header class="text-weight-bold text-uppercase text-grey-7 q-px-none">
         Host
       </q-item-label>
 
@@ -19,7 +19,7 @@
         <q-expansion-item icon="mdi-desktop-tower" label="Host Information" caption="NixOS host hardware and metrics" header-class="text-h6">
           <q-card-section>
             <!-- Weaver admin: detailed info -->
-            <template v-if="appStore.isWeaver && authStore.isAdmin">
+            <template v-if="appStore.isSolo && authStore.isAdmin">
               <q-btn v-if="!hostDetailed" flat color="primary" label="Load Details" icon="mdi-chart-box" :loading="hostDetailLoading" @click="loadHostDetails" />
               <template v-if="hostDetailed">
                 <div v-if="hostDetailed.nixosVersion" class="text-body2 q-mb-md">
@@ -77,7 +77,7 @@
               </template>
             </template>
             <!-- Non-weaver: upgrade prompt -->
-            <div v-else-if="!appStore.isWeaver" class="row items-center q-gutter-md">
+            <div v-else-if="!appStore.isSolo" class="row items-center q-gutter-md">
               <q-icon name="mdi-lock" size="32px" color="grey-5" />
               <div class="text-body2 text-grey-8">
                 Detailed host metrics (CPU topology, disk usage, network interfaces) are available with
@@ -126,7 +126,7 @@
       <HostConfigViewer />
 
       <!-- ═══ GROUP: License & Identity (Solo+ only) ══════════════════════ -->
-      <q-item-label v-if="appStore.isWeaver" header class="text-weight-bold text-uppercase text-grey-7 q-px-none">
+      <q-item-label v-if="appStore.isSolo" header class="text-weight-bold text-uppercase text-grey-7 q-px-none">
         License &amp; Identity
       </q-item-label>
 
@@ -178,7 +178,7 @@
       </q-card>
 
       <!-- Organization Identity (admin, weaver+) -->
-      <q-card v-if="authStore.isAdmin && appStore.isWeaver" flat bordered>
+      <q-card v-if="authStore.isAdmin && appStore.isSolo" flat bordered>
         <q-expansion-item icon="mdi-domain" label="Identity" caption="Organization name, logo, contact" header-class="text-h6">
           <q-card-section>
             <div class="q-gutter-y-md">
@@ -197,7 +197,7 @@
       </q-card>
 
       <!-- ═══ GROUP: AI (Solo+ only) ══════════════════════════════════════ -->
-      <q-item-label v-if="appStore.isWeaver" header class="text-weight-bold text-uppercase text-grey-7 q-px-none">
+      <q-item-label v-if="appStore.isSolo" header class="text-weight-bold text-uppercase text-grey-7 q-px-none">
         AI
       </q-item-label>
 
@@ -217,7 +217,7 @@
                 <span class="text-body2">
                   {{ appStore.serverKeyAllowed ? 'Server AI key active' : appStore.hasServerKey ? 'Server AI key configured but locked' : 'No server AI key configured' }}
                 </span>
-                <q-badge v-if="!appStore.isWeaver" outline color="amber-9" label="Weaver Solo" />
+                <q-badge v-if="!appStore.isSolo" outline color="amber-9" label="Weaver Solo" />
               </div>
               <div v-if="!appStore.hasServerKey" class="text-caption text-grey-8">
                 Set <code>aiApiKey</code> in the NixOS module to provide a shared server key for all users.
@@ -333,7 +333,7 @@
       </q-card>
 
       <!-- ═══ GROUP: Workloads (Solo+ only) ═══════════════════════════════ -->
-      <q-item-label v-if="appStore.isWeaver" header class="text-weight-bold text-uppercase text-grey-7 q-px-none">
+      <q-item-label v-if="appStore.isSolo" header class="text-weight-bold text-uppercase text-grey-7 q-px-none">
         Workloads
       </q-item-label>
 
@@ -341,7 +341,7 @@
       <q-card flat bordered>
         <q-expansion-item icon="mdi-linux" label="Distributions & Image URLs" caption="Cloud images for VM provisioning" header-class="text-h6">
           <q-card-section>
-            <div v-if="appStore.isWeaver" class="row q-gutter-sm q-mb-md">
+            <div v-if="appStore.isSolo" class="row q-gutter-sm q-mb-md">
               <q-btn v-if="authStore.canManageDistros" flat dense color="primary" label="Check URLs" icon="mdi-link-variant" :loading="validatingUrls" @click="validateUrls" />
               <q-btn v-if="authStore.canManageVms" flat dense color="primary" label="Refresh Catalog" icon="mdi-refresh" :loading="refreshingCatalog" @click="refreshCatalog" />
               <div v-if="urlStatus.lastRunAt" class="self-center text-caption text-grey-8">URLs last checked: {{ formatRelativeTime(urlStatus.lastRunAt) }}</div>
@@ -357,7 +357,7 @@
                     <q-badge v-if="d.cloudInit" outline color="blue" label="cloud-init" dense />
                   </q-item-label>
                   <q-item-label caption class="row items-center q-mt-xs">
-                    <q-icon v-if="appStore.isWeaver" :name="urlStatusIcon(d.name)" :color="urlStatusColor(d.name)" size="14px" class="q-mr-xs" />
+                    <q-icon v-if="appStore.isSolo" :name="urlStatusIcon(d.name)" :color="urlStatusColor(d.name)" size="14px" class="q-mr-xs" />
                     <template v-if="editingUrl === d.name">
                       <q-input v-model="editUrlValue" dense outlined class="col" placeholder="https://... or file:///path/to/image" @keyup.enter="saveUrl(d.name)" @keyup.escape="editingUrl = null">
                         <template #after>
@@ -371,7 +371,7 @@
                     </template>
                   </q-item-label>
                 </q-item-section>
-                <q-item-section side v-if="authStore.canManageDistros && appStore.isWeaver">
+                <q-item-section side v-if="authStore.canManageDistros && appStore.isSolo">
                   <div class="row q-gutter-xs items-center">
                     <template v-if="appStore.provisioningEnabled">
                       <q-btn v-if="distroTestStatus[d.name]?.status !== STATUSES.RUNNING" flat dense icon="mdi-play-circle-outline" :color="testStatusColor(d.name)" size="sm" @click="startDistroTest(d.name)"><q-tooltip>{{ testTooltip(d.name) }}</q-tooltip></q-btn>
@@ -386,9 +386,9 @@
                 </q-item-section>
               </q-item>
             </q-list>
-            <div v-else class="text-grey-8">{{ appStore.isWeaver ? 'No distributions loaded.' : 'No distributions detected on registered VMs.' }}</div>
+            <div v-else class="text-grey-8">{{ appStore.isSolo ? 'No distributions loaded.' : 'No distributions detected on registered VMs.' }}</div>
             <!-- Free tier: weaver nag -->
-            <div v-if="!appStore.isWeaver" class="row items-center q-gutter-md q-mt-md">
+            <div v-if="!appStore.isSolo" class="row items-center q-gutter-md q-mt-md">
               <q-icon name="mdi-lock" size="32px" color="grey-5" />
               <div class="text-body2 text-grey-8">
                 <q-badge outline color="purple" label="Weaver Solo" /> unlocks the full distribution catalog,
@@ -396,7 +396,7 @@
               </div>
             </div>
             <!-- Add new custom distro form (admin + weaver) -->
-            <q-expansion-item v-if="authStore.canManageDistros && appStore.isWeaver" :key="addFormKey" icon="mdi-plus" label="Add custom distribution" dense header-class="text-primary q-mt-md">
+            <q-expansion-item v-if="authStore.canManageDistros && appStore.isSolo" :key="addFormKey" icon="mdi-plus" label="Add custom distribution" dense header-class="text-primary q-mt-md">
               <q-card>
                 <q-card-section>
                   <q-form @submit="addDistro" class="q-gutter-sm">
@@ -660,7 +660,7 @@ const TIER_COLORS: Record<string, string> = {
 }
 
 const isTeamOrFabrick = computed(() =>
-  (appStore.isWeaver && appStore.demoWeaverSubTier === 'team') || appStore.isFabrick
+  (appStore.isSolo && appStore.demoWeaverSubTier === 'team') || appStore.isFabrick
 )
 const tierBadgeLabel = computed(() => TIER_LABELS[appStore.effectiveTier] ?? 'Demo')
 const tierBadgeColor = computed(() => TIER_COLORS[appStore.effectiveTier] ?? 'grey')
@@ -716,7 +716,7 @@ const allDistros = ref<DistroEntry[]>([])
 
 // Free tier: only show distros in use by registered VMs
 const visibleDistros = computed(() => {
-  if (appStore.isWeaver) return allDistros.value
+  if (appStore.isSolo) return allDistros.value
   const inUse = new Set(workloadStore.workloads.map(w => w.distro).filter(Boolean))
   return allDistros.value.filter(d => inUse.has(d.name))
 })

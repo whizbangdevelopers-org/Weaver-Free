@@ -112,7 +112,7 @@
 
         <!-- View as Viewer toggle — Weaver Team, v3.3+ (single-mode, no picker) -->
         <q-btn
-          v-if="!isFabrickMode && !isEnterpriseWeaverMode && appStore.isWeaver && !appStore.isFabrick && isDemoMode && appStore.isDemoVersionAtLeast('3.3')"
+          v-if="!isFabrickMode && !isEnterpriseWeaverMode && appStore.isSolo && !appStore.isFabrick && isDemoMode && appStore.isDemoVersionAtLeast('3.3')"
           flat dense round
           :icon="appStore.inspectorMode ? 'mdi-eye-off' : 'mdi-eye'"
           :color="appStore.inspectorMode ? 'warning' : 'white'"
@@ -556,9 +556,9 @@ const isFabrickMode = computed(() =>
   route.path === '/fabrick' ||
   (route.path === '/network' && !!appStore.fabrickDrillHostId)
 )
-const isWeaverMode = computed(() => route.path === '/weaver')
+const isSoloMode = computed(() => route.path === '/weaver')
 const isEnterpriseWeaverMode = computed(() =>
-  isWeaverMode.value && appStore.isFabrick && (!isDemoMode || appStore.isDemoVersionAtLeast('3.0'))
+  isSoloMode.value && appStore.isFabrick && (!isDemoMode || appStore.isDemoVersionAtLeast('3.0'))
 )
 const isLoomMode = computed(() => route.path === '/loom')
 const isWarpMode = computed(() => route.path === '/warp')
@@ -603,7 +603,7 @@ const appName = computed(() => {
   // Decision WVR-139: toolbar shows tier qualifier — Free, Solo, Team
   // Demo mode shows Solo/Team sub-tier preview (Team is v2.2+, preview only).
   if (isDemoMode) {
-    if (appStore.isWeaver && !appStore.isFabrick) {
+    if (appStore.isSolo && !appStore.isFabrick) {
       const suffix = appStore.demoWeaverSubTier === 'team' ? ' Team' : ' Solo'
       return `Weaver${suffix}`
     }
