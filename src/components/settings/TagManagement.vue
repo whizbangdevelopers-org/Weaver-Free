@@ -27,7 +27,15 @@
               <q-item-label class="row items-center q-gutter-xs">
                 <q-chip dense outline size="sm" color="primary">{{ tag.name }}</q-chip>
                 <q-badge v-if="tag.vmCount > 0" color="grey" :label="`${tag.vmCount} VM${tag.vmCount !== 1 ? 's' : ''}`" />
-                <!-- containerCount populated by container-store at v1.1; demo-populated until then -->
+                <!-- containerCount comes from partitionTagCounts(), which splits workloads on the
+                     runtime field. It renders whenever a TAGGED workload has a container runtime.
+                     In the demo that is currently never: demo containers are still a separate
+                     ContainerInfo[] (getDemoContainersForTier) and ContainerInfo has no tags field,
+                     so they are not in workloadStore.workloads at all. Merging them into the
+                     workload list is gap 1 of agents/v1.1.0/container-visibility.md, not this one.
+                     This badge previously showed counts invented by a hand-maintained array in this
+                     component that had to "stay in sync with FREE_CONTAINERS" — the counts were not
+                     derived from anything. Showing nothing true beats showing something false. -->
                 <q-badge v-if="tag.containerCount > 0" color="teal" :label="`${tag.containerCount} container${tag.containerCount !== 1 ? 's' : ''}`" />
                 <q-badge v-if="tag.isPreset && tag.vmCount === 0 && tag.containerCount === 0" outline color="blue-grey" label="preset" />
               </q-item-label>
@@ -95,17 +103,16 @@
 import { ref, computed, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
 import { useWorkloadStore } from 'src/stores/workload-store'
-import { useAppStore } from 'src/stores/app'
 import { useWorkloadApi } from 'src/composables/useVmApi'
 import { presetTagApiService } from 'src/services/api'
 import { isDemoMode } from 'src/config/demo-mode'
+import { partitionTagCounts } from 'src/utils/tag-counts'
 
 const TAG_PATTERN = /^[a-z0-9][a-z0-9-]*$/
 
-// Forward-compatible interface (Decision WVR-60).
-// vmCount/vmNames populated by vm-store today.
-// containerCount/containerNames populated by container-store at v1.1;
-// populated by demo mock data until then.
+// Combined tag info for display (Decision WVR-60).
+// Partitioned by runtime: containers are 'docker'|'podman'|'apptainer';
+// everything else (including absent runtime) is a VM.
 interface CombinedTag {
   name: string
   vmCount: number
@@ -115,21 +122,8 @@ interface CombinedTag {
   isPreset: boolean
 }
 
-// Demo mock — container tags shown at v1.1+ to preview unified workload tagging.
-// Replaced by real container-store iteration when container visibility ships (Decision WVR-60).
-// Must stay in sync with FREE_CONTAINERS in src/config/demo.ts (canonical source).
-interface DemoContainer { name: string; tags: string[] }
-const DEMO_CONTAINERS: DemoContainer[] = [
-  { name: 'nginx-proxy',   tags: ['web', 'env-prod'] },
-  { name: 'homeassistant', tags: ['env-prod'] },
-  { name: 'postgres-dev',  tags: ['database', 'env-dev'] },
-  { name: 'redis-cache',   tags: ['env-prod'] },
-  { name: 'pihole',        tags: ['env-prod'] },
-]
-
 const $q = useQuasar()
 const workloadStore = useWorkloadStore()
-const appStore = useAppStore()
 const { fetchVms, setTags } = useWorkloadApi()
 
 const renamingTag = ref<string | null>(null)
@@ -139,28 +133,20 @@ const savingPresets = ref(false)
 const newPresetTag = ref('')
 const presetTags = ref<string[]>([])
 
-/** Merge VM tags + (demo) container tags + preset tags into a single sorted list */
+/** Merge workload tags (partitioned by runtime) + preset tags into a single sorted list */
 const combinedTags = computed<CombinedTag[]>(() => {
+  // Partition workloads by runtime into VMs and containers
+  const partitioned = partitionTagCounts(workloadStore.workloads)
+
+  // Build a map from partitioned data
   const tagMap = new Map<string, { vmCount: number; vmNames: string[]; containerCount: number; containerNames: string[] }>()
-
-  const entry = (tag: string) => tagMap.get(tag) ?? { vmCount: 0, vmNames: [], containerCount: 0, containerNames: [] }
-
-  // VMs (production source — always active)
-  for (const vm of workloadStore.workloads) {
-    for (const tag of vm.tags ?? []) {
-      const e = entry(tag); e.vmCount++; e.vmNames.push(vm.name)
-      tagMap.set(tag, e)
-    }
-  }
-
-  // Containers — demo mock at v1.1+; replaced by container-store at v1.1 (Decision WVR-60)
-  if (isDemoMode() && appStore.isDemoVersionAtLeast('1.1')) {
-    for (const container of DEMO_CONTAINERS) {
-      for (const tag of container.tags) {
-        const e = entry(tag); e.containerCount++; e.containerNames.push(container.name)
-        tagMap.set(tag, e)
-      }
-    }
+  for (const p of partitioned) {
+    tagMap.set(p.tag, {
+      vmCount: p.vmCount,
+      vmNames: p.vmNames,
+      containerCount: p.containerCount,
+      containerNames: p.containerNames,
+    })
   }
 
   // Ensure presets appear even if unused on any workload
@@ -196,6 +182,9 @@ function presetTagRule(v: string): boolean | string {
 }
 
 async function loadPresets() {
+  // The public/private demos are static SPAs with no backend, and PresetTagApiService — unlike
+  // ConfigApiService and friends — carries no isDemoMode() branch of its own, so this is the only
+  // thing standing between the demo and a live GET /api/tags that cannot resolve.
   if (isDemoMode()) {
     presetTags.value = ['env-prod', 'env-dev', 'web', 'database', 'monitoring']
     workloadStore.setPresetTags(presetTags.value)
@@ -213,6 +202,7 @@ async function loadPresets() {
 }
 
 async function savePresets(tags: string[]) {
+  // Same reason as loadPresets: no backend in the demo, so persist to the store only.
   if (isDemoMode()) {
     presetTags.value = tags
     workloadStore.setPresetTags(tags)
@@ -281,7 +271,7 @@ async function executeRename(tag: CombinedTag, newName: string) {
   let successCount = 0
   let failCount = 0
 
-  // Rename on VMs (containers: real rename added at v1.1 — Decision WVR-60)
+  // Rename on VMs (containers: handled via unified workload model — Decision WVR-60)
   for (const vmName of tag.vmNames) {
     const vm = workloadStore.workloadByName(vmName)
     if (!vm) continue
@@ -326,7 +316,7 @@ async function executeDelete(tag: CombinedTag) {
   let successCount = 0
   let failCount = 0
 
-  // Remove from VMs (containers: real delete added at v1.1 — Decision WVR-60)
+  // Remove from VMs (containers: handled via unified workload model — Decision WVR-60)
   for (const vmName of tag.vmNames) {
     const vm = workloadStore.workloadByName(vmName)
     if (!vm) continue
