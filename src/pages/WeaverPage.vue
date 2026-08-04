@@ -60,19 +60,25 @@
           @click="uiStore.setWeaverActiveFilter('vms')"
         >VMs ({{ workloadStore.totalCount }})</q-chip>
 
+        <!-- data-testid on each runtime chip: the label is interpolated ("Docker ({{ n }})"), so a
+             text selector cannot be resolved against this template by audit:e2e-selectors, and a
+             count-bearing label is the wrong thing for a test to match on anyway. -->
         <q-chip v-if="runtimeCounts.docker > 0" clickable dense icon="mdi-docker"
+          data-testid="runtime-chip-docker"
           :outline="activeFilter !== 'docker'" color="blue-7"
           :text-color="activeFilter === 'docker' ? 'white' : 'blue-7'"
           @click="uiStore.setWeaverActiveFilter('docker')"
         >Docker ({{ runtimeCounts.docker }})</q-chip>
 
         <q-chip v-if="runtimeCounts.podman > 0" clickable dense icon="mdi-cow"
+          data-testid="runtime-chip-podman"
           :outline="activeFilter !== 'podman'" color="teal-7"
           :text-color="activeFilter === 'podman' ? 'white' : 'teal-7'"
           @click="uiStore.setWeaverActiveFilter('podman')"
         >Podman ({{ runtimeCounts.podman }})</q-chip>
 
         <q-chip v-if="runtimeCounts.apptainer > 0 && appStore.isSolo" clickable dense icon="mdi-layers-outline"
+          data-testid="runtime-chip-apptainer"
           :outline="activeFilter !== 'apptainer'" color="deep-purple-6"
           :text-color="activeFilter === 'apptainer' ? 'white' : 'deep-purple-6'"
           @click="uiStore.setWeaverActiveFilter('apptainer')"
