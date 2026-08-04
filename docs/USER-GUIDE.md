@@ -597,6 +597,23 @@ Container management actions (start, stop, create, remove) require Weaver Solo t
 
 Apptainer (SIF format, for HPC and research workloads) requires Weaver Solo tier. It appears alongside Docker and Podman in the filter chips when Apptainer containers are detected.
 
+Apptainer behaves differently from Docker and Podman in ways you will notice, because it has no
+background daemon and keeps no record of an instance that is not running:
+
+- **An instance is either running or stopped — never "failed."** There is no stopped-instance record
+  for Weaver to inspect, so there is nothing that could report a failure state. A status of
+  *unknown* means Weaver could not reach the Apptainer binary at all, which is a different problem
+  from an instance not running.
+- **A scan finds running instances only.** Stopping an instance removes it from the host entirely,
+  so it will not be rediscovered by a later scan the way a stopped Docker container is.
+- **Starting an instance needs its image.** Apptainer builds an instance from an image each time
+  rather than resuming one, so Weaver starts it from the image path recorded when the instance was
+  discovered. If that path is missing, re-scan the host to recover it.
+- **Restart is a stop followed by a start**, since Apptainer has no restart command of its own.
+
+On Free tier, Apptainer instances are not discovered at all and do not appear anywhere in the
+interface — Weaver hides the feature rather than showing you an upgrade prompt for it.
+
 ---
 
 ## Fabrick Fleet View

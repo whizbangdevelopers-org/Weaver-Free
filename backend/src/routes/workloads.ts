@@ -8,6 +8,7 @@ import { requireRole } from '../middleware/rbac.js'
 import { requireTier } from '../license.js'
 import { TIERS, TIER_ORDER, ROLES, STATUSES, PROVISIONING } from '../constants/vocabularies.js'
 import { checkFreeTierCap as checkFreeTierCapPure } from '../services/free-tier-cap.js'
+import type { ScanResult } from '../services/microvm.js'
 import type { Provisioner } from '../services/provisioner-types.js'
 import type { ImageManager } from '../services/image-manager.js'
 import type { DashboardConfig } from '../config.js'
@@ -175,23 +176,39 @@ export const workloadsRoutes: FastifyPluginAsync<VmsRouteOptions> = async (fasti
       // hardcoded pair. Previously this always probed docker and podman — an exec each, on every
       // scan, on hosts that had neither — and could never probe apptainer no matter how the
       // workload was declared. Empty list = MicroVMs only; scanMicrovms still runs.
-      // Only the runtimes scanContainers() can actually scan. `apptainer` is declarable and its
-      // binary is exported by the module, but scanContainers has no apptainer branch yet — that
-      // is gap 1 (v1.1-apptainer-runtime / WVR-206). Filtering here rather than casting means the
-      // type system keeps enforcing the ordering: when gap 1 widens ContainerRuntime, apptainer
-      // joins this scan automatically and this filter becomes a no-op.
-      const scannable = new Set(['docker', 'podman'])
-      const runtimes = (config?.containerRuntimes ?? ['docker', 'podman']).filter(
-        (r): r is 'docker' | 'podman' => scannable.has(r),
-      )
-      const [microvmResult, ...containerResults] = await Promise.all([
+      //
+      // The `docker | podman` filter that used to stand here was the placeholder for gap 1, and
+      // it is gone as its own comment predicted: `ContainerRuntime` now includes apptainer, so
+      // the declared list passes through unfiltered and the type system is what proves every
+      // member is scannable. The Solo gate is NOT applied here — it lives in
+      // scanApptainerInstances(), so it holds for every caller rather than for this route only.
+      const runtimes = config?.containerRuntimes ?? ['docker', 'podman']
+
+      // allSettled, not all (L-backend-2026-06-02-01KYSBXCJBJ6EM0XMYF613K02H — aggregate
+      // independent shell commands with allSettled). Each scan already degrades a missing binary
+      // to an empty result internally, so the exec path cannot reject; what CAN reject is
+      // everything after it — a registry write failing mid-scan. Under Promise.all that single
+      // rejection discards the other scans' results too, so a full docker inventory is lost
+      // because apptainer's registry write failed. Acceptance criterion 4 ("scanning a host where
+      // one runtime is missing still returns results from the others") is only actually
+      // guaranteed at this level; the per-scan catch is the common case, not the contract.
+      const settled = await Promise.allSettled([
         scanMicrovms(),
         ...runtimes.map((r) => scanContainers(r)),
       ])
+      for (const outcome of settled) {
+        if (outcome.status === 'rejected') {
+          // Logged, never returned: a scan error carries binary and registry paths.
+          fastify.log.error({ err: outcome.reason }, 'A workload scan failed; other scans continue')
+        }
+      }
+      const results = settled
+        .filter((o): o is PromiseFulfilledResult<ScanResult> => o.status === 'fulfilled')
+        .map((o) => o.value)
       const result = {
-        discovered: [...microvmResult.discovered, ...containerResults.flatMap((r) => r.discovered)],
-        added: [...microvmResult.added, ...containerResults.flatMap((r) => r.added)],
-        existing: [...microvmResult.existing, ...containerResults.flatMap((r) => r.existing)],
+        discovered: results.flatMap((r) => r.discovered),
+        added: results.flatMap((r) => r.added),
+        existing: results.flatMap((r) => r.existing),
       }
 
       await auditService?.log({

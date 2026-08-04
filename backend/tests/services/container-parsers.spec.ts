@@ -4,6 +4,12 @@
 // IMMUTABLE CONTRACT — forge-loop fixture for sample v1.1-container-parsers.
 // Implement the pure parsers in src/services/microvm.ts to satisfy this. Do NOT modify this file.
 //
+// (Amended 2026-08-04, slice 2: the two SLICE-BOUNDARY assertions at the bottom named their own
+// expiry — "that is the NEXT slice" — and that slice has now landed, so they were inverted rather
+// than deleted. The parser contract above is untouched and remains immutable. See the comment on
+// the `slice discipline` block for why this is the auditor being wrong for the current state and
+// not the input being reworded around it.)
+//
 // Gap 1 of agents/v1.1.0/container-visibility.md, parser half (slice 1 of the slice table).
 // `scanContainers()` parses `docker ps` output INLINE inside a function that also execs and writes
 // to the registry, so the parsing — the part with all the shape assumptions — cannot be tested
@@ -170,15 +176,35 @@ describe('slice discipline', () => {
       .not.toMatch(/parsed\[['"]Names['"]\]/)
   })
 
-  // This slice is parsers only. Widening the runtime union, teaching isContainerDef about
-  // apptainer, and adding the scan branch are the NEXT slice. A slice that quietly absorbs its
-  // successor cannot be reviewed as itself, and the reviewer has no way to see what moved.
-  it('does NOT widen ContainerRuntime or isContainerDef — that is the next slice', async () => {
+  // SUPERSEDED 2026-08-04 — this assertion was the inverse of what follows: "ContainerRuntime must
+  // stay docker|podman, isContainerDef must not learn apptainer yet — that is the NEXT slice." It
+  // was a slice BOUNDARY guard, and its own comment named its own expiry. Slice 2 (Apptainer scan +
+  // dispatch + tier gate) is now the slice under review, so the boundary it protected no longer
+  // exists. Retiring it is the auditor being wrong for the current state, not the input being
+  // reworded to dodge it (~/.claude/rules/never-game-auditors.md) — and it is INVERTED rather than
+  // deleted, so the property stays checked in the direction that is now true.
+  //
+  // Its union half was also HALF-BLIND and never caught anything: `toMatch(/… 'docker' \| 'podman'/)`
+  // is a substring match, so it passed unchanged against `'docker' | 'podman' | 'apptainer'`. Only
+  // the isContainerDef half ever fired. The replacement anchors to end-of-line, so it can fail in
+  // both directions — a guard that cannot fail is not a guard (core/testing.md).
+  it('widens ContainerRuntime and isContainerDef to apptainer — slice 2 landed', async () => {
     const src = await read()
-    expect(src, 'ContainerRuntime must stay docker|podman in this slice')
-      .toMatch(/type ContainerRuntime = 'docker' \| 'podman'/)
+    expect(src, 'ContainerRuntime must carry all three runtimes, anchored so a fourth is visible')
+      .toMatch(/^type ContainerRuntime = 'docker' \| 'podman' \| 'apptainer'$/m)
     const guard = src.slice(src.indexOf('function isContainerDef'))
-    expect(guard.slice(0, guard.indexOf('}')), 'isContainerDef must not learn apptainer yet')
-      .not.toContain('apptainer')
+    expect(guard.slice(0, guard.indexOf('}')), 'isContainerDef must route apptainer down the container path')
+      .toContain('apptainer')
+  })
+
+  // The scan branch is the other half of slice 2, and the same delegation property applies: the
+  // Apptainer scan must call the extracted parser, not re-derive the shape inline.
+  it('scanApptainerInstances CALLS parseApptainerInstances rather than parsing inline', async () => {
+    const src = await read()
+    const scan = src.slice(src.indexOf('export async function scanApptainerInstances'))
+    const body = scan.slice(0, scan.indexOf('\nexport ', 1))
+    expect(body, 'the apptainer scan must delegate to the extracted parser')
+      .toMatch(/listApptainerInstances|parseApptainerInstances/)
+    expect(body, 'inline apptainer parsing must never appear').not.toMatch(/JSON\.parse/)
   })
 })
