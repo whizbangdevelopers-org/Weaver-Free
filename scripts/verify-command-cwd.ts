@@ -35,7 +35,22 @@ import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const REPO = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
+/**
+ * Paths are DERIVED, never hardcoded to a project's layout — this auditor is fed to the template
+ * and from there to every WBD project, and a literal `code/` segment would make each copy subtly
+ * project-shaped and put them out of sync (which `audit:template-divergence` then flags forever).
+ *
+ *   PKG  = the npm package root — this file is always at <pkg>/scripts/verify-command-cwd.ts
+ *   REPO = the git repo root — ASKED OF GIT, not assumed to be PKG/..
+ *
+ * The repo root is not a fixed distance from the package. In weaver, the template and Gantry the
+ * package is `code/` one level below the git root; in Qepton the product repos are nested
+ * (`code/Qepton-Dev/` is itself a git root), so `PKG/..` would resolve to a directory belonging to
+ * a DIFFERENT repository and `git ls-files` would then scan the wrong tree — reporting honestly
+ * about the wrong project, the exact failure this auditor exists to prevent.
+ */
+const PKG = join(dirname(fileURLToPath(import.meta.url)), '..')
+const REPO = execFileSync('git', ['-C', PKG, 'rev-parse', '--show-toplevel'], { encoding: 'utf-8' }).trim()
 
 /**
  * npm ops that resolve a package root from cwd. Matched in two parts, NOT as one pattern:
@@ -151,7 +166,7 @@ function main(): void {
     findings.push(...findCwdDependentCommands(content, f))
   }
 
-  const dir = join(REPO, 'code', 'reports', 'command-cwd')
+  const dir = join(PKG, 'reports', 'command-cwd')
   mkdirSync(dir, { recursive: true })
   writeFileSync(join(dir, 'latest.json'), JSON.stringify({ scanned: tracked.length, findings }, null, 2))
 
