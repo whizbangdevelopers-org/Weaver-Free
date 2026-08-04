@@ -6,7 +6,7 @@ import { promisify } from 'node:util'
 import type { WorkloadRegistry, WorkloadDefinition, ProvisioningState } from '../storage/workload-registry.js'
 import type { Provisioner } from './provisioner-types.js'
 import type { DashboardConfig } from '../config.js'
-import { STATUSES, PROVISIONING, type WorkloadStatus } from '../constants/vocabularies.js'
+import { STATUSES, PROVISIONING, TIERS, TIER_ORDER, type WorkloadStatus } from '../constants/vocabularies.js'
 
 const execFileAsync = promisify(execFile)
 
@@ -76,10 +76,29 @@ async function isCloudVm(name: string): Promise<boolean> {
 
 // --- Container runtime helpers ---
 
-type ContainerRuntime = 'docker' | 'podman'
+type ContainerRuntime = 'docker' | 'podman' | 'apptainer'
 
 function isContainerDef(def: WorkloadDefinition): boolean {
-  return def.runtime === 'docker' || def.runtime === 'podman'
+  return def.runtime === 'docker' || def.runtime === 'podman' || def.runtime === 'apptainer'
+}
+
+/**
+ * May this install see Apptainer workloads at all?
+ *
+ * Apptainer is Solo-gated and **hidden below Solo, not nagged** (Decision WVR-206 — Apptainer
+ * stays at v1.1.0 — Solo-gated, hidden on Free). The gate lives HERE, in the service, rather
+ * than only in the scan route, because the registry is what every consumer reads: the scan is
+ * the primary exclusion, but a workload that reached the registry by another path (a hand-edited
+ * registry file, a tier downgrade after a Solo-era scan) would otherwise flow straight out
+ * through `listVms()` and the `vm-status` broadcast.
+ *
+ * Fails CLOSED on an absent config — an indeterminate tier must not serve a Solo-gated feature.
+ * This mirrors the same decision already taken on the logs route (`workloads.ts`), where every
+ * other config read falls back to a harmless default and only the tier check refuses to.
+ */
+function apptainerVisible(): boolean {
+  if (!config) return false
+  return TIER_ORDER[config.tier] >= TIER_ORDER[TIERS.SOLO]
 }
 
 // --- Pure parsers for container runtime output ---
@@ -147,6 +166,52 @@ export function parseApptainerInstances(stdout: string): { name: string; image: 
   } catch {
     return []
   }
+}
+
+/**
+ * Kernel clock ticks per second — `sysconf(_SC_CLK_TCK)`, which `/proc/<pid>/stat` field 22 is
+ * denominated in. Node exposes no binding for it, and it is 100 on every Linux ABI Weaver runs
+ * on (it has been the fixed USER_HZ since 2.6; the kernel's internal HZ is a different number
+ * and is deliberately not visible here). If it were ever wrong, the consequence is a start time
+ * skewed by a constant factor — a cosmetic uptime error, not a failed lookup.
+ */
+const CLOCK_TICKS_PER_SEC = 100
+
+/**
+ * Pull field 22 (`starttime`, in clock ticks since boot) out of a `/proc/<pid>/stat` line.
+ *
+ * **Parse from the LAST `)`, never by splitting from the left.** Field 2 is the executable name
+ * wrapped in parentheses, and it may contain spaces *and* parentheses — `(my prog (v2))` is a
+ * legal comm. Splitting on whitespace from the start therefore shifts every later field by an
+ * amount that depends on the process's own name, which is exactly the kind of bug that passes
+ * every test written against a well-behaved fixture. Everything after the final `)` is
+ * fixed-width: `state` is field 3, so `starttime` (field 22) is index 19 of that remainder.
+ *
+ * Never throws. Pure function - no I/O.
+ */
+export function parseProcStatStartTicks(stat: string): number | null {
+  const close = stat.lastIndexOf(')')
+  if (close === -1) return null
+  const fields = stat.slice(close + 1).trim().split(/\s+/)
+  // fields[0] is field 3 (state); field N maps to fields[N - 3].
+  const raw = fields[19]
+  if (raw === undefined) return null
+  const ticks = Number(raw)
+  if (!Number.isFinite(ticks) || ticks < 0) return null
+  return ticks
+}
+
+/**
+ * Pull `btime` (boot time, epoch seconds) out of `/proc/stat`.
+ * Needed because `/proc/<pid>/stat` reports a start time RELATIVE to boot, not an absolute one.
+ * Never throws. Pure function - no I/O.
+ */
+export function parseProcBtime(procStat: string): number | null {
+  const match = procStat.match(/^btime[ \t]+(\d+)/m)
+  if (!match) return null
+  const btime = Number(match[1])
+  if (!Number.isFinite(btime) || btime <= 0) return null
+  return btime
 }
 
 // --- Container log surface (pure functions for testability) ---
@@ -253,10 +318,73 @@ export async function getContainerLogs(
 
 function getContainerBin(runtime: ContainerRuntime): string {
   if (runtime === 'docker') return config?.dockerBin ?? 'docker'
+  if (runtime === 'apptainer') return config?.apptainerBin ?? 'apptainer'
   return config?.podmanBin ?? 'podman'
 }
 
+/**
+ * The one Apptainer discovery call: `apptainer instance list --json`.
+ *
+ * Everything Weaver knows about a running instance comes from here — status, uptime's pid, and
+ * the log paths. Apptainer has no daemon and no `ps -a` equivalent, so there is no second source
+ * to reconcile against. A missing binary yields `[]`, never a throw: the same contract
+ * `scanContainers` already honors for docker/podman.
+ */
+async function listApptainerInstances(): Promise<{ name: string; image: string; pid: number }[]> {
+  try {
+    const bin = getContainerBin('apptainer')
+    const { stdout } = await execFileAsync(bin, ['instance', 'list', '--json'])
+    return parseApptainerInstances(stdout)
+  } catch {
+    return []
+  }
+}
+
+/**
+ * Apptainer status is presence, and only presence.
+ *
+ * An instance either exists (running) or does not exist at all — there is no stopped-instance
+ * record to inspect, so `failed` is not a state this runtime can report and must never be
+ * synthesised. `unknown` is reserved for "we could not ask" (binary missing, exec refused),
+ * which is what `listApptainerInstances()` returning `null` distinguishes from a real empty list.
+ */
+async function getApptainerStatus(name: string): Promise<WorkloadStatus> {
+  try {
+    const bin = getContainerBin('apptainer')
+    const { stdout } = await execFileAsync(bin, ['instance', 'list', '--json'])
+    const present = parseApptainerInstances(stdout).some((i) => i.name === name)
+    return present ? STATUSES.RUNNING : STATUSES.STOPPED
+  } catch {
+    return STATUSES.UNKNOWN
+  }
+}
+
+/**
+ * Apptainer uptime is derived from the instance's pid, because there is nothing else to derive
+ * it from — `instance list --json` carries no start time, and there is no daemon to ask.
+ * Returns an ISO timestamp (matching the docker/podman `StartedAt` shape the frontend already
+ * renders), or `null`, which is a valid answer here rather than an error.
+ */
+async function getApptainerUptime(name: string): Promise<string | null> {
+  const instance = (await listApptainerInstances()).find((i) => i.name === name)
+  if (!instance || !Number.isInteger(instance.pid) || instance.pid <= 0) return null
+  try {
+    const [stat, procStat] = await Promise.all([
+      readFile(`/proc/${instance.pid}/stat`, 'utf-8'),
+      readFile('/proc/stat', 'utf-8'),
+    ])
+    const ticks = parseProcStatStartTicks(stat)
+    const btime = parseProcBtime(procStat)
+    if (ticks === null || btime === null) return null
+    return new Date((btime + ticks / CLOCK_TICKS_PER_SEC) * 1000).toISOString()
+  } catch {
+    // The process exited between the list and the read — a normal race, not an error.
+    return null
+  }
+}
+
 async function getContainerStatus(name: string, runtime: ContainerRuntime): Promise<WorkloadStatus> {
+  if (runtime === 'apptainer') return getApptainerStatus(name)
   try {
     const bin = getContainerBin(runtime)
     const { stdout } = await execFileAsync(bin, ['inspect', '--format', '{{.State.Status}}', name])
@@ -272,6 +400,7 @@ async function getContainerStatus(name: string, runtime: ContainerRuntime): Prom
 }
 
 async function getContainerUptime(name: string, runtime: ContainerRuntime): Promise<string | null> {
+  if (runtime === 'apptainer') return getApptainerUptime(name)
   try {
     const bin = getContainerBin(runtime)
     const { stdout } = await execFileAsync(bin, ['inspect', '--format', '{{.State.StartedAt}}', name])
@@ -342,7 +471,12 @@ export async function getVmUptime(name: string): Promise<string | null> {
 
 export async function listVms(): Promise<WorkloadInfo[]> {
   const defs = await registry.getAll()
-  const entries = Object.entries(defs)
+  // Apptainer is hidden below Solo (WVR-206). Filtering HERE rather than in the route covers the
+  // `vm-status` WebSocket broadcast in the same stroke — ws.ts calls listVms() too, and a
+  // route-only filter is exactly the "registered but filtered at render" leak WVR-206 names.
+  const entries = Object.entries(defs).filter(
+    ([, def]) => def.runtime !== 'apptainer' || apptainerVisible(),
+  )
 
   // Phase 1: fetch all statuses in parallel
   const statuses = await Promise.all(entries.map(([name]) => getVmStatus(name)))
@@ -360,6 +494,10 @@ export async function listVms(): Promise<WorkloadInfo[]> {
 export async function getVm(name: string): Promise<WorkloadInfo | null> {
   const def = await registry.get(name)
   if (!def) return null
+  // Below Solo an Apptainer workload is indistinguishable from one that does not exist (WVR-206
+  // hides rather than nags). `null` here is what produces the route's 404 — the same answer an
+  // unknown name gets, and deliberately not a 403 that would advertise the gated feature.
+  if (def.runtime === 'apptainer' && !apptainerVisible()) return null
   const status = await getVmStatus(name)
   const uptime = status === STATUSES.RUNNING ? await getVmUptime(name) : null
   return { ...def, status, uptime }
@@ -369,15 +507,62 @@ function isProvisionedOrLegacy(def: WorkloadDefinition): boolean {
   return !def.provisioningState || def.provisioningState === PROVISIONING.PROVISIONED
 }
 
+/**
+ * Below Solo an Apptainer workload does not exist as far as this install is concerned (WVR-206).
+ * Returns the same `not found` message an unknown name gets, which the action routes map to 404 —
+ * a 403 would tell a Free user precisely which feature they are missing, which is the nag the
+ * decision refuses.
+ */
+function apptainerHidden(def: WorkloadDefinition, name: string): { success: false; message: string } | null {
+  if (def.runtime === 'apptainer' && !apptainerVisible()) {
+    return { success: false, message: `VM '${name}' not found` }
+  }
+  return null
+}
+
+/**
+ * Start an Apptainer instance.
+ *
+ * Unlike docker/podman — where `start` resumes a container that already exists on disk — Apptainer
+ * instantiates FROM an image every time: `apptainer instance start <image> <name>`. So the image
+ * path recorded at scan time is a hard requirement, and its absence is a real, reportable failure
+ * rather than something to paper over with a default.
+ */
+async function startApptainerInstance(def: WorkloadDefinition, name: string): Promise<{ success: boolean; message: string }> {
+  if (!def.image) {
+    return { success: false, message: `Cannot start instance '${name}': image path unknown. Re-scan the host to recover it.` }
+  }
+  try {
+    await execFileAsync(getContainerBin('apptainer'), ['instance', 'start', def.image, name])
+    return { success: true, message: `Instance '${name}' started` }
+  } catch (err) {
+    console.error(`[microvm] Failed to start apptainer instance '${name}':`, err)
+    return { success: false, message: `Failed to start instance '${name}'. Check server logs for details.` }
+  }
+}
+
+async function stopApptainerInstance(name: string): Promise<{ success: boolean; message: string }> {
+  try {
+    await execFileAsync(getContainerBin('apptainer'), ['instance', 'stop', name])
+    return { success: true, message: `Instance '${name}' stopped` }
+  } catch (err) {
+    console.error(`[microvm] Failed to stop apptainer instance '${name}':`, err)
+    return { success: false, message: `Failed to stop instance '${name}'. Check server logs for details.` }
+  }
+}
+
 export async function startVm(name: string): Promise<{ success: boolean; message: string }> {
   const def = await registry.get(name)
   if (!def) return { success: false, message: `VM '${name}' not found` }
+  const hidden = apptainerHidden(def, name)
+  if (hidden) return hidden
   if (!isProvisionedOrLegacy(def)) {
     return { success: false, message: `VM '${name}' is not provisioned (state: ${def.provisioningState})` }
   }
 
-  // Container workloads: delegate to docker/podman
+  // Container workloads: delegate to docker/podman/apptainer
   if (isContainerDef(def)) {
+    if (def.runtime === 'apptainer') return startApptainerInstance(def, name)
     try {
       const bin = getContainerBin(def.runtime as ContainerRuntime)
       await execFileAsync(bin, ['start', name])
@@ -410,12 +595,15 @@ export async function startVm(name: string): Promise<{ success: boolean; message
 export async function stopVm(name: string): Promise<{ success: boolean; message: string }> {
   const def = await registry.get(name)
   if (!def) return { success: false, message: `VM '${name}' not found` }
+  const hidden = apptainerHidden(def, name)
+  if (hidden) return hidden
   if (!isProvisionedOrLegacy(def)) {
     return { success: false, message: `VM '${name}' is not provisioned (state: ${def.provisioningState})` }
   }
 
-  // Container workloads: delegate to docker/podman
+  // Container workloads: delegate to docker/podman/apptainer
   if (isContainerDef(def)) {
+    if (def.runtime === 'apptainer') return stopApptainerInstance(name)
     try {
       const bin = getContainerBin(def.runtime as ContainerRuntime)
       await execFileAsync(bin, ['stop', name])
@@ -444,12 +632,23 @@ export async function stopVm(name: string): Promise<{ success: boolean; message:
 export async function restartVm(name: string): Promise<{ success: boolean; message: string }> {
   const def = await registry.get(name)
   if (!def) return { success: false, message: `VM '${name}' not found` }
+  const hidden = apptainerHidden(def, name)
+  if (hidden) return hidden
   if (!isProvisionedOrLegacy(def)) {
     return { success: false, message: `VM '${name}' is not provisioned (state: ${def.provisioningState})` }
   }
 
-  // Container workloads: delegate to docker/podman
+  // Container workloads: delegate to docker/podman/apptainer
   if (isContainerDef(def)) {
+    // Apptainer has no `instance restart` — stop, then start from the recorded image. A failed
+    // stop must not be swallowed: starting an instance whose name is still taken fails anyway,
+    // and reporting the stop failure is the more actionable of the two messages.
+    if (def.runtime === 'apptainer') {
+      const stopped = await stopApptainerInstance(name)
+      if (!stopped.success) return stopped
+      const started = await startApptainerInstance(def, name)
+      return started.success ? { success: true, message: `Instance '${name}' restarted` } : started
+    }
     try {
       const bin = getContainerBin(def.runtime as ContainerRuntime)
       await execFileAsync(bin, ['restart', name])
@@ -625,6 +824,8 @@ export async function scanMicrovms(): Promise<ScanResult> {
  * If the runtime binary is not installed, returns an empty result (not an error).
  */
 export async function scanContainers(runtime: ContainerRuntime): Promise<ScanResult> {
+  if (runtime === 'apptainer') return scanApptainerInstances()
+
   const discovered: string[] = []
   const added: string[] = []
   const existing: string[] = []
@@ -660,6 +861,50 @@ export async function scanContainers(runtime: ContainerRuntime): Promise<ScanRes
     }
   } catch {
     // Binary not found or returned non-zero — treat as not installed, return empty result
+  }
+
+  return { discovered, added, existing }
+}
+
+/**
+ * Discover Apptainer instances and register any new ones.
+ *
+ * Not a `scanContainers` variant with different flags — a different shape of scan. `docker ps -a`
+ * enumerates containers in every state; `apptainer instance list --json` enumerates only what is
+ * running, because nothing else is recorded. So this scan discovers *running* instances and
+ * cannot see one that has stopped; a stopped instance leaves no trace to find. That is the
+ * runtime's model, not a limitation of this function.
+ *
+ * **Scan-time is where WVR-206's Free-tier exclusion lives.** Excluding at render instead would
+ * leave the workload in the registry, and a registered workload leaks through the `vm-status`
+ * broadcast. Returning empty here means a Free install never learns the instance exists.
+ */
+export async function scanApptainerInstances(): Promise<ScanResult> {
+  const discovered: string[] = []
+  const added: string[] = []
+  const existing: string[] = []
+
+  if (!apptainerVisible()) return { discovered, added, existing }
+
+  for (const instance of await listApptainerInstances()) {
+    discovered.push(instance.name)
+
+    if (await registry.has(instance.name)) {
+      existing.push(instance.name)
+    } else {
+      await registry.add({
+        name: instance.name,
+        ip: '',
+        mem: 0,
+        vcpu: 0,
+        hypervisor: 'apptainer',
+        runtime: 'apptainer',
+        // No containerId: Apptainer identifies an instance by name, and the pid is not a stable
+        // identity — it changes on every start, so recording it would be recording a lie.
+        image: instance.image || undefined,
+      })
+      added.push(instance.name)
+    }
   }
 
   return { discovered, added, existing }
