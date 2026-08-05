@@ -50,6 +50,10 @@ jobs:
           languages: ${{ matrix.language }}
           # Use extended queries for more thorough analysis
           queries: security-extended,security-and-quality
+          # Excludes the taint auditor's deliberately-vulnerable regression corpus, which
+          # would otherwise be analysed as production TypeScript and fill the dashboard with
+          # fixture alerts. The file states the reason and the limits of the exclusion.
+          config-file: ./.github/codeql/codeql-config.yml
 
       - name: Autobuild
         uses: github/codeql-action/autobuild@f5c2471be782132e47a6e6f9c725e56730d6e9a3  # v3

@@ -1,6 +1,7 @@
 // Copyright (c) 2026 whizBANG Developers LLC. All rights reserved.
 // Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE.
 import { FastifyPluginAsync } from 'fastify'
+import { ZodTypeProvider } from 'fastify-type-provider-zod'
 import { join } from 'node:path'
 import { z } from 'zod'
 import type { DashboardConfig } from '../config.js'
@@ -25,8 +26,14 @@ const errorResponseSchema = z.object({
 })
 
 export const complianceRoutes: FastifyPluginAsync<ComplianceRouteOptions> = async (fastify, opts) => {
+  // Route through the Zod type provider so `request.params` is TYPED FROM THE SCHEMA that
+  // already validates it. Without this, params is untyped and handlers reach for a cast —
+  // which asserts a shape nothing checked and, being a shorthand-destructure-plus-cast,
+  // is the one form audit:taint's engine cannot bind through. Validation and typing must
+  // come from the same declaration or they drift silently.
+  const app = fastify.withTypeProvider<ZodTypeProvider>()
   // GET /api/compliance — list available compliance documents
-  fastify.get('/', {
+  app.get('/', {
     schema: {
       response: {
         200: z.object({
@@ -39,16 +46,26 @@ export const complianceRoutes: FastifyPluginAsync<ComplianceRouteOptions> = asyn
   })
 
   // GET /api/compliance/:slug/pdf — download branded PDF
-  fastify.get('/:slug/pdf', {
+  app.get('/:slug/pdf', {
     schema: {
       params: slugParam,
       response: {
+        // The success body is a PDF, not JSON. Declaring it keeps the handler's
+        // `.send()` honestly typed — without it the only declared responses are the
+        // error ones, so sending the buffer type-errors and the previous code simply
+        // never noticed, because the cast on `request.params` had opted the whole
+        // route out of the type provider.
+        //
+        // Safe at runtime: Fastify skips serialization entirely for Buffer payloads, so
+        // the zod serializer never touches the bytes. Verified by injection against this
+        // exact schema — 200, `application/pdf`, byte-identical payload.
+        200: z.instanceof(Buffer),
         404: errorResponseSchema,
         500: errorResponseSchema,
       },
     },
   }, async (request, reply) => {
-    const { slug } = request.params as { slug: string }
+    const { slug } = request.params
 
     try {
       const cacheDir = join(opts.config.dataDir, 'pdf-cache')

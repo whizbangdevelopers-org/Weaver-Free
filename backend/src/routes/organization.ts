@@ -1,6 +1,7 @@
 // Copyright (c) 2026 whizBANG Developers LLC. All rights reserved.
 // Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE.
 import { FastifyPluginAsync } from 'fastify'
+import { ZodTypeProvider } from 'fastify-type-provider-zod'
 import type { OrganizationStore } from '../storage/organization-store.js'
 import type { DashboardConfig } from '../config.js'
 import { requireTier } from '../license.js'
@@ -13,8 +14,10 @@ interface OrganizationRouteOptions {
   config: DashboardConfig
 }
 
-export const organizationRoutes: FastifyPluginAsync<OrganizationRouteOptions> = async (app, opts) => {
+export const organizationRoutes: FastifyPluginAsync<OrganizationRouteOptions> = async (fastify, opts) => {
   const { organizationStore, config } = opts
+  // Type the request off the schema that already validates it — see compliance.ts.
+  const app = fastify.withTypeProvider<ZodTypeProvider>()
 
   // GET /api/organization — public (all authenticated users see org identity)
   app.get('/', async () => {
@@ -32,8 +35,7 @@ export const organizationRoutes: FastifyPluginAsync<OrganizationRouteOptions> = 
       return reply.status(403).send({ error: 'Organization identity requires Weaver tier or higher' })
     }
 
-    const body = request.body as Record<string, unknown>
-    await organizationStore.setIdentity(body)
+    await organizationStore.setIdentity(request.body)
     return organizationStore.getIdentity()
   })
 }

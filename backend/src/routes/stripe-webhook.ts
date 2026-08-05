@@ -24,7 +24,12 @@ export const stripeWebhookRoutes: FastifyPluginAsync<StripeWebhookOptions> = asy
     (_req, body, done) => { done(null, body) }
   )
 
-  fastify.post('/', async (request, reply) => {
+  // Body is typed as Buffer via the route generic, matching what the parser above
+  // actually produces. This route is the one place a Zod body schema would be WRONG:
+  // Stripe's signature is computed over the exact bytes sent, so parsing or re-serializing
+  // the body destroys the thing being verified. The signature check IS the validation, and
+  // it runs before the payload is trusted for anything.
+  fastify.post<{ Body: Buffer }>('/', async (request, reply) => {
     const signature = request.headers['stripe-signature']
     if (!signature || typeof signature !== 'string') {
       return reply.status(400).send({ error: 'Missing stripe-signature header' })
@@ -33,7 +38,7 @@ export const stripeWebhookRoutes: FastifyPluginAsync<StripeWebhookOptions> = asy
     let event
     try {
       event = constructWebhookEvent(
-        request.body as Buffer,
+        request.body,
         signature,
         opts.webhookSecret
       )

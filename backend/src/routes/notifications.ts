@@ -1,6 +1,7 @@
 // Copyright (c) 2026 whizBANG Developers LLC. All rights reserved.
 // Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE.
 import { FastifyPluginAsync } from 'fastify'
+import { ZodTypeProvider } from 'fastify-type-provider-zod'
 import { z } from 'zod'
 import type { NotificationService } from '../services/notification.js'
 import { requireRole } from '../middleware/rbac.js'
@@ -10,8 +11,10 @@ interface NotificationRouteOptions {
   notificationService: NotificationService
 }
 
-export const notificationRoutes: FastifyPluginAsync<NotificationRouteOptions> = async (app, opts) => {
+export const notificationRoutes: FastifyPluginAsync<NotificationRouteOptions> = async (fastify, opts) => {
   const { notificationService } = opts
+  // Type the request off the schema that already validates it — see compliance.ts.
+  const app = fastify.withTypeProvider<ZodTypeProvider>()
 
   // GET /api/notifications — recent notifications (admin/operator only — contains security events)
   app.get('/', {
@@ -35,7 +38,7 @@ export const notificationRoutes: FastifyPluginAsync<NotificationRouteOptions> = 
       },
     },
   }, async (request) => {
-    const { limit } = request.query as { limit: number }
+    const { limit } = request.query
     return { notifications: notificationService.getRecentNotifications(limit) }
   })
 
