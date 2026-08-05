@@ -30,5 +30,25 @@
 # If a future corpus lands elsewhere, add it here with its own reason. Do not broaden this
 # to `**/fixtures/**`: a wildcard would silently exempt any future fixture directory,
 # including one that ends up holding real code.
+#
+# BOTH ANCHORINGS ARE REQUIRED — this one file serves two repos with different tree shapes,
+# and the entry that matters is the second one:
+#
+#   Weaver-Dev   corpus at code/scripts/fixtures/taint-corpus   CodeQL SKIPS (private repo:
+#                                                               code scanning needs Advanced
+#                                                               Security, see codeql.yml)
+#   Weaver-Free  corpus at      scripts/fixtures/taint-corpus   CodeQL RUNS
+#
+# sync-to-free.yml rsyncs `source/code/ → target/`, so the mirror is FLATTENED: Dev's `code/`
+# becomes the Free repo root. A paths-ignore written only for the Dev layout therefore names
+# a path that does not exist on the one repo that actually scans — a silent no-op, green in
+# review, fixtures alerting in production. Verified against the live mirror rather than
+# reasoned about.
+#
+# This is the "an auditor's universe must match its CONSUMER's" rule from
+# .claude/rules/core/single-source-generated.md. Any future entry here needs both forms too.
 paths-ignore:
+  # Weaver-Free (mirror root — this is the one CodeQL actually evaluates)
+  - scripts/fixtures/taint-corpus
+  # Weaver-Dev (code/-nested)
   - code/scripts/fixtures/taint-corpus
