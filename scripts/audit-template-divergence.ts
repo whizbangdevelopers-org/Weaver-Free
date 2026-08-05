@@ -1,3 +1,5 @@
+// Copyright (c) 2026 whizBANG Developers LLC. All rights reserved.
+// Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE.
 /**
  * audit-template-divergence.ts — shared portfolio files must not fork.
  *
