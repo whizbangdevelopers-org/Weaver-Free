@@ -18,10 +18,12 @@
  */
 
 import { execFileSync, spawnSync } from 'node:child_process'
-import { join } from 'node:path'
+import { readdirSync, readFileSync } from 'node:fs'
+import { basename, join } from 'node:path'
 
 const RULES_DIR = join(import.meta.dirname, 'semgrep-rules')
 const SCAN_TARGET = join(import.meta.dirname, '..', 'backend', 'src')
+const CORPUS_DIR = join(import.meta.dirname, 'fixtures', 'taint-corpus')
 
 const RULES = [
   'no-raw-execfile-args.yaml',
@@ -100,10 +102,113 @@ function scanOnce(args: string[]): ScanOutcome {
   return { kind: 'findings', results }
 }
 
+// Bounded retry budget, shared by the self-test and the real scan — see the note above
+// the retry loop in run() for why retrying is safe here and is not retry-until-green.
+const MAX_ATTEMPTS = 3
+
 // Synchronous sleep — scanOnce() uses execFileSync, so the whole auditor is
 // synchronous and cannot await a timer.
 function sleepMs(ms: number): void {
   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms)
+}
+
+/** One finding location, as `file:line:rule`. */
+function key(file: string, line: number, rule: string): string {
+  return `${file}:${line}:${rule}`
+}
+
+/**
+ * Prove the taint rules still work BEFORE trusting them to scan anything.
+ *
+ * These four rules shipped for months with NO regression corpus. That is the
+ * "auditor with no test" class core/security.md says never to trust: a rule with no
+ * corpus only ever reports that it found nothing, and never that it CANNOT find
+ * anything — indistinguishable from outside, and one of them is a green tick a reader
+ * believes.
+ *
+ * It was not hypothetical here. `no-raw-execfile-args` could not see
+ * `const { name } = request.params as { name: string }` — this codebase's own idiomatic
+ * param read, live at 8 sites under backend/src/routes/ — while reporting clean. The
+ * neighbouring shapes (plain destructure, bare cast, `as any`, renaming) all worked, so
+ * nothing looked wrong. Only a corpus makes that visible.
+ *
+ * Contract, enforced on every run:
+ *   - a line preceded by `// taint-expect: <rule-id>` MUST be reported by that rule
+ *   - EVERY other line in the corpus MUST NOT be reported by any rule
+ *
+ * Both halves matter. The CATCH half alone passes for a rule that flags everything, and
+ * a rule that flags everything gets switched off on its first real run — after which it
+ * catches nothing at all.
+ */
+function selfTest(args: (target: string) => string[]): void {
+  let files: string[]
+  try {
+    files = readdirSync(CORPUS_DIR).filter(f => f.endsWith('.ts'))
+  } catch {
+    console.error('\x1b[31m✗ taint self-test corpus missing: scripts/fixtures/taint-corpus/\x1b[0m')
+    console.error('  The taint rules are unverified — refusing to report a clean scan.')
+    process.exit(1)
+  }
+  if (files.length === 0) {
+    console.error('\x1b[31m✗ taint self-test corpus is empty: scripts/fixtures/taint-corpus/\x1b[0m')
+    console.error('  The taint rules are unverified — refusing to report a clean scan.')
+    process.exit(1)
+  }
+
+  // Expected findings, parsed from the annotations. The annotation sits on the line
+  // BEFORE the offending line so it never perturbs the code being matched.
+  const expected = new Set<string>()
+  for (const file of files) {
+    const lines = readFileSync(join(CORPUS_DIR, file), 'utf-8').split('\n')
+    lines.forEach((line, i) => {
+      const m = /\/\/\s*taint-expect:\s*([a-z0-9-]+)/.exec(line)
+      if (m) expected.add(key(file, i + 2, m[1]))
+    })
+  }
+  if (expected.size === 0) {
+    console.error('\x1b[31m✗ taint corpus carries no `taint-expect:` annotations\x1b[0m')
+    console.error('  A corpus that asserts nothing cannot fail, which makes it decoration.')
+    process.exit(1)
+  }
+
+  let outcome: ScanOutcome = { kind: 'infra', detail: '(not run)' }
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    outcome = scanOnce(args(CORPUS_DIR))
+    if (outcome.kind !== 'infra') break
+    if (attempt < MAX_ATTEMPTS) sleepMs(2000 * attempt)
+  }
+  if (outcome.kind === 'infra') {
+    console.error('\x1b[31m✗ taint self-test could not complete\x1b[0m')
+    console.error(`  ${outcome.detail.replace(/\n/g, '\n  ')}`)
+    console.error('  A rule parse error lands here — the rules are unverified, so this is not a pass.')
+    process.exit(1)
+  }
+
+  const actual = new Set<string>()
+  if (outcome.kind === 'findings') {
+    for (const f of outcome.results) {
+      actual.add(key(basename(f.path), f.start.line, f.check_id.replace(/^.*\./, '')))
+    }
+  }
+
+  const missed = [...expected].filter(e => !actual.has(e)).sort()
+  const extra = [...actual].filter(a => !expected.has(a)).sort()
+
+  if (missed.length > 0 || extra.length > 0) {
+    console.error(
+      `\x1b[31m✗ taint rules FAILED their own regression corpus (${missed.length} missed, ${extra.length} false positive)\x1b[0m\n`,
+    )
+    for (const m of missed) console.error(`    MISSED (must catch):  ${m}`)
+    for (const e of extra) console.error(`    FALSE POSITIVE:       ${e}`)
+    console.error('\n  The taint rules are broken. Fix scripts/semgrep-rules/ — do not weaken the corpus.')
+    console.error('  A false positive is not the lesser failure: a rule that flags correct code')
+    console.error('  gets switched off, and then it catches nothing at all.\n')
+    process.exit(1)
+  }
+
+  console.log(
+    `\x1b[2m  self-test: ${expected.size} expectations across ${files.length} corpus files — rules verified\x1b[0m`,
+  )
 }
 
 function run(): void {
@@ -134,8 +239,10 @@ function run(): void {
     process.exit(1)
   }
 
-  const configArgs = RULES.flatMap(r => ['--config', join(RULES_DIR, r)])
-  const args = [
+  // Same rules, same flags, same engine for the self-test and the real scan — a corpus
+  // verified under different settings than the scan it vouches for proves nothing about
+  // that scan.
+  const buildArgs = (target: string): string[] => [
     'scan',
     // --jobs 1 is the DETERMINISTIC fix for the intermittent `semgrep exited 2` this auditor kept
     // hitting: semgrep-core's parallel scan opens one io_uring ring PER JOB, and several rings blow
@@ -145,11 +252,15 @@ function run(): void {
     // backend/src/ is ~100 files / 4 rules, so the serial scan is a couple of seconds — a cheap
     // price for a green that means "clean", not "got lucky". (Root-cause the flake, don't re-push.)
     '--jobs', '1',
-    ...configArgs,
+    ...RULES.flatMap(r => ['--config', join(RULES_DIR, r)]),
     '--metrics=off',
     '--json',
-    SCAN_TARGET,
+    target,
   ]
+
+  selfTest(buildArgs)
+
+  const args = buildArgs(SCAN_TARGET)
 
   // WHY RETRY (and why it is not gaming): this auditor runs inside
   // run-compliance.ts's parallel phase — ~50 sibling auditors spawned at once —
@@ -164,7 +275,6 @@ function run(): void {
   // failure (a truly broken rule, or a real crash) fails on every attempt and
   // then exits 1 loudly WITH the captured detail — the old code discarded that
   // detail, which is why the original flake was undiagnosable.
-  const MAX_ATTEMPTS = 3
   let outcome: ScanOutcome = { kind: 'infra', detail: '(not run)' }
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     outcome = scanOnce(args)

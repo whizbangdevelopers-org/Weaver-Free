@@ -17,6 +17,48 @@ rules:
           - pattern: $REQ.body
       - patterns:
           - pattern: $REQ.query
+      # Shorthand destructuring from a TYPE-ASSERTED request field —
+      #   const { name } = request.params as { name: string }
+      # — is this codebase's own idiomatic param read, and semgrep's taint engine cannot
+      # bind through it: the object-type-literal assertion breaks the destructuring bind
+      # in the IL, so the plain `$REQ.params` source above never reaches the variable.
+      #
+      # Measured against semgrep 1.143.0. EVERY documented taint mechanism fails
+      # identically on this shape — cast-as-source ($REQ.params as $T), focus-metavariable
+      # on the bound name, by-side-effect on sources AND on propagators,
+      # pattern-propagators for the destructuring bind, and symbolic_propagation. The
+      # neighbouring shapes all bind correctly: `as any`, renaming ({ name: vmName }), and
+      # the two-step (assign the cast, then destructure). It is only shorthand binding
+      # against an object-type literal that breaks, which is why this sat undetected — the
+      # declared sources describe an ideal, not the engine's reach.
+      #
+      # So: declare the variable's USES as sources instead, scoped to the enclosing
+      # function so a binding cannot leak into a sibling handler in the same file. This
+      # stays inside taint mode, so the sanitizers below still apply to it.
+      #
+      # Known residual limit (corpus-documented, deliberately not papered over): semgrep
+      # dedupes on the metavariable binding, so if one file binds the SAME variable name
+      # in two handlers and the plain form is already reported, the cast form is masked
+      # until the first is fixed. It reappears on the next run — iterative convergence,
+      # not a blind spot.
+      - patterns:
+          - pattern: $VAR
+          - pattern-either:
+              - pattern-inside: |
+                  function (...) {
+                    ...
+                    const { ..., $VAR, ... } = $REQ.$FIELD as $T
+                    ...
+                  }
+              - pattern-inside: |
+                  function $F(...) {
+                    ...
+                    const { ..., $VAR, ... } = $REQ.$FIELD as $T
+                    ...
+                  }
+          - metavariable-regex:
+              metavariable: $FIELD
+              regex: ^(params|body|query)$
     pattern-sinks:
       - patterns:
           - pattern: fetch($SINK, ...)
@@ -47,6 +89,21 @@ rules:
           - pattern: ALLOWED_HOSTS.includes($X)
       - patterns:
           - pattern: isAllowedUrl($X)
+      # Guard-region sanitizer — same reasoning as the regex rules: the entries above
+      # clean only the occurrence inside the guard, not the later fetch/axios call.
+      - patterns:
+          - pattern: $X
+          - pattern-either:
+              - pattern-inside: |
+                  if (!isAllowedUrl($X)) { ... }
+                  ...
+              - pattern-inside: |
+                  if (isAllowedUrl($X)) { ... }
+              - pattern-inside: |
+                  if (!ALLOWED_HOSTS.includes($X)) { ... }
+                  ...
+              - pattern-inside: |
+                  if (ALLOWED_HOSTS.includes($X)) { ... }
     metadata:
       category: security
       cwe: CWE-918
