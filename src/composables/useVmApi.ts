@@ -221,7 +221,9 @@ export function useWorkloadApi() {
     loading.value = true
     error.value = null
     try {
-      if (isDemoMode()) return '[demo] No provisioning logs available in demo mode.'
+      // Workload-neutral wording: this one route serves a VM's provisioning log
+      // and a container's runtime log, and both panels call through here.
+      if (isDemoMode()) return '[demo] No logs available in demo mode.'
       const result = await vmApiService.getLogs(name)
       return result.log
     } catch (err) {

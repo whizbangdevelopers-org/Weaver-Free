@@ -4,7 +4,8 @@
   Copyright (c) 2026 WhizBang Developers LLC. All rights reserved.
 
   Container detail panel — renders inside the ResourceDetailDrawer.
-  Accepts a containerId prop and looks up the container from demo data.
+  Accepts a containerId prop and resolves it against the unified workload store
+  (WVR-72) on a real backend, or the mock catalogue in demo mode.
 -->
 <template>
   <div class="container-detail-panel column full-height">
@@ -119,6 +120,7 @@
             <q-tab name="ports" label="Ports" icon="mdi-lan-connect" />
             <q-tab name="mounts" label="Mounts" icon="mdi-folder-open" />
             <q-tab name="labels" label="Labels" icon="mdi-tag-multiple" />
+            <q-tab name="logs" label="Logs" icon="mdi-text-box" data-testid="container-logs-tab" />
             <q-tab name="ai" label="AI" icon="mdi-robot" />
           </q-tabs>
           <q-separator />
@@ -194,6 +196,29 @@
               </div>
             </q-tab-panel>
 
+            <!-- Runtime Logs — on-demand fetch, never a poll -->
+            <q-tab-panel name="logs">
+              <div class="row items-center q-mb-sm">
+                <div class="text-subtitle2">Runtime Logs</div>
+                <q-space />
+                <q-btn
+                  flat dense size="sm" icon="mdi-refresh" label="Refresh"
+                  data-testid="container-logs-refresh"
+                  :loading="logsLoading"
+                  @click="loadLogs"
+                />
+              </div>
+              <div class="log-block rounded-borders q-pa-sm" data-testid="container-logs-output">
+                <div v-if="logsLoading" class="text-grey-6 text-mono">Loading...</div>
+                <div
+                  v-else-if="logsContent"
+                  class="text-grey-7 text-mono"
+                  style="white-space: pre-wrap; font-size: 12px;"
+                >{{ logsContent }}</div>
+                <div v-else class="text-grey-6 text-mono">No runtime logs available.</div>
+              </div>
+            </q-tab-panel>
+
             <!-- AI History -->
             <q-tab-panel name="ai">
               <div class="text-subtitle2 q-mb-sm">AI Analysis History</div>
@@ -250,7 +275,11 @@ import { useAgentStore } from 'src/stores/agent-store'
 import { useAuthStore } from 'src/stores/auth-store'
 import { useAppStore } from 'src/stores/app'
 import { useResourceDrawerStore } from 'src/stores/resource-drawer-store'
+import { useWorkloadStore } from 'src/stores/workload-store'
+import { useWorkloadApi } from 'src/composables/useVmApi'
 import { getDemoContainersForTier } from 'src/config/demo'
+import { isDemoMode } from 'src/config/demo-mode'
+import { isContainerRuntime, mapToContainerInfo } from 'src/utils/container'
 import type { ContainerInfo, ContainerRuntime } from 'src/types/container'
 import type { AgentAction } from 'src/types/agent'
 import { TIERS, STATUSES } from 'src/constants/vocabularies'
@@ -262,17 +291,40 @@ const appStore = useAppStore()
 const authStore = useAuthStore()
 const agentStore = useAgentStore()
 const drawerStore = useResourceDrawerStore()
+const workloadStore = useWorkloadStore()
 const demoState = useDemoContainerState()
 const { runAgent, loading: agentLoading } = useAgent()
+const { fetchLogs } = useWorkloadApi()
 useAgentStream()
 
 const activeTab = ref('ports')
 const agentDialogOpen = ref(false)
 const currentAgentAction = ref<AgentAction>('diagnose')
+const logsContent = ref('')
+const logsLoading = ref(false)
 
+// Demo mode reads the mock catalogue; a real backend reads the unified workload
+// store (WVR-72) through the shared container projection.
+//
+// This used to read demo data UNCONDITIONALLY, which made the panel dead on a
+// real backend: `getDemoContainersForTier` degrades to `() => []` once
+// demo-data.ts is stripped from the build, and even on a Dev build a real
+// container's id never appears in the mock catalogue — so every real container
+// opened this panel and got "not found". Same shape as the TagManagement defect
+// this slice's spec calls out: a component idling against demo data, wrong in
+// production, invisible in demo.
 const container = computed<ContainerInfo | null>(() => {
-  const all = getDemoContainersForTier(appStore.effectiveTier)
-  return all.find(c => c.id === props.containerId || c.name === props.containerId) ?? null
+  const matches = (c: ContainerInfo) => c.id === props.containerId || c.name === props.containerId
+
+  if (isDemoMode()) {
+    return getDemoContainersForTier(appStore.effectiveTier).find(matches) ?? null
+  }
+
+  const workload = workloadStore.workloads
+    .filter(w => isContainerRuntime(w.runtime))
+    .map(mapToContainerInfo)
+    .find(matches)
+  return workload ?? null
 })
 
 const effectiveStatus = computed(() =>
@@ -293,14 +345,45 @@ const containerOperations = computed(() =>
 
 const createdAgo = computed(() => {
   if (!container.value) return ''
-  const days = Math.floor((Date.now() - new Date(container.value.created).getTime()) / 86400000)
+  // The unified workload model carries no creation timestamp, so a real
+  // container's `created` is '' — guard the parse rather than render "NaN days
+  // ago".
+  const createdMs = new Date(container.value.created).getTime()
+  if (Number.isNaN(createdMs)) return 'unknown'
+  const days = Math.floor((Date.now() - createdMs) / 86400000)
   return days === 0 ? 'today' : `${days} days ago`
 })
 
-// Reset tab when switching containers
+// Reset tab and drop the previous container's logs when switching containers.
 watch(() => props.containerId, () => {
   activeTab.value = 'ports'
+  logsContent.value = ''
 })
+
+// Fetch on demand, NEVER on a timer.
+//
+// `GET /api/workload/:name/logs` shells out (`docker logs`, or an Apptainer
+// instance lookup plus two file reads) and carries a 10/min per-route limit for
+// that reason — see G-backend-2026-06-02-01KYSBXCJ6TK3E22T062RD230G, which the
+// route's own comment names as the paired obligation on this UI. So: once when
+// the operator opens the tab and has no logs yet, and thereafter only when they
+// press Refresh. No interval, no watcher on status, no refetch on WebSocket
+// broadcast.
+watch(activeTab, (tab) => {
+  if (tab === 'logs' && !logsContent.value) void loadLogs()
+})
+
+async function loadLogs() {
+  if (!container.value) return
+  logsLoading.value = true
+  try {
+    logsContent.value = await fetchLogs(container.value.name)
+  } catch {
+    logsContent.value = ''
+  } finally {
+    logsLoading.value = false
+  }
+}
 
 function runtimeIcon(rt: ContainerRuntime): string {
   if (rt === 'docker') return 'mdi-docker'
@@ -361,5 +444,20 @@ function viewOperation(operationId: string) {
   font-family: 'Roboto Mono', monospace;
   font-size: 0.7rem;
   word-break: break-all;
+}
+
+// Matches VmDetailPanel's logs surface — a bounded, scrollable block with an
+// explicit max-height. A q-scroll-area would collapse to 0 here (no
+// deterministic height on an ancestor); see the Quasar note in
+// .claude/rules/frontend.md.
+.log-block {
+  background: #1e1e1e;
+  min-height: 120px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.body--light .log-block {
+  background: #263238;
 }
 </style>

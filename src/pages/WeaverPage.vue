@@ -319,6 +319,7 @@ import { useAuthStore } from 'src/stores/auth-store'
 import { useAppStore } from 'src/stores/app'
 import { isDemoMode, isPublicDemo } from 'src/config/demo-mode'
 import { getDemoContainersForTier, DEMO_WORKLOAD_CONNECTIONS, DEMO_HOSTS, getDemoVmsForHost } from 'src/config/demo'
+import { isContainerRuntime, mapToContainerInfo } from 'src/utils/container'
 import { api } from 'src/boot/axios'
 
 const $q = useQuasar()
@@ -416,26 +417,10 @@ const runtimeCounts = computed(() => ({
 
 const totalWorkloadCount = computed(() => workloadStore.totalCount + visibleContainers.value.length)
 
-const CONTAINER_RUNTIMES = ['docker', 'podman', 'apptainer'] as const
-
-function mapToContainerInfo(w: WorkloadInfo): ContainerInfo {
-  const statusMap: Record<string, ContainerInfo['status']> = {
-    [STATUSES.RUNNING]: STATUSES.RUNNING, [STATUSES.IDLE]: STATUSES.STOPPED, [STATUSES.STOPPED]: 'exited', [STATUSES.FAILED]: 'exited', [STATUSES.UNKNOWN]: STATUSES.UNKNOWN,
-  }
-  return {
-    id: w.containerId ?? w.name,
-    name: w.name,
-    image: w.image ?? '',
-    runtime: w.runtime as ContainerRuntime,
-    status: statusMap[w.status] ?? STATUSES.UNKNOWN,
-    created: '',
-  }
-}
-
 const hasContainers = computed(() => {
   if (isDemoMode()) return appStore.isDemoVersionAtLeast('1.1')
   // Real backend: show container section when any workload has a container runtime
-  return workloadStore.workloads.some(w => (CONTAINER_RUNTIMES as readonly string[]).includes(w.runtime ?? ''))
+  return workloadStore.workloads.some(w => isContainerRuntime(w.runtime))
 })
 
 // Bulk VM ops are Fabrick-gated; in demo they only appear once containers
@@ -452,7 +437,7 @@ const visibleContainers = computed(() => {
   }
   // Real backend: map WorkloadInfo containers to ContainerInfo shape
   return workloadStore.workloads
-    .filter(w => (CONTAINER_RUNTIMES as readonly string[]).includes(w.runtime ?? ''))
+    .filter(w => isContainerRuntime(w.runtime))
     .map(mapToContainerInfo)
 })
 
@@ -498,7 +483,7 @@ const displayVms = computed(() => {
   if (isContainerFilter.value) return []
   const all = workloadStore.filteredWorkloads
   if (!isDemoMode() && hasContainers.value) {
-    return all.filter(w => !(CONTAINER_RUNTIMES as readonly string[]).includes(w.runtime ?? ''))
+    return all.filter(w => !isContainerRuntime(w.runtime))
   }
   return all
 })
@@ -529,7 +514,7 @@ function resourcePressure(item: WorkloadItem): number {
 }
 
 import type { WorkloadInfo } from 'src/types/workload'
-import type { ContainerInfo, ContainerRuntime } from 'src/types/container'
+import type { ContainerInfo } from 'src/types/container'
 import { STATUSES } from 'src/constants/vocabularies'
 type WorkloadItem =
   | { kind: 'vm';        vm: WorkloadInfo;        name: string; statusPrio: number }
