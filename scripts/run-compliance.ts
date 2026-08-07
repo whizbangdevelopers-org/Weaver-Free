@@ -125,6 +125,7 @@ export const PHASES: Phase[] = [
       'audit:release-rsync-paths',
       'audit:workflow-cwd',
       'audit:command-cwd',
+      'audit:shell-safety',
       'audit:workflow-node-version',
       'audit:published-entrypoints',
       'audit:published-secrets',
