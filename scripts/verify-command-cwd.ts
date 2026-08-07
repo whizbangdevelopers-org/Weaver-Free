@@ -1,7 +1,7 @@
 // Copyright (c) 2026 whizBANG Developers LLC. All rights reserved.
 // Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE.
 /**
- * audit:command-cwd — a committed script must not invoke npm or git cwd-dependently.
+ * audit:command-cwd — a committed script must not invoke npm, git, or source cwd-dependently.
  *
  * WHY THIS EXISTS
  * ---------------
@@ -65,6 +65,23 @@ const NPM_OP = /\b(run|ci|install|i|test|exec|audit|rebuild|update|prune|dedupe)
 /** git ops that resolve a repository from cwd. Read-only ones count: they report the WRONG repo. */
 const GIT_OP = /^\s*git\s+(add|commit|push|pull|checkout|switch|fetch|merge|rebase|status|diff|log|rev-parse|ls-files|stash|tag)\b/
 
+/**
+ * `source` / `.` of a RELATIVE path — the third member of this family, added 2026-08-07.
+ *
+ * Keyed on the argument being PATH-SHAPED (contains a `/`) rather than on the verb, because `.`
+ * is one character and `source` is an ordinary English word: matching the verb alone fires on
+ * prose. `source myfunc` (no slash) is a PATH/function lookup, not a cwd-relative file.
+ *
+ * This one fails harder than its siblings. npm and git report loudly about the wrong target;
+ * a missed `source` sets nothing, so the consumer silently keeps its DEFAULT. Measured
+ * 2026-08-07: `. tools/engram-client-env.sh` after a cwd reset left ENGRAM_PG_HOST at
+ * 127.0.0.1, and the tool printed "SKIP: unreachable — not a pass, not a failure" and exited
+ * **0**. The runner reported success over a run that did nothing.
+ */
+const SRC_OP = /^\s*(\.|source)\s+\S*\//
+/** Absolute literal, or a variable the shell expands (tolerated for non-npm — see the rule). */
+const SRC_PINNED = /^\s*(\.|source)\s+(\/|["']?\$)/
+
 /** An absolute pin on the invocation itself. */
 const NPM_PINNED = /--prefix\s+\//
 const GIT_PINNED = /git\s+-C\s+\//
@@ -82,9 +99,9 @@ const ANCHORS = [
   /cd\s+\//,                        // an absolute cd anywhere earlier
 ]
 
-export interface Finding { file: string; line: number; text: string; kind: 'npm' | 'git' }
+export interface Finding { file: string; line: number; text: string; kind: 'npm' | 'git' | 'source' }
 
-/** Pure: given a file's contents, which lines invoke npm/git cwd-dependently? */
+/** Pure: given a file's contents, which lines invoke npm/git/source cwd-dependently? */
 export function findCwdDependentCommands(content: string, path = ''): Finding[] {
   // Git hooks run with cwd = the working-tree root, guaranteed by git itself.
   if (/\.githooks\//.test(path)) return []
@@ -103,6 +120,9 @@ export function findCwdDependentCommands(content: string, path = ''): Finding[] 
     if (GIT_OP.test(line) && !GIT_PINNED.test(line)) {
       out.push({ file: path, line: i + 1, text: raw.trim(), kind: 'git' })
     }
+    if (SRC_OP.test(line) && !SRC_PINNED.test(line)) {
+      out.push({ file: path, line: i + 1, text: raw.trim(), kind: 'source' })
+    }
   })
   return out
 }
@@ -120,6 +140,11 @@ const MUST_CATCH: [string, string][] = [
   ['bare git add', 'git add src/foo.ts\n'],
   ['bare git push', 'git push origin main\n'],
   ['read-only git is still wrong', 'git status --short\n'],
+  ['relative source', '. tools/engram-client-env.sh\n'],
+  ['relative source, keyword', 'source tools/env.sh\n'],
+  ['dot-slash relative', '. ./env.sh\n'],
+  // The redirect is idiomatic and is what hides "No such file or directory".
+  ['relative source, redirect masked', '. tools/env.sh >/dev/null 2>&1\n'],
 ]
 const MUST_IGNORE: [string, string][] = [
   ['absolute --prefix', 'npm --prefix /abs/pkg run build\n'],
@@ -130,6 +155,15 @@ const MUST_IGNORE: [string, string][] = [
   ['commented out', '# npm run build\n'],
   ['prose mentioning npm run', 'echo "then npm run build"\n'],
   ['unrelated npm word', 'echo npm-is-great\n'],
+  ['absolute source', '. /home/mark/x/env.sh\n'],
+  ['absolute source, keyword', 'source /home/mark/x/env.sh\n'],
+  // Tolerated by cwd-independent-tooling.md for non-npm: the shell expands it.
+  ['absolute-valued variable', '. "$ANVIL/tools/env.sh"\n'],
+  // `.` is one char and `source` is an English word — keying on the VERB alone
+  // fires on prose, which is how an auditor gets switched off on its first run.
+  ['bare word, no slash', 'source myfunc\n'],
+  ['prose mentioning source', 'echo "source the env first"\n'],
+  ['a relative script arg is not a source', 'python3 ./x.py\n'],
 ]
 
 function selfTest(): string[] {
@@ -146,7 +180,7 @@ function selfTest(): string[] {
 
 function main(): void {
   console.log('\x1b[1mCommand cwd-Independence Audit\x1b[0m')
-  console.log('\x1b[2mCommitted scripts must not invoke npm/git cwd-dependently (FORGE-36)\x1b[0m\n')
+  console.log('\x1b[2mCommitted scripts must not invoke npm/git/source cwd-dependently (FORGE-36)\x1b[0m\n')
 
   const fails = selfTest()
   if (fails.length) {
@@ -181,7 +215,7 @@ function main(): void {
     process.exit(1)
   }
 
-  console.log(`\x1b[32m\x1b[1mRESULT: PASS\x1b[0m — ${tracked.length} script(s), no cwd-dependent npm/git`)
+  console.log(`\x1b[32m\x1b[1mRESULT: PASS\x1b[0m — ${tracked.length} script(s), no cwd-dependent npm/git/source`)
 }
 
 if (process.argv[1] && process.argv[1].endsWith('verify-command-cwd.ts')) main()
