@@ -113,7 +113,25 @@ function parseEntryBlock(id: string, blockContent: string, sourceFile: string): 
 
 function collectCategoryFiles(): string[] {
   const files: string[] = []
-  for (const type of ['lessons', 'gotchas']) {
+  // Categories are DERIVED from the store's own subdirectories, never hardcoded. The category
+  // set has a single source (the knowledge vocab) that this TypeScript cannot import, so the
+  // next best thing is to read what the projection actually wrote — a list that cannot drift
+  // away from it.
+  //
+  // Hardcoding ['lessons', 'gotchas'] silently dropped every `heuristic` on the day heuristics
+  // began projecting into templates (2026-08-08): 346 entries present in the store and absent
+  // from INDEX.md, which is the file a reader consults to find out what exists. Unindexed
+  // knowledge is knowledge that did not arrive.
+  let categories: string[]
+  try {
+    categories = readdirSync(KNOWLEDGE_ROOT, { withFileTypes: true })
+      .filter((d) => d.isDirectory())
+      .map((d) => d.name)
+      .sort()
+  } catch {
+    return files
+  }
+  for (const type of categories) {
     const dir = resolve(KNOWLEDGE_ROOT, type)
     let names: string[]
     try {
