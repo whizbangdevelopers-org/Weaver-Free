@@ -670,7 +670,7 @@ const helpSections = computed<HelpSection[]>(() => [
       {
         question: 'What is the Warp page?',
         answer:
-          'Warp is the desired-state management surface for the FabricK fleet (v2.5+). A warp pattern defines what a host type should look like: which workloads, which bridges, which GPU assignment, which snapshot policy. Think of it as fleet configuration management — the declarative layer that tells each host what it should be running. Warp detects drift ("1 host drifted from pattern") and supports blue/green pattern deployment.',
+          'Warp is the desired-state management surface for the FabricK fleet (v2.5+). A warp pattern defines what a host type should look like: which workloads, which bridges, which GPU assignment, which snapshot policy. Think of it as fleet configuration management — the declarative layer that tells each host what it should be running. Warp detects drift ("1 host drifted from pattern") and supports blue/green pattern deployment. "Scan for Hosts" discovers hosts on your network and offers one of three actions per host: Enroll (it already runs a Weaver agent), Observe (it is up and running another OS — installs the read-only observer agent, non-destructive, your OS is untouched), or Provision (re-images the host with NixOS, which erases its disk). Observe first if you may later convert the host — the operational history it collects is what makes that conversion safe.',
         link: '/warp',
         linkLabel: 'Open Warp',
         linkIcon: 'mdi-texture',
