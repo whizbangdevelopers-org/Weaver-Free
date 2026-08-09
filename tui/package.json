@@ -1,6 +1,6 @@
 {
   "name": "weaver-tui",
-  "version": "1.0.3",
+  "version": "1.0.5",
   "description": "Weaver - Terminal User Interface",
   "license": "SEE LICENSE IN LICENSE",
   "type": "module",

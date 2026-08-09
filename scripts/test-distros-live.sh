@@ -5,7 +5,24 @@
 # Distro Catalog Live Test — step 5 of the release checklist
 # =============================================================================
 # Runs the full distro catalog smoke test against a provisioning-enabled
-# backend. Must run on king (the NixOS host that owns br-microvm).
+# backend.
+#
+# RUNS ON lab1, NOT king (changed 2026-08-09).
+# ---------------------------------------------
+# lab1 (192.168.0.32) is the fleet's test-substrate: a microvm.host box whose whole purpose is
+# provisioning real VMs, and already the deployed-artifact gate for step 5a (WVR-186, validated
+# 2026-06-15). king is the CONTROL PLANE — provisioning throwaway CirrOS VMs on the box that runs
+# the fleet's tooling puts test workloads on the wrong side of the blast radius, and it made
+# step 5 and step 5a disagree about which host represents "a real Weaver host".
+#
+# This script starts a LOCAL backend and inspects the LOCAL bridge, so it must execute ON lab1 —
+# it cannot be pointed at lab1 from king. lab1 is power-down-when-idle by design, so it is
+# usually asleep; that is not a fault. Wake it first and block until ready:
+#
+#   king$  /home/mark/Projects/active/anvil/scripts/fleet-wake.sh lab1
+#
+# fleet-wake reads lab1's MAC and readiness probe from anvil's hosts/inventory.yaml and does not
+# return until the host actually answers. Full prep: code/.claude/agents/distro-catalog-tester.md.
 #
 # Steps automated:
 #   1. Pre-flight: verify br-microvm bridge is up
@@ -67,8 +84,27 @@ done
 # ── Step 1: Pre-flight ────────────────────────────────────────────────────────
 step "1/5  Pre-flight checks"
 
+# Refuse on king FIRST, before any capability probe.
+#
+# Ordering is the whole point. Behind the br-microvm check this would be dead code — king has no
+# such bridge, so that check already catches today's mistake and the hostname guard could only
+# ever fire in a hypothetical future where king grew one. A guard that cannot fire is not a
+# guard. Placed first, it fires on king now, states the actual reason (control plane, wrong blast
+# radius) instead of the incidental one (no bridge), and keeps doing so if king's config changes.
+if [[ "$(hostname)" == "king" ]]; then
+  fail "refusing to run on king — step 5 moved to lab1 on 2026-08-09"
+  echo "  king is the control plane; provisioning throwaway VMs here is the wrong blast radius." >&2
+  echo "  Run it on lab1 (192.168.0.32), which is already the step-5a gate host:" >&2
+  echo "    /home/mark/Projects/active/anvil/scripts/fleet-wake.sh lab1   # blocks until ready" >&2
+  echo "    ssh root@192.168.0.32" >&2
+  echo "  Full prep: code/.claude/agents/distro-catalog-tester.md" >&2
+  exit 1
+fi
+
 if ! ip link show br-microvm &>/dev/null; then
-  fail "br-microvm bridge not found — is this king?"
+  fail "br-microvm bridge not found — this must run ON lab1 (the test substrate)"
+  echo "  Its absence means this host is not running Weaver's NixOS module." >&2
+  echo "  Full prep: code/.claude/agents/distro-catalog-tester.md" >&2
   exit 1
 fi
 ok "br-microvm bridge is UP"
