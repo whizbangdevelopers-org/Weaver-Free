@@ -41,5 +41,10 @@ export function mapToContainerInfo(w: WorkloadInfo): ContainerInfo {
     runtime: w.runtime as ContainerRuntime,
     status: statusMap[w.status] ?? STATUSES.UNKNOWN,
     created: '',
+    // WVR-208 phase A — carried through, not recomputed. Dropping these here is what would make
+    // the container drawer (the surface where divergence actually appears, since the gap is
+    // Docker/Podman/Apptainer) silently unable to show it.
+    bridge: w.bridge,
+    networkDivergent: w.networkDivergent,
   }
 }

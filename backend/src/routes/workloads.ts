@@ -40,6 +40,11 @@ const vmInfoResponseSchema = z.object({
   description: z.string().optional(),
   tags: z.array(z.string()).optional(),
   bridge: z.string().optional(),
+  // WVR-208 phase A. This MUST be here: Fastify validates every response against the schema and
+  // Zod strips unknown keys, so an unlisted field is silently dropped between the service and the
+  // client — the service computes it, the UI never receives it, and nothing errors. Same silent
+  // shape as the other omissions this decision exists to surface.
+  networkDivergent: z.boolean().optional(),
   macAddress: z.string().optional(),
   tapInterface: z.string().optional(),
   imageUrl: z.string().optional(),
@@ -86,6 +91,12 @@ const vmCreateSchema = z.object({
   containerId: z.string().optional(),
   image: z.string().optional(),
   ports: z.array(z.string()).optional(),
+  // WVR-208 phase A — accepted on create so an already-known network can be recorded at
+  // registration, not only at scan. Same name constraint as bridgeNameSchema (network.ts), since
+  // this value is compared against `bridgeInterface` and may later name a real interface.
+  // NOT `networkDivergent`: that is DERIVED. Accepting it would let a caller assert its own
+  // conformance, which is the observation lying about itself.
+  bridge: z.string().min(1).max(16).regex(/^[a-zA-Z][a-zA-Z0-9-]*$/, 'Invalid bridge name').optional(),
 }).superRefine((data, ctx) => {
   const isContainer = (CONTAINER_HYPERVISORS as readonly string[]).includes(data.hypervisor)
   if (!isContainer) {

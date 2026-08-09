@@ -24,6 +24,15 @@ export interface WorkloadInfo {
   consoleType?: 'serial' | 'vnc'
   consolePort?: number
   bridge?: string
+  /**
+   * WVR-208 phase A — `bridge` is set and is NOT the Weaver-managed bridge.
+   *
+   * Computed by the backend, never here: the frontend has no access to
+   * `services.weaver.bridgeInterface`, so a UI-side comparison would need the config exposed AND
+   * a second copy of the predicate. One comparison site is the whole point — the UI and phase B's
+   * enforcement must not be able to disagree about what "divergent" means.
+   */
+  networkDivergent?: boolean
   macAddress?: string
   tapInterface?: string
   autostart?: boolean
