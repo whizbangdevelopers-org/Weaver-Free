@@ -177,7 +177,8 @@
     "test:unit:run": "vitest run",
     "test:unit:ui": "vitest --ui",
     "typecheck": "vue-tsc --noEmit",
-    "verify:release": "npx tsx scripts/verify-post-release.ts"
+    "verify:release": "npx tsx scripts/verify-post-release.ts",
+    "audit:version-parity": "npx tsx scripts/verify-version-parity.ts"
   },
   "dependencies": {
     "@quasar/extras": "^1.16.9",

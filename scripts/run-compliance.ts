@@ -140,6 +140,7 @@ export const PHASES: Phase[] = [
       'audit:marker-sync',
       'audit:submit-gate-coverage',
       'audit:inference-node-parity',
+      'audit:version-parity',
       'audit:knowledge-schema',
       'audit:engram-vocab-fresh',
       'audit:vocab-copies',
