@@ -32,6 +32,14 @@ export interface ContainerInfo {
   memoryLimitMb?: number
   cpuPercent?: number
   labels?: Record<string, string>
+  /** WVR-208 phase A — the network Weaver OBSERVED for this container. */
+  bridge?: string
+  /**
+   * WVR-208 phase A — `bridge` is set and is not the Weaver-managed bridge.
+   * Computed by the backend; the frontend has no access to `bridgeInterface` and must not
+   * re-derive it (one comparison site, so the UI and phase B's enforcement cannot disagree).
+   */
+  networkDivergent?: boolean
 }
 
 export interface ContainerActionResult {

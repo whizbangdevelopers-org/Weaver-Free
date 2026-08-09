@@ -317,6 +317,38 @@
                   <q-item-label class="text-weight-medium">{{ vm.hypervisor }}</q-item-label>
                 </q-item-section>
               </q-item>
+              <!--
+                WVR-208 phase A — observe and report. Non-blocking by design: the workload still
+                lists, still starts, still stops. Hiding or refusing to manage a container the
+                operator can see in `docker ps` would make Weaver look broken, and the decision
+                on what to actually DO about divergence is phase B (plan §5.1).
+                Only rendered when a network is known — absence is not a violation.
+              -->
+              <q-item v-if="vm.bridge">
+                <q-item-section>
+                  <q-item-label>Network</q-item-label>
+                  <q-item-label caption>
+                    {{ vm.networkDivergent ? 'Not the Weaver-managed bridge' : 'Attached bridge' }}
+                  </q-item-label>
+                </q-item-section>
+                <q-item-section side>
+                  <div class="row items-center no-wrap q-gutter-xs">
+                    <q-icon
+                      v-if="vm.networkDivergent"
+                      name="mdi-alert-outline"
+                      color="warning"
+                      size="18px"
+                      data-testid="network-divergence-indicator"
+                    >
+                      <q-tooltip>
+                        This workload is on “{{ vm.bridge }}”, not the Weaver-managed bridge.
+                        Weaver is reporting it, not changing it.
+                      </q-tooltip>
+                    </q-icon>
+                    <q-item-label class="text-weight-medium">{{ vm.bridge }}</q-item-label>
+                  </div>
+                </q-item-section>
+              </q-item>
               <q-item>
                 <q-item-section>
                   <q-item-label>Memory</q-item-label>

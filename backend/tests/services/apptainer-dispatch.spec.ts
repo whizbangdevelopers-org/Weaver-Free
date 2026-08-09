@@ -385,6 +385,11 @@ describe('Apptainer scan', () => {
     expect(stored!.image).toBe(APPTAINER_IMG)
     // The pid changes on every start, so it is not an identity and must not be stored as one.
     expect(stored!.containerId).toBeUndefined()
+    // WVR-208 phase A — an Apptainer instance has no network namespace of its own by default,
+    // so there is no network to observe. Absence is the honest answer; a placeholder ('', 'host',
+    // 'none') would be compared against bridgeInterface as if it were a real observation, and
+    // would answer plan §5.2 ("is no-network a violation or a trivial conformance?") by accident.
+    expect(stored!.bridge).toBeUndefined()
   })
 
   it('marks an already-registered instance existing, not added', async () => {

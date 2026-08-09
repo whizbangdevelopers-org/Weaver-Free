@@ -435,6 +435,61 @@ describe('scanContainers', () => {
       expect(stored!.ports).toEqual(['0.0.0.0:8080->80/tcp', '0.0.0.0:8443->443/tcp'])
     })
 
+    // --- WVR-208 phase A: record the network Weaver OBSERVES ---
+
+    it('records bridge from the Networks field on a newly registered container', async () => {
+      const reg = makeRegistry({})
+      setRegistry(reg)
+      mockExecFile(JSON.stringify({
+        ID: 'abc123', Names: 'my-app', Image: 'nginx:latest', State: 'running',
+        Ports: '', Networks: 'bridge',
+      }))
+
+      await scanContainers('docker')
+      // 'bridge' is docker0 — the divergent case, recorded honestly rather than normalised away.
+      expect((await reg.get('my-app'))!.bridge).toBe('bridge')
+    })
+
+    it('records a container already on the Weaver bridge with that value unchanged', async () => {
+      const reg = makeRegistry({})
+      setRegistry(reg)
+      mockExecFile(JSON.stringify({
+        ID: 'def456', Names: 'conformant', Image: 'alpine', State: 'running',
+        Ports: '', Networks: 'br-microvm',
+      }))
+
+      await scanContainers('docker')
+      expect((await reg.get('conformant'))!.bridge).toBe('br-microvm')
+    })
+
+    it('records the FIRST network when a container is on several', async () => {
+      // `bridge` is singular on WorkloadDefinition, and a container on multiple networks is
+      // already divergent from "one Weaver-managed bridge" — the first is enough to say so.
+      const reg = makeRegistry({})
+      setRegistry(reg)
+      mockExecFile(JSON.stringify({
+        ID: 'ghi789', Names: 'multi', Image: 'alpine', State: 'running',
+        Ports: '', Networks: 'frontend,backend',
+      }))
+
+      await scanContainers('docker')
+      expect((await reg.get('multi'))!.bridge).toBe('frontend')
+    })
+
+    it('leaves bridge undefined — not "" — when docker reports no network', async () => {
+      const reg = makeRegistry({})
+      setRegistry(reg)
+      mockExecFile(JSON.stringify({
+        ID: 'jkl012', Names: 'netless', Image: 'alpine', State: 'running', Ports: '', Networks: '',
+      }))
+
+      await scanContainers('docker')
+      const stored = await reg.get('netless')
+      expect(stored!.bridge).toBeUndefined()
+      // Absence must be absence: '' would be compared against bridgeInterface as a real value.
+      expect(stored!.bridge).not.toBe('')
+    })
+
     it('returns empty result when docker is not installed', async () => {
       mockExecFileError(new Error('docker: No such file or directory'))
       const result = await scanContainers('docker')

@@ -142,6 +142,7 @@ export const PHASES: Phase[] = [
       'audit:inference-node-parity',
       'audit:knowledge-schema',
       'audit:engram-vocab-fresh',
+      'audit:vocab-copies',
       'audit:knowledge-universal-neutral',
       'audit:knowledge-index-fresh',
       'audit:knowledge-ids-unique',

@@ -40,6 +40,7 @@
     "audit:engram-naming": "npx tsx scripts/audit-engram-naming.ts",
     "audit:engram-sync": "./scripts/with-engram-env.sh npx tsx scripts/verify-engram-sync.ts",
     "audit:engram-vocab-fresh": "npx tsx scripts/verify-engram-vocab-fresh.ts",
+    "audit:vocab-copies": "npx tsx scripts/verify-vocab-copies.ts",
     "audit:excluded-imports": "npx tsx scripts/verify-excluded-imports.ts",
     "audit:feature-lifecycle-parity": "npx tsx scripts/verify-feature-lifecycle-parity.ts",
     "audit:forms": "npx tsx scripts/verify-form-rules.ts",

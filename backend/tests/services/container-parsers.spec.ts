@@ -61,6 +61,37 @@ describe('parseDockerPsLine', () => {
     expect(parseDockerPsLine(line)!.ports).toEqual(['0.0.0.0:80->80/tcp', '0.0.0.0:443->443/tcp'])
   })
 
+  // --- WVR-208 phase A: the Networks field the parser used to discard ---
+
+  it('returns networks: ["bridge"] for the captured fixture', () => {
+    // The captured record says "Networks":"bridge" — docker0, NOT br-microvm. The divergence
+    // WVR-208 exists to observe has been sitting in this repo's own test data all along; the
+    // parser simply threw the evidence away.
+    expect(parseDockerPsLine(DOCKER_PS_LINE)!.networks).toEqual(['bridge'])
+  })
+
+  it('returns [] for networks when the field is an empty string, never [""]', () => {
+    // The Ports precedent. A [''] would make an unnetworked container look like one attached to
+    // a network literally named "" — and would then be compared against bridgeInterface as a
+    // real value rather than treated as unknown.
+    const line = JSON.stringify({ Names: 'n', ID: 'i', Image: 'x', State: 'running', Ports: '', Networks: '' })
+    expect(parseDockerPsLine(line)!.networks).toEqual([])
+  })
+
+  it('returns [] for networks when the field is absent entirely', () => {
+    // Podman's ps output has omitted Networks in some versions. Absent and empty must agree.
+    const line = JSON.stringify({ Names: 'n', ID: 'i', Image: 'x', State: 'running', Ports: '' })
+    expect(parseDockerPsLine(line)!.networks).toEqual([])
+  })
+
+  it('splits and trims a multi-network value', () => {
+    const line = JSON.stringify({
+      Names: 'web', ID: 'abc123', Image: 'nginx:alpine', State: 'running',
+      Ports: '', Networks: 'br-microvm, frontend ,backend',
+    })
+    expect(parseDockerPsLine(line)!.networks).toEqual(['br-microvm', 'frontend', 'backend'])
+  })
+
   // Podman prefixes names with '/' in some versions; docker's {{json .}} does not. Accept both.
   it('strips a leading slash when one is present', () => {
     const line = JSON.stringify({ Names: '/legacy', ID: 'd1', Image: 'x', State: 'running', Ports: '' })

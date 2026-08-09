@@ -37,6 +37,30 @@
       <!-- Image row -->
       <div class="text-caption text-grey-6 q-mb-md">{{ container.image }}</div>
 
+      <!--
+        WVR-208 phase A — observe and report the container's actual network.
+        NON-BLOCKING by design: the container still lists, still starts, still stops. Hiding or
+        refusing to manage a container the operator can see in `docker ps` would make Weaver look
+        broken; what Weaver should DO about divergence is phase B (WORKLOAD-NETWORK-OWNERSHIP.md
+        §5.1). Rendered only when a network is known — an Apptainer instance has none, and absence
+        is not a violation.
+      -->
+      <div v-if="container.bridge" class="row items-center q-gutter-xs q-mb-md">
+        <q-icon
+          :name="container.networkDivergent ? 'mdi-alert-outline' : 'mdi-lan-connect'"
+          :color="container.networkDivergent ? 'warning' : 'grey-6'"
+          size="16px"
+          :data-testid="container.networkDivergent ? 'network-divergence-indicator' : 'network-conformant-indicator'"
+        />
+        <span class="text-caption" :class="container.networkDivergent ? 'text-warning' : 'text-grey-6'">
+          {{ container.bridge }}
+        </span>
+        <q-tooltip v-if="container.networkDivergent">
+          This container is on “{{ container.bridge }}”, not the Weaver-managed bridge.
+          Weaver is reporting it, not changing it.
+        </q-tooltip>
+      </div>
+
       <!-- Apptainer upgrade nag (free tier, weaver required) -->
       <q-card-section v-if="container.runtime === 'apptainer' && !appStore.isSolo" class="q-pa-none q-mb-md">
         <UpgradeNag feature-name="Apptainer visibility" :required-tier="TIERS.SOLO" />

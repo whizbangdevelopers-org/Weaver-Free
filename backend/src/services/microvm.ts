@@ -7,6 +7,7 @@ import type { WorkloadRegistry, WorkloadDefinition, ProvisioningState } from '..
 import type { Provisioner } from './provisioner-types.js'
 import type { DashboardConfig } from '../config.js'
 import { STATUSES, PROVISIONING, TIERS, TIER_ORDER, type WorkloadStatus } from '../constants/vocabularies.js'
+import { isDivergentNetwork } from './network-ownership.js'
 
 const execFileAsync = promisify(execFile)
 
@@ -27,6 +28,19 @@ export interface WorkloadInfo {
   description?: string
   tags?: string[]
   bridge?: string
+  /**
+   * WVR-208 phase A — `bridge` is set and is NOT the Weaver-managed bridge.
+   *
+   * Derived server-side and shipped, rather than letting the UI compare, because the UI CANNOT
+   * do it correctly: the frontend has no access to `bridgeInterface` and no shared module with
+   * the backend, so a UI-side comparison means exposing the config AND writing a second
+   * implementation of the predicate. The plan's requirement is that the comparison happen in
+   * exactly one place so the UI and phase B's enforcement cannot disagree — one derived boolean
+   * honours that better than the plan's literal "the panel compares" wording.
+   *
+   * `undefined` when unknown (no config yet), never a silent `false`.
+   */
+  networkDivergent?: boolean
   macAddress?: string
   tapInterface?: string
   runtime?: 'microvm' | 'docker' | 'podman' | 'apptainer'
@@ -105,10 +119,21 @@ function apptainerVisible(): boolean {
 
 /**
  * Parse a single line of `docker ps -a --format '{{json .}}'` output.
- * Returns { name, id, image, state, ports } or null if the line is invalid.
+ * Returns { name, id, image, state, ports, networks } or null if the line is invalid.
  * Never throws. Pure function - no I/O.
+ *
+ * `networks` is WVR-208 phase A (Weaver owns the bridge and the address space — no runtime
+ * brings its own network). Docker's `{{json .}}` has always emitted a `Networks` field and this
+ * parser has always discarded it, which is why Weaver could not even *report* a container
+ * attached to docker0 instead of `bridgeInterface`. The captured fixture in
+ * container-parsers.spec.ts reads `"Networks":"bridge"` — docker0, not `br-microvm` — so the
+ * divergence this observes is real and already present in the test data.
+ *
+ * Comma-separated, same shape as `Ports`, and split the same way: an empty string yields `[]`,
+ * never `['']`. That precedent matters — a `['']` would make an unnetworked container look like
+ * one attached to a network named "".
  */
-export function parseDockerPsLine(line: string): { name: string; id?: string; image?: string; state?: string; ports: string[] } | null {
+export function parseDockerPsLine(line: string): { name: string; id?: string; image?: string; state?: string; ports: string[]; networks: string[] } | null {
   try {
     const parsed = JSON.parse(line) as Record<string, unknown>
 
@@ -122,11 +147,14 @@ export function parseDockerPsLine(line: string): { name: string; id?: string; im
     const image = typeof parsed['Image'] === 'string' ? parsed['Image'] : undefined
     const state = typeof parsed['State'] === 'string' ? parsed['State'] : undefined
     const rawPorts = typeof parsed['Ports'] === 'string' ? parsed['Ports'] : ''
+    const rawNetworks = typeof parsed['Networks'] === 'string' ? parsed['Networks'] : ''
 
     // Split comma-separated port mappings, filter empties
     const ports = rawPorts ? rawPorts.split(',').map(p => p.trim()).filter(Boolean) : []
+    // Same shape, same split — `filter(Boolean)` is what keeps '' out as [] rather than ['']
+    const networks = rawNetworks ? rawNetworks.split(',').map(n => n.trim()).filter(Boolean) : []
 
-    return { name, id, image, state, ports }
+    return { name, id, image, state, ports, networks }
   } catch {
     return null
   }
@@ -488,7 +516,23 @@ export async function listVms(): Promise<WorkloadInfo[]> {
     )
   )
 
-  return entries.map(([, def], i) => ({ ...def, status: statuses[i], uptime: uptimes[i] }))
+  return entries.map(([, def], i) => ({
+    ...def,
+    status: statuses[i],
+    uptime: uptimes[i],
+    networkDivergent: networkDivergence(def),
+  }))
+}
+
+/**
+ * WVR-208 phase A — the observed divergence flag, computed in the ONE place that owns the
+ * comparison. `undefined` (not `false`) when config is absent: an indeterminate answer must not
+ * render as "conformant", which is the boolean-else-branch trap
+ * (`L-analysis-2026-08-07-01KZFBEXWJFQC44HBMXWVPVBX2`).
+ */
+function networkDivergence(def: WorkloadDefinition): boolean | undefined {
+  if (!config) return undefined
+  return isDivergentNetwork(def.bridge, config.bridgeInterface)
 }
 
 export async function getVm(name: string): Promise<WorkloadInfo | null> {
@@ -500,7 +544,7 @@ export async function getVm(name: string): Promise<WorkloadInfo | null> {
   if (def.runtime === 'apptainer' && !apptainerVisible()) return null
   const status = await getVmStatus(name)
   const uptime = status === STATUSES.RUNNING ? await getVmUptime(name) : null
-  return { ...def, status, uptime }
+  return { ...def, status, uptime, networkDivergent: networkDivergence(def) }
 }
 
 function isProvisionedOrLegacy(def: WorkloadDefinition): boolean {
@@ -855,6 +899,12 @@ export async function scanContainers(runtime: ContainerRuntime): Promise<ScanRes
           containerId: parsed.id,
           image: parsed.image,
           ports: parsed.ports.length > 0 ? parsed.ports : undefined,
+          // WVR-208 phase A — record the network Weaver OBSERVES, not the one it wants.
+          // First network only: `bridge` is singular on WorkloadDefinition, and a container on
+          // several networks is already divergent from "one Weaver-managed bridge", so the first
+          // is enough to say so. Undefined when docker reported none — absence is honest, and
+          // isWeaverOwnedNetwork() treats unknown as not-violating.
+          bridge: parsed.networks[0],
         })
         added.push(parsed.name)
       }
@@ -902,6 +952,13 @@ export async function scanApptainerInstances(): Promise<ScanResult> {
         // No containerId: Apptainer identifies an instance by name, and the pid is not a stable
         // identity — it changes on every start, so recording it would be recording a lie.
         image: instance.image || undefined,
+        // No `bridge` either, for the same reason (WVR-208 phase A). An Apptainer instance has no
+        // network namespace of its own by default, so there is no network to observe — and the
+        // field is left absent rather than set to a placeholder like '' or 'host'. Absence is the
+        // honest answer; isWeaverOwnedNetwork() reads it as not-violating, deliberately, because
+        // whether "no network" is a violation or a trivial conformance is an open product
+        // question (WORKLOAD-NETWORK-OWNERSHIP.md §5.2) that phase B must decide. Writing a
+        // placeholder here would answer it by accident.
       })
       added.push(instance.name)
     }
