@@ -10,16 +10,16 @@
 // the `slice discipline` block for why this is the auditor being wrong for the current state and
 // not the input being reworded around it.)
 //
-// Gap 1 of agents/v1.1.0/container-visibility.md, parser half (slice 1 of the slice table).
+// Container visibility, gap 1 — parser half (slice 1 of the slice table).
 // `scanContainers()` parses `docker ps` output INLINE inside a function that also execs and writes
 // to the registry, so the parsing — the part with all the shape assumptions — cannot be tested
 // without a container runtime installed. Apptainer has no parser at all.
 //
-// EVERY fixture below is REAL CAPTURED STDOUT, pasted verbatim. Decision WVR-206 made that a
-// prerequisite for these slices, and the reason is on the record twice now:
+// EVERY fixture below is REAL CAPTURED STDOUT, pasted verbatim. That was made a prerequisite for
+// these slices, and the reason is on the record twice now:
 //   - The Apptainer log-path paragraph in the agent spec was written from reading
 //     instance_linux.go and was WRONG about runtime values (corrected 7208e033, verified against
-//     the binary on lab1). Source-reading gave the SHAPE correctly and the VALUES incorrectly.
+//     the binary itself). Source-reading gave the SHAPE correctly and the VALUES incorrectly.
 //   - A fixture invented from documentation does not fail when it is wrong. It inverts the
 //     contract, and the implementation is then written to match the invention.
 import { describe, it, expect } from 'vitest'
@@ -28,7 +28,7 @@ import {
   parseApptainerInstances,
 } from '../../src/services/microvm.js'
 
-// ── Real capture: `docker ps -a --format '{{json .}}'` on king, 2026-07-31 ────────────────────
+// ── Real capture: `docker ps -a --format '{{json .}}'`, 2026-07-31 ────────────────────────────
 // One object per line. Note `Names` has NO leading slash in this format (the existing inline
 // parser strips one defensively; that is harmless, and this fixture is why we know it is not
 // load-bearing). `Ports` is an empty STRING, not an absent key, for a container publishing none.
@@ -61,11 +61,11 @@ describe('parseDockerPsLine', () => {
     expect(parseDockerPsLine(line)!.ports).toEqual(['0.0.0.0:80->80/tcp', '0.0.0.0:443->443/tcp'])
   })
 
-  // --- WVR-208 phase A: the Networks field the parser used to discard ---
+  // --- Network-ownership phase A: the Networks field the parser used to discard ---
 
   it('returns networks: ["bridge"] for the captured fixture', () => {
     // The captured record says "Networks":"bridge" — docker0, NOT br-microvm. The divergence
-    // WVR-208 exists to observe has been sitting in this repo's own test data all along; the
+    // phase A exists to observe has been sitting in this repo's own test data all along; the
     // parser simply threw the evidence away.
     expect(parseDockerPsLine(DOCKER_PS_LINE)!.networks).toEqual(['bridge'])
   })
@@ -106,10 +106,10 @@ describe('parseDockerPsLine', () => {
   })
 })
 
-// ── Real capture: `apptainer instance list --json` on lab1, apptainer-slim 1.5.0, 2026-07-31 ──
+// ── Real capture: `apptainer instance list --json`, apptainer-slim 1.5.0, 2026-07-31 ──────────
 // Tab-indented exactly as emitted. logOutPath/logErrPath ARE populated under --json — the agent
-// spec claimed they serialize empty here and that claim was wrong; see the correction in
-// agents/v1.1.0/container-visibility.md.
+// spec claimed they serialize empty here and that claim was wrong; the correction is recorded
+// with the spec.
 const APPTAINER_LIST = `{
 	"instances": [
 		{

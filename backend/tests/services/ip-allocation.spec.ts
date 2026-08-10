@@ -1,15 +1,15 @@
 // Copyright (c) 2026 whizBANG Developers LLC. All rights reserved.
 // Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE.
 /**
- * IP allocation — WVR-208 (Weaver owns the bridge and the address space — no runtime brings its
- * own network) makes Weaver the sole IPAM authority, and *sole authority* is a claim about
- * reservation, not about arithmetic.
+ * IP allocation — network ownership (Weaver owns the bridge and the address space; no runtime
+ * brings its own network) makes Weaver the sole IPAM authority, and *sole authority* is a claim
+ * about reservation, not about arithmetic.
  *
  * The prior `allocateIp()` found the next free address and returned it **without recording it**.
  * It had zero callers, so nothing was broken yet — and phase B (create) and phase C (reconcile)
  * were about to become its first two callers at once, each handing the same address to a
  * different workload. The collision would surface on the wire, long after the allocation, which
- * is precisely the failure WVR-208 cites as the reason for single-authority IPAM.
+ * is precisely the failure that makes single-authority IPAM necessary.
  *
  * These tests are the specification of the split: `peekNextIp` answers, `reserveIp` takes,
  * `releaseIp` returns.

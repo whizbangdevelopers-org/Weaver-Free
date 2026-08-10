@@ -6,7 +6,7 @@
 
   <q-layout view="lHh Lpr lFf" :class="{ 'demo-layout': isDemoMode }">
     <q-header elevated :class="headerBgClass">
-      <!-- DemoBanner removed from public demo — info is in the toolbar label (Decision WVR-135) -->
+      <!-- DemoBanner removed from public demo — the info is in the toolbar label -->
 
       <!-- ══ toolbar: fabrick ═══════════════════════════════════════════════ -->
       <q-toolbar data-toolbar="fabrick">
@@ -24,7 +24,7 @@
           </template>
         </q-toolbar-title>
 
-        <!-- DemoTierRoadmap removed — funnel now in version switcher (Decision WVR-135) -->
+        <!-- DemoTierRoadmap removed — the funnel is now in the version switcher -->
 
         <!-- WebSocket status — right after title, Weaver mode only -->
         <q-chip
@@ -349,7 +349,7 @@
 
         <q-separator class="q-my-sm" />
 
-        <!-- Shed — unified workload creation (Decision WVR-92). Replaces New Workload button. Role-gated: hidden for Viewer/Auditor. -->
+        <!-- Shed — unified workload creation. Replaces the New Workload button. Role-gated: hidden for Viewer/Auditor. -->
         <q-item v-if="authStore.canManageVms" clickable to="/shed" active-class="text-shed bg-shed-active">
           <q-item-section avatar>
             <q-icon name="mdi-door-open" />
@@ -600,7 +600,7 @@ const appName = computed(() => {
   if (isWarpMode.value) return 'Warp'
   if (isShedMode.value) return 'Shed'
   if (isFabrickMode.value || isEnterpriseWeaverMode.value) return 'FabricK'
-  // Decision WVR-139: toolbar shows tier qualifier — Free, Solo, Team
+  // The toolbar shows a tier qualifier — Free, Solo, Team
   // Demo mode shows Solo/Team sub-tier preview (Team is v2.2+, preview only).
   if (isDemoMode) {
     if (appStore.isSolo && !appStore.isFabrick) {

@@ -435,7 +435,7 @@ describe('scanContainers', () => {
       expect(stored!.ports).toEqual(['0.0.0.0:8080->80/tcp', '0.0.0.0:8443->443/tcp'])
     })
 
-    // --- WVR-208 phase A: record the network Weaver OBSERVES ---
+    // --- Network-ownership phase A: record the network Weaver OBSERVES ---
 
     it('records bridge from the Networks field on a newly registered container', async () => {
       const reg = makeRegistry({})

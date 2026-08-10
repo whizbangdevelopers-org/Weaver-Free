@@ -266,8 +266,8 @@ describe('VM Routes', () => {
   })
 })
 
-// ── Apptainer log access is tier-gated and HIDDEN (Decision WVR-206) ────────────────────────────
-// WVR-206: Apptainer is Solo-gated and "hidden on Free rather than nagged" — a Free user must
+// ── Apptainer log access is tier-gated and HIDDEN ─────────────────────────────────────────────
+// Apptainer requires Solo and is "hidden on Free rather than nagged" — a Free user must
 // never see an Apptainer workload OR an upgrade prompt for one. The gate therefore answers 404
 // (indistinguishable from an unknown workload), never requireTier()'s 403, which would name the
 // tier and advertise the very feature it is meant to conceal.

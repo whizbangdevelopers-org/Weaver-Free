@@ -1,7 +1,7 @@
 <!-- Copyright (c) 2026 whizBANG Developers LLC. All rights reserved. -->
 <!-- Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE. -->
 <!--
-  Dual-mode version switcher (Decision WVR-135):
+  Dual-mode version switcher:
   - Private demo: compact stepper through DEMO_VERSIONS with auto-tier gating
   - Public demo: tab bar — scrollable version tabs with arrows + pinned funnel tabs
 -->

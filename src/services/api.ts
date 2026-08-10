@@ -559,5 +559,5 @@ export interface EngramStatus {
   totalQueries: number
 }
 
-// EngramApiService removed 2026-07-20 (WVR-160): Weaver's /api/engram/* surface was migrated to
+// EngramApiService removed 2026-07-20: Weaver's /api/engram/* surface was migrated to
 // the standalone engram-query service; the Engram monitoring UI lives in the engram repo's SPA.

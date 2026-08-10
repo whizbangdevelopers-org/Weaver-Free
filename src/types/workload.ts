@@ -25,7 +25,7 @@ export interface WorkloadInfo {
   consolePort?: number
   bridge?: string
   /**
-   * WVR-208 phase A — `bridge` is set and is NOT the Weaver-managed bridge.
+   * Network-ownership phase A — `bridge` is set and is NOT the Weaver-managed bridge.
    *
    * Computed by the backend, never here: the frontend has no access to
    * `services.weaver.bridgeInterface`, so a UI-side comparison would need the config exposed AND

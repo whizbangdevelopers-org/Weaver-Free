@@ -1,5 +1,5 @@
 <!-- Copyright (c) 2026 whizBANG Developers LLC. All rights reserved. -->
-<!-- Shed — unified workload creation (Decision WVR-92) -->
+<!-- Shed — unified workload creation -->
 <!-- Version-gated: content appears as demo version progresses v1.0→v3.3. -->
 
 <template>
@@ -332,7 +332,7 @@ interface ShedTemplate {
   wave: 1 | 2
 }
 
-// Wave 1 catalog — v2.0.0 (Decision WVR-46, WVR-68)
+// Wave 1 catalog — v2.0.0
 // Wave 2 catalog — v2.1.0
 const templates: ShedTemplate[] = [
   // Wave 1

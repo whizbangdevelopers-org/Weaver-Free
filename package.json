@@ -66,6 +66,8 @@
     "audit:nur-dispatch-completeness": "npx tsx scripts/verify-nur-dispatch-completeness.ts",
     "audit:openssf-baseline": "npx tsx scripts/verify-openssf-baseline.ts",
     "audit:project-parity": "npx tsx scripts/verify-project-parity.ts",
+    "audit:free-tree": "node scripts/verify-free-tree.mjs --simulate",
+    "audit:published-comments": "npx tsx scripts/verify-published-comments.ts",
     "audit:published-entrypoints": "npx tsx scripts/verify-published-entrypoints.ts",
     "audit:published-secrets": "npx tsx scripts/verify-published-secrets.ts",
     "audit:redos": "npx tsx scripts/audit-redos.ts",

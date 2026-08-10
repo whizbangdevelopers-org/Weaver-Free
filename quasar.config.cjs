@@ -11,7 +11,7 @@ const { join } = require('path')
 // Read package.json version
 const packageJson = JSON.parse(readFileSync(join(__dirname, 'package.json'), 'utf-8'))
 
-// ── Browser targets, derived from Baseline "Widely available" (Decision WVR-215) ────────────
+// ── Browser targets, derived from Baseline "Widely available" ───────────────────────────────
 //
 // Baseline "Widely available" = supported across Chrome/Edge/Firefox/Safari for 30 months. It is
 // a ROLLING window, which is the point: the floor moves on its own instead of being a number
@@ -77,7 +77,7 @@ module.exports = function (/* ctx */) {
 
     build: {
       target: {
-        // DERIVED from Baseline "Widely available", never hand-written. Decision WVR-215.
+        // DERIVED from Baseline "Widely available", never hand-written.
         //
         // The previous list was `['es2022','chrome90','firefox88','safari14']` — April–September
         // 2021, five years stale, and it rotted precisely because nothing owned it: the string

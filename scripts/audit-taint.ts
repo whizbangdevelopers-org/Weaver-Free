@@ -10,9 +10,9 @@
  *   no-unvalidated-jwt-claim — unverified JWT payload in auth decisions (CWE-347)
  *   no-ssrf-in-fetch       — user input reaching outbound HTTP URLs (CWE-918)
  *
- * Requires: semgrep in PATH — `nix develop` on king; CI installs `semgrep==1.143.0` via pipx in
+ * Requires: semgrep in PATH — `nix develop`; CI installs `semgrep==1.143.0` via pipx in
  *           release.yml's `verify` job and test.yml's `compliance` job. Keep those pins and
- *           king's devShell on the same version: an unpinned engine lets CI and local disagree
+ *           the devShell on the same version: an unpinned engine lets CI and local disagree
  *           about findings, which is the same class of problem as an unpinned action version.
  * Rules:    scripts/semgrep-rules/*.yaml
  *
@@ -257,7 +257,8 @@ function run(): void {
     'scan',
     // --jobs 1 is the DETERMINISTIC fix for the intermittent `semgrep exited 2` this auditor kept
     // hitting: semgrep-core's parallel scan opens one io_uring ring PER JOB, and several rings blow
-    // past a low RLIMIT_MEMLOCK (king's hard limit is 8 MB) → `Unix_error: Out of memory
+    // past a low RLIMIT_MEMLOCK (8 MB hard limit on the machine where this was diagnosed) →
+    // `Unix_error: Out of memory
     // io_uring_queue_init`. That is the 'infra' failure the retry below was chasing (3 retries were
     // not enough under sustained contention). One job = one ring = fits the memlock, every time.
     // backend/src/ is ~100 files / 4 rules, so the serial scan is a couple of seconds — a cheap

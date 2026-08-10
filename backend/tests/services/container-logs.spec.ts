@@ -8,13 +8,13 @@
 // output pass. It does not freeze the file forever. Two REVIEW-phase changes are recorded here so
 // the provenance stays honest rather than merely claiming to be untouched:
 //   1. The apptainerLogPaths fixture was replaced with real captured stdout (see its comment) —
-//      the executor's was invented, which WVR-206 names as the failure mode for these slices.
+//      the executor's was invented, which is the named failure mode for these slices.
 //   2. The `isApptainerInstanceLogPath` block at the bottom is NEW, covering a guard added during
 //      review after audit:taint flagged reading a path supplied by another process. It was never
 //      part of what the executor was asked to satisfy.
 // Everything in the first describe block is the original contract, unweakened.
 //
-// Gap 2 of agents/v1.1.0/container-visibility.md. `GET /api/workload/:name/logs` calls
+// Container visibility, gap 2. `GET /api/workload/:name/logs` calls
 // provisioner.getLog(), which reads the PROVISIONING log — it has no relationship to `docker logs`.
 // A container has no log surface at all today.
 //
@@ -66,16 +66,17 @@ describe('container log dispatch', () => {
   describe('apptainerLogPaths', () => {
     // Apptainer has no `logs` subcommand — `instance list --json` carries the paths instead.
     //
-    // This is REAL CAPTURED STDOUT, verbatim, not a fixture written from documentation. Decision
-    // WVR-206 made that distinction a prerequisite for these slices: captured stdout is an INPUT
+    // This is REAL CAPTURED STDOUT, verbatim, not a fixture written from documentation. That
+    // distinction was made a prerequisite for these slices: captured stdout is an INPUT
     // to an immutable test, so a fixture invented from docs does not fail when it is wrong — it
     // silently inverts the contract and the implementation is then written to match the invention.
     //
-    // Provenance: apptainer-slim 1.5.0 on lab1, 2026-07-31, from a live instance started with
+    // Provenance: apptainer-slim 1.5.0, 2026-07-31, from a live instance started with
     //   apptainer instance start docker://alpine:latest testinst
     //   apptainer instance list --json
-    // WVR-206 recorded that no fleet host had Apptainer, so the real shape could not be captured;
-    // lab1 now runs it (services.weaver.containerRuntimes = [ "apptainer" ]), which is what closes
+    // No machine with Apptainer installed was available when these slices were specified, so the
+    // real shape could not be captured then; a host running it
+    // (services.weaver.containerRuntimes = [ "apptainer" ]) is what closes
     // that prerequisite. `img` and `ip` are kept exactly as emitted — they are unused by the parser,
     // and keeping them proves it ignores fields it does not consume rather than being tuned to a
     // trimmed shape.
@@ -122,7 +123,8 @@ describe('container log dispatch', () => {
 // indistinguishable from one that rejects everything — which here would mean Apptainer logs
 // silently never resolve, reported to the caller as an ordinary 404.
 describe('isApptainerInstanceLogPath', () => {
-  // The real emitted path, captured from apptainer-slim 1.5.0 on lab1 (2026-07-31).
+  // The real emitted path, captured from apptainer-slim 1.5.0 (2026-07-31). Kept verbatim,
+  // hostname segment included — trimming captured data is how a fixture becomes an invention.
   const REAL = '/root/.apptainer/instances/logs/lab1/root/testinst.out'
 
   it('ACCEPTS the path Apptainer actually emits', () => {

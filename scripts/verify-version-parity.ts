@@ -16,7 +16,7 @@
  * that says "update these four" is a wish; an auditor is a control (~/.claude/rules — a control
  * you must remember is not a control).
  *
- * DELIBERATELY NOT INCLUDED: `codebase-mcp/package.json` (0.1.0). It is internal dev tooling,
+ * DELIBERATELY NOT INCLUDED: the internal dev MCP server’s package.json (0.1.0). It is dev tooling,
  * sync-excluded, and never shipped, so it versions independently by design. Listing it here
  * would force a meaningless bump every release and teach the next person that the rule is noise.
  * That exclusion is named, not a wildcard, so a future package cannot inherit it by accident.

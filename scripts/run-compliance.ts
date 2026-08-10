@@ -129,6 +129,11 @@ export const PHASES: Phase[] = [
       'audit:workflow-node-version',
       'audit:published-entrypoints',
       'audit:published-secrets',
+      'audit:published-comments',
+      // Same question as the three above, asked of the REAL rsync output instead of a model
+      // of it. Runs here so it fails at push time, and again inside sync-to-free.yml so it
+      // fails at publish time — the sync auto-merges with `--admin` and consults nothing else.
+      'audit:free-tree',
       'audit:doc-host-locators',
       'audit:nur-dispatch-completeness',
       'audit:engineering-discipline-parity',

@@ -1,3 +1,5 @@
+// Copyright (c) 2026 whizBANG Developers LLC. All rights reserved.
+// Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE.
 import React from 'react'
 import { Box, Text } from 'ink'
 import { DEMO_VERSIONS, tierDisplayLabel, type DemoVersionEntry } from '../demo/mock.js'

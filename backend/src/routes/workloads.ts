@@ -40,10 +40,10 @@ const vmInfoResponseSchema = z.object({
   description: z.string().optional(),
   tags: z.array(z.string()).optional(),
   bridge: z.string().optional(),
-  // WVR-208 phase A. This MUST be here: Fastify validates every response against the schema and
-  // Zod strips unknown keys, so an unlisted field is silently dropped between the service and the
-  // client — the service computes it, the UI never receives it, and nothing errors. Same silent
-  // shape as the other omissions this decision exists to surface.
+  // Network-ownership phase A. This MUST be here: Fastify validates every response against the
+  // schema and Zod strips unknown keys, so an unlisted field is silently dropped between the
+  // service and the client — the service computes it, the UI never receives it, and nothing
+  // errors. Same silent shape as the other omissions phase A exists to surface.
   networkDivergent: z.boolean().optional(),
   macAddress: z.string().optional(),
   tapInterface: z.string().optional(),
@@ -91,7 +91,7 @@ const vmCreateSchema = z.object({
   containerId: z.string().optional(),
   image: z.string().optional(),
   ports: z.array(z.string()).optional(),
-  // WVR-208 phase A — accepted on create so an already-known network can be recorded at
+  // Network-ownership phase A — accepted on create so an already-known network can be recorded at
   // registration, not only at scan. Same name constraint as bridgeNameSchema (network.ts), since
   // this value is compared against `bridgeInterface` and may later name a real interface.
   // NOT `networkDivergent`: that is DERIVED. Accepting it would let a caller assert its own
@@ -488,11 +488,11 @@ export const workloadsRoutes: FastifyPluginAsync<VmsRouteOptions> = async (fasti
       // Container runtimes: docker/podman/apptainer
       if (isContainerLogSource(workload.runtime)) {
         if (workload.runtime === 'apptainer') {
-          // Apptainer is Solo-gated and HIDDEN below Solo, not nagged (Decision WVR-206): a Free
+          // Apptainer requires Solo, and below Solo it is HIDDEN rather than nagged: a Free
           // user must never see an Apptainer workload or an upgrade prompt for one. So this is a
           // 404 — the same answer an unknown workload gets — and deliberately NOT requireTier(),
           // whose 403 ("requires weaver tier or higher") would advertise the feature it is meant
-          // to conceal. WVR-206 puts the primary exclusion at scan time; this is the second half,
+          // to conceal. The primary exclusion is at scan time; this is the second half,
           // because a workload that reaches the registry by another path would otherwise serve
           // its logs to a tier that cannot see the workload itself.
           // Fail CLOSED on an absent config: an indeterminate tier must not serve a Solo-gated

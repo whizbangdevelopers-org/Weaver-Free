@@ -318,7 +318,7 @@
                 </q-item-section>
               </q-item>
               <!--
-                WVR-208 phase A — observe and report. Non-blocking by design: the workload still
+                Network-ownership phase A — observe and report. Non-blocking by design: the workload still
                 lists, still starts, still stops. Hiding or refusing to manage a container the
                 operator can see in `docker ps` would make Weaver look broken, and the decision
                 on what to actually DO about divergence is phase B (plan §5.1).

@@ -2,7 +2,6 @@
 // Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE.
 /**
  * RBAC type contracts — Workload Groups and Access Request Workflow
- * plans/v3.3.0/EXECUTION-ROADMAP.md  ·  Decisions WVR-82–WVR-86
  *
  * These interfaces define the data shapes for v3.3 Fabrick features.
  * They are intentionally forward-looking: no implementation exists yet,
@@ -15,7 +14,6 @@
  *   v3.3 Phase 3  — idpGroupDn mapping (requires auth-sso plugin)
  *   v3.3 Phase 4  — AccessRequest workflow (Compliance Pack add-on)
  *
- * See plans/v3.3.0/EXECUTION-ROADMAP.md for full decision log.
  */
 
 // ---------------------------------------------------------------------------
@@ -31,10 +29,10 @@ export interface WorkloadGroupMember {
 /**
  * A named set of workloads that can be assigned to users.
  *
- * Scope definition model (Decision WVR-82):
+ * Scope definition model:
  * - IT admin controls workload composition (members)
  * - Dept heads (owners) control group membership (which users are in the group)
- * - HR/AD controls IdP group membership when idpGroupDn is set (Decision WVR-84)
+ * - HR/AD controls IdP group membership when idpGroupDn is set
  */
 export interface WorkloadGroup {
   id: string
@@ -63,7 +61,7 @@ import type { WorkloadInfo } from './workload'
 /**
  * A workload in cross-host scope context.
  * Extends WorkloadInfo with host identity so cards can show host badges
- * and links can use the /workload/:hostId/:name route (Decision WVR-83).
+ * and links can use the /workload/:hostId/:name route.
  */
 export interface ScopedWorkloadInfo extends WorkloadInfo {
   hostId: string

@@ -3,7 +3,7 @@
 /**
  * Container projection of the unified workload model.
  *
- * Under WVR-72 the backend returns one `WorkloadInfo[]` covering VMs and
+ * Under the unified workload model the backend returns one `WorkloadInfo[]` covering VMs and
  * containers alike; the container-shaped views (cards, list items, the detail
  * panel) want a `ContainerInfo`. That projection lived only inside
  * `WeaverPage.vue`, so any other consumer had to either import a page or copy
@@ -41,7 +41,7 @@ export function mapToContainerInfo(w: WorkloadInfo): ContainerInfo {
     runtime: w.runtime as ContainerRuntime,
     status: statusMap[w.status] ?? STATUSES.UNKNOWN,
     created: '',
-    // WVR-208 phase A — carried through, not recomputed. Dropping these here is what would make
+    // Network-ownership phase A — carried through, not recomputed. Dropping these here is what would make
     // the container drawer (the surface where divergence actually appears, since the gap is
     // Docker/Podman/Apptainer) silently unable to show it.
     bridge: w.bridge,
