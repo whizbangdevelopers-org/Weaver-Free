@@ -140,6 +140,11 @@ export const PHASES: Phase[] = [
       'audit:marker-sync',
       'audit:submit-gate-coverage',
       'audit:inference-node-parity',
+      // In test:prerelease ONLY until 2026-08-10, which meant its assertions — including the
+      // -rc guards that keep an RC off the public mirror — ran in a chain nothing invokes
+      // routinely. Same hole as audit:release-builds, and it hid a five-year-stale build
+      // target. Offline and 3s; there is no reason for it to sit outside the routine gate.
+      'audit:release-workflow-dry-run',
       'audit:version-parity',
       'audit:knowledge-schema',
       'audit:engram-vocab-fresh',
