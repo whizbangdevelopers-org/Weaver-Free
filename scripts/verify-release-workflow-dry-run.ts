@@ -248,6 +248,49 @@ function runStaticChecks(yml: string): void {
     )
   }
 
+  // 8b. THE -rc GUARDS. release-to-free and update-nur must be guarded off for prerelease tags.
+  //
+  // This is the property the entire RC-rehearsal strategy rests on: pushing `v<next>-rc.N`
+  // exercises verify -> build -> release -> publish while touching nothing public. Remove or
+  // typo one of these `if:` expressions and an -rc tag publishes a release candidate to the
+  // public AGPL mirror and dispatches it to NUR.
+  //
+  // It is not hypothetical. The guard exists BECAUSE it already happened — the commit that
+  // introduced it reads "an -rc tag would have published a release candidate to the p[ublic
+  // repo]", and the v1.0.6-rc.1 run is still in the history as the failure that prompted it.
+  // Nothing has asserted it since, so the fix was one edit away from silently regressing, and
+  // the only signal would have been a release candidate appearing on the public repo.
+  //
+  // These two jobs cannot be rehearsed live — that is the whole point of guarding them — so a
+  // static assertion is the only available test. Checked per-job rather than by counting
+  // occurrences: a global count passes when one job has two guards and the other has none.
+  const PRERELEASE_GUARDED_JOBS = ['release-to-free', 'update-nur'] as const
+  for (const job of PRERELEASE_GUARDED_JOBS) {
+    const start = yml.indexOf(`\n  ${job}:`)
+    if (start === -1) {
+      fail(`${job} job exists`, `Job '${job}' not found in release.yml — the guard check cannot run.`)
+      continue
+    }
+    // Bound the slice at the next top-level job so a neighbour's guard cannot satisfy this one.
+    const rest = yml.slice(start + 1)
+    const nextJob = rest.search(/\n {2}[a-z0-9-]+:\n/)
+    const jobBlock = nextJob === -1 ? rest : rest.slice(0, nextJob)
+
+    const guarded = ['-rc', '-beta', '-alpha'].every(
+      (s) => new RegExp(`!\\s*contains\\(github\\.ref_name,\\s*'${s}'\\)`).test(jobBlock),
+    )
+    if (guarded) {
+      pass(`${job}: guarded off for -rc / -beta / -alpha (RC rehearsal stays private)`)
+    } else {
+      fail(
+        `${job}: prerelease guard intact`,
+        `Job '${job}' does not carry !contains(github.ref_name, '-rc'/'-beta'/'-alpha') on its if:. ` +
+          `An -rc tag would publish to the public Free repo / dispatch to NUR. This guard was added ` +
+          `after v1.0.6-rc.1 did exactly that.`,
+      )
+    }
+  }
+
   // 9. NUR dispatch payload includes all four required fields
   const nurSection = yml.slice(yml.indexOf('update-nur:'))
   const hasVersion = nurSection.includes('"version"')
