@@ -311,6 +311,93 @@ export function isApptainerInstanceLogPath(p: string, name: string, ext: 'out' |
   return p.endsWith(`/${name}.${ext}`)
 }
 
+/** Workload names reach a filesystem path and a systemd unit. Same charset the routes enforce. */
+const CLONE_NAME_RE = /^[a-z][a-z0-9-]*$/
+
+/**
+ * The guard that runs BEFORE anything is created. Returns a reason, or null when the clone is
+ * allowed. Pure: arguments in, value out.
+ *
+ * Every rejection here is a refusal, never a repair. Silently rewriting an invalid name would
+ * create a workload the user did not ask for and cannot find.
+ */
+export function cloneRejectionReason(opts: {
+  source: WorkloadDefinition | null
+  targetName: string
+  existingNames: string[]
+  status: string
+}): string | null {
+  const { source, targetName, existingNames, status } = opts
+  if (!source) return 'Source workload not found'
+  if (existingNames.includes(targetName)) return `A workload named '${targetName}' already exists`
+  if (targetName === source.name) return 'Target name must differ from the source name'
+  if (!CLONE_NAME_RE.test(targetName)) {
+    return 'Name must start with a lowercase letter and contain only lowercase letters, digits and hyphens'
+  }
+  // Copying a disk mid-write is corruption. Refuse rather than best-effort it.
+  if (status === 'running') return 'Cannot clone a running workload — stop it first'
+  // A container is reproduced from its image, not by copying a disk.
+  if (isContainerDef(source)) {
+    return 'Container workloads are reproduced from their image, not cloned from a disk'
+  }
+  return null
+}
+
+/**
+ * Fields a clone inherits. This is an ALLOWLIST, and it must stay one.
+ *
+ * The obvious implementation is `{ ...source, name, ip, macAddress: undefined, … }` — a denylist.
+ * It passes every field-by-field test and is wrong twice over: it carries `consolePort` (a
+ * per-instance allocated port that collides exactly as a copied MAC does), it carries
+ * `provisioningState`/`provisioningError` so a never-built clone reports as built and inherits a
+ * stale error from another VM — and it silently inherits every field added to WorkloadDefinition
+ * afterwards. An allowlist fails closed on a new field; a denylist fails open.
+ */
+const CLONE_INHERITED_FIELDS = [
+  'mem',
+  'vcpu',
+  'hypervisor',
+  'diskSize',
+  'distro',
+  'guestOs',
+  'vmType',
+  'bridge',
+  'consoleType',
+  'imageUrl',
+  'imageFormat',
+  'cloudInit',
+  'description',
+  'tags',
+] as const satisfies readonly (keyof WorkloadDefinition)[]
+
+/**
+ * Derive a new definition from a source. Pure, and never mutates the source.
+ *
+ * Deliberately absent from the result — not set to `undefined`, ABSENT, because `{ …, x: undefined }`
+ * leaves an own enumerable key that `'x' in obj` still sees:
+ *   macAddress / tapInterface  per-instance identity; a copy collides on the bridge and in the kernel
+ *   consolePort                per-instance allocation; the same collision, one layer up
+ *   provisioningState/Error    lifecycle state belonging to the source instance alone
+ *   containerId / image / ports  container fields; a clone is a VM operation
+ *   autostart                  a clone that autostarts is a reboot behaviour nobody chose
+ */
+export function deriveClonedDefinition(
+  source: WorkloadDefinition,
+  targetName: string,
+  newIp: string,
+): WorkloadDefinition {
+  const clone = { name: targetName, ip: newIp } as WorkloadDefinition
+  for (const key of CLONE_INHERITED_FIELDS) {
+    const value = source[key]
+    if (value === undefined) continue // omit the key entirely rather than writing undefined
+    // Assigning through a union of value types needs the cast; the key set is compile-time checked
+    // by `satisfies readonly (keyof WorkloadDefinition)[]` above, so this cannot address a
+    // field that does not exist.
+    ;(clone as Record<string, unknown>)[key] = value
+  }
+  return clone
+}
+
 /**
  * Fetch logs for a container workload. Returns null when there are none to serve.
  *
