@@ -393,6 +393,10 @@ export function deriveClonedDefinition(
     // Assigning through a union of value types needs the cast; the key set is compile-time checked
     // by `satisfies readonly (keyof WorkloadDefinition)[]` above, so this cannot address a
     // field that does not exist.
+    // sast-ignore[prototype-pollution]: `key` iterates CLONE_INHERITED_FIELDS, a module-level
+    // `as const` tuple constrained to keyof WorkloadDefinition — it is never caller-supplied and
+    // cannot be __proto__/constructor. The warning is correct about the shape and wrong about
+    // this instance; the guard that makes it safe is the compile-time key set, not a runtime check.
     ;(clone as Record<string, unknown>)[key] = value
   }
   return clone

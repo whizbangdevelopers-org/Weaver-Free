@@ -41,6 +41,7 @@ export type AuditAction =
   | 'distro.reset-url'
   | 'distro.refresh-catalog'
   | 'distro.validate-urls'
+  | 'distro.resolve-url'
   // ── Quotas ───────────────────────────────────────────────────────────────
   | 'quota.update'
   // ── Workload groups (v3.3) ───────────────────────────────────────────────

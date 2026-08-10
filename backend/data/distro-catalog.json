@@ -12,9 +12,9 @@
     },
     {
       "name": "nixos-desktop",
-      "label": "NixOS 25.11 Desktop (GNOME)",
-      "description": "Full NixOS GNOME install ISO for QEMU. Requires desktop mode (VGA+VNC).",
-      "url": "https://channels.nixos.org/nixos-25.11/latest-nixos-gnome-x86_64-linux.iso",
+      "label": "NixOS 25.11 Desktop (Graphical)",
+      "description": "Full NixOS graphical install ISO for QEMU. Requires desktop mode (VGA+VNC).",
+      "url": "https://channels.nixos.org/nixos-25.11/latest-nixos-graphical-x86_64-linux.iso",
       "format": "iso",
       "cloudInit": false,
       "license": "MIT"
@@ -77,7 +77,7 @@
       "name": "fedora",
       "label": "Fedora 42 Cloud",
       "description": "Cutting-edge Linux from Red Hat. DNF package manager.",
-      "url": "https://download.fedoraproject.org/pub/fedora/linux/releases/42/Cloud/x86_64/images/Fedora-Cloud-Base-Generic-42-1.1.x86_64.qcow2",
+      "url": "https://download.fedoraproject.org/pub/fedora/linux/releases/44/Cloud/x86_64/images/Fedora-Cloud-Base-Generic-44-1.7.x86_64.qcow2",
       "format": "qcow2",
       "cloudInit": true,
       "license": "MIT"
