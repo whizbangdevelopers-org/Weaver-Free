@@ -11,6 +11,22 @@ let
   weaver = import ./package.nix { inherit pkgs; };
 in
 {
+  # `premiumEnabled` → `soloTierEnabled` (v1.1). A rename rather than a removal: an existing
+  # configuration.nix must keep evaluating across the upgrade, and mkRenamedOptionModule both
+  # forwards the value and emits a warning naming the new option, so a user learns about it at
+  # rebuild time instead of discovering an eval error.
+  #
+  # "Premium" has not been a tier name for some time — the tiers are Free / Solo / Team /
+  # Fabrick. This option was the last place the retired name was still user-facing; everything
+  # else is either
+  # the internal PREMIUM_ENABLED env bridge the backend documents as backward compat, or docs
+  # describing that bridge.
+  imports = [
+    (lib.mkRenamedOptionModule
+      [ "services" "weaver" "premiumEnabled" ]
+      [ "services" "weaver" "soloTierEnabled" ])
+  ];
+
   options.services.weaver = {
     enable = mkEnableOption "Weaver web interface";
 
@@ -79,21 +95,30 @@ in
       '';
     };
 
-    # DEPRECATED OPTION: name retained for backward compatibility with existing
-    # configuration.nix files. Do not rename — renaming would break user
-    # deployments on next `nixos-rebuild switch`. A `mkRenamedOptionModule`
-    # migration to a canonical `weaverTierEnabled` option is planned for v1.1;
-    # until then, keep the name and the tier vocab corrected in the description.
-    # Vocab auditor exemption: `nixos/default.nix` identifiers + descriptions
-    # that reference this deprecated option are allowed to say "premium-"/"Premium-"
-    # as part of the option name only.
-    premiumEnabled = mkOption {
+    # Renamed from `premiumEnabled` (v1.1). The old name still works — see the
+    # `mkRenamedOptionModule` in `imports` — so an existing configuration.nix keeps
+    # evaluating, with a rename warning on the next `nixos-rebuild switch`.
+    #
+    # The name is `soloTierEnabled`, NOT the `weaverTierEnabled` this comment used to
+    # promise: "weaver tier" stopped being a single tier once Solo and Team became distinct
+    # issued tiers, so that name would have retired one piece of stale vocabulary by
+    # introducing another. What the flag actually does is grant Solo —
+    # `soloTierEnabled` says exactly that and nothing more.
+    #
+    # It remains DEPRECATED in favour of licenseKey. Renaming it does not bless it;
+    # it removes the last user-facing use of a retired tier name.
+    soloTierEnabled = mkOption {
       type = types.bool;
       default = false;
       description = ''
-        DEPRECATED: Use licenseKey instead. Option name retained for
-        backward compatibility with existing configuration.nix files.
-        When true and no licenseKey is set, maps to weaver tier.
+        DEPRECATED: Use licenseKey instead.
+
+        When true and no licenseKey is set, the backend runs at Solo tier. This is a
+        legacy bridge for deployments that predate license keys; it grants tier access
+        without a key, so it must not be used on anything you intend to license.
+
+        Renamed from `premiumEnabled` in v1.1. The old name is still accepted and will
+        warn on rebuild.
       '';
     };
 
@@ -397,7 +422,11 @@ in
           STATIC_DIR = "${cfg.package}/lib/weaver/frontend";
           DOCS_ROOT = "${cfg.package}/lib/weaver/docs";
           WEASYPRINT_BIN = cfg.weasyprintBin;
-          PREMIUM_ENABLED = if cfg.premiumEnabled then "true" else "false";
+          # The ENV name stays PREMIUM_ENABLED: it is the backend's documented backward-compat
+          # bridge (config.ts resolution order 3, which logs its own deprecation), and renaming it
+          # would break every non-Nix deployment that sets it directly. The user-facing option is
+          # what got the retired vocabulary out of the interface.
+          PREMIUM_ENABLED = if cfg.soloTierEnabled then "true" else "false";
           VM_STORAGE_BACKEND = cfg.storageBackend;
           VM_DATA_DIR = cfg.dataDir;
           SUDO_PATH = "/run/wrappers/bin/sudo";
