@@ -11,7 +11,7 @@ export type { Tier }
 
 export type SessionStoreType = 'memory' | 'sqlite'
 
-/** The container runtimes Weaver can manage. Apptainer is Solo-gated (Decision WVR-206). */
+/** The container runtimes Weaver can manage. Apptainer requires Solo or above. */
 export type ContainerRuntimeName = 'docker' | 'podman' | 'apptainer'
 
 const VALID_RUNTIMES: readonly ContainerRuntimeName[] = ['docker', 'podman', 'apptainer']
@@ -61,7 +61,7 @@ export interface DashboardConfig {
   dockerBin: string
   /** Path to the podman binary (default: 'podman') */
   podmanBin: string
-  /** Path to the apptainer binary (default: 'apptainer'). Solo-gated, Decision WVR-206. */
+  /** Path to the apptainer binary (default: 'apptainer'). Requires Solo or above. */
   apptainerBin: string
   /**
    * Which container runtimes to scan and manage, declared by the operator.

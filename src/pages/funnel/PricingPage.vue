@@ -149,7 +149,7 @@ import type { QTableColumn } from 'quasar'
 import { PUBLIC_DEMO_LINKS } from 'src/config/demo-mode'
 import { PRICING, FM_AVAILABLE, fmCardPrice } from 'src/constants/pricing'
 
-// Phase 1 competitors: Proxmox + DIY only (Decision WVR-135).
+// Phase 1 competitors: Proxmox + DIY only.
 // Fabrick-tier competitors (VMware, K8s) added when Team dev starts.
 const tcoColumns: QTableColumn[] = [
   { name: 'category', label: '', field: 'category', align: 'left', style: 'font-weight: 600' },

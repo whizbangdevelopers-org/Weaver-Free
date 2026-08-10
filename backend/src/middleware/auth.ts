@@ -41,7 +41,7 @@ const PUBLIC_ROUTES = [
 ]
 
 // No public prefixes. (/api/engram/* — formerly listed here — was removed 2026-07-20 when the
-// Engram surface migrated to the engram-query service, WVR-160.)
+// Engram surface migrated to the engram-query service.)
 const PUBLIC_PREFIXES: string[] = []
 
 function isPublicRoute(url: string): boolean {

@@ -29,7 +29,7 @@ export interface WorkloadInfo {
   tags?: string[]
   bridge?: string
   /**
-   * WVR-208 phase A — `bridge` is set and is NOT the Weaver-managed bridge.
+   * Network-ownership phase A — `bridge` is set and is NOT the Weaver-managed bridge.
    *
    * Derived server-side and shipped, rather than letting the UI compare, because the UI CANNOT
    * do it correctly: the frontend has no access to `bridgeInterface` and no shared module with
@@ -99,8 +99,8 @@ function isContainerDef(def: WorkloadDefinition): boolean {
 /**
  * May this install see Apptainer workloads at all?
  *
- * Apptainer is Solo-gated and **hidden below Solo, not nagged** (Decision WVR-206 — Apptainer
- * stays at v1.1.0 — Solo-gated, hidden on Free). The gate lives HERE, in the service, rather
+ * Apptainer requires Solo, and below Solo it is **hidden, not nagged**. The gate lives HERE,
+ * in the service, rather
  * than only in the scan route, because the registry is what every consumer reads: the scan is
  * the primary exclusion, but a workload that reached the registry by another path (a hand-edited
  * registry file, a tier downgrade after a Solo-era scan) would otherwise flow straight out
@@ -122,8 +122,8 @@ function apptainerVisible(): boolean {
  * Returns { name, id, image, state, ports, networks } or null if the line is invalid.
  * Never throws. Pure function - no I/O.
  *
- * `networks` is WVR-208 phase A (Weaver owns the bridge and the address space — no runtime
- * brings its own network). Docker's `{{json .}}` has always emitted a `Networks` field and this
+ * `networks` is network-ownership phase A: Weaver owns the bridge and the address space — no
+ * runtime brings its own network. Docker's `{{json .}}` has always emitted a `Networks` field and this
  * parser has always discarded it, which is why Weaver could not even *report* a container
  * attached to docker0 instead of `bridgeInterface`. The captured fixture in
  * container-parsers.spec.ts reads `"Networks":"bridge"` — docker0, not `br-microvm` — so the
@@ -284,8 +284,8 @@ export function apptainerLogPaths(stdout: string, name: string): { out: string; 
         // means it fails silently rather than loudly.
         //
         // So the shape is checked before the read, against the real emitted form (captured from
-        // apptainer-slim 1.5.0 on lab1, 2026-07-31):
-        //   /root/.apptainer/instances/logs/lab1/root/testinst.out
+        // apptainer-slim 1.5.0, 2026-07-31):
+        //   /root/.apptainer/instances/logs/<hostname>/root/testinst.out
         // Absolute, under an `.apptainer/instances/logs/` segment, basename exactly `<name>.out` /
         // `<name>.err`, and no `..` anywhere. This is defence in depth, not the primary control —
         // it just means trusting the binary's LOCATION rather than its OUTPUT.
@@ -499,9 +499,9 @@ export async function getVmUptime(name: string): Promise<string | null> {
 
 export async function listVms(): Promise<WorkloadInfo[]> {
   const defs = await registry.getAll()
-  // Apptainer is hidden below Solo (WVR-206). Filtering HERE rather than in the route covers the
+  // Apptainer is hidden below Solo. Filtering HERE rather than in the route covers the
   // `vm-status` WebSocket broadcast in the same stroke — ws.ts calls listVms() too, and a
-  // route-only filter is exactly the "registered but filtered at render" leak WVR-206 names.
+  // route-only filter is exactly the "registered but filtered at render" leak the gate forbids.
   const entries = Object.entries(defs).filter(
     ([, def]) => def.runtime !== 'apptainer' || apptainerVisible(),
   )
@@ -525,7 +525,7 @@ export async function listVms(): Promise<WorkloadInfo[]> {
 }
 
 /**
- * WVR-208 phase A — the observed divergence flag, computed in the ONE place that owns the
+ * Network-ownership phase A — the observed divergence flag, computed in the ONE place that owns the
  * comparison. `undefined` (not `false`) when config is absent: an indeterminate answer must not
  * render as "conformant", which is the boolean-else-branch trap
  * (`L-analysis-2026-08-07-01KZFBEXWJFQC44HBMXWVPVBX2`).
@@ -538,8 +538,8 @@ function networkDivergence(def: WorkloadDefinition): boolean | undefined {
 export async function getVm(name: string): Promise<WorkloadInfo | null> {
   const def = await registry.get(name)
   if (!def) return null
-  // Below Solo an Apptainer workload is indistinguishable from one that does not exist (WVR-206
-  // hides rather than nags). `null` here is what produces the route's 404 — the same answer an
+  // Below Solo an Apptainer workload is indistinguishable from one that does not exist — the
+  // gate hides rather than nags. `null` here is what produces the route's 404 — the same answer an
   // unknown name gets, and deliberately not a 403 that would advertise the gated feature.
   if (def.runtime === 'apptainer' && !apptainerVisible()) return null
   const status = await getVmStatus(name)
@@ -552,7 +552,7 @@ function isProvisionedOrLegacy(def: WorkloadDefinition): boolean {
 }
 
 /**
- * Below Solo an Apptainer workload does not exist as far as this install is concerned (WVR-206).
+ * Below Solo an Apptainer workload does not exist as far as this install is concerned.
  * Returns the same `not found` message an unknown name gets, which the action routes map to 404 —
  * a 403 would tell a Free user precisely which feature they are missing, which is the nag the
  * decision refuses.
@@ -899,7 +899,7 @@ export async function scanContainers(runtime: ContainerRuntime): Promise<ScanRes
           containerId: parsed.id,
           image: parsed.image,
           ports: parsed.ports.length > 0 ? parsed.ports : undefined,
-          // WVR-208 phase A — record the network Weaver OBSERVES, not the one it wants.
+          // Network-ownership phase A — record the network Weaver OBSERVES, not the one it wants.
           // First network only: `bridge` is singular on WorkloadDefinition, and a container on
           // several networks is already divergent from "one Weaver-managed bridge", so the first
           // is enough to say so. Undefined when docker reported none — absence is honest, and
@@ -925,7 +925,7 @@ export async function scanContainers(runtime: ContainerRuntime): Promise<ScanRes
  * cannot see one that has stopped; a stopped instance leaves no trace to find. That is the
  * runtime's model, not a limitation of this function.
  *
- * **Scan-time is where WVR-206's Free-tier exclusion lives.** Excluding at render instead would
+ * **Scan-time is where the Free-tier exclusion lives.** Excluding at render instead would
  * leave the workload in the registry, and a registered workload leaks through the `vm-status`
  * broadcast. Returning empty here means a Free install never learns the instance exists.
  */
@@ -952,7 +952,7 @@ export async function scanApptainerInstances(): Promise<ScanResult> {
         // No containerId: Apptainer identifies an instance by name, and the pid is not a stable
         // identity — it changes on every start, so recording it would be recording a lie.
         image: instance.image || undefined,
-        // No `bridge` either, for the same reason (WVR-208 phase A). An Apptainer instance has no
+        // No `bridge` either, for the same reason (network-ownership phase A). An Apptainer instance has no
         // network namespace of its own by default, so there is no network to observe — and the
         // field is left absent rather than set to a placeholder like '' or 'host'. Absence is the
         // honest answer; isWeaverOwnedNetwork() reads it as not-violating, deliberately, because

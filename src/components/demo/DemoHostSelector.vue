@@ -5,7 +5,7 @@
 
   DemoHostSelector — shows the active host in the demo toolbar.
 
-  v1.x / v2.x  Single host only (king). Displays as a static badge.
+  v1.x / v2.x  Single host only. Displays as a static badge.
                 Tooltip hints that multi-host arrives in FabricK v3.0.
 
   v3.0+         Full dropdown: select any fleet host or navigate to the

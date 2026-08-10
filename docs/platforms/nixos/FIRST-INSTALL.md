@@ -28,7 +28,7 @@ Select **NixOS Installer** and press Enter. After a few seconds you'll land at a
 <<< Welcome to NixOS ... >>>
 ```
 
-<!-- TODO: screenshot of the initial installer shell -->
+<!-- screenshot pending: the initial installer shell -->
 
 ---
 
@@ -59,7 +59,7 @@ The installer will ask you several questions. Here's what to pick:
 | **Hibernate** | **No** | Hibernation kills running VMs. |
 | **Encrypt** | **No** (test VM) or **Yes** (production) | Skip for testing. Enable LUKS for production. |
 
-<!-- TODO: screenshots of each installer step -->
+<!-- screenshots pending: each installer step -->
 
 ### Set your user account
 
@@ -250,7 +250,7 @@ You should see directories like `backend/`, `src/`, `nixos/`, `README.md`, etc.
 
 > **Tip:** If you enabled SSH in the previous step and know how to use it, you can continue the remaining steps from your workstation: `ssh your-username@<vm-ip>`. This is optional — everything works fine typed directly into the VM.
 
-<!-- TODO: screenshot of successful clone -->
+<!-- screenshot pending: a successful clone -->
 
 ---
 
@@ -361,7 +361,7 @@ You'll see the **Create Admin Account** form. This only appears on the very firs
 
 You're in. The Getting Started wizard will guide you from here.
 
-<!-- TODO: screenshot of the dashboard after admin creation -->
+<!-- screenshot pending: the dashboard after admin creation -->
 
 ---
 

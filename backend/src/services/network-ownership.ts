@@ -1,8 +1,8 @@
 // Copyright (c) 2026 whizBANG Developers LLC. All rights reserved.
 // Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE.
 /**
- * Network ownership — WVR-208 (Weaver owns the bridge and the address space — no runtime brings
- * its own network), phase A.
+ * Network ownership, phase A — Weaver owns the bridge and the address space; no runtime brings
+ * its own network.
  *
  * Phase A **observes**. It changes what Weaver knows and says, never what it does: nothing here
  * re-attaches a workload, refuses to display one, or assigns an address. Enforcement at creation
@@ -16,7 +16,6 @@
  * would surface as a workload the UI calls conformant and the API refuses — the worst shape,
  * because both halves look individually correct.
  *
- * See `plans/cross-version/WORKLOAD-NETWORK-OWNERSHIP.md`.
  */
 
 /**

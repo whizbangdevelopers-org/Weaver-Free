@@ -5,7 +5,7 @@
 
   Container detail panel — renders inside the ResourceDetailDrawer.
   Accepts a containerId prop and resolves it against the unified workload store
-  (WVR-72) on a real backend, or the mock catalogue in demo mode.
+  (the unified workload model) on a real backend, or the mock catalogue in demo mode.
 -->
 <template>
   <div class="container-detail-panel column full-height">
@@ -38,7 +38,7 @@
       <div class="text-caption text-grey-6 q-mb-md">{{ container.image }}</div>
 
       <!--
-        WVR-208 phase A — observe and report the container's actual network.
+        Network-ownership phase A — observe and report the container's actual network.
         NON-BLOCKING by design: the container still lists, still starts, still stops. Hiding or
         refusing to manage a container the operator can see in `docker ps` would make Weaver look
         broken; what Weaver should DO about divergence is phase B (WORKLOAD-NETWORK-OWNERSHIP.md
@@ -328,7 +328,7 @@ const logsContent = ref('')
 const logsLoading = ref(false)
 
 // Demo mode reads the mock catalogue; a real backend reads the unified workload
-// store (WVR-72) through the shared container projection.
+// store (the unified workload model) through the shared container projection.
 //
 // This used to read demo data UNCONDITIONALLY, which made the panel dead on a
 // real backend: `getDemoContainersForTier` degrades to `() => []` once

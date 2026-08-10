@@ -253,7 +253,7 @@ in
       description = "Path to weasyprint binary for compliance PDF generation";
     };
 
-    # ── Container runtimes (Gap 3, agents/v1.1.0/container-visibility.md) ──────────────────
+    # ── Container runtimes (container visibility, gap 3) ───────────────────────────────────
     #
     # Every other external binary this module depends on is pinned explicitly (lscpuBin, dfBin,
     # nixosVersionBin, weasyprintBin). The container runtimes were the inconsistent case: config.ts
@@ -324,8 +324,8 @@ in
         inherit group;
         home = cfg.dataDir;
         createHome = true;
-        # "users" group membership lets the service traverse /home/mark/Projects (750 users).
-        # Combined with the 0711 tmpfiles rule on /home/mark below.
+        # "users" group membership lets the service traverse a 750 home directory.
+        # Combined with the 0711 tmpfiles rule below.
         extraGroups = [ "users" ];
       };
       users.groups.${group} = mkIf isDefaultGroup {};

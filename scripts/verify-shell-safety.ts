@@ -19,7 +19,7 @@
  * in the middle of an otherwise successful write. Prose is data; a document body that runs is not
  * a document.
  *
- * BACKSTOP ROLE (FORGE-36)
+ * BACKSTOP ROLE
  * ------------------------
  * This is the vendor-neutral half of ~/.claude/hooks/enforce-shell-safety.sh, rule H. The hook
  * intercepts an agent's live command; nothing vendor-neutral can. What this covers is the half

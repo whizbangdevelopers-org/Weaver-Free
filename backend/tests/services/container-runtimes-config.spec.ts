@@ -1,7 +1,7 @@
 // Copyright (c) 2026 whizBANG Developers LLC. All rights reserved.
 // Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE.
 //
-// Gap 3 of agents/v1.1.0/container-visibility.md — the NixOS module declares which container
+// Container visibility, gap 3 — the NixOS module declares which container
 // runtimes Weaver scans. The UNSET-vs-EMPTY distinction below is the load-bearing part: get it
 // wrong in either direction and either a dev box silently stops scanning containers, or a NixOS
 // host that declared none scans two it does not have.

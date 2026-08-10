@@ -1,10 +1,10 @@
 // Copyright (c) 2026 whizBANG Developers LLC. All rights reserved.
 // Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE.
 //
-// Gap 1 of agents/v1.1.0/container-visibility.md, WIRING half (slice 2 of the slice table).
+// Container visibility, gap 1 — WIRING half (slice 2 of the slice table).
 // Slice 1 landed the pure parsers; this covers what consumes them — the runtime union, the
-// dispatch, the /proc uptime derivation, and the WVR-206 (Apptainer stays at v1.1.0 — Solo-gated,
-// hidden on Free) tier gate.
+// dispatch, the /proc uptime derivation, and the Apptainer tier gate (Solo and above; hidden
+// below Solo rather than nagged).
 //
 // The load-bearing assertion in this file is NEGATIVE: an Apptainer workload must never reach
 // systemd. Before slice 2, `isContainerDef` excluded apptainer, so an Apptainer workload fell
@@ -38,7 +38,7 @@ import {
 } from '../../src/services/microvm.js'
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────────────────────
-// Real capture: `apptainer instance list --json`, apptainer-slim 1.5.0 on lab1, 2026-07-31.
+// Real capture: `apptainer instance list --json`, apptainer-slim 1.5.0, 2026-07-31.
 const APPTAINER_LIST = `{
 	"instances": [
 		{
@@ -154,7 +154,7 @@ beforeEach(() => {
 })
 
 // ── The /proc derivation ──────────────────────────────────────────────────────────────────────
-// ── Real capture: `cat /proc/1634/stat` on king, 2026-08-04, verbatim ────────────────────────
+// ── Real capture: `cat /proc/1634/stat`, 2026-08-04, verbatim ─────────────────────────────────
 // A live sshd, not a synthesised line. Provenance matters here for the same reason it did for the
 // Apptainer JSON: a /proc fixture invented from the proc(5) man page does not fail when the field
 // index is wrong — it agrees with whatever implementation was written alongside it.
@@ -168,7 +168,7 @@ const REAL_STAT =
   '1634 (sshd) S 1 1634 1634 0 -1 4194560 1118 0 8 0 0 0 0 0 20 0 1 0 1318 12562432 1887 ' +
   '18446744073709551615 1 1 0 0 0 0 0 4096 81925 0 0 0 17 13 0 0 0 0 0 0 0 0 0 0 0 0 0'
 
-// Real capture: the non-cpu tail of `/proc/stat` on king, same moment.
+// Real capture: the non-cpu tail of `/proc/stat`, same moment, same machine.
 const REAL_PROC_STAT = [
   'cpu  1483846 17020 408807 138162102 72785 95435 80268 0 40223 0',
   'cpu0 45968 52 13673 4909010 1824 3379 33468 0 893 0',
@@ -385,7 +385,7 @@ describe('Apptainer scan', () => {
     expect(stored!.image).toBe(APPTAINER_IMG)
     // The pid changes on every start, so it is not an identity and must not be stored as one.
     expect(stored!.containerId).toBeUndefined()
-    // WVR-208 phase A — an Apptainer instance has no network namespace of its own by default,
+    // Network-ownership phase A — an Apptainer instance has no network namespace of its own by default,
     // so there is no network to observe. Absence is the honest answer; a placeholder ('', 'host',
     // 'none') would be compared against bridgeInterface as if it were a real observation, and
     // would answer plan §5.2 ("is no-network a violation or a trivial conformance?") by accident.
@@ -413,13 +413,13 @@ describe('Apptainer scan', () => {
   })
 })
 
-// ── The WVR-206 tier gate: hidden below Solo, not nagged ──────────────────────────────────────
-describe('Free tier hides Apptainer entirely (WVR-206)', () => {
+// ── The Apptainer tier gate: hidden below Solo, not nagged ────────────────────────────────────
+describe('Free tier hides Apptainer entirely', () => {
   beforeEach(() => setConfig(makeConfig({ tier: 'free' })))
 
   // The primary control. Excluding at RENDER would leave the workload in the registry, and a
   // registered workload leaks through the `vm-status` broadcast — which is the exact failure
-  // WVR-206 names when it says "excluded at scan, not at render".
+  // the gate forbids when it says "excluded at scan, not at render".
   it('discovers nothing at scan, and never even runs the binary', async () => {
     const reg = makeRegistry({})
     setRegistry(reg)
@@ -454,7 +454,7 @@ describe('Free tier hides Apptainer entirely (WVR-206)', () => {
       const result = await action('logtest')
       expect(result.success).toBe(false)
       expect(result.message).toMatch(/not found/)
-      // Never the tier: "requires weaver tier" is precisely the nag WVR-206 refuses.
+      // Never the tier: "requires weaver tier" is precisely the nag the gate refuses.
       expect(result.message).not.toMatch(/tier|upgrade|solo/i)
     }
     expect(execMock()).not.toHaveBeenCalled()

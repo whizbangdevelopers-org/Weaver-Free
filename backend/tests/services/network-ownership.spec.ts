@@ -1,14 +1,12 @@
 // Copyright (c) 2026 whizBANG Developers LLC. All rights reserved.
 // Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE.
 /**
- * WVR-208 phase A — the network-ownership predicate.
+ * Network-ownership phase A — the ownership predicate.
  *
  * The predicate is deliberately the ONLY place the comparison happens, so these tests are the
  * specification of what "divergent" means for both the UI today and phase B's enforcement path
  * later. If the two ever disagree, it will be because someone added a second comparison rather
  * than because this changed.
- *
- * See `plans/cross-version/WORKLOAD-NETWORK-OWNERSHIP.md` §4.
  */
 import { describe, it, expect } from 'vitest'
 import { isWeaverOwnedNetwork, isDivergentNetwork } from '../../src/services/network-ownership.js'

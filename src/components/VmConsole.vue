@@ -31,8 +31,8 @@
  * When a real console WebSocket endpoint is available (Weaver Solo+),
  * the SerialConsole component should be used instead.
  *
- * TODO [v1-license]: Gate real vs mock console by tier. Free/demo users get
- * VmConsole; Weaver Solo/Fabrick users get SerialConsole with live WebSocket.
+ * Planned: gate real vs mock console by tier. Free/demo users get
+ * VmConsole; Solo and above get SerialConsole with a live WebSocket.
  */
 import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
 import { Platform } from 'quasar'

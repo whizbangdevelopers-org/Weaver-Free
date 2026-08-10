@@ -7,7 +7,7 @@
   yet available in the selected demo version. Mirrors UpgradeNag (tier gate)
   but for roadmap versioning instead of tier access.
 
-  Hidden entirely in public demo mode (Decision WVR-135) — no roadmap leaks.
+  Hidden entirely in public demo mode — no roadmap leaks.
 -->
 <template>
   <q-card v-if="!isPublic" flat bordered class="version-nag-card">

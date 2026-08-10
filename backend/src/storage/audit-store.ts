@@ -5,7 +5,7 @@ import { atomicWriteJson } from './lib/atomic-write.js'
 import { dirname } from 'node:path'
 
 // ---------------------------------------------------------------------------
-// Typed action catalogue                          plans/v3.3.0/EXECUTION-ROADMAP.md
+// Typed action catalogue
 //
 // Every audit event emitted by the system must appear here.
 // New domains (group.*, access.*) are pre-registered so compliance queries

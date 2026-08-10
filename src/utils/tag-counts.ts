@@ -4,7 +4,7 @@
 /**
  * Partition workload tags by runtime into VMs and containers.
  *
- * Under the unified workload model (WVR-72), containers are already in
+ * Under the unified workload model, containers are already in
  * workloadStore.workloads with runtime 'docker'|'podman'|'apptainer'.
  * Everything else (including absent runtime) is a VM.
  *

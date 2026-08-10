@@ -1,7 +1,7 @@
 <!-- Copyright (c) 2026 whizBANG Developers LLC. All rights reserved. -->
 <!-- Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE. -->
 <!--
-  Public demo release summary (Decision WVR-135).
+  Public demo release summary.
   Shows cumulative feature highlights as the prospect steps through Free versions.
   Tells the "we ship consistently" story without leaking roadmap details.
   Only shown in public demo mode.

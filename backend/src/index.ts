@@ -420,7 +420,7 @@ await fastify.register(agentRoutes, { prefix: '/api/workload', config, auditServ
 const distroTester = provisioner ? new DistroTester(vmRegistry, provisioner, config) : undefined
 await fastify.register(distroRoutes, { prefix: '/api/distros', distroStore, catalogStore, imageManager, urlValidator, config, auditService, distroTester })
 await fastify.register(auditRoutes, { prefix: '/api/audit', auditService, config })
-// /api/engram/* removed 2026-07-20 (WVR-160): Engram monitoring + host admin migrated to the
+// /api/engram/* removed 2026-07-20: Engram monitoring + host admin migrated to the
 // engram-query service (engram-ui reads/writes it directly). Weaver no longer proxies the store.
 await fastify.register(usersRoutes, { prefix: '/api/users', userStore, sessionStore, auditService })
 await fastify.register(quotaRoutes, { prefix: '/api/users', config, quotaStore, userStore, auditService })

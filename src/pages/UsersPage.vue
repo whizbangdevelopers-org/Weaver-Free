@@ -340,7 +340,7 @@ const roleOptions = [
   { label: 'Viewer', value: ROLES.VIEWER },
 ]
 
-// Weaver Team cap: max 4 paying (admin+operator) + 1 viewer free (Decision WVR-61)
+// Weaver Team cap: max 4 paying (admin+operator) + 1 viewer free
 const payingUserCount = computed(() =>
   users.value.filter(u => u.role !== ROLES.VIEWER).length
 )

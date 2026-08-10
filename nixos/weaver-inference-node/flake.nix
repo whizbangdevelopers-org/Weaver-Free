@@ -3,14 +3,14 @@
 #
 # Weaver Inference Node — NixOS Flake
 #
-# Decision WVR-152. STUB — implementation scheduled for v1.1.0 (Forge Foundry Phase 2).
+# STUB — implementation scheduled for v1.1.0.
 #
 # Three profiles:
-#   forge-foundry         — dark factory (shared modules + agent execution + CI runner)
+#   forge-foundry         — build profile (shared modules + agent execution + CI runner)  # published-comment-ok: names a build profile declared in this flake, not a machine
 #   weaver-inference-node — customer SKU (shared modules + serving + LoRA + MCP retrieval)
 #   dev-parity            — test profile (verifies shared modules across the above two)
 #
-# Shared load-bearing modules (must appear in both forge-foundry and weaver-inference-node):
+# Shared load-bearing modules, required by both the build and customer profiles:
 #   ollama / baseModelLoader / loraPipeline / mcpRetrieval / cgroupPolicy
 #
 # Run audit:inference-node-parity to verify profile parity.
@@ -20,17 +20,12 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.11";
     nixos-hardware.url = "github:NixOS/nixos-hardware/master";
-
-    # cognee-nix: Nix packaging for the cognee AI memory sidecar (uv2nix, Python 3.12).
-    # Use the `cognee-api` output (core + FastAPI/uvicorn) for services.weaver.cognee.
-    # Local flake path until cognee-nix is published; switch to URL when available.
-    # Source: ~/Projects/active/cognee-nix  Ref: Forge/research/cognee-nix.md
-    cognee-nix.url = "path:/home/mark/Projects/active/cognee-nix";
-    cognee-nix.inputs.nixpkgs.follows = "nixpkgs";
+    # No further inputs. A `cognee-nix` input was removed 2026-08-10: Cognee is retired and must
+    # not be built against, and the input pointed at an absolute path on one developer's machine
+    # (`path:/home/…`), so this flake could not evaluate for anybody who cloned the mirror.
   };
 
-  # TODO (v1.1.0): implement outputs with three NixOS profiles.
-  # See README.md for the planned structure.
+  # Outputs land at v1.1.0 with the three NixOS profiles above; see README.md for the structure.
   outputs = { ... }: {
     # Placeholder — populated at v1.1.0 implementation.
   };

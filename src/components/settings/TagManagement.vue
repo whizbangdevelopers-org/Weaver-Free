@@ -32,7 +32,7 @@
                      In the demo that is currently never: demo containers are still a separate
                      ContainerInfo[] (getDemoContainersForTier) and ContainerInfo has no tags field,
                      so they are not in workloadStore.workloads at all. Merging them into the
-                     workload list is gap 1 of agents/v1.1.0/container-visibility.md, not this one.
+                     workload list is container-visibility gap 1, not this one.
                      This badge previously showed counts invented by a hand-maintained array in this
                      component that had to "stay in sync with FREE_CONTAINERS" — the counts were not
                      derived from anything. Showing nothing true beats showing something false. -->
@@ -110,7 +110,7 @@ import { partitionTagCounts } from 'src/utils/tag-counts'
 
 const TAG_PATTERN = /^[a-z0-9][a-z0-9-]*$/
 
-// Combined tag info for display (Decision WVR-60).
+// Combined tag info for display.
 // Partitioned by runtime: containers are 'docker'|'podman'|'apptainer';
 // everything else (including absent runtime) is a VM.
 interface CombinedTag {
@@ -271,7 +271,7 @@ async function executeRename(tag: CombinedTag, newName: string) {
   let successCount = 0
   let failCount = 0
 
-  // Rename on VMs (containers: handled via unified workload model — Decision WVR-60)
+  // Rename on VMs (containers: handled via the unified workload model)
   for (const vmName of tag.vmNames) {
     const vm = workloadStore.workloadByName(vmName)
     if (!vm) continue
@@ -316,7 +316,7 @@ async function executeDelete(tag: CombinedTag) {
   let successCount = 0
   let failCount = 0
 
-  // Remove from VMs (containers: handled via unified workload model — Decision WVR-60)
+  // Remove from VMs (containers: handled via the unified workload model)
   for (const vmName of tag.vmNames) {
     const vm = workloadStore.workloadByName(vmName)
     if (!vm) continue

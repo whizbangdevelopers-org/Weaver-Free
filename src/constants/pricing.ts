@@ -93,7 +93,7 @@ export const EXTENSIONS = {
     tier: 'fabrick',
     // SKU launch version — this is when the extension becomes purchasable.
     // Lifecycle stages (foundation v2.1, progressive v2.2–v2.5, dev preview
-    // v2.5) tracked in plans/cross-version/FEATURE-LIFECYCLES.md#compliance-export.
+    // v2.5) are tracked in the feature-lifecycle record.
     // FM window closes when this version ships.
     version: 'v3.1',
   },
