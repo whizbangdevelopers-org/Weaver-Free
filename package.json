@@ -209,6 +209,7 @@
     "@vitest/coverage-v8": "^4.0.17",
     "@vitest/ui": "^4.0.16",
     "@vue/test-utils": "^2.4.3",
+    "baseline-browser-mapping": "^2.11.13",
     "eslint": "^9.39.4",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-vue": "^10.8.0",
