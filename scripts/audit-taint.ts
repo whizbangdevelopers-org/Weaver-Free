@@ -10,11 +10,22 @@
  *   no-unvalidated-jwt-claim — unverified JWT payload in auth decisions (CWE-347)
  *   no-ssrf-in-fetch       — user input reaching outbound HTTP URLs (CWE-918)
  *
- * Requires: semgrep in PATH (`nix profile install nixpkgs#semgrep`)
+ * Requires: semgrep in PATH — `nix develop` on king; CI installs `semgrep==1.143.0` via pipx in
+ *           release.yml's `verify` job and test.yml's `compliance` job. Keep those pins and
+ *           king's devShell on the same version: an unpinned engine lets CI and local disagree
+ *           about findings, which is the same class of problem as an unpinned action version.
  * Rules:    scripts/semgrep-rules/*.yaml
  *
- * Exit 0 = clean or semgrep not installed (warning only).
- * Exit 1 = findings detected.
+ * Exit 0 = clean.
+ * Exit 1 = findings detected, OR semgrep is absent. **A missing engine is not a pass.**
+ *          `ALLOW_MISSING_SEMGREP=1` is a deliberate, recorded bypass — never set it in CI.
+ *
+ * This docblock said "Exit 0 = clean or semgrep not installed (warning only)" until 2026-08-10.
+ * That was the behaviour commit 1f277c5e removed, and the comment survived the fix — so the file
+ * documented the false-green it had just been hardened against. The cost was measurable: because
+ * the auditor silently skipped, every green release run from v1.0.4 through v1.0.5 reported
+ * compliance while running NO taint analysis. It surfaced on v1.1.0-rc.1, the first workflow run
+ * after the hardening, as a CI failure that passed on every dev machine.
  */
 
 import { execFileSync, spawnSync } from 'node:child_process'

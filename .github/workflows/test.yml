@@ -297,6 +297,14 @@ jobs:
         with:
           node-version: '24'
 
+      - name: Install semgrep (audit:taint refuses to run without it)
+        # PINNED to match king's devShell. audit:taint used to warn-and-pass when semgrep was
+        # absent, so CI reported green while running no taint analysis at all — every release
+        # from v1.0.4 to v1.0.5 inclusive. 1f277c5e made a missing engine a hard failure, and
+        # this is the other half of that fix: give CI the engine rather than let it skip.
+        # NOT ALLOW_MISSING_SEMGREP=1 — that would restore the exact false green, at the
+        # release gate of all places.
+        run: pipx install semgrep==1.143.0
       - name: Install dependencies (workspaces)
         run: npm ci
 
