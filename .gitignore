@@ -11,6 +11,9 @@ node_modules/
 .quasar
 dist/
 release/
+# Quasar compiles quasar.config.cjs to a timestamped temp file and normally deletes it;
+# an interrupted build leaves it behind as permanent untracked noise.
+quasar.config.*.temporary.compiled.*.cjs
 
 # Cordova
 /src-cordova/node_modules
