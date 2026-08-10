@@ -298,7 +298,10 @@ function getDemoPlugins(): PluginManifest[] {
     { id: 'firewall-fabrick', name: 'Firewall FabricK', description: 'Security zones, drift detection, firewall audit log.', category: 'firewall', minimumTier: TIERS.FABRICK, status: 'coming-soon', targetVersion: 'v1.2.0', fabrickIncluded: true },
     { id: 'hardening-apparmor', name: 'AppArmor Profiles', description: 'Managed AppArmor profiles for VM process isolation.', category: 'security', minimumTier: TIERS.SOLO, status: 'coming-soon', targetVersion: 'v1.2.0', fabrickIncluded: true },
     { id: 'hardening-seccomp', name: 'Seccomp Filters', description: 'Syscall filtering for VM QEMU processes. Reduces attack surface.', category: 'security', minimumTier: TIERS.SOLO, status: 'coming-soon', targetVersion: 'v1.2.0', fabrickIncluded: true },
-    { id: 'auth-totp', name: 'TOTP (2FA)', description: 'Time-based one-time passwords for two-factor authentication.', category: 'auth', minimumTier: TIERS.FREE, status: 'coming-soon', targetVersion: 'v1.1.0', fabrickIncluded: true },
+    // minimumTier SOLO, not FREE: MFA is paid-tier only and the Free tier has no MFA option by
+    // design. Mirrors the backend plugin registry — the two lists are maintained by hand, so a
+    // change here needs the same change there.
+    { id: 'auth-totp', name: 'TOTP (2FA)', description: 'Time-based one-time passwords for two-factor authentication.', category: 'auth', minimumTier: TIERS.SOLO, status: 'coming-soon', targetVersion: 'v1.1.0', fabrickIncluded: true },
     { id: 'auth-fido2', name: 'FIDO2 / WebAuthn', description: 'Hardware key authentication (YubiKey, passkeys).', category: 'auth', minimumTier: TIERS.SOLO, status: 'coming-soon', targetVersion: 'v1.1.0', fabrickIncluded: true },
     { id: 'auth-sso', name: 'SSO / LDAP', description: 'SAML, OIDC, and LDAP integration for organizational identity.', category: 'auth', minimumTier: TIERS.FABRICK, status: 'coming-soon', targetVersion: 'v1.2.0', fabrickIncluded: true },
     { id: 'backup-disk', name: 'Disk Backup', description: 'Scheduled disk snapshots with configurable retention.', category: 'backup', minimumTier: TIERS.SOLO, status: 'coming-soon', targetVersion: 'v2.0.0', fabrickIncluded: true, replacedByFabrick: true },

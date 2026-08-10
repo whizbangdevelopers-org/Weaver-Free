@@ -210,7 +210,12 @@ registerPlugin({
   name: 'TOTP (2FA)',
   description: 'Time-based one-time passwords for two-factor authentication.',
   category: 'auth',
-  minimumTier: TIERS.FREE,
+  // SOLO, not FREE. MFA is a paid-tier capability: the Free tier deliberately offers no MFA
+  // option, because security-posture features carry a risk surface the free tier is not
+  // underwritten for. This is a boundary, not an oversight — do not widen it to FREE without
+  // the tier review that owns it. It sat at FREE once, from a retired pricing model, and no
+  // automated check noticed.
+  minimumTier: TIERS.SOLO,
   status: 'coming-soon',
   targetVersion: 'v1.1.0',
   fabrickIncluded: true,
