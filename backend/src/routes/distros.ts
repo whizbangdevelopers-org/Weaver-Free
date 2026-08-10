@@ -14,6 +14,7 @@ import { TIERS, ROLES, STATUSES } from '../constants/vocabularies.js'
 import type { DashboardConfig } from '../config.js'
 import type { AuditService } from '../services/audit.js'
 import type { DistroTester } from '../services/distro-tester.js'
+import { candidatesFor, resolveDistroUrl, type HeadProbe } from '../services/distro-url-resolver.js'
 
 /** Response shape for a single distro entry */
 interface DistroEntry {
@@ -312,6 +313,91 @@ export const distroRoutes: FastifyPluginAsync<DistroRouteOptions> = async (fasti
 
     return data
   })
+
+  // POST /api/distros/:name/resolve-url — find the CURRENT download URL for a rotted entry.
+  //
+  // FREE TIER, deliberately, and it is the only route in this file that is not weaver-gated.
+  // Detecting a dead URL is already free (`/url-status`); leaving the *research* to the user is
+  // where that stops being useful. A Free install whose catalog has rotted is a Free install that
+  // cannot show a working image list, and telling that user to go read a mirror index by hand is
+  // not a tier boundary — it is a missing feature. It stays read-only: this SUGGESTS a URL and
+  // never writes one. Applying it is `PUT /:name/url`, which keeps its Solo gate.
+  //
+  // SSRF: the client supplies a distro NAME, never a URL. Every URL probed is derived server-side
+  // from the catalog plus the resolver's own generators, so this endpoint cannot be pointed at an
+  // arbitrary host. Do not add a `url` body field here — that would turn it into an open prober.
+  app.post(
+    '/:name/resolve-url',
+    {
+      schema: { params: distroNameSchema },
+      // Outbound HEADs to public mirrors — rate-limited so an admin cannot turn the install into
+      // a probe amplifier. createRateLimit() already neutralises itself under test mode.
+      config: { rateLimit: createRateLimit(10, '5 minutes') },
+      preHandler: [requireRole(ROLES.ADMIN)],
+    },
+    async (request, reply) => {
+      const { name } = request.params
+
+      const custom = distroStore.get(name)
+      const recordedUrl =
+        custom?.url ?? catalogStore.get(name)?.url ?? ImageManager.builtinSource(name)?.url ?? ''
+      if (!recordedUrl) {
+        return reply.code(404).send({ error: 'Distro not found or has no image URL' })
+      }
+
+      // Fedora's index is fetched only for a Fedora entry, and a failure to reach it is not fatal —
+      // the other generators still apply. An index we could not read must not look like an index
+      // that said nothing.
+      let fedoraIndex: unknown
+      let indexError: string | undefined
+      if (recordedUrl.includes('fedoraproject.org')) {
+        try {
+          const res = await fetch('https://fedoraproject.org/releases.json', {
+            signal: AbortSignal.timeout(15_000),
+          })
+          if (res.ok) fedoraIndex = await res.json()
+          else indexError = `releases.json returned ${res.status}`
+        } catch {
+          indexError = 'releases.json unreachable'
+        }
+      }
+
+      const probe: HeadProbe = async (url) => {
+        try {
+          const res = await fetch(url, { method: 'HEAD', redirect: 'follow', signal: AbortSignal.timeout(20_000) })
+          return res.status
+        } catch {
+          return 'error'
+        }
+      }
+
+      const outcome = await resolveDistroUrl(recordedUrl, candidatesFor(recordedUrl, fedoraIndex), probe)
+
+      await auditService?.log({
+        userId: request.userId ?? null,
+        username: request.username ?? 'unknown',
+        action: 'distro.resolve-url',
+        resource: name,
+        ip: request.ip,
+        details: {
+          strategy: outcome.strategy,
+          resolved: outcome.resolved,
+          attempts: outcome.tried.length,
+        },
+        success: !!outcome.resolved,
+      })
+
+      return {
+        name,
+        recordedUrl,
+        // `unchanged` distinguishes "the recorded URL is fine" from "we found a replacement" —
+        // the UI must not offer an Apply button for a URL that is already in the catalog.
+        unchanged: outcome.strategy === 'as-recorded',
+        ...outcome,
+        ...(indexError ? { indexError } : {}),
+      }
+    },
+  )
 
   // PUT /api/distros/:name/url — update/override a distro URL (admin + weaver)
   app.put(
