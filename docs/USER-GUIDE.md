@@ -824,9 +824,11 @@ Built-in distributions include Arch Linux, Fedora, Ubuntu, Debian, and Alpine. C
 
 ### Can I run Windows as a guest?
 
-Yes. Add a custom distribution in Settings with your Windows ISO URL and set Guest OS to "Windows." When creating a VM, select the Windows distribution — QEMU and desktop mode (VNC) are automatically enabled. Install Windows manually via the VNC console. Windows 10 and Server 2016+ are supported. Windows VMs use IDE disk and e1000 networking for driver-free installation.
+Yes. Add a custom distribution in Settings with your Windows ISO URL and set Guest OS to "Windows." When creating a VM, select the Windows distribution — QEMU and desktop mode (VNC) are automatically enabled. Install Windows manually via the VNC console. Windows 10, 11 and Server 2016+ are supported.
 
-> **Note:** Windows 11 requires UEFI, which is not yet supported.
+**Windows 11** needs UEFI and TPM 2.0. Set **Boot firmware** to UEFI when creating the VM; Weaver selects it for you when you pick a Windows distribution, and provides the TPM. Your administrator has to enable UEFI on the host first — if they have not, creating the VM fails immediately with a message saying so, rather than installing something that will not boot.
+
+By default Windows uses IDE disk and e1000 networking, which need no drivers but are slow. If your administrator has provided a virtio-win driver ISO, turn on **VirtIO drivers** for roughly 3-5x faster disk and network. Weaver attaches it as a second CD-ROM — during Setup choose *Load driver* and pick it from that disc, otherwise the installer will not see the disk.
 
 ### Can I run macOS as a guest?
 

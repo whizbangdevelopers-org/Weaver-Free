@@ -350,12 +350,15 @@ const helpSections = computed<HelpSection[]>(() => [
       {
         question: 'How do I run a Windows guest?',
         answer:
-          'Windows guests use a "Bring Your Own ISO" approach. Add a custom distro in Settings with your Windows ISO URL and set Guest OS to "Windows". When creating a VM, select the Windows distro — QEMU and desktop mode (VNC) are automatically enabled. Install Windows manually via the VNC console. Use Windows 10 or Server 2016+ (Windows 11 requires UEFI, which is not yet supported). Windows VMs use IDE disk and e1000 networking for driver-free installation.',
+          'Windows guests use a "Bring Your Own ISO" approach. Add a custom distro in Settings with your Windows ISO URL and set Guest OS to "Windows". When creating a VM, select the Windows distro — QEMU and desktop mode (VNC) are automatically enabled. Windows 10, 11 and Server 2016+ all work. Windows 11 needs UEFI and TPM 2.0: set Boot firmware to UEFI (Weaver picks it for you) and your administrator must have enabled it on the host, or the create fails immediately rather than installing something that will not boot. By default Windows uses IDE disk and e1000 networking, which need no drivers but are slow — turn on VirtIO drivers for roughly 3-5x faster disk and network, if your administrator has provided the driver ISO.',
         steps: [
           'Go to Settings and add a custom distro with your Windows ISO URL, set Guest OS to Windows',
           'Create a new VM and select your Windows distro from the dropdown',
+          'For Windows 11, leave Boot firmware set to UEFI',
+          'Optionally turn on VirtIO drivers for faster disk and network',
           'The VM will be provisioned with a blank disk and your ISO attached',
           'Start the VM and access the VNC console to install Windows',
+          'With VirtIO drivers on, choose "Load driver" in Setup and pick the second CD-ROM before the installer can see the disk',
         ],
       },
     ],

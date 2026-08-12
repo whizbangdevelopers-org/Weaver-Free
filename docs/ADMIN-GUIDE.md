@@ -345,7 +345,20 @@ Windows guests use a "Bring Your Own ISO" approach:
 3. The VM is provisioned with a blank disk and your ISO attached as CDROM.
 4. Start the VM and install Windows via the VNC console.
 
-Windows VMs use IDE disk and e1000 networking for driver-free installation. Use Windows 10 or Server 2016+ (Windows 11 requires UEFI, which is not yet supported).
+By default Windows VMs use IDE disk and e1000 networking, so they install with no driver disk at all. Windows 10 and Server 2016+ work as-is.
+
+**Windows 11 needs UEFI and TPM 2.0**, and Setup refuses with "This PC can't run Windows 11" when either is missing. Enable both on the host:
+
+```nix
+services.weaver.uefi = {
+  enable = true;                  # OVMF firmware; also turns on the emulated TPM 2.0
+  secureBootCapable = false;      # true = OVMF with Microsoft's keys pre-enrolled
+};
+```
+
+Then set **Boot firmware** to UEFI when creating the VM. Weaver gives each VM its own writable OVMF variable store, so their boot entries and Secure Boot enrolments stay separate. Requesting UEFI on a host that has not enabled it fails at creation with a message naming the fix — it never falls back to BIOS, because a Windows 11 install on BIOS fails deep inside Setup where the cause is unrecognisable.
+
+**For 3-5x faster disk and network**, point `services.weaver.uefi.virtioWinIso` at a virtio-win ISO and turn on **VirtIO drivers** when creating the VM. Weaver attaches it as a second CD-ROM; during Setup, use *Load driver* and pick it from that disc before the installer can see the disk. Weaver never switches a Windows guest to VirtIO without attaching the ISO — that combination boots Setup to "we couldn't find any drives". The ISO is not downloaded for you: it is Red Hat redistributable material with its own terms, so fetching it is your decision.
 
 #### Image Management
 
