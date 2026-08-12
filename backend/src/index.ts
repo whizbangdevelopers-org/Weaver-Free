@@ -3,6 +3,10 @@
 import 'dotenv/config'
 import { resolve, join } from 'path'
 import { readFile, writeFile } from 'node:fs/promises'
+import { execFile } from 'node:child_process'
+import { promisify } from 'node:util'
+
+const execFileAsync = promisify(execFile)
 import Fastify, { type FastifyError } from 'fastify'
 import compress from '@fastify/compress'
 import cors from '@fastify/cors'
@@ -459,9 +463,17 @@ const dnsWriter = TIER_ORDER[config.tier] >= TIER_ORDER[TIERS.SOLO]
           await writeFile(path, content, 'utf-8')
         },
         reload: async () => {
-          // No-op until services.weaver.dns owns the resolver unit. Deliberately not a
-          // best-effort `systemctl reload` — signalling a unit this build does not manage would
-          // either fail on every host or, worse, reload someone else's dnsmasq.
+          // Only when the NixOS module told us how. An empty command means DNS Core is not
+          // deployed here, and the zone file is written-but-unserved — which is a correct,
+          // inert state rather than a half-applied one. Never guess at a systemctl invocation:
+          // signalling a unit this build does not manage would either fail on every host or
+          // reload someone else's dnsmasq.
+          const command = config.dnsReloadCommand
+          if (!command) return
+          const [bin, ...args] = command.split(/\s+/)
+          if (!bin) return
+          // execFile with an argument array, never a shell — the value crosses a config boundary.
+          await execFileAsync(config.sudoBin, [bin, ...args])
         },
       },
       { hostsPath: join(config.dataDir, 'dns-hosts'), domain: config.dnsDomain },

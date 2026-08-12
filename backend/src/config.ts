@@ -53,6 +53,21 @@ export interface DashboardConfig {
    * zone collides with Avahi on exactly the home-lab networks this targets.
    */
   dnsDomain: string
+  /**
+   * How often the status WebSocket broadcasts, in ms.
+   *
+   * Configurable because the right value is a property of the DEPLOYMENT, not of the product: the
+   * loop calls listVms() once per tick regardless of client count, and that cost scales with the
+   * number of workloads. A host with 200 workloads pays it 30 times a minute at the 2s default.
+   */
+  wsBroadcastIntervalMs: number
+  /**
+   * How to ask the resolver to re-read the generated zone. Empty when DNS Core is not deployed.
+   *
+   * Supplied by the NixOS module rather than hardcoded, because signalling a unit this build does
+   * not manage would either fail on every host or reload someone else's dnsmasq.
+   */
+  dnsReloadCommand: string
   sudoBin: string
   systemctlBin: string
   iptablesBin: string
@@ -106,6 +121,44 @@ export interface DashboardConfig {
   siteUrl: string
   /** SMTP configuration for transactional emails (null = email disabled) */
   smtp: SmtpConfig | null
+}
+
+
+/** Default status-broadcast cadence. Matches the documented 2s WebSocket contract. */
+export const DEFAULT_WS_BROADCAST_INTERVAL_MS = 2000
+/** Below this the loop is a self-inflicted load generator, not a feature. */
+export const MIN_WS_BROADCAST_INTERVAL_MS = 500
+/** Above this the UI stops feeling live, which is the whole point of the socket. */
+export const MAX_WS_BROADCAST_INTERVAL_MS = 60_000
+
+/**
+ * Parse WS_BROADCAST_INTERVAL_MS, clamped to a sane band.
+ *
+ * CLAMPS rather than rejects, and that is deliberate: this is a performance knob reached for by
+ * an operator whose dashboard is struggling, usually at the point they are least able to
+ * troubleshoot a refused start. A typo that would set 5ms should not be honoured, but neither
+ * should it prevent the service booting — it lands at the floor and the host stays up.
+ *
+ * Unparseable input falls back to the default rather than to 0, which matters because a 0 or NaN
+ * reaching setInterval schedules immediately-repeating work and pins a core for the life of the
+ * process.
+ *
+ * Note WHICH check does that work. `Number('')` is **0**, not NaN — so an empty or whitespace-only
+ * value is caught by the `n <= 0` test below, not by any string-emptiness check. An explicit
+ * `raw.trim() === ''` guard here is redundant, and removing it changes no behaviour (verified by
+ * deleting it and watching the suite stay green, which is how it was found).
+ *
+ * The contrast worth remembering: the same coercion fact is LOAD-BEARING in a parser where zero is
+ * a legitimate reading — `memory.current` uses `n >= 0`, so there an empty file passes the guard
+ * and renders as a confident zero. Whether `Number('')` is a bug depends entirely on whether the
+ * validity test admits zero.
+ */
+export function parseBroadcastInterval(raw: string | undefined): number {
+  if (raw === undefined) return DEFAULT_WS_BROADCAST_INTERVAL_MS
+  const n = Number(raw.trim())
+  // Rejects NaN, 0 and negatives in one test — including the empty string, via 0.
+  if (!Number.isFinite(n) || n <= 0) return DEFAULT_WS_BROADCAST_INTERVAL_MS
+  return Math.min(MAX_WS_BROADCAST_INTERVAL_MS, Math.max(MIN_WS_BROADCAST_INTERVAL_MS, Math.round(n)))
 }
 
 export function loadConfig(): DashboardConfig {
@@ -202,6 +255,8 @@ export function loadConfig(): DashboardConfig {
     bridgeGateway: process.env.BRIDGE_GATEWAY || null,
     bridgeInterface: process.env.BRIDGE_INTERFACE ?? 'br-microvm',
     dnsDomain: process.env.DNS_DOMAIN ?? 'vm.internal',
+    wsBroadcastIntervalMs: parseBroadcastInterval(process.env.WS_BROADCAST_INTERVAL_MS),
+    dnsReloadCommand: process.env.DNS_RELOAD_COMMAND ?? '',
     sudoBin: process.env.SUDO_PATH ?? 'sudo',
     systemctlBin: process.env.SYSTEMCTL_PATH ?? 'systemctl',
     iptablesBin: process.env.IPTABLES_PATH ?? 'iptables',
