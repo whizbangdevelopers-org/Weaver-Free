@@ -28,6 +28,7 @@
     "audit:decision-refs": "npx tsx scripts/verify-decision-refs.ts",
     "audit:demo-guards": "npx tsx scripts/verify-demo-guards.ts",
     "audit:demo-backing": "npx tsx scripts/verify-demo-backing.ts",
+    "audit:demo-plugin-parity": "npx tsx scripts/verify-demo-plugin-parity.ts",
     "audit:demo-parity": "npx tsx scripts/verify-demo-parity.ts",
     "audit:doc-freshness": "npx tsx scripts/verify-doc-freshness.ts",
     "audit:doc-host-locators": "npx tsx scripts/verify-doc-host-locators.ts",

@@ -106,6 +106,7 @@ export const PHASES: Phase[] = [
       'audit:demo-parity',
       'audit:demo-guards',
       'audit:demo-backing',
+      'audit:demo-plugin-parity',
       'audit:decision-parity',
       'audit:compliance-parity',
       'audit:compliance-matrix-parity',
