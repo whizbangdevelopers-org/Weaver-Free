@@ -45,8 +45,9 @@
 # review, fixtures alerting in production. Verified against the live mirror rather than
 # reasoned about.
 #
-# This is the "an auditor's universe must match its CONSUMER's" rule from
-# .claude/rules/core/single-source-generated.md. Any future entry here needs both forms too.
+# This is the "an auditor's universe must match its CONSUMER's" rule: a checker whose
+# file set is broader than its consumer's can only ever return green. Any future entry
+# here needs both forms too.
 paths-ignore:
   # Weaver-Free (mirror root — this is the one CodeQL actually evaluates)
   - scripts/fixtures/taint-corpus

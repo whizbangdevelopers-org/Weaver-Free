@@ -204,7 +204,7 @@ registerPlugin({
   fabrickIncluded: true,
 })
 
-// Auth (v1.1.0+)
+// Auth (v1.3.0+ — re-targeted from v1.1.0)
 registerPlugin({
   id: 'auth-totp',
   name: 'TOTP (2FA)',
@@ -217,7 +217,13 @@ registerPlugin({
   // automated check noticed.
   minimumTier: TIERS.SOLO,
   status: 'coming-soon',
-  targetVersion: 'v1.1.0',
+  // v1.3.0, not v1.1.0. Two reasons, and the second is why the whole auth arc moved rather than
+  // just the partner half: the hardware-vendor integrations wait on partner agreements being
+  // countersigned — an external dependency with no date — and MFA is a *paid-tier* capability
+  // that nobody can self-serve purchase until the checkout path lands in the same release.
+  // A targetVersion equal to the running version renders "coming soon · <this version>" on the
+  // Extensions page, which is why this moves with the scope change rather than after it.
+  targetVersion: 'v1.3.0',
   fabrickIncluded: true,
 })
 
@@ -228,7 +234,7 @@ registerPlugin({
   category: 'auth',
   minimumTier: TIERS.SOLO,
   status: 'coming-soon',
-  targetVersion: 'v1.1.0',
+  targetVersion: 'v1.3.0', // moved off v1.1 with the rest of the auth arc — see auth-totp above
   fabrickIncluded: true,
 })
 

@@ -133,13 +133,25 @@
             <q-tooltip v-if="!appStore.isSolo">Deleting Live-Provisioned VMs requires Weaver Solo. Declarative NixOS VMs: remove the definition from your NixOS configuration.</q-tooltip>
           </q-btn>
           <q-btn
-            v-if="isDemoMode() && appStore.isDemoVersionAtLeast('1.1') && appStore.isSolo"
+            v-if="appStore.isSolo && (!isDemoMode() || appStore.isDemoVersionAtLeast('1.1'))"
             outline
             color="secondary"
             icon="mdi-content-copy"
             label="Clone"
             :loading="cloneLoading"
+            data-testid="workload-clone-btn"
             @click="handleClone"
+          />
+          <!-- Export is Free tier and every role — the same two endpoints the docs have carried
+               since v1.0, surfaced for people who do not reach for curl. -->
+          <q-btn
+            outline
+            color="primary"
+            icon="mdi-download"
+            label="Export"
+            :loading="exportLoading"
+            data-testid="workload-export-btn"
+            @click="handleExport"
           />
           <!-- Migrate button — Fabrick v2.3+ (cold), v3.0+ (live) -->
           <q-btn
@@ -639,6 +651,7 @@ import { useAuthStore } from 'src/stores/auth-store'
 import { useAppStore } from 'src/stores/app'
 import HelpTooltip from 'src/components/HelpTooltip.vue'
 import { extractErrorMessage } from 'src/utils/error'
+import { downloadText, dateStamp } from 'src/utils/download'
 import { isDemoMode } from 'src/config/demo-mode'
 import DemoResourceGraph from 'src/components/demo/DemoResourceGraph.vue'
 import DemoVersionFeatures from 'src/components/demo/DemoVersionFeatures.vue'
@@ -656,7 +669,7 @@ const workloadStore = useWorkloadStore()
 const authStore = useAuthStore()
 const appStore = useAppStore()
 const agentStore = useAgentStore()
-const { fetchVm, vmAction, deleteVm, cloneVm, fetchLogs, setAutostart, setDescription, setTags, loading, error } = useWorkloadApi()
+const { fetchVm, vmAction, deleteVm, cloneVm, exportVm, fetchLogs, setAutostart, setDescription, setTags, loading, error } = useWorkloadApi()
 const { vms: wsVms } = useWorkloadStatus()
 const { runAgent, loading: agentLoading } = useAgent()
 useAgentStream()
@@ -671,6 +684,21 @@ const descriptionInput = ref('')
 const autostartLoading = ref(false)
 const deleteLoading = ref(false)
 const cloneLoading = ref(false)
+const exportLoading = ref(false)
+
+async function handleExport() {
+  exportLoading.value = true
+  try {
+    const result = await exportVm(props.name)
+    if (!result.success || !result.data) {
+      $q.notify({ type: 'negative', message: result.message || 'Export failed', position: 'top-right', timeout: 5000 })
+      return
+    }
+    downloadText(result.data, `weaver-${props.name}-${dateStamp()}.json`)
+  } finally {
+    exportLoading.value = false
+  }
+}
 const showMigrateDialog = ref(false)
 
 // Migration eligibility — GPU-pinned VMs can only migrate to hosts with matching GPUs
@@ -841,7 +869,12 @@ async function handleClone() {
   if (!vm.value) return
   $q.dialog({
     title: 'Clone VM',
-    message: `Create a copy of <strong>${props.name}</strong>.<br>The clone will be stopped and assigned a new IP.`,
+    // "Create a copy" overstated it — the clone copies the CONFIGURATION and is provisioned fresh
+    // from the same distro. Disk contents are deliberately not copied, and a user who reads "copy"
+    // as a full disk clone will be surprised by an empty disk.
+    message: `Copy <strong>${props.name}</strong>'s configuration into a new VM.<br>`
+      + `The clone is provisioned fresh from the same distro — disk contents are not copied. `
+      + `It starts stopped and is assigned an IP automatically.`,
     html: true,
     prompt: {
       model: `${props.name}-clone`,
@@ -855,13 +888,9 @@ async function handleClone() {
     if (!newName) return
     cloneLoading.value = true
     try {
-      // Auto-derive a demo IP in the same subnet
-      const baseIp = vm.value?.ip ?? '10.10.0.99'
-      const parts = baseIp.split('.')
-      const demoIp = parts.length === 4
-        ? `${parts[0]}.${parts[1]}.${parts[2]}.${(parseInt(parts[3] ?? '0') + 10) % 256}`
-        : '10.10.0.99'
-      const result = await cloneVm(props.name, newName, demoIp)
+      // No IP argument: the backend allocates from the bridge pool. This used to derive one from
+      // the source's address, which was fine against a stub and is not fine against a live route.
+      const result = await cloneVm(props.name, newName)
       if (result.success) {
         $q.notify({
           type: 'positive',

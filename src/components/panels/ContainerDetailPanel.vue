@@ -41,9 +41,9 @@
         Network-ownership phase A — observe and report the container's actual network.
         NON-BLOCKING by design: the container still lists, still starts, still stops. Hiding or
         refusing to manage a container the operator can see in `docker ps` would make Weaver look
-        broken; what Weaver should DO about divergence is phase B (WORKLOAD-NETWORK-OWNERSHIP.md
-        §5.1). Rendered only when a network is known — an Apptainer instance has none, and absence
-        is not a violation.
+        broken. What Weaver should DO about divergence is a later phase and deliberately not
+        decided here. Rendered only when a network is known — an Apptainer instance has none, and
+        absence is not a violation.
       -->
       <div v-if="container.bridge" class="row items-center q-gutter-xs q-mb-md">
         <q-icon
@@ -471,9 +471,9 @@ function viewOperation(operationId: string) {
 }
 
 // Matches VmDetailPanel's logs surface — a bounded, scrollable block with an
-// explicit max-height. A q-scroll-area would collapse to 0 here (no
-// deterministic height on an ancestor); see the Quasar note in
-// .claude/rules/frontend.md.
+// explicit max-height. A q-scroll-area would collapse to 0 here, because it
+// needs a deterministic height on itself or an ancestor and has neither inside
+// an auto-height dialog card.
 .log-block {
   background: #1e1e1e;
   min-height: 120px;

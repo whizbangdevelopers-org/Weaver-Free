@@ -9,7 +9,7 @@
  * `WeaverPage.vue`, so any other consumer had to either import a page or copy
  * it — and `ContainerDetailPanel.vue` did neither, reading demo data
  * unconditionally and therefore rendering "not found" for every real
- * container. One shared projection, per `single-source-generated.md`.
+ * container. One shared projection: derive it once, never copy it.
  */
 import { STATUSES } from 'src/constants/vocabularies'
 import type { ContainerInfo, ContainerRuntime } from 'src/types/container'

@@ -26,6 +26,7 @@ export type AuditAction =
   | 'user.acl-clear'
   // ── Workloads ────────────────────────────────────────────────────────────
   | 'vm.create'
+  | 'vm.clone'
   | 'vm.delete'
   | 'vm.start'
   | 'vm.stop'

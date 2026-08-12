@@ -223,13 +223,31 @@
     <!-- Grid View -->
     <div v-else-if="effectiveView === 'grid'" class="row q-gutter-md">
       <template v-for="item in unifiedWorkloads" :key="item.kind === 'remote' ? `remote:${item.remoteHostname}:${item.vm.name}` : item.kind === 'vm' ? item.vm.name : item.container.id">
-        <div v-if="item.kind === 'vm'" class="col-12 col-sm-6 col-md-4 col-lg-3">
+        <!-- The keyboard focus ring. Applied to the grid cell rather than inside each card so
+             VMs, containers and remote workloads all show it identically — a ring that appears
+             on some kinds and not others reads as a rendering bug rather than as focus. -->
+        <div
+          v-if="item.kind === 'vm'"
+          class="col-12 col-sm-6 col-md-4 col-lg-3"
+          :class="{ 'kbd-focused': uiStore.focusedWorkloadName === item.name }"
+          :data-focused="uiStore.focusedWorkloadName === item.name ? 'true' : undefined"
+        >
           <WorkloadCard :vm="item.vm" :selectable="vmBulkEnabled && (activeFilter === 'vms' || !hasContainers)" />
         </div>
-        <div v-else-if="item.kind === 'remote'" class="col-12 col-sm-6 col-md-4 col-lg-3">
+        <div
+          v-else-if="item.kind === 'remote'"
+          class="col-12 col-sm-6 col-md-4 col-lg-3"
+          :class="{ 'kbd-focused': uiStore.focusedWorkloadName === item.name }"
+          :data-focused="uiStore.focusedWorkloadName === item.name ? 'true' : undefined"
+        >
           <WorkloadCard :vm="item.vm" :remote-hostname="item.remoteHostname" />
         </div>
-        <div v-else class="col-12 col-sm-6 col-md-4 col-lg-3">
+        <div
+          v-else
+          class="col-12 col-sm-6 col-md-4 col-lg-3"
+          :class="{ 'kbd-focused': uiStore.focusedWorkloadName === item.name }"
+          :data-focused="uiStore.focusedWorkloadName === item.name ? 'true' : undefined"
+        >
           <ContainerCard :container="item.container" :selectable="isContainerFilter" :host-mem-mb="basicHost?.totalMemMb" />
         </div>
       </template>
@@ -551,6 +569,24 @@ const unifiedWorkloads = computed(() => {
   return items
 })
 
+/**
+ * Publish the rendered order to the ui-store so the j/k/Enter shortcuts act on what the user can
+ * actually see.
+ *
+ * This page owns sorting, filtering and the VM/container/remote interleave, so it is the only
+ * place that knows what "the next workload" means — the store holds the index and re-resolves the
+ * focused NAME on every change, which is what stops a re-sort from silently moving focus onto a
+ * different machine mid-keystroke.
+ *
+ * `immediate` because the list is populated before any interaction; without it the first `j` after
+ * a cold load would find an empty roster and do nothing.
+ */
+watch(
+  unifiedWorkloads,
+  (items) => uiStore.setFocusableWorkloads(items.map(i => i.name)),
+  { immediate: true, deep: false },
+)
+
 // Containers to display — hidden on VMs filter, narrowed by runtime filter
 const filteredContainers = computed(() => {
   if (activeFilter.value === 'vms') return []
@@ -619,3 +655,22 @@ onBeforeUnmount(() => {
 })
 </script>
 
+
+<style scoped>
+/*
+ * Keyboard focus ring for j/k navigation.
+ *
+ * `outline` rather than `border`: a border changes the element's box and shifts every card in the
+ * row as focus moves, which reads as the grid twitching. An outline is drawn outside the box and
+ * costs no layout.
+ *
+ * currentColor picks up the theme's text colour, so this works in both light and dark without a
+ * second rule — the ring is visible against either ground because it tracks the foreground.
+ */
+.kbd-focused {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+  border-radius: 6px;
+  scroll-margin: 96px; /* keeps the focused card clear of the sticky toolbar when scrolled to */
+}
+</style>

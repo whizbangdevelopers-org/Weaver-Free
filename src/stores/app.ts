@@ -301,8 +301,11 @@ function getDemoPlugins(): PluginManifest[] {
     // minimumTier SOLO, not FREE: MFA is paid-tier only and the Free tier has no MFA option by
     // design. Mirrors the backend plugin registry — the two lists are maintained by hand, so a
     // change here needs the same change there.
-    { id: 'auth-totp', name: 'TOTP (2FA)', description: 'Time-based one-time passwords for two-factor authentication.', category: 'auth', minimumTier: TIERS.SOLO, status: 'coming-soon', targetVersion: 'v1.1.0', fabrickIncluded: true },
-    { id: 'auth-fido2', name: 'FIDO2 / WebAuthn', description: 'Hardware key authentication (YubiKey, passkeys).', category: 'auth', minimumTier: TIERS.SOLO, status: 'coming-soon', targetVersion: 'v1.1.0', fabrickIncluded: true },
+    // auth-totp / auth-fido2: targetVersion is v1.3.0, not v1.1.0 — the auth arc moved to the
+    // release that also carries self-serve purchase. This file MIRRORS backend/src/plugins.ts;
+    // both copies must move together, and the backend copy carries the full reasoning.
+    { id: 'auth-totp', name: 'TOTP (2FA)', description: 'Time-based one-time passwords for two-factor authentication.', category: 'auth', minimumTier: TIERS.SOLO, status: 'coming-soon', targetVersion: 'v1.3.0', fabrickIncluded: true },
+    { id: 'auth-fido2', name: 'FIDO2 / WebAuthn', description: 'Hardware key authentication (YubiKey, passkeys).', category: 'auth', minimumTier: TIERS.SOLO, status: 'coming-soon', targetVersion: 'v1.3.0', fabrickIncluded: true },
     { id: 'auth-sso', name: 'SSO / LDAP', description: 'SAML, OIDC, and LDAP integration for organizational identity.', category: 'auth', minimumTier: TIERS.FABRICK, status: 'coming-soon', targetVersion: 'v1.2.0', fabrickIncluded: true },
     { id: 'backup-disk', name: 'Disk Backup', description: 'Scheduled disk snapshots with configurable retention.', category: 'backup', minimumTier: TIERS.SOLO, status: 'coming-soon', targetVersion: 'v2.0.0', fabrickIncluded: true, replacedByFabrick: true },
     { id: 'backup-fabrick', name: 'Backup FabricK', description: 'Multi-target backup (S3, restic, borg), file-level restore, encryption.', category: 'backup', minimumTier: TIERS.FABRICK, status: 'coming-soon', targetVersion: 'v2.6.0', fabrickIncluded: true },

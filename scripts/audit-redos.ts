@@ -38,7 +38,8 @@
  *
  * Usage: npm run audit:redos
  *
- * See NOTES.md #365 for the capability split between this auditor and CodeQL.
+ * The capability split between this auditor and CodeQL is recorded in the internal
+ * engineering notes.
  */
 
 import { readFileSync, readdirSync, statSync } from 'fs'

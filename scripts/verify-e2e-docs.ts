@@ -9,7 +9,7 @@
  *   2. @feature tag values are drawn from a maintained allowlist so
  *      a typo doesn't silently create a ghost category.
  *   3. @since values match a known version pattern (pre-v1.0 or v\d+.\d+(.\d+)?).
- *   4. docs/E2E-COVERAGE.md is up to date with the spec headers —
+ *   4. the generated coverage catalog under docs/ is up to date with the spec headers —
  *      generated content diffs cleanly against what the generator
  *      would emit today.
  *

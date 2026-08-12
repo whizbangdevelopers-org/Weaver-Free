@@ -117,6 +117,7 @@ import { ref, computed } from 'vue'
 import { api } from 'src/boot/axios'
 import { isDemoMode } from 'src/config/demo-mode'
 import { useAppStore } from 'src/stores/app'
+import { downloadBlob } from 'src/utils/download'
 
 const appStore = useAppStore()
 const appVersion = computed(() =>
@@ -130,12 +131,7 @@ async function downloadPdf(slug: string): Promise<void> {
     const response = await api.get(`/compliance/${slug}/pdf`, {
       responseType: 'blob',
     })
-    const url = URL.createObjectURL(response.data as Blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `weaver-${slug}-v${appVersion.value}.pdf`
-    a.click()
-    URL.revokeObjectURL(url)
+    downloadBlob(response.data as Blob, `weaver-${slug}-v${appVersion.value}.pdf`)
   } catch (err) {
     console.error('PDF download failed:', err)
   } finally {

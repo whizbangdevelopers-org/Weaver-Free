@@ -403,6 +403,92 @@ export function deriveClonedDefinition(
 }
 
 /**
+ * Fields an export carries. An ALLOWLIST, for the same reason the clone one is
+ * (`CLONE_INHERITED_FIELDS` above): a denylist silently exports every field added to
+ * `WorkloadDefinition` afterwards, and an export is a file a user keeps, mails and pastes into an
+ * issue. Failing closed on a new field costs one line here; failing open publishes it.
+ *
+ * Note what is absent and why — this is not the same omission set as clone:
+ *   provisioningState / provisioningError   runtime lifecycle, not configuration. Re-importing
+ *                                           "provisioned" would describe a VM that does not exist
+ *   consolePort                             a live allocation on the exporting host
+ *   containerId                             a runtime handle, meaningless off this host
+ * `macAddress` IS included, unlike in a clone: an export is a record OF this VM, and its address
+ * is part of what the record describes. A clone is a NEW VM, so inheriting one would collide.
+ */
+const EXPORT_FIELDS = [
+  'name',
+  'ip',
+  'mem',
+  'vcpu',
+  'hypervisor',
+  'diskSize',
+  'distro',
+  'guestOs',
+  'vmType',
+  'macAddress',
+  'autostart',
+  'description',
+  'tags',
+  'bridge',
+  'consoleType',
+  'imageUrl',
+  'imageFormat',
+  'cloudInit',
+  'runtime',
+  'image',
+  'ports',
+] as const satisfies readonly (keyof WorkloadDefinition)[]
+
+/**
+ * The exported shape, DERIVED from the allowlist rather than written out again.
+ *
+ * `Pick` preserves each field's own optionality, so `name`/`ip`/`mem`/`vcpu`/`hypervisor` stay
+ * required and the rest stay optional. The first cut returned `Partial<WorkloadDefinition>`,
+ * which typechecks in isolation and is wrong: it makes the five always-present fields look
+ * optional, and Fastify then rejects the handler because its response schema requires them.
+ * Deriving also means adding a field to EXPORT_FIELDS updates this type for free — a second
+ * hand-written interface here would be a copy that drifts.
+ */
+export type ExportedWorkload = Pick<WorkloadDefinition, (typeof EXPORT_FIELDS)[number]>
+
+/** One workload's exportable configuration. Pure; never mutates the source. */
+export function toExportedDefinition(source: WorkloadDefinition): ExportedWorkload {
+  const out: Record<string, unknown> = {}
+  for (const key of EXPORT_FIELDS) {
+    const value = source[key]
+    if (value === undefined) continue // omit the key rather than writing undefined
+    // sast-ignore[prototype-pollution]: `key` iterates EXPORT_FIELDS, a module-level `as const`
+    // tuple constrained to keyof WorkloadDefinition. Never caller-supplied, so it cannot be
+    // __proto__/constructor; the compile-time key set is the guard, not a runtime check.
+    out[key] = Array.isArray(value) ? [...value] : value
+  }
+  // The cast is the one place the compile-time guarantee has to be restated: the loop builds a
+  // Record<string, unknown>, but EXPORT_FIELDS is `satisfies readonly (keyof WorkloadDefinition)[]`
+  // and every non-optional field it names is non-optional on the source, so the five required
+  // fields are always written. Asserted directly by the "carries every configuration field" test,
+  // which compares a route response against this function's own output.
+  return out as ExportedWorkload
+}
+
+/**
+ * The full export document.
+ *
+ * `exportedAt` is supplied by the caller rather than read from the clock in here, so the function
+ * stays pure and a test can assert the whole document instead of everything-except-one-field.
+ */
+export function buildExportDocument(
+  definitions: WorkloadDefinition[],
+  exportedAt: string,
+): { version: string; exportedAt: string; workloads: ExportedWorkload[] } {
+  return {
+    version: '1.0',
+    exportedAt,
+    workloads: definitions.map(toExportedDefinition),
+  }
+}
+
+/**
  * Fetch logs for a container workload. Returns null when there are none to serve.
  *
  * Lives HERE rather than in the route because in this codebase routes do not touch the system —
@@ -1048,8 +1134,8 @@ export async function scanApptainerInstances(): Promise<ScanResult> {
         // field is left absent rather than set to a placeholder like '' or 'host'. Absence is the
         // honest answer; isWeaverOwnedNetwork() reads it as not-violating, deliberately, because
         // whether "no network" is a violation or a trivial conformance is an open product
-        // question (WORKLOAD-NETWORK-OWNERSHIP.md §5.2) that phase B must decide. Writing a
-        // placeholder here would answer it by accident.
+        // question that a later phase must decide. Writing a placeholder here would answer it
+        // by accident.
       })
       added.push(instance.name)
     }

@@ -84,4 +84,44 @@ export interface WorkloadActionResult {
   provisioningState?: string
 }
 
+/**
+ * One workload's exportable configuration.
+ *
+ * Deliberately NOT `Partial<WorkloadInfo>`: an export carries configuration only, so the runtime
+ * fields (`status`, `uptime`, `provisioningState`, `containerId`, `tapInterface`, `consolePort`)
+ * are absent by design. Typing it as a partial of the runtime shape would make those fields look
+ * merely optional rather than excluded, and the next person to write an importer would reach for
+ * one and find it always undefined.
+ */
+export interface ExportedWorkload {
+  name: string
+  ip: string
+  mem: number
+  vcpu: number
+  hypervisor: string
+  diskSize?: number
+  distro?: string
+  guestOs?: GuestOs
+  vmType?: string
+  macAddress?: string
+  autostart?: boolean
+  description?: string
+  tags?: string[]
+  bridge?: string
+  consoleType?: 'serial' | 'vnc'
+  imageUrl?: string
+  imageFormat?: ImageFormat
+  cloudInit?: boolean
+  runtime?: 'microvm' | 'docker' | 'podman' | 'apptainer'
+  image?: string
+  ports?: string[]
+}
+
+/** The export file's envelope. `version` is what a future importer branches on. */
+export interface ExportDocument {
+  version: string
+  exportedAt: string
+  workloads: ExportedWorkload[]
+}
+
 export type WorkloadAction = 'start' | 'stop' | 'restart'

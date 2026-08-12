@@ -3,7 +3,7 @@
 import { FastifyPluginAsync } from 'fastify'
 import { ZodTypeProvider } from 'fastify-type-provider-zod'
 import { z } from 'zod'
-import { listVms, getVm, startVm, stopVm, restartVm, createVm, deleteVm, getWorkloadDefinitions, updateVmField, scanMicrovms, scanContainers, isContainerLogSource, getContainerLogs } from '../services/microvm.js'
+import { listVms, getVm, startVm, stopVm, restartVm, createVm, deleteVm, getWorkloadDefinitions, updateVmField, scanMicrovms, scanContainers, isContainerLogSource, getContainerLogs, cloneRejectionReason, deriveClonedDefinition, buildExportDocument } from '../services/microvm.js'
 import { requireRole } from '../middleware/rbac.js'
 import { requireTier } from '../license.js'
 import { TIERS, TIER_ORDER, ROLES, STATUSES, PROVISIONING } from '../constants/vocabularies.js'
@@ -20,6 +20,65 @@ import { createRateLimit } from '../middleware/rate-limit.js'
 
 const vmNameSchema = z.object({
   name: z.string().regex(/^[a-z][a-z0-9-]*$/, 'Invalid VM name format')
+})
+
+/**
+ * The export document's response schema.
+ *
+ * Every exportable field must be listed. Fastify validates the response and Zod strips unknown
+ * keys, so an omission here silently drops the field between the service and the file the user
+ * downloads — the same silent-shape failure `vmInfoResponseSchema` carries a note about, except
+ * that here the loss lands in a file someone keeps and later re-imports.
+ */
+const exportedWorkloadSchema = z.object({
+  name: z.string(),
+  ip: z.string(),
+  mem: z.number(),
+  vcpu: z.number(),
+  hypervisor: z.string(),
+  diskSize: z.number().optional(),
+  distro: z.string().optional(),
+  guestOs: z.enum(['linux', 'windows']).optional(),
+  vmType: z.string().optional(),
+  macAddress: z.string().optional(),
+  autostart: z.boolean().optional(),
+  description: z.string().optional(),
+  tags: z.array(z.string()).optional(),
+  bridge: z.string().optional(),
+  consoleType: z.enum(['serial', 'vnc']).optional(),
+  imageUrl: z.string().optional(),
+  imageFormat: z.enum(['qcow2', 'raw', 'iso']).optional(),
+  cloudInit: z.boolean().optional(),
+  runtime: z.enum(['microvm', 'docker', 'podman', 'apptainer']).optional(),
+  image: z.string().optional(),
+  ports: z.array(z.string()).optional(),
+})
+
+const exportDocumentSchema = z.object({
+  version: z.string(),
+  exportedAt: z.string(),
+  workloads: z.array(exportedWorkloadSchema),
+})
+
+/** Filename stamp: date only, so an export downloaded twice in a day overwrites rather than piles up. */
+const exportStamp = () => new Date().toISOString().slice(0, 10)
+
+/**
+ * Clone request body.
+ *
+ * `name` is a plain string here, NOT regex-constrained, even though the source-name param above is.
+ * That is deliberate: `cloneRejectionReason` owns name validity for a clone and returns a sentence
+ * a user can act on ("Name must start with a lowercase letter…"). A schema regex would reject
+ * first, with Fastify's generic validation error, and the seam's message would be unreachable — so
+ * the rule would exist in two places and the better of the two would never be seen.
+ *
+ * `ip` is optional: omitted means "allocate one from the bridge pool".
+ */
+const vmCloneSchema = z.object({
+  name: z.string().min(1).max(64),
+  ip: z.string().ip({ version: 'v4' }).optional(),
+  tags: z.array(z.string()).optional(),
+  description: z.string().max(500).optional(),
 })
 
 // Response schemas for fast-json-stringify serialization
@@ -127,6 +186,20 @@ const vmCreateSchema = z.object({
   }
 })
 
+/**
+ * The address allocator, as a STRUCTURAL type rather than an import.
+ *
+ * The implementation is `services/weaver/network-manager.ts`, which is BSL and sync-excluded from
+ * the Free mirror — this file is not. A static import would make `workloads.ts` unresolvable on a
+ * Free build, which is the failure mode `index.ts` already works around with a guarded dynamic
+ * import. Describing the two methods we call keeps the type checking honest without binding the
+ * module.
+ */
+interface IpAllocator {
+  reserveIp(bridge: string): Promise<string | null>
+  releaseIp(bridge: string, ip: string): Promise<void>
+}
+
 interface VmsRouteOptions {
   provisioner?: Provisioner | null
   imageManager?: ImageManager | null
@@ -134,11 +207,12 @@ interface VmsRouteOptions {
   auditService?: AuditService
   quotaStore?: QuotaStore
   aclStore?: VmAclStore
+  networkManager?: IpAllocator | null
 }
 
 export const workloadsRoutes: FastifyPluginAsync<VmsRouteOptions> = async (fastify, opts) => {
   const app = fastify.withTypeProvider<ZodTypeProvider>()
-  const { provisioner, imageManager, config, auditService, quotaStore, aclStore } = opts
+  const { provisioner, imageManager, config, auditService, quotaStore, aclStore, networkManager } = opts
 
   // Per-VM ACL check middleware (fabrick only, admin bypass)
   const aclCheck = (aclStore && config) ? createVmAclCheck(aclStore, config) : undefined
@@ -355,6 +429,198 @@ export const workloadsRoutes: FastifyPluginAsync<VmsRouteOptions> = async (fasti
           fastify.log.error({ err, vmName: request.body.name }, 'Provisioning failed')
         })
         return reply.status(202).send({ ...result, provisioningState: 'provisioning' })
+      }
+
+      return reply.status(201).send(result)
+    }
+  )
+
+  // GET /api/workload/export — export every workload's configuration (all roles, Free tier)
+  //
+  // ROUTE ORDERING IS LOAD-BEARING HERE. `export` satisfies the `:name` pattern
+  // (^[a-z][a-z0-9-]*$) exactly, so this path is also a legal single-workload GET. Fastify's
+  // radix router prefers a static segment over a parametric one, so this wins — but that is a
+  // property of the router, not of this file, and it is the kind of thing that changes under a
+  // major upgrade without anyone noticing. `export-routing.spec.ts` asserts it directly: a
+  // workload literally named "export" must not shadow this endpoint.
+  //
+  // Free tier deliberately: the docs have advertised these two endpoints with curl examples since
+  // v1.0, and self-hosters who script everything try them first. Gating them now would make the
+  // published documentation wrong in the other direction.
+  app.get(
+    '/export',
+    {
+      schema: { response: { 200: exportDocumentSchema } },
+      preHandler: [requireRole(ROLES.ADMIN, ROLES.OPERATOR, ROLES.VIEWER)],
+      config: { rateLimit: createRateLimit(10) },
+    },
+    async (request, reply) => {
+      let visible = Object.values(await getWorkloadDefinitions())
+      // Same ACL filtering the list route applies, via the same helper — an export must not
+      // become the way to read workloads the UI hides. Reusing `filterVms` rather than
+      // re-deriving the predicate is the point: a second implementation of "which workloads may
+      // this user see" is a second place for it to be wrong.
+      if (config?.tier === TIERS.FABRICK && aclStore && request.userId && request.userRole !== ROLES.ADMIN) {
+        visible = aclStore.filterVms(request.userId, visible)
+      }
+
+      reply.header('Content-Disposition', `attachment; filename="weaver-export-${exportStamp()}.json"`)
+      return buildExportDocument(visible, new Date().toISOString())
+    }
+  )
+
+  // GET /api/workload/:name/export — export a single workload's configuration
+  app.get(
+    '/:name/export',
+    {
+      schema: { params: vmNameSchema, response: { 200: exportDocumentSchema, 404: errorResponseSchema } },
+      preHandler: [requireRole(ROLES.ADMIN, ROLES.OPERATOR, ROLES.VIEWER), ...aclPreHandler],
+      config: { rateLimit: createRateLimit(10) },
+    },
+    async (request, reply) => {
+      const { name } = request.params
+      const definition = (await getWorkloadDefinitions())[name]
+      if (!definition) {
+        return reply.status(404).send({ error: `Workload '${name}' not found` })
+      }
+      reply.header('Content-Disposition', `attachment; filename="weaver-${name}-${exportStamp()}.json"`)
+      return buildExportDocument([definition], new Date().toISOString())
+    }
+  )
+
+  // POST /api/workload/:name/clone — clone a VM definition (operator+, Solo tier)
+  //
+  // Clones the DEFINITION and provisions a fresh instance; it does NOT copy disk state. That is
+  // deliberate, and it follows from the declarative model: the config is the source of truth and
+  // the disk is derived from it, so reproducing the config reproduces the VM. A user who wants a
+  // disk-level copy uses the hypervisor's own tooling. The UI must say this plainly, or "Clone"
+  // is read as a full disk clone and an empty disk comes as a surprise.
+  app.post(
+    '/:name/clone',
+    {
+      schema: {
+        params: vmNameSchema,
+        body: vmCloneSchema,
+        response: {
+          201: vmActionResponseSchema,
+          202: vmActionResponseSchema,
+          400: errorResponseSchema,
+          403: errorResponseSchema,
+          404: errorResponseSchema,
+          409: errorResponseSchema,
+          500: errorResponseSchema,
+        },
+      },
+      preHandler: [requireRole(ROLES.ADMIN, ROLES.OPERATOR), ...aclPreHandler],
+      // Matches the sibling create route. A clone is the same weight as a create — it provisions
+      // a VM — so it gets the same budget rather than an invented one.
+      config: { rateLimit: createRateLimit(30) },
+    },
+    async (request, reply) => {
+      const { name } = request.params
+      const body = request.body
+
+      // Tier gate FIRST, and before any allocation. Cloning creates a VM, so it is Live
+      // Provisioning and requires Solo. Ordering matters beyond tidiness: an address reserved
+      // before a 403 has no failure path to release it and leaks silently.
+      if (config) {
+        try {
+          requireTier(config, TIERS.SOLO)
+        } catch {
+          return reply.status(403).send({ error: 'VM cloning requires weaver tier' })
+        }
+      }
+
+      const definitions = await getWorkloadDefinitions()
+      const source = definitions[name] ?? null
+      const existingNames = Object.keys(definitions)
+      const info = source ? await getVm(name) : null
+
+      // The seam decides WHETHER; the route decides which status code. Both read the same two
+      // facts, so neither restates the other's policy and neither matches on the reason string.
+      const reason = cloneRejectionReason({
+        source,
+        targetName: body.name,
+        existingNames,
+        status: info?.status ?? STATUSES.UNKNOWN,
+      })
+      if (reason) {
+        const status = !source ? 404 : existingNames.includes(body.name) ? 409 : 400
+        return reply.status(status).send({ error: reason })
+      }
+
+      const bridge = source!.bridge ?? config?.bridgeInterface ?? 'br-microvm'
+
+      // Address: explicit wins, otherwise reserve one. Only the reserved branch owes a release.
+      let ip: string
+      let reservedIp: string | null = null
+      if (body.ip) {
+        if (!config?.bridgeGateway) {
+          return reply.status(400).send({ error: 'Bridge network not configured. Set BRIDGE_GATEWAY in the server environment.' })
+        }
+        const gwSubnet = config.bridgeGateway.split('.').slice(0, 3).join('.')
+        if (body.ip.split('.').slice(0, 3).join('.') !== gwSubnet) {
+          return reply.status(400).send({ error: `IP must be in the bridge subnet (${gwSubnet}.x)` })
+        }
+        if (body.ip === config.bridgeGateway) {
+          return reply.status(400).send({ error: `IP address '${body.ip}' is the bridge gateway (host) address` })
+        }
+        const duplicate = Object.values(definitions).find(vm => vm.ip === body.ip)
+        if (duplicate) {
+          return reply.status(409).send({ error: `IP address '${body.ip}' is already in use by VM '${duplicate.name}'` })
+        }
+        ip = body.ip
+      } else {
+        if (!networkManager) {
+          return reply.status(400).send({ error: 'Automatic IP assignment is unavailable — specify an IP address' })
+        }
+        const allocated = await networkManager.reserveIp(bridge)
+        if (!allocated) {
+          return reply.status(400).send({ error: `No free addresses in the pool for bridge '${bridge}' — specify an IP address` })
+        }
+        ip = allocated
+        reservedIp = allocated
+      }
+
+      // From here on every exit that is not a success must return the address. releaseIp is
+      // idempotent by design, so the rollback can run without first proving the reservation.
+      const releaseOnFailure = async () => {
+        if (reservedIp) await networkManager!.releaseIp(bridge, reservedIp)
+      }
+
+      const cloned = deriveClonedDefinition(source!, body.name, ip)
+      if (body.tags !== undefined) cloned.tags = body.tags
+      if (body.description !== undefined) cloned.description = body.description
+
+      let result: { success: boolean; message: string }
+      try {
+        result = await createVm(cloned)
+      } catch (err) {
+        await releaseOnFailure()
+        // Sanitized: a registry error can carry the data directory path.
+        fastify.log.error({ err, vmName: body.name, source: name }, 'Clone registration failed')
+        return reply.status(500).send({ error: `Failed to register clone '${body.name}'` })
+      }
+      if (!result.success) {
+        await releaseOnFailure()
+        return reply.status(409).send({ error: result.message })
+      }
+
+      await auditService?.log({
+        userId: request.userId ?? null,
+        username: request.username ?? 'unknown',
+        action: 'vm.clone',
+        resource: body.name,
+        details: { source: name, ip, mem: cloned.mem, vcpu: cloned.vcpu, hypervisor: cloned.hypervisor },
+        ip: request.ip,
+        success: true,
+      })
+
+      if (provisioner && config?.provisioningEnabled) {
+        provisioner.provision(body.name).catch(err => {
+          fastify.log.error({ err, vmName: body.name }, 'Clone provisioning failed')
+        })
+        return reply.status(202).send({ ...result, provisioningState: PROVISIONING.PROVISIONING })
       }
 
       return reply.status(201).send(result)

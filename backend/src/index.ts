@@ -415,7 +415,13 @@ fastify.addHook('onResponse', async (request, reply) => {
 // Register routes (auth routes are public, other routes protected by middleware)
 await fastify.register(authRoutes, { prefix: '/api/auth', authService, auditService, onFirstAdmin: triggerExampleVm })
 await fastify.register(healthRoutes, { prefix: '/api/health', config, hostInfoService, organizationStore })
-await fastify.register(workloadsRoutes, { prefix: '/api/workload', provisioner, imageManager, config, auditService, quotaStore, aclStore: vmAclStore })
+// networkManager is the IP allocator the clone route uses when the caller omits an address. It is
+// null on a Free build (services/weaver is sync-excluded) — the route degrades to requiring an
+// explicit IP rather than failing, and clone is Solo-gated anyway so the null path is unreachable
+// in practice. Cast for the same reason as the ws registration below: the dynamic import above
+// types it `unknown`.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- networkManager typed as unknown from dynamic import
+await fastify.register(workloadsRoutes, { prefix: '/api/workload', provisioner, imageManager, config, auditService, quotaStore, aclStore: vmAclStore, networkManager: networkManager as any })
 await fastify.register(agentRoutes, { prefix: '/api/workload', config, auditService, aclStore: vmAclStore })
 const distroTester = provisioner ? new DistroTester(vmRegistry, provisioner, config) : undefined
 await fastify.register(distroRoutes, { prefix: '/api/distros', distroStore, catalogStore, imageManager, urlValidator, config, auditService, distroTester })

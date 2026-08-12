@@ -417,6 +417,27 @@
         </q-expansion-item>
       </q-card>
 
+      <!-- Configuration Export — Free tier, every role. The docs have advertised the two curl
+           endpoints since v1.0, so this surfaces the same thing for people who do not script. -->
+      <q-card flat bordered>
+        <q-expansion-item icon="mdi-download" label="Configuration Export" caption="Download every workload's configuration as JSON" header-class="text-h6">
+          <q-card-section>
+            <div class="text-body2 text-grey-8 q-mb-md">
+              Exports the configuration of every workload — name, address, resources, distro, tags
+              and description. Runtime state is not included, and neither is any credential.
+            </div>
+            <q-btn
+              color="primary"
+              label="Export All Workloads"
+              icon="mdi-download"
+              :loading="exportingAll"
+              data-testid="export-all-btn"
+              @click="handleExportAll"
+            />
+          </q-card-section>
+        </q-expansion-item>
+      </q-card>
+
       <!-- Tag Management (admin only) -->
       <TagManagement v-if="authStore.isAdmin" />
 
@@ -468,6 +489,8 @@ import TagManagement from 'src/components/settings/TagManagement.vue'
 import HostConfigViewer from 'src/components/settings/HostConfigViewer.vue'
 import DemoVersionFeatures from 'src/components/demo/DemoVersionFeatures.vue'
 import { extractErrorMessage } from 'src/utils/error'
+import { downloadText, dateStamp } from 'src/utils/download'
+import { useWorkloadApi } from 'src/composables/useVmApi'
 import { TIERS, STATUSES } from 'src/constants/vocabularies'
 import { PRICING, FM_SLOTS } from 'src/constants/pricing'
 
@@ -477,6 +500,26 @@ const appStore = useAppStore()
 const authStore = useAuthStore()
 const workloadStore = useWorkloadStore()
 const { detailed: hostDetailed, fetchDetailed, loading: hostDetailLoading } = useHostInfo()
+
+const { exportAllVms } = useWorkloadApi()
+const exportingAll = ref(false)
+
+async function handleExportAll() {
+  exportingAll.value = true
+  try {
+    const result = await exportAllVms()
+    if (!result.success || !result.data) {
+      $q.notify({ type: 'negative', message: result.message || 'Export failed', position: 'top-right', timeout: 5000 })
+      return
+    }
+    // Same filename the backend puts in Content-Disposition, so a UI download and a `curl -OJ`
+    // produce one convention rather than two names for the same artifact.
+    downloadText(result.data, `weaver-export-${dateStamp()}.json`)
+    $q.notify({ type: 'positive', message: 'Configuration exported', position: 'top-right', timeout: 3000 })
+  } finally {
+    exportingAll.value = false
+  }
+}
 
 async function loadHostDetails() {
   await fetchDetailed()

@@ -60,12 +60,17 @@ export const useWorkloadStore = defineStore('vm', {
       const query = uiStore.searchQuery.toLowerCase().trim()
       const statusFilter = uiStore.filterStatus
       const tagFilter = uiStore.filterTags
+      const hypervisorFilter = uiStore.filterHypervisors
 
       return sorted.filter((w) => {
         // Search filter: name substring match
         if (query && !w.name.toLowerCase().includes(query)) return false
         // Status filter: workload must match at least one selected status
         if (statusFilter.length > 0 && !statusFilter.includes(w.status)) return false
+        // Hypervisor filter: OR logic — selecting qemu AND crosvm means "either", because a
+        // workload has exactly one hypervisor and AND logic would always yield zero. Tags below
+        // use AND for the opposite reason: a workload can carry several.
+        if (hypervisorFilter.length > 0 && !hypervisorFilter.includes(w.hypervisor)) return false
         // Tag filter: workload must have ALL selected tags (AND logic)
         if (tagFilter.length > 0) {
           const wTags = w.tags ?? []
@@ -73,6 +78,21 @@ export const useWorkloadStore = defineStore('vm', {
         }
         return true
       })
+    },
+
+    /**
+     * Hypervisors actually present, for the filter menu.
+     *
+     * Derived from the workloads rather than listed from the schema enum, the same way `allTags`
+     * is. A host running only QEMU should not be offered a Firecracker option that can only ever
+     * filter to nothing — an option that always yields zero results reads as a broken filter.
+     */
+    allHypervisors(state): string[] {
+      const set = new Set<string>()
+      for (const w of state.workloads) {
+        if (w.hypervisor) set.add(w.hypervisor)
+      }
+      return [...set].sort()
     },
 
     allTags(state): string[] {
@@ -88,7 +108,10 @@ export const useWorkloadStore = defineStore('vm', {
 
     hasActiveFilters(): boolean {
       const uiStore = useUiStore()
-      return uiStore.searchQuery !== '' || uiStore.filterTags.length > 0 || uiStore.filterStatus.length > 0
+      return uiStore.searchQuery !== ''
+        || uiStore.filterTags.length > 0
+        || uiStore.filterStatus.length > 0
+        || uiStore.filterHypervisors.length > 0
     },
   },
 

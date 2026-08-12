@@ -2,7 +2,7 @@
 // Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE.
 import { api } from 'src/boot/axios'
 import type { AxiosRequestConfig } from 'axios'
-import type { WorkloadInfo, WorkloadActionResult, VmCreateInput } from 'src/types/workload'
+import type { WorkloadInfo, WorkloadActionResult, VmCreateInput, ExportDocument } from 'src/types/workload'
 import type { NetworkTopology, BridgeInfo, IpPoolConfig, FirewallRule } from 'src/types/network'
 import type { NotificationEvent, NotificationChannelConfigData, ChannelConfig, ResourceAlertConfig } from 'src/types/notification'
 import { isDemoMode } from 'src/config/demo-mode'
@@ -100,8 +100,33 @@ export class VmApiService extends ApiService {
     return this.delete<WorkloadActionResult>(`/${name}`)
   }
 
+  /**
+   * Clone a VM definition. `ip` omitted means "allocate from the bridge pool" — send the key only
+   * when the caller supplied one, because an explicit `undefined` would serialize as a present
+   * field and the backend distinguishes absent from empty.
+   */
+  async clone(
+    sourceName: string,
+    input: { name: string; ip?: string; tags?: string[]; description?: string },
+  ): Promise<WorkloadActionResult> {
+    return this.post<WorkloadActionResult>(`/${sourceName}/clone`, input)
+  }
+
   async getLogs(name: string): Promise<{ name: string; log: string }> {
     return this.get<{ name: string; log: string }>(`/${name}/logs`)
+  }
+
+  /**
+   * Export configuration — all workloads, or one.
+   *
+   * Goes through the shared client rather than bare `fetch`, which is what these two calls used
+   * before the endpoints existed. `fetch` does carry the httpOnly auth cookie (same-origin), so
+   * it looks equivalent — but it bypasses the response interceptor, and with it the 401 →
+   * refresh → retry path. The visible symptom would be an export that fails only for users whose
+   * access token happened to have expired, which is close to the worst possible bug shape.
+   */
+  async export(name?: string): Promise<ExportDocument> {
+    return this.get<ExportDocument>(name ? `/${name}/export` : '/export')
   }
 }
 

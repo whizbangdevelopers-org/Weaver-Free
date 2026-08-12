@@ -82,8 +82,8 @@ import MarkdownIt from 'markdown-it'
 // Lazy glob — each doc is a separate chunk loaded on demand.
 // eager: true was the root cause of the 650 KB DocsPage chunk: all docs were
 // bundled regardless of which page the user visited.
-// Deliberately specific patterns — docs/**/*.md would pull in dev-only files
-// (LESSONS-LEARNED, KNOWN-GOTCHAS, DEVELOPER-GUIDE) that are not served in the app.
+// Deliberately specific patterns — a docs/**/*.md glob would pull in internal
+// engineering notes and guides that are not served in the app.
 const docLoaders = import.meta.glob<string>(
   [
     '../../docs/ADMIN-GUIDE.md',

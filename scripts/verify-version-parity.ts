@@ -6,8 +6,8 @@
  * The product's version appears in four files that must agree, and until 2026-08-09 nothing
  * checked that they did. `tui/package.json` had drifted to 1.0.3 against 1.0.5 everywhere else,
  * so a user could install Weaver 1.0.5 and get a TUI stamped two patches behind. The TUI ships —
- * only `tui/src/__tests__/` is sync-excluded — and MASTER-PLAN calls it "a first-class client,
- * not a convenience tool".
+ * only `tui/src/__tests__/` is sync-excluded — and the product plan calls it "a first-class
+ * client, not a convenience tool".
  *
  * `version-drift-check.yml` sounds like it covers this and does not: it watches *dependency*
  * majors against what Quasar accepts. Nothing read these four files together.

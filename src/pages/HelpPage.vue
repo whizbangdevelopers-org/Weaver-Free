@@ -327,13 +327,14 @@ const helpSections = computed<HelpSection[]>(() => [
       {
         question: 'Are there keyboard shortcuts?',
         answer:
-          'Yes. Global keyboard shortcuts let you navigate quickly without clicking. Shortcuts are ignored when focus is in a text input, textarea, or dropdown.',
+          'Yes — press ? anywhere in Weaver to see them all without leaving the page. Shortcuts are ignored while you are typing in a text input, textarea or dropdown; Esc is the exception, because it is how you leave the search box. Note that ? now opens the shortcut overlay rather than this Help page (changed in v1.1); the overlay has a Full Help button back here.',
         steps: [
-          '? — Open this Help page',
-          'd — Go to Weaver',
-          's — Go to Settings',
-          't — Go to Strands',
-          'n — Create a new VM',
+          'Global: ? overlay · d Weaver · s Settings · t Strands · n new workload · Esc close/clear',
+          'Workload list: / focus search · j next workload · k previous workload · Enter open the focused one',
+          'Focused workload: Shift+S start · Shift+X stop · Shift+R restart',
+          'The focused workload is outlined. j from nothing selects the first, k selects the last, and neither wraps.',
+          'Focus follows the workload by name, not by position — the list re-sorts as statuses change, and your focus moves with the workload rather than staying on a slot.',
+          'If the focused workload leaves the list (filtered away or deleted), focus clears rather than landing on whatever replaced it.',
         ],
       },
       {
@@ -487,12 +488,29 @@ const helpSections = computed<HelpSection[]>(() => [
       {
         question: 'How do I export my VM configurations?',
         answer:
-          'Weaver provides a free-tier API for exporting workload configurations as JSON. This is useful for version-controlling your VM definitions, migrating between hosts, or keeping an offline record of your setup.',
+          'Export is free tier and available to every role — from the interface or the API. It is useful for version-controlling your VM definitions, moving them between hosts, or keeping an offline record of your setup.',
         steps: [
-          'Export all workloads: curl -s -H "Authorization: Bearer $TOKEN" http://localhost:3100/api/workload/export | jq .',
+          'In the interface: Settings > Configuration Export > Export All Workloads downloads every workload as JSON.',
+          'For one workload: use the Export button on its detail page, or in its detail panel.',
+          'Export all via API: curl -s -H "Authorization: Bearer $TOKEN" http://localhost:3100/api/workload/export | jq .',
           'Export a single VM: curl -s -H "Authorization: Bearer $TOKEN" http://localhost:3100/api/workload/web-nginx/export | jq .',
-          'The export includes name, IP, memory, vCPUs, hypervisor, distribution, tags, and bridge configuration — everything needed to recreate the VM.',
-          'Save the output to a file (e.g. my-vms.json) to keep a portable backup of your configurations.',
+          'Save straight to a file with the server-supplied name: curl -OJ -H "Authorization: Bearer $TOKEN" http://localhost:3100/api/workload/export',
+          'The export carries name, IP, memory, vCPUs, hypervisor, distribution, disk size, guest OS, MAC address, tags, description, bridge and image settings.',
+          'It contains configuration only — never runtime state and never a credential. Provisioning status, uptime and host-allocated ports are excluded, because they describe this host at this moment.',
+        ],
+      },
+      {
+        question: 'What does cloning a workload actually copy?',
+        answer:
+          'Clone copies the CONFIGURATION and provisions a fresh instance from the same distribution. It does not copy disk contents. This follows the declarative model: the configuration is the source of truth and the disk is built from it, so reproducing the configuration reproduces the machine.',
+        steps: [
+          'Open a stopped workload and choose Clone, then give the new workload a name.',
+          'An IP address is assigned automatically from the bridge pool. You can supply one explicitly via the API if you need a specific address.',
+          'The clone starts stopped and never inherits autostart — a clone that boots on its own is a reboot behaviour nobody chose.',
+          'It gets its own MAC address and network interface. Reusing those would collide with the source on the bridge and in the kernel.',
+          'A running workload cannot be cloned — stop it first. Copying a disk that is being written to produces corruption, so Weaver refuses rather than attempting it.',
+          'Containers cannot be cloned: they are reproduced from their image, which is what the image is for.',
+          'If you need a byte-for-byte disk copy, use your hypervisor tooling directly.',
         ],
       },
       {
