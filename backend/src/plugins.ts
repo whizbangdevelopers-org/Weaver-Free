@@ -113,15 +113,18 @@ registerPlugin({
   fabrickIncluded: true,
 })
 
-// DNS — first purchasable plugin (v1.1.0)
+// DNS (v1.1.0). NOT purchasable: the à-la-carte extension model was retired, so every entry
+// below is reached by TIER alone and requirePlugin() derives access from the tier key.
 registerPlugin({
   id: 'dns-core',
   name: 'DNS Management',
   description: 'Auto-zone .vm.internal, dnsmasq integration, per-VM DNS records.',
   category: 'dns',
   minimumTier: TIERS.SOLO,
-  status: 'coming-soon',
-  targetVersion: 'v1.1.0',
+  // Active as of v1.1.0: the zone generator and writer ship, and GET /api/dns/zone serves them.
+  // The host resolver unit itself arrives with the NixOS module, so the zone file is generated
+  // and correct while nothing yet reloads dnsmasq from it.
+  status: 'active',
   fabrickIncluded: true,
 })
 
