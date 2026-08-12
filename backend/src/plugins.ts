@@ -141,7 +141,7 @@ registerPlugin({
 
 registerPlugin({
   id: 'dns-fabrick',
-  name: 'DNS Fabrick',
+  name: 'DNS FabricK',
   description: 'Split-horizon DNS, Active Directory integration, audit trail.',
   category: 'dns',
   minimumTier: TIERS.FABRICK,
@@ -175,7 +175,7 @@ registerPlugin({
 
 registerPlugin({
   id: 'firewall-fabrick',
-  name: 'Firewall Fabrick',
+  name: 'Firewall FabricK',
   description: 'Security zones, drift detection, firewall audit log.',
   category: 'firewall',
   minimumTier: TIERS.FABRICK,
@@ -266,7 +266,7 @@ registerPlugin({
 
 registerPlugin({
   id: 'backup-fabrick',
-  name: 'Backup Fabrick',
+  name: 'Backup FabricK',
   description: 'Multi-target backup (S3, restic, borg), file-level restore, encryption.',
   category: 'backup',
   minimumTier: TIERS.FABRICK,

@@ -284,13 +284,29 @@ export const useAppStore = defineStore('app', {
   }
 })
 
-/** Plugin manifests for demo mode (mirrors backend/src/plugins.ts registry) */
+/**
+ * Plugin manifests for DEMO MODE ONLY.
+ *
+ * Not a second product registry. The product's list lives in `backend/src/plugins.ts` and reaches
+ * the client through `GET /api/health`; the store branches on `isDemoMode()` and only ever reads
+ * this array in the demo. Describing the two as "mirrored registries" is a category error — one
+ * is a served source of truth, the other is content — and it is how `dns-core` came to be `active`
+ * in the product and `coming-soon` here in the same change.
+ *
+ * They must still AGREE, for the opposite reason: the demo exists to show what the product does,
+ * so a divergence is the demo misrepresenting the product. Verified by `audit:demo-plugin-parity`.
+ */
 function getDemoPlugins(): PluginManifest[] {
   return [
     { id: 'ai-anthropic', name: 'Anthropic (Claude)', description: 'AI diagnostics powered by Claude. BYOK available on all tiers.', category: 'ai', minimumTier: TIERS.FREE, status: 'active', fabrickIncluded: true },
     { id: 'ai-openai', name: 'OpenAI', description: 'AI diagnostics powered by GPT models with profile switching.', category: 'ai', minimumTier: TIERS.SOLO, status: 'coming-soon', targetVersion: 'v1.2.0', fabrickIncluded: true },
     { id: 'ai-ollama', name: 'Ollama (Local)', description: 'Run AI diagnostics locally with Ollama. Zero data leaves your network.', category: 'ai', minimumTier: TIERS.SOLO, status: 'coming-soon', targetVersion: 'v1.2.0', fabrickIncluded: true },
-    { id: 'dns-core', name: 'DNS Management', description: 'Auto-zone .vm.internal, dnsmasq integration, per-VM DNS records.', category: 'dns', minimumTier: TIERS.SOLO, status: 'coming-soon', targetVersion: 'v1.1.0', fabrickIncluded: true, replacedByFabrick: true },
+    // dns-core is ACTIVE as of v1.1.0 and carries no targetVersion, matching the product
+    // registry. This list is DEMO CONTENT, not a second copy of that registry: on a real backend
+    // the plugin list arrives from GET /api/health, and this array is only ever read under
+    // isDemoMode(). It still has to agree with the product, because a demo that shows a feature
+    // as coming-soon while the product ships it is the demo lying about the product.
+    { id: 'dns-core', name: 'DNS Management', description: 'Auto-zone .vm.internal, dnsmasq integration, per-VM DNS records.', category: 'dns', minimumTier: TIERS.SOLO, status: 'active', fabrickIncluded: true, replacedByFabrick: true },
     { id: 'dns-resolver', name: 'DNS Resolver', description: 'CoreDNS resolver VM with security filtering and query logging.', category: 'dns', minimumTier: TIERS.SOLO, status: 'coming-soon', targetVersion: 'v1.1.0', fabrickIncluded: true, replacedByFabrick: true },
     { id: 'dns-fabrick', name: 'DNS FabricK', description: 'Split-horizon DNS, Active Directory integration, audit trail.', category: 'dns', minimumTier: TIERS.FABRICK, status: 'coming-soon', targetVersion: 'v1.1.0', fabrickIncluded: true },
     { id: 'firewall-presets', name: 'Firewall Presets', description: 'One-click nftables firewall profiles for common VM workloads.', category: 'firewall', minimumTier: TIERS.SOLO, status: 'coming-soon', targetVersion: 'v1.2.0', fabrickIncluded: true, replacedByFabrick: true },
