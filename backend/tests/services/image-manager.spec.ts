@@ -430,6 +430,90 @@ describe('ImageManager', () => {
       expect(argsStr).not.toContain('if=ide')
       expect(argsStr).not.toContain('e1000')
     })
+
+    it('should emit no pflash pair when no firmware plan is supplied', () => {
+      const result = mgr.generateQemuArgs(makeVm(), {
+        diskPath: '/d.qcow2',
+        qemuBin: '/usr/bin/qemu-system-x86_64',
+        tapInterface: 'vm-test',
+        macAddress: '02:00:00:00:00:00',
+      })
+      const argsStr = result.args.join(' ')
+      expect(argsStr).not.toContain('pflash')
+      expect(argsStr).toContain('-machine q35,accel=kvm')
+      expect(argsStr).not.toContain('smm=on')
+    })
+
+    it('should emit the OVMF pflash pair and smm=on for a UEFI plan', () => {
+      const result = mgr.generateQemuArgs(makeVm({ guestOs: 'windows', vmType: 'desktop', consolePort: 5901 }), {
+        diskPath: '/d.qcow2',
+        bootIso: '/win.iso',
+        qemuBin: '/usr/bin/qemu-system-x86_64',
+        tapInterface: 'vm-test',
+        macAddress: '02:00:00:00:00:00',
+        firmware: {
+          mode: 'uefi',
+          code: '/ovmf/OVMF_CODE.fd',
+          varsTemplate: '/ovmf/OVMF_VARS.fd',
+          vars: '/var/lib/microvms/win11/OVMF_VARS.fd',
+        },
+      })
+      const argsStr = result.args.join(' ')
+      expect(argsStr).toContain('smm=on')
+      expect(argsStr).toContain('if=pflash,format=raw,unit=0,readonly=on,file=/ovmf/OVMF_CODE.fd')
+      expect(argsStr).toContain('if=pflash,format=raw,unit=1,file=/var/lib/microvms/win11/OVMF_VARS.fd')
+      // The pflash pair must precede the data disk — QEMU numbers units by position.
+      expect(result.args.indexOf('if=pflash,format=raw,unit=0,readonly=on,file=/ovmf/OVMF_CODE.fd'))
+        .toBeLessThan(result.args.findIndex(a => a.startsWith('file=/d.qcow2')))
+    })
+
+    it('should attach the VirtIO driver ISO and switch Windows to virtio, together', () => {
+      const result = mgr.generateQemuArgs(
+        makeVm({ guestOs: 'windows', virtioDrivers: true, vmType: 'desktop', consolePort: 5901 }),
+        {
+          diskPath: '/d.qcow2',
+          bootIso: '/win.iso',
+          virtioIso: '/images/virtio-win.iso',
+          qemuBin: '/usr/bin/qemu-system-x86_64',
+          tapInterface: 'vm-test',
+          macAddress: '02:00:00:00:00:00',
+        },
+      )
+      const argsStr = result.args.join(' ')
+      expect(argsStr).toContain('file=/d.qcow2,format=qcow2,if=virtio')
+      expect(argsStr).toContain('virtio-net-pci')
+      expect(argsStr).toContain('file=/images/virtio-win.iso,format=raw,if=ide,media=cdrom')
+      // The install media keeps -cdrom; the driver disk must not displace it.
+      expect(argsStr).toContain('-cdrom /win.iso')
+      expect(argsStr).not.toContain('e1000')
+    })
+
+    it('should NOT attach the driver ISO for Windows when the guest did not ask for it', () => {
+      // Even with a path configured on the host — otherwise every Windows VM silently gains a
+      // second CDROM, shifting drive letters during install.
+      const result = mgr.generateQemuArgs(makeVm({ guestOs: 'windows', vmType: 'desktop', consolePort: 5901 }), {
+        diskPath: '/d.qcow2',
+        bootIso: '/win.iso',
+        virtioIso: '/images/virtio-win.iso',
+        qemuBin: '/usr/bin/qemu-system-x86_64',
+        tapInterface: 'vm-test',
+        macAddress: '02:00:00:00:00:00',
+      })
+      const argsStr = result.args.join(' ')
+      expect(argsStr).not.toContain('virtio-win.iso')
+      expect(argsStr).toContain('if=ide')
+    })
+
+    it('should NOT attach the driver ISO to a Linux guest even when both are set', () => {
+      const result = mgr.generateQemuArgs(makeVm({ virtioDrivers: true }), {
+        diskPath: '/d.qcow2',
+        virtioIso: '/images/virtio-win.iso',
+        qemuBin: '/usr/bin/qemu-system-x86_64',
+        tapInterface: 'vm-test',
+        macAddress: '02:00:00:00:00:00',
+      })
+      expect(result.args.join(' ')).not.toContain('virtio-win.iso')
+    })
   })
 
   describe('ensureImageFromUrl', () => {

@@ -9,6 +9,7 @@ export type ProvisioningState =
 
 export type VmType = 'server' | 'desktop'
 export type GuestOs = 'linux' | 'windows'
+export type Firmware = 'bios' | 'uefi'
 
 export type WorkloadDefinition = {
   name: string
@@ -20,6 +21,10 @@ export type WorkloadDefinition = {
   distro?: string
   guestOs?: GuestOs
   vmType?: VmType
+  /** Boot firmware. Absent = 'bios' (SeaBIOS). Windows 11 requires 'uefi'. */
+  firmware?: Firmware
+  /** Attach the virtio-win driver ISO. Windows guests only; see services/firmware.ts. */
+  virtioDrivers?: boolean
   provisioningState?: ProvisioningState
   provisioningError?: string
   macAddress?: string
