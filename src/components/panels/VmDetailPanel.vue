@@ -159,17 +159,15 @@
         </q-card>
       </div>
 
-      <!-- Resource metrics (demo v1.1+) -->
-      <template v-if="isDemoMode()">
-        <VersionNag
-          v-if="!appStore.isDemoVersionAtLeast('1.1')"
-          version="1.1"
-          title="Resource Metrics"
-          description="CPU, memory, and disk I/O charts"
-          class="q-mb-md"
-        />
-        <DemoResourceGraph v-else :vm-name="vm.name" :vm-status="vm.status" class="q-mb-md" />
-      </template>
+      <!-- Resource metrics — real backend and demo alike; see WorkloadDetailPage for why. -->
+      <VersionNag
+        v-if="isDemoMode() && !appStore.isDemoVersionAtLeast('1.1')"
+        version="1.1"
+        title="Resource Metrics"
+        description="CPU, memory, and disk I/O charts"
+        class="q-mb-md"
+      />
+      <WorkloadMetricsChart v-else :workload-name="vm.name" class="q-mb-md" />
 
       <!-- Tabs -->
       <q-card flat bordered>
@@ -335,7 +333,7 @@ import AgentDialog from 'src/components/AgentDialog.vue'
 import TagEditor from 'src/components/TagEditor.vue'
 import HelpTooltip from 'src/components/HelpTooltip.vue'
 import VersionNag from 'src/components/demo/VersionNag.vue'
-import DemoResourceGraph from 'src/components/demo/DemoResourceGraph.vue'
+import WorkloadMetricsChart from 'src/components/WorkloadMetricsChart.vue'
 import { useWorkloadApi } from 'src/composables/useVmApi'
 import { useWorkloadStatus } from 'src/composables/useVmStatus'
 import { useAgent } from 'src/composables/useAgent'

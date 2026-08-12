@@ -1,5 +1,6 @@
 // Copyright (c) 2026 whizBANG Developers LLC. All rights reserved.
 // Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE.
+import type { WorkloadMetrics } from 'src/types/metrics'
 /**
  * Demo-mode data shim.
  *
@@ -111,3 +112,33 @@ export type {
   DemoBillingUsage,
   DemoBillingInvoice,
 } from './demo-data'
+
+/**
+ * Demo metrics, adapted to the real endpoint's shape.
+ *
+ * One seam, so the chart component has a single contract and never branches on demo mode.
+ *
+ * The conversion is genuine work rather than a cast: the demo emits ISO-string timestamps,
+ * megabytes, and disk THROUGHPUT with no nulls, while the wire uses epoch millis, bytes, disk
+ * USAGE, and nulls for unmeasurable samples. Synthetic data is never unmeasurable, so every
+ * sample here is non-null by construction — which is correct, and is also why the demo cannot be
+ * used to check the chart's gap rendering. That is covered by the sparkline unit tests instead.
+ */
+export function getDemoWorkloadMetrics(name: string, tier: string): WorkloadMetrics {
+  const demo = getDemoMetricsForVm(name, tier)
+  const points = demo?.points ?? []
+  const oneMinute = demo?.resolution === '1m'
+  return {
+    name,
+    windowMs: oneMinute ? 3_600_000 : 86_400_000,
+    intervalMs: oneMinute ? 60_000 : 300_000,
+    samples: points.map(p => ({
+      timestamp: new Date(p.timestamp).getTime(),
+      cpuPercent: p.cpuPercent,
+      memoryBytes: Math.round(p.memoryMb * 1024 * 1024),
+      // The demo carries read/write throughput, which is a different quantity from the disk
+      // USAGE this field means. Left null rather than mapped to something it is not.
+      diskBytes: null,
+    })),
+  }
+}

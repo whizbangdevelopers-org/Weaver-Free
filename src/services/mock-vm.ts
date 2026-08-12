@@ -23,6 +23,7 @@ export const mockRestartVm: MockVmData['mockRestartVm'] = mod.mockRestartVm ?? (
 export const mockCreateVm: MockVmData['mockCreateVm'] = mod.mockCreateVm ?? (async () => notAvailable())
 export const mockDeleteVm: MockVmData['mockDeleteVm'] = mod.mockDeleteVm ?? (async () => notAvailable())
 export const mockCloneVm: MockVmData['mockCloneVm'] = mod.mockCloneVm ?? (async () => notAvailable())
+
 export const mockExportVm: MockVmData['mockExportVm'] = mod.mockExportVm ?? (async () => ({ success: false }))
 export const mockExportAllVms: MockVmData['mockExportAllVms'] = mod.mockExportAllVms ?? (async () => ({ success: false }))
 export const getMockVmState: MockVmData['getMockVmState'] = mod.getMockVmState ?? (() => [])
