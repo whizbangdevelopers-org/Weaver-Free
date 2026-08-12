@@ -2,6 +2,7 @@
 // Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE.
 import 'dotenv/config'
 import { resolve, join } from 'path'
+import { readFile } from 'node:fs/promises'
 import Fastify, { type FastifyError } from 'fastify'
 import compress from '@fastify/compress'
 import cors from '@fastify/cors'
@@ -23,7 +24,8 @@ import { networkRoutes } from './routes/network.js'
 import { distroRoutes } from './routes/distros.js'
 import { consoleRoutes } from './routes/console.js'
 import { createRegistry } from './storage/index.js'
-import { setRegistry, setProvisioner, setConfig, startAutostartVms, scanMicrovms } from './services/microvm.js'
+import { setRegistry, setProvisioner, setConfig, startAutostartVms, scanMicrovms, getWorkloadDefinitions } from './services/microvm.js'
+import { MetricsCollector, retentionForTier } from './services/metrics.js'
 import { createImageManager } from './services/image-manager.js'
 import { UrlValidationService } from './services/url-validator.js'
 import type { Provisioner } from './services/provisioner-types.js'
@@ -415,13 +417,39 @@ fastify.addHook('onResponse', async (request, reply) => {
 // Register routes (auth routes are public, other routes protected by middleware)
 await fastify.register(authRoutes, { prefix: '/api/auth', authService, auditService, onFirstAdmin: triggerExampleVm })
 await fastify.register(healthRoutes, { prefix: '/api/health', config, hostInfoService, organizationStore })
+/**
+ * Resource-metrics collector.
+ *
+ * Reads cgroup v2 through an injected reader so the service never imports fs directly and stays
+ * testable without a real cgroupfs. A missing file — the ordinary case for a stopped workload,
+ * which has no cgroup at all — resolves to null rather than throwing, because logging it would
+ * emit a line per stopped workload every 30 seconds forever.
+ *
+ * Retention is sized from the tier at startup: an hour for Free, a day for paid.
+ */
+const metricsCollector = new MetricsCollector({
+  read: async (path: string) => {
+    try {
+      return await readFile(path, 'utf-8')
+    } catch {
+      return null
+    }
+  },
+  retention: retentionForTier(config.tier),
+})
+
+metricsCollector.start(async () => {
+  const defs = await getWorkloadDefinitions()
+  return Object.values(defs).map(d => ({ name: d.name, vcpu: d.vcpu }))
+})
+
 // networkManager is the IP allocator the clone route uses when the caller omits an address. It is
 // null on a Free build (services/weaver is sync-excluded) — the route degrades to requiring an
 // explicit IP rather than failing, and clone is Solo-gated anyway so the null path is unreachable
 // in practice. Cast for the same reason as the ws registration below: the dynamic import above
 // types it `unknown`.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- networkManager typed as unknown from dynamic import
-await fastify.register(workloadsRoutes, { prefix: '/api/workload', provisioner, imageManager, config, auditService, quotaStore, aclStore: vmAclStore, networkManager: networkManager as any })
+await fastify.register(workloadsRoutes, { prefix: '/api/workload', provisioner, imageManager, config, auditService, quotaStore, aclStore: vmAclStore, networkManager: networkManager as any, metricsCollector })
 await fastify.register(agentRoutes, { prefix: '/api/workload', config, auditService, aclStore: vmAclStore })
 const distroTester = provisioner ? new DistroTester(vmRegistry, provisioner, config) : undefined
 await fastify.register(distroRoutes, { prefix: '/api/distros', distroStore, catalogStore, imageManager, urlValidator, config, auditService, distroTester })
