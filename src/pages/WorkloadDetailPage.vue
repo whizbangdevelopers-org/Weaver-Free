@@ -266,22 +266,19 @@
         </q-card>
       </div>
 
-      <!-- Resource Metrics (v1.1.0+, demo only) -->
-      <template v-if="isDemoMode()">
-        <VersionNag
-          v-if="!appStore.isDemoVersionAtLeast('1.1')"
-          version="1.1"
-          title="Resource Metrics"
-          description="CPU, memory, and disk I/O charts with configurable time windows"
-          class="q-mb-lg"
-        />
-        <DemoResourceGraph
-          v-else
-          :vm-name="vm.name"
-          :vm-status="vm.status"
-          class="q-mb-lg"
-        />
-      </template>
+      <!-- Resource Metrics.
+           Renders on a REAL backend as well as in the demo — the chart's composable resolves
+           demo data or the live endpoint behind one contract. Previously this whole block was
+           `v-if="isDemoMode()"`, so a real install showed no metrics at all while the demo
+           advertised them at v1.1: the demo and the product disagreed about a shipped feature. -->
+      <VersionNag
+        v-if="isDemoMode() && !appStore.isDemoVersionAtLeast('1.1')"
+        version="1.1"
+        title="Resource Metrics"
+        description="CPU, memory, and disk I/O charts with configurable time windows"
+        class="q-mb-lg"
+      />
+      <WorkloadMetricsChart v-else :workload-name="vm.name" class="q-mb-lg" />
 
       <!-- Tabs -->
       <q-card>
@@ -653,7 +650,7 @@ import HelpTooltip from 'src/components/HelpTooltip.vue'
 import { extractErrorMessage } from 'src/utils/error'
 import { downloadText, dateStamp } from 'src/utils/download'
 import { isDemoMode } from 'src/config/demo-mode'
-import DemoResourceGraph from 'src/components/demo/DemoResourceGraph.vue'
+import WorkloadMetricsChart from 'src/components/WorkloadMetricsChart.vue'
 import DemoVersionFeatures from 'src/components/demo/DemoVersionFeatures.vue'
 import VersionNag from 'src/components/demo/VersionNag.vue'
 import { STATUSES, PROVISIONING } from 'src/constants/vocabularies'

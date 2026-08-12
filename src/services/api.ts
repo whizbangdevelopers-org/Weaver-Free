@@ -3,6 +3,7 @@
 import { api } from 'src/boot/axios'
 import type { AxiosRequestConfig } from 'axios'
 import type { WorkloadInfo, WorkloadActionResult, VmCreateInput, ExportDocument } from 'src/types/workload'
+import type { WorkloadMetrics } from 'src/types/metrics'
 import type { NetworkTopology, BridgeInfo, IpPoolConfig, FirewallRule } from 'src/types/network'
 import type { NotificationEvent, NotificationChannelConfigData, ChannelConfig, ResourceAlertConfig } from 'src/types/notification'
 import { isDemoMode } from 'src/config/demo-mode'
@@ -131,6 +132,27 @@ export class VmApiService extends ApiService {
 }
 
 export const vmApiService = new VmApiService()
+
+/**
+ * Resource metrics. Separate from VmApiService only because it has its own polling lifecycle —
+ * same prefix, same auth, same interceptor.
+ */
+class WorkloadMetricsService extends ApiService {
+  constructor() {
+    super('/workload')
+  }
+
+  /**
+   * Named `fetchFor`, not `get` — `get` is the base class's protected HTTP helper, and a public
+   * override would shadow it for every other method on this class.
+   */
+  async fetchFor(name: string, window?: string): Promise<WorkloadMetrics> {
+    const suffix = window ? `?window=${encodeURIComponent(window)}` : ''
+    return this.get<WorkloadMetrics>(`/${name}/metrics${suffix}`)
+  }
+}
+
+export const workloadMetricsService = new WorkloadMetricsService()
 
 /**
  * Distro entry returned by the API
