@@ -302,6 +302,56 @@ in
       '';
     };
 
+    dns = {
+      enable = mkEnableOption ''
+        DNS Core — the .vm.internal auto-zone.
+
+        Weaver generates a hosts file from the workload registry and runs a dnsmasq stub that
+        answers the internal zone and forwards everything else upstream. Requires Weaver Solo or
+        higher; on Free the zone is not generated and this option does nothing.
+      '';
+
+      domain = mkOption {
+        type = types.str;
+        default = "vm.internal";
+        example = "lab.example";
+        description = ''
+          Domain for the auto-generated zone. Every workload with an address gets
+          `<name>.<domain>` and a matching reverse record.
+
+          NEVER set this to anything under `.local`. That TLD is reserved for mDNS (RFC 6762), so
+          a `.local` zone collides with Avahi/Bonjour — which is running on most home networks —
+          and the result is intermittent, host-dependent resolution failure rather than a clean
+          error. `.internal` is the reserved private-use TLD and is the default for that reason.
+        '';
+      };
+
+      listenInterfaces = mkOption {
+        type = types.listOf types.str;
+        default = [ ];
+        example = [ "br-microvm" ];
+        description = ''
+          Interfaces the stub resolver binds to. Empty means the configured bridge only.
+
+          Deliberately NOT `0.0.0.0`: an open resolver on a LAN interface is both an amplification
+          reflector and a way for anything on the network to enumerate your workloads by name.
+          Bind to the bridge the VMs are actually on.
+        '';
+      };
+
+      upstream = mkOption {
+        type = types.listOf types.str;
+        default = [ "1.1.1.1" "9.9.9.9" ];
+        description = "Upstream resolvers for names outside the internal zone.";
+      };
+
+      dnsmasqBin = mkOption {
+        type = types.str;
+        default = "${pkgs.dnsmasq}/bin/dnsmasq";
+        description = "Path to the dnsmasq binary that serves the generated zone.";
+      };
+    };
+
     dockerBin = mkOption {
       type = types.str;
       default = "${pkgs.docker}/bin/docker";
@@ -568,5 +618,92 @@ in
       # IP forwarding
       boot.kernel.sysctl."net.ipv4.ip_forward" = 1;
     })
+    # ── DNS Core ─────────────────────────────────────────────────────────────
+    #
+    # Weaver writes the zone as a dnsmasq hosts file; dnsmasq serves it and forwards the rest.
+    # The two halves are deliberately separate units: the backend can regenerate the file at any
+    # time without restarting the resolver, and the resolver survives a backend restart. A zone
+    # that is only in memory disappears with the process that held it.
+    (mkIf (cfg.enable && cfg.dns.enable) {
+      # dnsmasq needs the file to exist before it starts, even empty — it refuses to start on a
+      # missing addn-hosts path, and on a fresh host Weaver has not written one yet.
+      systemd.tmpfiles.rules = [
+        "f ${cfg.dataDir}/dns-hosts 0644 ${cfg.serviceUser} ${cfg.serviceGroup} -"
+      ];
+
+      systemd.services.weaver-dnsmasq = {
+        description = "Weaver DNS Core — stub resolver for the ${cfg.dns.domain} zone";
+        after = [ "network.target" ];
+        wantedBy = [ "multi-user.target" ];
+
+        serviceConfig = {
+          Type = "simple";
+          # --keep-in-foreground: systemd owns the lifecycle, not dnsmasq's own forking.
+          # --no-resolv + explicit --server: never inherit the host resolv.conf, or the stub can
+          #   end up forwarding to itself and answering its own queries in a loop.
+          # --bind-interfaces + --listen-address: bound to the bridge only. An open resolver on a
+          #   LAN interface is an amplification reflector AND lets anything on the network
+          #   enumerate the workloads by name.
+          ExecStart = concatStringsSep " " ([
+            cfg.dns.dnsmasqBin
+            "--keep-in-foreground"
+            "--no-resolv"
+            "--no-hosts"
+            "--bind-interfaces"
+            "--addn-hosts=${cfg.dataDir}/dns-hosts"
+            "--local=/${cfg.dns.domain}/"
+            "--domain=${cfg.dns.domain}"
+          ]
+          ++ map (i: "--interface=${i}")
+               (if cfg.dns.listenInterfaces == [ ] then [ cfg.bridgeInterface ] else cfg.dns.listenInterfaces)
+          ++ map (s: "--server=${s}") cfg.dns.upstream);
+
+          # SIGHUP makes dnsmasq re-read addn-hosts without dropping its cache or its socket.
+          ExecReload = "${pkgs.coreutils}/bin/kill -HUP $MAINPID";
+          Restart = "on-failure";
+          RestartSec = 5;
+
+          # It only needs to bind :53 on the bridge and read one file.
+          DynamicUser = false;
+          User = "dnsmasq";
+          Group = "dnsmasq";
+          AmbientCapabilities = [ "CAP_NET_BIND_SERVICE" ];
+          CapabilityBoundingSet = [ "CAP_NET_BIND_SERVICE" ];
+          NoNewPrivileges = true;
+          PrivateTmp = true;
+          ProtectSystem = "strict";
+          ProtectHome = true;
+          ReadOnlyPaths = [ cfg.dataDir ];
+        };
+      };
+
+      users.users.dnsmasq = {
+        isSystemUser = true;
+        group = "dnsmasq";
+        description = "Weaver DNS Core resolver";
+      };
+      users.groups.dnsmasq = { };
+
+      # The backend needs to know the domain it is generating for, and how to ask the resolver to
+      # reload. Without the reload command the zone file is written and nothing reads it — which
+      # is exactly the inert state this block exists to end.
+      systemd.services.weaver.environment = {
+        DNS_DOMAIN = cfg.dns.domain;
+        DNS_RELOAD_COMMAND = "/run/current-system/sw/bin/systemctl reload weaver-dnsmasq.service";
+      };
+
+      security.sudo.extraRules = [{
+        users = [ cfg.serviceUser ];
+        commands = [
+          { command = "/run/current-system/sw/bin/systemctl reload weaver-dnsmasq.service"; options = [ "NOPASSWD" ]; }
+        ];
+      }];
+
+      networking.firewall.interfaces = listToAttrs (map (i: {
+        name = i;
+        value = { allowedUDPPorts = [ 53 ]; allowedTCPPorts = [ 53 ]; };
+      }) (if cfg.dns.listenInterfaces == [ ] then [ cfg.bridgeInterface ] else cfg.dns.listenInterfaces));
+    })
+
   ]);
 }

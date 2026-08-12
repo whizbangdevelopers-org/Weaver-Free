@@ -12,6 +12,7 @@ import { verifyWsToken } from '../middleware/auth.js'
 import type { VmAclStore } from '../storage/vm-acl-store.js'
 import type { DashboardConfig } from '../config.js'
 import { TIERS, ROLES } from '../constants/vocabularies.js'
+import { DEFAULT_WS_BROADCAST_INTERVAL_MS } from '../config.js'
 
 interface WsClientInfo {
   userId?: string
@@ -94,7 +95,11 @@ export const wsRoutes: FastifyPluginAsync<WsRouteOptions> = async (fastify, opts
       } catch {
         // ignore broadcast errors
       }
-    }, 2000)
+      // Configurable per deployment: the loop calls listVms() once per tick regardless of how
+      // many clients are attached, so its cost scales with WORKLOAD COUNT rather than users. A
+      // host with hundreds of workloads pays that thirty times a minute at the 2s default.
+      // Clamped in config.ts, so an operator's typo cannot busy-loop the event loop here.
+    }, config?.wsBroadcastIntervalMs ?? DEFAULT_WS_BROADCAST_INTERVAL_MS)
   }
 
   function stopBroadcastLoop() {
