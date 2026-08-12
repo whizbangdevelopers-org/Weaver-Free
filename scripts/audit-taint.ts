@@ -132,7 +132,7 @@ function key(file: string, line: number, rule: string): string {
  * Prove the taint rules still work BEFORE trusting them to scan anything.
  *
  * These four rules shipped for months with NO regression corpus. That is the
- * "auditor with no test" class core/security.md says never to trust: a rule with no
+ * "auditor with no test" class this project never trusts: a rule with no
  * corpus only ever reports that it found nothing, and never that it CANNOT find
  * anything — indistinguishable from outside, and one of them is a green tick a reader
  * believes.
@@ -232,7 +232,7 @@ function run(): void {
   // so there is no CI backstop to catch what a skipping local run misses. It found 3 real findings
   // in one route the day this was written; on a machine without semgrep those would have pushed
   // clean. An auditor that cannot report "I could not look" is indistinguishable from one that
-  // looked and found nothing (core/security.md, "never trust an auditor that has never failed").
+  // looked and found nothing — never trust an auditor that has never been shown to fail.
   //
   // semgrep is in the repo devShell (code/flake.nix), so `nix develop` has it. The escape hatch is
   // deliberate and visible rather than silent — same shape as a suppression needing a reason.

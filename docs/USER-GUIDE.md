@@ -169,6 +169,27 @@ Use the **sort dropdown** (next to the grid/list toggle) to sort workloads by na
 
 Toggle between **grid view** and **list view** using the buttons next to the sort dropdown.
 
+#### Narrowing the list
+
+*Hypervisor filter: v1.1+*
+
+Four filters combine, and all of them persist across reloads:
+
+| Filter | Where | Behaviour |
+|--------|-------|-----------|
+| **Name** | search bar in the toolbar, or press `/` | Case-insensitive substring match |
+| **Status** | toggle chips | Running, Idle, Stopped, Failed — selecting several shows any of them |
+| **Tags** | Tags dropdown | Selecting several shows workloads carrying **all** of them |
+| **Hypervisor** | Hypervisor dropdown | Selecting several shows workloads on **any** of them |
+
+Tags and Hypervisor deliberately differ. A workload can carry several tags, so selecting two narrows
+to workloads that have both. A workload runs on exactly one hypervisor, so selecting two has to mean
+"either" — requiring both would always return nothing.
+
+The Hypervisor dropdown lists only hypervisors that workloads on this host actually use, and is
+hidden entirely when they all share one. When any filter is active, a **Clear** button appears
+alongside a count of how many workloads matched.
+
 ### Remote Workloads
 
 *Available: v2.2+*
@@ -207,7 +228,8 @@ Action buttons appear based on your role and the workload state:
 - **Delete** — remove the workload and clean up resources (Admin, paid tiers)
 
 > **Free-tier limits (v1.0.2+):** Weaver Free controls the **alphabetical-first 10 workloads** and a **64 GB total running memory ceiling**. Workloads beyond 10 are visible in your list but start/restart actions return "outside your managed set" — they're read-only at Free tier. Stop stays allowed regardless, so you can shut down any running workload. Upgrade to Weaver Solo to lift both caps. If a specific workload sorts outside the top 10, you can rename it in your NixOS config to bring it into the controllable set.
-- **Clone** — duplicate the workload configuration (v1.1+, paid tiers)
+- **Clone** — duplicate the workload's **configuration** into a new workload (v1.1+, paid tiers). The clone is provisioned fresh from the same distribution; **disk contents are not copied**. This follows the declarative model: the configuration is the source of truth and the disk is built from it. The clone starts stopped, never inherits autostart, and is assigned its own IP address automatically. If you need a byte-for-byte disk copy, use your hypervisor's own tooling.
+- **Export** — download this workload's configuration as a JSON file (all tiers, all roles). See [How do I export my VM configurations?](#how-do-i-export-my-vm-configurations)
 - **Migrate** — move the workload to another host (v2.3+ cold migration, v3.0+ live migration, Fabrick tier)
 
 AI action buttons are always visible:
@@ -441,17 +463,55 @@ Use the search bar in the toolbar to filter workloads by name. The search is ava
 
 ## Keyboard Shortcuts
 
-*Available: v1.0+*
+*Available: v1.0+ · list navigation and workload actions v1.1+*
 
-Global keyboard shortcuts let you navigate quickly. Shortcuts are ignored when focus is in a text input, textarea, or dropdown.
+Keyboard shortcuts let you navigate and operate Weaver without the mouse. They are ignored while
+focus is in a text input, textarea, or dropdown — with one exception: `Esc` always works, because
+it is how you leave the search box.
+
+Press `?` at any time to see this table inside the app.
+
+### Global
 
 | Shortcut | Action |
 |----------|--------|
-| `?` | Open the Help page |
+| `?` | Show the keyboard shortcut overlay |
 | `d` | Go to the Weaver page |
 | `s` | Go to Settings |
 | `t` | Go to Strands (network topology) |
-| `n` | Create a new VM |
+| `n` | Create a new workload |
+| `Esc` | Close the overlay, leave the search box, or clear workload focus |
+
+> **Changed in v1.1:** `?` previously opened the Help page. It now opens the shortcut overlay,
+> which is the near-universal convention and puts the answer in front of you without navigating
+> away. The overlay carries a **Full Help** button to the Help page, so nothing is lost.
+
+### Workload list
+
+| Shortcut | Action |
+|----------|--------|
+| `/` | Focus the search box |
+| `j` | Focus the next workload |
+| `k` | Focus the previous workload |
+| `Enter` | Open the focused workload |
+
+The focused workload is outlined. `j` from nothing selects the first workload and `k` selects the
+last; neither wraps around, so holding a key cannot carry you past the end and back to the top.
+
+**Focus follows the workload, not the position.** The list re-sorts as statuses change, and Weaver
+re-resolves your focus by name each time — so the workload you focused stays focused even when it
+moves. If it drops out of the list (a search narrows it away, or it is deleted), focus clears
+rather than landing on whatever took its place.
+
+### Focused workload
+
+| Shortcut | Action |
+|----------|--------|
+| `Shift` + `S` | Start the focused workload |
+| `Shift` + `X` | Stop the focused workload |
+| `Shift` + `R` | Restart the focused workload |
+
+These act on the workload you have focused with `j`/`k`. They do nothing when nothing is focused.
 
 ---
 
@@ -773,7 +833,12 @@ When a limit is exceeded, you receive a 429 response. Wait a moment and try agai
 
 ### How do I export my VM configurations?
 
-The API provides a free-tier endpoint for exporting workload configurations as JSON:
+Two ways, both free tier and available to every role.
+
+**From the interface:** **Settings → Configuration Export → Export All Workloads** downloads every
+workload. A single workload's **Export** button is on its detail page and in its detail panel.
+
+**From the API**, for scripting:
 
 ```bash
 # Export all workloads
@@ -781,9 +846,19 @@ curl -s -H "Authorization: Bearer $TOKEN" http://localhost:3100/api/workload/exp
 
 # Export a single workload
 curl -s -H "Authorization: Bearer $TOKEN" http://localhost:3100/api/workload/web-nginx/export | jq .
+
+# Save straight to a file — the server supplies the filename
+curl -OJ -H "Authorization: Bearer $TOKEN" http://localhost:3100/api/workload/export
 ```
 
-The export includes name, IP, memory, vCPUs, hypervisor, distribution, tags, and bridge configuration.
+The export includes name, IP, memory, vCPUs, hypervisor, distribution, disk size, guest OS, MAC
+address, tags, description, bridge, console type and image settings.
+
+**It contains configuration only — never runtime state and never a credential.** Provisioning
+status, uptime, container IDs and host-allocated console ports are all deliberately excluded: they
+describe *this* host at *this* moment, so re-importing them elsewhere would describe a machine that
+does not exist. On Fabrick, an export respects per-VM access control — you receive exactly the
+workloads you can already see.
 
 ### What if a cloud image URL is broken?
 

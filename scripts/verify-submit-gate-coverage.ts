@@ -20,8 +20,8 @@
  * element. This auditor catches structural gaps; the pre-commit hook catches
  * the temporal gap (changing a gate without staging a spec update).
  *
- * See KNOWN-GOTCHAS § "Changing a Submit-Button Gate Silently Breaks Every
- * E2E Test That Clicks It".
+ * Changing a submit-button gate silently breaks every E2E test that clicks it —
+ * which is the failure this pairing exists to prevent.
  *
  * Exit 0 = all interactive testids in specced pages have spec coverage.
  * Exit 1 = one or more testids are uncovered.

@@ -52,13 +52,18 @@
           </div>
         </template>
 
-        <!-- Global search — desktop (gt-xs) -->
+        <!-- Global search — desktop (gt-xs).
+             The testid is the contract for the `/` shortcut, which queries the DOM rather than
+             holding a ref: this input is mounted by the layout while the handler lives in a
+             composable, so there is nothing to thread through. q-input sets inheritAttrs: false,
+             so the attribute lands on the native <input> — which is what focus() needs. -->
         <q-input
           v-if="searchContext.show && $q.screen.gt.xs"
           :model-value="uiStore.searchQuery"
           dense
           borderless
           input-class="text-white"
+          data-testid="workload-search-input"
           :placeholder="searchContext.placeholder"
           class="toolbar-search q-mr-sm flex-shrink"
           @update:model-value="uiStore.setSearchQuery(($event as string) ?? '')"
@@ -456,6 +461,7 @@
     <MobilePreview v-if="showMobile" @close="showMobile = false" />
     <DemoLoginModal v-if="isPublicDemoMode" />
     <AddVmDialog v-model="showRegisterFromLayout" />
+    <KeyboardShortcutsOverlay />
   </q-layout>
 </template>
 
@@ -477,6 +483,7 @@ import DemoLoginModal from 'src/components/DemoLoginModal.vue'
 import ResourceDetailDrawer from 'src/components/ResourceDetailDrawer.vue'
 import AddVmDialog from 'src/components/AddVmDialog.vue'
 import AccessInspectorDialog from 'src/components/AccessInspectorDialog.vue'
+import KeyboardShortcutsOverlay from 'src/components/KeyboardShortcutsOverlay.vue'
 import { isWsConnected, onWsConnect, onWsDisconnect, onSessionKicked } from 'src/services/ws'
 import { DEMO_HOSTS } from 'src/config/demo'
 import { ROLES, TIER_LABELS, type TierName } from 'src/constants/vocabularies'

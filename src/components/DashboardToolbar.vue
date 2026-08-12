@@ -48,6 +48,41 @@
       </q-list>
     </q-btn-dropdown>
 
+    <!-- Hypervisor filter dropdown — VMs only.
+         Hidden below two hypervisors: with one, every option selects everything, so the control
+         can only ever be decoration. -->
+    <q-btn-dropdown
+      v-if="workloadStore.allHypervisors.length > 1"
+      flat
+      dense
+      icon="mdi-server"
+      :label="hypervisorFilterLabel"
+      no-caps
+      data-testid="hypervisor-filter"
+    >
+      <q-list dense style="min-width: 200px">
+        <q-item
+          v-for="hv in workloadStore.allHypervisors"
+          :key="hv"
+          clickable
+          @click="toggleHypervisorFilter(hv)"
+        >
+          <q-item-section avatar>
+            <q-checkbox
+              :model-value="uiStore.filterHypervisors.includes(hv)"
+              dense
+              @update:model-value="toggleHypervisorFilter(hv)"
+            />
+          </q-item-section>
+          <q-item-section>{{ hv }}</q-item-section>
+        </q-item>
+        <q-separator v-if="uiStore.filterHypervisors.length > 0" />
+        <q-item v-if="uiStore.filterHypervisors.length > 0" v-close-popup clickable @click="uiStore.setFilterHypervisors([])">
+          <q-item-section class="text-caption text-grey-8">Clear hypervisor filter</q-item-section>
+        </q-item>
+      </q-list>
+    </q-btn-dropdown>
+
     <!-- Clear all filters -->
     <q-btn
       v-if="workloadStore.hasActiveFilters"
@@ -89,14 +124,25 @@ const tagFilterLabel = computed(() => {
   return `Tags (${uiStore.filterTags.length})`
 })
 
+const hypervisorFilterLabel = computed(() => {
+  if (uiStore.filterHypervisors.length === 0) return 'Hypervisor'
+  return `Hypervisor (${uiStore.filterHypervisors.length})`
+})
+
+/** Toggle one value in a multi-select filter, returning a new array. */
+function toggleIn(list: readonly string[], value: string): string[] {
+  const next = [...list]
+  const idx = next.indexOf(value)
+  if (idx >= 0) next.splice(idx, 1)
+  else next.push(value)
+  return next
+}
+
 function toggleTagFilter(tag: string) {
-  const current = [...uiStore.filterTags]
-  const idx = current.indexOf(tag)
-  if (idx >= 0) {
-    current.splice(idx, 1)
-  } else {
-    current.push(tag)
-  }
-  uiStore.setFilterTags(current)
+  uiStore.setFilterTags(toggleIn(uiStore.filterTags, tag))
+}
+
+function toggleHypervisorFilter(hv: string) {
+  uiStore.setFilterHypervisors(toggleIn(uiStore.filterHypervisors, hv))
 }
 </script>

@@ -24,8 +24,8 @@ export const consoleRoutes: FastifyPluginAsync<ConsoleRouteOptions> = async (fas
   // Params are typed with Fastify's route generic rather than a Zod schema, and that is
   // deliberate. A `schema: { params }` here would reject an invalid name during the HTTP
   // upgrade, so the client would see a failed handshake instead of close code 4400 —
-  // which is a documented contract (docs/DEVELOPER-GUIDE.md WebSocket close codes,
-  // enforced by audit:ws-codes: "4400 | Invalid VM name (serial console)"). The guard
+  // which is a documented contract, enforced by audit:ws-codes against the close-code
+  // table: "4400 | Invalid VM name (serial console)". The guard
   // below stays the validator; the generic only supplies the type the router already
   // guarantees, replacing an `as` cast that asserted a shape nothing had checked.
   fastify.get<{ Params: { vmName: string } }>('/ws/console/:vmName', {

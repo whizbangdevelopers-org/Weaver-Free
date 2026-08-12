@@ -218,7 +218,7 @@ describe('slice discipline', () => {
   // Its union half was also HALF-BLIND and never caught anything: `toMatch(/… 'docker' \| 'podman'/)`
   // is a substring match, so it passed unchanged against `'docker' | 'podman' | 'apptainer'`. Only
   // the isContainerDef half ever fired. The replacement anchors to end-of-line, so it can fail in
-  // both directions — a guard that cannot fail is not a guard (core/testing.md).
+  // both directions — a guard that cannot fail is not a guard.
   it('widens ContainerRuntime and isContainerDef to apptainer — slice 2 landed', async () => {
     const src = await read()
     expect(src, 'ContainerRuntime must carry all three runtimes, anchored so a fourth is visible')

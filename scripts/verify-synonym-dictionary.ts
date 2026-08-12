@@ -14,16 +14,16 @@
  *   3. No duplicate canonical terms.
  *   4. adoptIn and avoidIn are disjoint per entry.
  *   5. Product parity — every domain=product `canonical` is a real, defined
- *      Weaver term (appears as a bolded **token** in .claude/rules/core/terminology.md
- *      or code/.claude/rules/navigation.md). Catches typos / renamed-away drift.
+ *      Weaver term (appears as a bolded **token** in the product vocabulary and
+ *      navigation rule files). Catches typos / renamed-away drift.
  *   6. Translation-not-adoption — domain=product entries have empty adoptIn
  *      (textile terms are translated, never adopted as our label). Only
  *      methodology entries (e.g. RSI) may be conditionally adopted.
  *   7. Anti-term consistency — every antiTerm sits on a ban line in
- *      terminology.md (a line containing never|retire|relabel|reintroduce),
+ *      the vocabulary rule (a line containing never|retire|relabel|reintroduce),
  *      so the dictionary's anti-terms stay consistent with the Retired Labels.
  *
- * Definitions remain authoritative in terminology.md; this auditor never
+ * Definitions remain authoritative in the vocabulary rule; this auditor never
  * re-defines a term, only verifies the dictionary points at real ones.
  *
  * Usage:
@@ -144,7 +144,7 @@ function audit(): Violation[] {
         })
     }
 
-    // 7. Anti-term consistency with terminology.md ban lines
+    // 7. Anti-term consistency with the vocabulary rule ban lines
     for (const t of e.antiTerms ?? []) {
       const onBanLine = banLines.some((l) => l.toLowerCase().includes(t.toLowerCase()))
       if (!onBanLine)

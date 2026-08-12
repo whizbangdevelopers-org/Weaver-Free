@@ -168,12 +168,30 @@ export function useWorkloadApi() {
     }
   }
 
-  async function cloneVm(sourceName: string, targetName: string, newIp: string): Promise<WorkloadActionResult> {
+  /**
+   * Clone a VM definition — NOT its disk. The backend provisions a fresh instance from the same
+   * distro; disk state is deliberately not copied. Any UI calling this must say so, or "Clone" is
+   * read as a full disk clone and an empty disk comes as a surprise.
+   *
+   * `newIp` is optional: omit it and the backend allocates from the bridge pool.
+   */
+  async function cloneVm(
+    sourceName: string,
+    targetName: string,
+    newIp?: string,
+    opts: { tags?: string[]; description?: string } = {},
+  ): Promise<WorkloadActionResult> {
     loading.value = true
     error.value = null
     try {
-      if (isDemoMode()) return await mockCloneVm(sourceName, targetName, newIp)
-      return { success: false, message: 'VM clone not yet implemented' }
+      if (isDemoMode()) return await mockCloneVm(sourceName, targetName, newIp ?? '')
+      return await vmApiService.clone(sourceName, {
+        name: targetName,
+        // Omit rather than send undefined — the backend treats an absent ip as "allocate one".
+        ...(newIp ? { ip: newIp } : {}),
+        ...(opts.tags ? { tags: opts.tags } : {}),
+        ...(opts.description !== undefined ? { description: opts.description } : {}),
+      })
     } catch (err) {
       const message = extractErrorMessage(err, 'Failed to clone VM')
       error.value = message
@@ -188,9 +206,8 @@ export function useWorkloadApi() {
     error.value = null
     try {
       if (isDemoMode()) return await mockExportVm(name)
-      const response = await fetch(`/api/workload/${encodeURIComponent(name)}/export`)
-      if (!response.ok) return { success: false, message: `Export failed: ${response.statusText}` }
-      return { success: true, data: await response.text() }
+      // Through the shared client, not bare fetch — see vmApiService.export for why.
+      return { success: true, data: JSON.stringify(await vmApiService.export(name), null, 2) }
     } catch (err) {
       const message = extractErrorMessage(err, 'Failed to export VM')
       error.value = message
@@ -205,9 +222,7 @@ export function useWorkloadApi() {
     error.value = null
     try {
       if (isDemoMode()) return await mockExportAllVms()
-      const response = await fetch('/api/workload/export')
-      if (!response.ok) return { success: false, message: `Export failed: ${response.statusText}` }
-      return { success: true, data: await response.text() }
+      return { success: true, data: JSON.stringify(await vmApiService.export(), null, 2) }
     } catch (err) {
       const message = extractErrorMessage(err, 'Failed to export VMs')
       error.value = message

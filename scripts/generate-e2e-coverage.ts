@@ -4,7 +4,7 @@
  * E2E Coverage Generator
  *
  * Reads JSDoc headers from every testing/e2e/*.spec.ts and emits
- * docs/E2E-COVERAGE.md — a per-spec catalog grouped by feature area,
+ * the E2E coverage catalog under docs/ — grouped by feature area,
  * with a by-release appendix that drives investor narrative.
  *
  * Required JSDoc header schema (at top of each spec file):

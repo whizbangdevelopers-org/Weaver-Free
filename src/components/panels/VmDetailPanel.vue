@@ -100,10 +100,18 @@
           outline size="sm" color="negative" icon="mdi-delete" label="Delete"
           :loading="deleteLoading" @click="handleDelete"
         />
+        <!-- Solo+ on a real backend, matching the route's own requireTier(SOLO). Previously
+             `isDemoMode() && …`, so it rendered ONLY in the demo — correct while the API returned
+             "not yet implemented", and wrong once the route landed. In demo the version step is
+             still honoured so the version switcher keeps telling the truth. -->
         <q-btn
-          v-if="isDemoMode() && appStore.isDemoVersionAtLeast('1.1') && appStore.isSolo"
+          v-if="appStore.isSolo && (!isDemoMode() || appStore.isDemoVersionAtLeast('1.1'))"
           outline size="sm" color="secondary" icon="mdi-content-copy" label="Clone"
-          :loading="cloneLoading" @click="handleClone"
+          :loading="cloneLoading" data-testid="vm-clone-btn" @click="handleClone"
+        />
+        <q-btn
+          outline size="sm" color="primary" icon="mdi-download" label="Export"
+          :loading="exportLoading" data-testid="vm-export-btn" @click="handleExport"
         />
         <q-space />
         <q-btn size="sm" color="info" icon="mdi-stethoscope" label="Diagnose" :loading="agentLoading" @click="startAgentAction('diagnose')" />
@@ -340,6 +348,7 @@ import { useResourceDrawerStore } from 'src/stores/resource-drawer-store'
 import { formatUptime } from 'src/utils/format'
 import { vmTypeIcon, vmTypeColor } from 'src/utils/vm'
 import { extractErrorMessage } from 'src/utils/error'
+import { downloadText, dateStamp } from 'src/utils/download'
 import { isDemoMode } from 'src/config/demo-mode'
 import type { WorkloadInfo, WorkloadAction } from 'src/types/workload'
 import type { AgentAction } from 'src/types/agent'
@@ -359,7 +368,7 @@ const authStore = useAuthStore()
 const appStore = useAppStore()
 const agentStore = useAgentStore()
 const drawerStore = useResourceDrawerStore()
-const { fetchVm, vmAction, deleteVm, cloneVm, fetchLogs, setAutostart, setDescription, setTags, loading, error } = useWorkloadApi()
+const { fetchVm, vmAction, deleteVm, cloneVm, exportVm, fetchLogs, setAutostart, setDescription, setTags, loading, error } = useWorkloadApi()
 const { vms: wsVms } = useWorkloadStatus()
 const { runAgent, loading: agentLoading } = useAgent()
 useAgentStream()
@@ -374,6 +383,7 @@ const descriptionInput = ref('')
 const autostartLoading = ref(false)
 const deleteLoading = ref(false)
 const cloneLoading = ref(false)
+const exportLoading = ref(false)
 const logsContent = ref('')
 const logsLoading = ref(false)
 
@@ -499,7 +509,12 @@ async function handleClone() {
   if (!vm.value) return
   $q.dialog({
     title: 'Clone VM',
-    message: `Clone <strong>${props.vmName}</strong>`,
+    // States what clone does, because "Clone" alone is read as a full disk clone and this is not
+    // that: the configuration is copied and a fresh instance provisioned from the same distro.
+    // Disk state is deliberately not copied.
+    message: `Clone <strong>${props.vmName}</strong>'s configuration into a new VM. `
+      + `The clone is provisioned fresh from the same distro — disk contents are not copied. `
+      + `An IP address is assigned automatically.`,
     html: true,
     prompt: { model: `${props.vmName}-clone`, type: 'text', label: 'New VM name' },
     cancel: true, color: 'secondary',
@@ -508,10 +523,9 @@ async function handleClone() {
     if (!newName) return
     cloneLoading.value = true
     try {
-      const baseIp = vm.value?.ip ?? '10.10.0.99'
-      const parts = baseIp.split('.')
-      const demoIp = parts.length === 4 ? `${parts[0]}.${parts[1]}.${parts[2]}.${(parseInt(parts[3] ?? '0') + 10) % 256}` : '10.10.0.99'
-      const result = await cloneVm(props.vmName, newName, demoIp)
+      // No IP argument: the backend allocates from the bridge pool. Deriving one here would send
+      // a made-up address to a backend that acts on it.
+      const result = await cloneVm(props.vmName, newName)
       if (result.success) {
         $q.notify({ type: 'positive', message: result.message || `VM cloned to ${newName}`, position: 'top-right', timeout: 3000 })
         drawerStore.close()
@@ -522,6 +536,20 @@ async function handleClone() {
       cloneLoading.value = false
     }
   })
+}
+
+async function handleExport() {
+  exportLoading.value = true
+  try {
+    const result = await exportVm(props.vmName)
+    if (!result.success || !result.data) {
+      $q.notify({ type: 'negative', message: result.message || 'Export failed', position: 'top-right', timeout: 5000 })
+      return
+    }
+    downloadText(result.data, `weaver-${props.vmName}-${dateStamp()}.json`)
+  } finally {
+    exportLoading.value = false
+  }
 }
 
 async function startAgentAction(action: AgentAction) {

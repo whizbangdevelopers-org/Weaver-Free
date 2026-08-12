@@ -239,7 +239,7 @@ jobs:
 
   # Aggregates unit + backend + TUI pass/fail counts into a single total badge.
   # E2E is intentionally excluded — it runs via `update-e2e-badge.yml` manual
-  # dispatch after `test:prerelease` (see testing policy in CLAUDE.md). The
+  # dispatch after `test:prerelease`, per the repo testing policy. The
   # "total" here is the CI-run suite total, not the release-gate total.
   total-tests-badge:
     name: Total Tests Badge
@@ -318,8 +318,8 @@ jobs:
         run: npm run test:compliance
 
       # Derive the auditor count from PHASES in scripts/run-compliance.ts
-      # (single source of truth — same value audit:marker-sync verifies in
-      # CLAUDE.md). Runs after the suite passes so a failing compliance run
+      # (single source of truth — the same value audit:marker-sync verifies in
+      # the docs). Runs after the suite passes so a failing compliance run
       # never writes a "green" badge.
       - name: Compute auditor count
         id: auditors

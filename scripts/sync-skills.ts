@@ -106,7 +106,7 @@ function main(): void {
       const dstDir = dirname(dst)
       if (!existsSync(dstDir)) mkdirSync(dstDir, { recursive: true })
 
-      // Copy the entire skill directory, not just SKILL.md, so any
+      // Copy the entire skill directory, not just its entry-point file, so any
       // referenced scripts / templates / fixtures also mirror.
       const srcDir = dirname(src)
       const dstSkillDir = dirname(dst)
