@@ -60,6 +60,8 @@ export interface WorkloadInfo {
 }
 
 export type ImageFormat = 'qcow2' | 'raw' | 'iso'
+/** Boot firmware. 'uefi' means OVMF, which Windows 11 requires. */
+export type Firmware = 'bios' | 'uefi'
 
 export interface VmCreateInput {
   name: string
@@ -76,6 +78,8 @@ export interface VmCreateInput {
   imageUrl?: string // Required when distro === 'other'
   imageFormat?: ImageFormat // Default: 'qcow2'
   cloudInit?: boolean // Default: true for qcow2, false for iso
+  firmware?: Firmware // Default: 'bios'. Windows 11 requires 'uefi'.
+  virtioDrivers?: boolean // Attach the virtio-win driver ISO. Windows guests only.
 }
 
 export interface WorkloadActionResult {

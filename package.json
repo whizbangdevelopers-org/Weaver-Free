@@ -156,7 +156,7 @@
     "sync:markers": "npx tsx scripts/sync-markers.ts",
     "test": "vitest run",
     "test:backend": "npm -w backend test",
-    "test:compliance": "npx tsx scripts/run-compliance.ts",
+    "test:compliance": "npx tsx scripts/run-compliance.ts && npm run audit:workflows && npm run audit:test-suites",
     "test:coverage": "vitest run --coverage",
     "test:coverage:free": "vitest run --coverage --config vitest.free.config.ts",
     "test:distros": "npx tsx scripts/test-distro-catalog.ts",
@@ -182,7 +182,10 @@
     "test:unit:ui": "vitest --ui",
     "typecheck": "vue-tsc --noEmit",
     "verify:release": "npx tsx scripts/verify-post-release.ts",
-    "audit:version-parity": "npx tsx scripts/verify-version-parity.ts"
+    "audit:version-parity": "npx tsx scripts/verify-version-parity.ts",
+    "audit:workflows": "npx tsx scripts/verify-workflows.ts",
+    "audit:test-suites": "npx tsx scripts/verify-test-suites.ts",
+    "audit:e2e-docker-only": "npx tsx scripts/verify-e2e-docker-only.ts"
   },
   "dependencies": {
     "@quasar/extras": "^1.16.9",
@@ -218,6 +221,7 @@
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-vue": "^10.8.0",
     "get-tsconfig": "^4.14.0",
+    "js-yaml": "4.3.1",
     "jsdom": "^29.1.1",
     "prettier": "^3.8.0",
     "regexp-tree": "^0.1.27",

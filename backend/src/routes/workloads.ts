@@ -18,6 +18,7 @@ import type { VmAclStore } from '../storage/vm-acl-store.js'
 import { createVmAclCheck } from '../middleware/vm-acl.js'
 import { createRateLimit } from '../middleware/rate-limit.js'
 import { resolveWindowMs, SAMPLE_INTERVAL_MS, type MetricsCollector } from '../services/metrics.js'
+import { firmwareRejectionReason } from '../services/firmware.js'
 
 const vmNameSchema = z.object({
   name: z.string().regex(/^[a-z][a-z0-9-]*$/, 'Invalid VM name format')
@@ -159,6 +160,8 @@ const vmCreateSchema = z.object({
   diskSize: z.number().int().min(5, 'Minimum 5 GB').max(500, 'Maximum 500 GB').optional(),
   distro: z.string().min(1).max(32).optional(),
   vmType: z.enum(['server', 'desktop']).optional(),
+  firmware: z.enum(['bios', 'uefi']).optional(),
+  virtioDrivers: z.boolean().optional(),
   autostart: z.boolean().optional(),
   description: z.string().max(500).optional(),
   tags: z.array(
@@ -203,6 +206,14 @@ const vmCreateSchema = z.object({
     }
     if (data.distro === 'other' && data.hypervisor !== 'qemu') {
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: '"Other" distro requires QEMU hypervisor', path: ['hypervisor'] })
+    }
+    // Firmware and the driver ISO are QEMU concepts. microvm.nix runtimes boot their own way, so
+    // accepting either there would record a field that silently does nothing.
+    if (data.firmware === 'uefi' && data.hypervisor !== 'qemu') {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'UEFI firmware requires QEMU hypervisor', path: ['firmware'] })
+    }
+    if (data.virtioDrivers && data.hypervisor !== 'qemu') {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'The VirtIO driver ISO requires QEMU hypervisor', path: ['hypervisor'] })
     }
   }
 })
@@ -402,6 +413,24 @@ export const workloadsRoutes: FastifyPluginAsync<VmsRouteOptions> = async (fasti
         // Firecracker is incompatible with NixOS MicroVMs (no virtiofs/9p store sharing)
         if (imageManager.isFlakeDistro(body.distro) && body.hypervisor === 'firecracker') {
           return reply.status(400).send({ error: 'Firecracker is incompatible with NixOS MicroVMs (no virtiofs/9p support)' })
+        }
+      }
+
+      // Firmware: refuse a request this host cannot honour, rather than quietly booting the VM on
+      // SeaBIOS. A Windows 11 installer on BIOS fails deep inside setup with a message about the
+      // system requirements, which sends the user looking at their ISO instead of their host.
+      if (!isContainerWorkload) {
+        const firmwareReason = firmwareRejectionReason(
+          { firmware: body.firmware, guestOs: body.guestOs, virtioDrivers: body.virtioDrivers },
+          config?.ovmf ?? null,
+        )
+        if (firmwareReason) {
+          return reply.status(400).send({ error: firmwareReason })
+        }
+        if (body.virtioDrivers && !config?.virtioWinIso) {
+          return reply.status(400).send({
+            error: 'The VirtIO driver ISO was requested but none is configured on this host. Set services.weaver.virtioWinIso, or create the VM without it (Windows will use IDE and e1000).',
+          })
         }
       }
 

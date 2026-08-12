@@ -73,6 +73,12 @@ export interface DashboardConfig {
   iptablesBin: string
   qemuBin: string
   qemuImgBin: string
+  /** OVMF CODE + VARS-template paths for UEFI guests; null when the host has no OVMF. */
+  ovmf: { code: string; varsTemplate: string } | null
+  /** Path to virtio-win.iso for Windows guests; null when not provisioned. */
+  virtioWinIso: string | null
+  /** Path to swtpm for the emulated TPM 2.0 UEFI guests need; null when unavailable. */
+  swtpmBin: string | null
   ipBin: string
   lscpuBin: string
   dfBin: string
@@ -159,6 +165,24 @@ export function parseBroadcastInterval(raw: string | undefined): number {
   // Rejects NaN, 0 and negatives in one test — including the empty string, via 0.
   if (!Number.isFinite(n) || n <= 0) return DEFAULT_WS_BROADCAST_INTERVAL_MS
   return Math.min(MAX_WS_BROADCAST_INTERVAL_MS, Math.max(MIN_WS_BROADCAST_INTERVAL_MS, Math.round(n)))
+}
+
+/**
+ * Resolve the OVMF pair for UEFI guests, or null when the host has no usable firmware.
+ *
+ * BOTH paths are required. A half-configured pair is a misconfiguration, and honouring half of it
+ * would attach a read-only CODE image with no variable store — the VM installs and then boots to
+ * the UEFI shell forever, which reads as a guest problem rather than a host one. Returning null
+ * makes the UEFI request fail at the route with a message naming the fix instead.
+ */
+export function parseOvmfPaths(
+  code: string | undefined,
+  vars: string | undefined,
+): { code: string; varsTemplate: string } | null {
+  const c = code?.trim()
+  const v = vars?.trim()
+  if (!c || !v) return null
+  return { code: c, varsTemplate: v }
 }
 
 export function loadConfig(): DashboardConfig {
@@ -262,6 +286,9 @@ export function loadConfig(): DashboardConfig {
     iptablesBin: process.env.IPTABLES_PATH ?? 'iptables',
     qemuBin: process.env.QEMU_BIN ?? '/run/current-system/sw/bin/qemu-system-x86_64',
     qemuImgBin: process.env.QEMU_IMG_BIN ?? '/run/current-system/sw/bin/qemu-img',
+    ovmf: parseOvmfPaths(process.env.OVMF_CODE_PATH, process.env.OVMF_VARS_PATH),
+    virtioWinIso: process.env.VIRTIO_WIN_ISO || null,
+    swtpmBin: process.env.SWTPM_BIN || null,
     ipBin: process.env.IP_BIN ?? '/run/current-system/sw/bin/ip',
     lscpuBin: process.env.LSCPU_BIN ?? '/run/current-system/sw/bin/lscpu',
     dfBin: process.env.DF_BIN ?? '/run/current-system/sw/bin/df',

@@ -1,0 +1,61 @@
+# Regression corpus for audit:e2e-docker-only.
+#
+# The auditor refuses to scan unless every line here classifies correctly. Both halves matter and
+# both are load-bearing: the CATCH half proves it can find a bare runner invocation at all, and the
+# IGNORE half proves it holds its fire on the many places this repo legitimately WRITES the phrase
+# "npx playwright test" — in comments forbidding it, in prose, and inside the Docker harness where
+# the invocation is correct. A rule that flagged those would be switched off within a day, after
+# which it would catch nothing.
+#
+# Format:  CATCH <line>   — must be reported as a violation
+#          IGNORE <line>  — must NOT be reported
+# Blank lines and lines starting with # are skipped.
+
+# ── Must catch: a real bare invocation at a command position ─────────────────────────────────
+CATCH npx playwright test
+CATCH   npx playwright test --workers=4
+CATCH npx playwright test testing/e2e/canvas.spec.ts
+CATCH npm run lint && npx playwright test
+CATCH ./node_modules/.bin/playwright test
+CATCH npm exec playwright test
+CATCH yarn playwright test
+CATCH pnpm playwright test
+CATCH npx playwright test --ui
+
+# ── Must catch: the command inside a STRING, which is how it actually gets committed ──────────
+# A negative test against a real repo file caught the auditor missing every one of these, because
+# an earlier version stripped quoted strings to avoid firing on prose. Quoting is not evidence
+# that something is not a command; printing is.
+CATCH execSync("npx playwright test")
+CATCH execSync('npx playwright test --workers=1')
+CATCH   "test:e2e": "npx playwright test",
+CATCH     run: npx playwright test
+CATCH command: npx playwright test --reporter=list
+CATCH const cmd = 'npx playwright test'
+
+# ── Must ignore: an explicit, reasoned suppression (bare suppression cannot match) ────────────
+IGNORE const forbidden = 'npx playwright test' // e2e-docker-only-ignore: the string this rule detects
+
+# ── Must ignore: the invocation is inside Docker, which is the whole point ────────────────────
+IGNORE docker compose run --rm playwright-tests npx playwright test
+IGNORE docker compose --profile single up playwright-single --build
+IGNORE docker exec quasar-e2e-iterate npx playwright test testing/e2e/canvas.spec.ts
+IGNORE ./scripts/run-tests.sh
+IGNORE ./scripts/run-foundry.sh testing/e2e/canvas.spec.ts
+
+# ── Must ignore: comments, including ones that FORBID the thing ───────────────────────────────
+IGNORE # E2E runs via Docker, never bare npx playwright test
+IGNORE // Never `npx playwright test` — the browser must come from the image, not the machine
+IGNORE   # npx playwright test would bypass the harness entirely
+IGNORE * runs happen in the Docker image, not via npx playwright test
+
+# ── Must ignore: the phrase inside a quoted string is prose, not a command ────────────────────
+IGNORE echo "use the docker harness, not npx playwright test"
+IGNORE echo 'npx playwright test is forbidden here'
+
+# ── Must ignore: near-misses that are not the test runner ────────────────────────────────────
+IGNORE npx playwright install-deps
+IGNORE npx playwright install chromium
+IGNORE npm install --save-dev @playwright/test@1.58.2
+IGNORE import { test, expect } from '@playwright/test'
+IGNORE const { chromium } = require('playwright')

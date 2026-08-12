@@ -254,6 +254,33 @@
             <HelpTooltip class="field-help" text="Server mode uses a lightweight serial console. Desktop mode provides a graphical VNC console (VGA output) — recommended with 1024+ MB RAM." />
           </div>
 
+          <div v-if="form.hypervisor === 'qemu'" class="field-wrap">
+            <q-select
+              v-model="form.firmware"
+              label="Boot firmware"
+              outlined
+              dense
+              data-testid="firmware-select"
+              :options="[
+                { label: 'BIOS (SeaBIOS) — widest compatibility', value: 'bios' },
+                { label: 'UEFI (OVMF) — required by Windows 11', value: 'uefi' },
+              ]"
+              emit-value
+              map-options
+              :hint="firmwareHint"
+            />
+            <HelpTooltip class="field-help" text="Windows 11 requires UEFI and TPM 2.0 and will refuse to install on BIOS. UEFI also needs OVMF on the host — the create fails with a clear message if it is not enabled." />
+          </div>
+
+          <div v-if="isWindowsDistro" class="field-wrap">
+            <q-toggle
+              v-model="form.virtioDrivers"
+              data-testid="virtio-drivers-toggle"
+              :label="form.virtioDrivers ? 'VirtIO drivers (fast disk + network)' : 'No driver disk (IDE + e1000, slower)'"
+            />
+            <HelpTooltip class="field-help" text="Attaches the virtio-win driver ISO as a second CD-ROM, roughly 3-5x faster disk and network. During Windows Setup you must Load Driver from that disc before the installer can see the disk — without the ISO, Windows uses IDE and e1000, which need no drivers." />
+          </div>
+
           <div class="field-wrap">
             <q-toggle
               v-model="form.autostart"
@@ -472,6 +499,8 @@ const form = reactive<VmCreateInput>({
   imageUrl: undefined,
   imageFormat: undefined,
   cloudInit: undefined,
+  firmware: undefined,
+  virtioDrivers: undefined,
 })
 
 const desktopMode = computed({
@@ -483,6 +512,13 @@ const desktopMode = computed({
 const isNonNixosDistro = computed(() => {
   if (!form.distro || form.distro === 'nixos') return false
   return true
+})
+
+const firmwareHint = computed(() => {
+  if (isWindowsDistro.value && form.firmware !== 'uefi') {
+    return 'Windows 11 requires UEFI — it will refuse to install on BIOS'
+  }
+  return undefined
 })
 
 const isWindowsDistro = computed(() => {
@@ -507,6 +543,13 @@ watch(() => form.distro, (newDistro, oldDistro) => {
   }
   if (isWindowsDistro.value) {
     form.vmType = 'desktop'
+    // Default Windows to UEFI. Windows 11 will not install on BIOS at all, and 10 is happy on
+    // either — so UEFI is the choice that is never wrong, and the user can still override it.
+    form.firmware = form.firmware ?? 'uefi'
+  } else {
+    // The driver ISO is Windows-only; leaving it set after switching to Linux would send a field
+    // the API rejects, turning a distro change into a validation error on an unrelated control.
+    form.virtioDrivers = undefined
   }
   // Set defaults when switching to "Other"
   if (newDistro === 'other') {
@@ -525,6 +568,10 @@ watch(() => form.distro, (newDistro, oldDistro) => {
 watch(() => form.hypervisor, (hv) => {
   if (hv !== 'qemu') {
     form.vmType = undefined
+    // microvm.nix runtimes boot their own way — a firmware choice recorded there would do
+    // nothing, and the API rejects it rather than accept a field it will ignore.
+    form.firmware = undefined
+    form.virtioDrivers = undefined
   }
 })
 

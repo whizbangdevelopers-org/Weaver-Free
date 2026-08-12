@@ -158,6 +158,56 @@ in
       description = "Gateway IP address on the VM bridge (host-side)";
     };
 
+    uefi = {
+      enable = mkEnableOption "OVMF UEFI firmware for guests (required by Windows 11)";
+
+      secureBootCapable = mkOption {
+        type = types.bool;
+        default = false;
+        description = ''
+          Use the Secure Boot capable OVMF build (`OVMF_CODE.ms.fd` / `OVMF_VARS.ms.fd`, with
+          Microsoft's keys pre-enrolled) instead of the plain one.
+
+          Off by default because it is not free: the plain build boots anything, while the
+          pre-enrolled build refuses unsigned bootloaders — which is the point for a Windows 11
+          guest and an obstacle for a home-built Linux image. Weaver always passes `smm=on`, so
+          the variable store is protected either way; this option only chooses which keys the
+          guest starts with.
+        '';
+      };
+
+      tpm = mkOption {
+        type = types.bool;
+        default = cfg.uefi.enable;
+        defaultText = literalExpression "config.services.weaver.uefi.enable";
+        description = ''
+          Provide each UEFI guest with an emulated TPM 2.0 via swtpm.
+
+          Defaults to ON with UEFI, because Windows 11 Setup checks for TPM 2.0 **and** UEFI and
+          refuses with "This PC can't run Windows 11" when either is missing. Shipping UEFI alone
+          would advertise Windows 11 support that does not actually install.
+
+          Turn it off for a Linux UEFI guest that has no use for measured boot; the emulator is a
+          per-VM process and a per-VM state directory.
+        '';
+      };
+
+      virtioWinIso = mkOption {
+        type = types.nullOr types.path;
+        default = null;
+        example = "/var/lib/weaver/images/virtio-win.iso";
+        description = ''
+          Path to the virtio-win driver ISO, attached as a second CDROM for Windows guests that
+          request it. Roughly a 3–5x I/O improvement over the driver-free IDE + e1000 defaults.
+
+          NOT downloaded automatically, and deliberately so — it is Red Hat redistributable
+          material with its own terms, and silently fetching it on the operator's behalf makes a
+          licensing decision that is theirs. Fetch it into the Nix store yourself
+          (`pkgs.fetchurl`) or drop it on the host and name the path.
+        '';
+      };
+    };
+
     serviceUser = mkOption {
       type = types.str;
       default = "weaver";
@@ -586,7 +636,31 @@ in
           QEMU_BIN = "${pkgs.qemu}/bin/qemu-system-x86_64";
           QEMU_IMG_BIN = "${pkgs.qemu}/bin/qemu-img";
           IP_BIN = "/run/current-system/sw/bin/ip";
-        };
+        }
+        # UEFI is opt-in, and the backend reads its ABSENCE as "this host cannot do UEFI" — a
+        # create with firmware = "uefi" then fails at the API with a message naming the fix,
+        # instead of booting the guest on SeaBIOS where Windows 11 dies mid-install.
+        # Both paths or neither: config.ts treats a half-configured pair as absent.
+        // (lib.optionalAttrs cfg.uefi.enable (
+          let
+            # pkgs.OVMF.fd ships ONLY the plain pair — no .ms variants. The pre-enrolled build is
+            # a different derivation (OVMFFull), and naming a `.ms` path inside the plain one
+            # yields a store path that does not exist, which fails at QEMU start rather than at
+            # eval. Select the PACKAGE, not just the filename.
+            ovmf = if cfg.uefi.secureBootCapable then pkgs.OVMFFull.fd else pkgs.OVMF.fd;
+            suffix = if cfg.uefi.secureBootCapable then ".ms" else "";
+          in
+          {
+            OVMF_CODE_PATH = "${ovmf}/FV/OVMF_CODE${suffix}.fd";
+            OVMF_VARS_PATH = "${ovmf}/FV/OVMF_VARS${suffix}.fd";
+          }
+        ))
+        // (lib.optionalAttrs cfg.uefi.tpm {
+          SWTPM_BIN = "${pkgs.swtpm}/bin/swtpm";
+        })
+        // (lib.optionalAttrs (cfg.uefi.virtioWinIso != null) {
+          VIRTIO_WIN_ISO = toString cfg.uefi.virtioWinIso;
+        });
         # Add tools needed for cloud VM provisioning to PATH
         path = [ pkgs.cdrkit pkgs.qemu ];
         # Ensure the bridge is up before weaver starts. Without these,

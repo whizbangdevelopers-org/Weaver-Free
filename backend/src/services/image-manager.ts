@@ -14,6 +14,7 @@ import type { IncomingMessage } from 'node:http'
 import type { WorkloadDefinition } from '../storage/workload-registry.js'
 import type { DashboardConfig } from '../config.js'
 import { validateExternalUrl } from '../validate-url.js'
+import { resolveGuestDevices, machineFlags, pflashArgs, tpmArgs, type FirmwarePlan, type TpmPaths } from './firmware.js'
 
 const execFileAsync = promisify(execFile)
 
@@ -308,23 +309,33 @@ chpasswd:
     qemuBin: string
     tapInterface: string
     macAddress: string
+    /** BIOS by default; a UEFI plan carries the OVMF pair (see services/firmware.ts). */
+    firmware?: FirmwarePlan
+    /** Path to virtio-win.iso. Attached only when the guest device model asks for it. */
+    virtioIso?: string
+    /** Emulated-TPM socket paths, when one is backing this VM. */
+    tpm?: TpmPaths
   }): { bin: string; args: string[] } {
-    const isWindows = vm.guestOs === 'windows'
+    const plan: FirmwarePlan = opts.firmware ?? { mode: 'bios' }
+    const devices = resolveGuestDevices({
+      guestOs: vm.guestOs,
+      virtioDrivers: vm.virtioDrivers,
+    })
 
     const args = [
       '-name', vm.name,
-      '-machine', 'q35,accel=kvm',
+      '-machine', machineFlags(plan),
       '-cpu', 'host',
       '-m', String(vm.mem),
       '-smp', String(vm.vcpu),
+      // OVMF CODE/VARS, before any other drive — QEMU numbers pflash units by position.
+      ...pflashArgs(plan),
+      ...tpmArgs(opts.tpm ?? null),
     ]
 
-    // Disk: IDE for Windows (no driver needed), VirtIO for Linux
-    if (isWindows) {
-      args.push('-drive', `file=${opts.diskPath},format=qcow2,if=ide`)
-    } else {
-      args.push('-drive', `file=${opts.diskPath},format=qcow2,if=virtio`)
-    }
+    // Disk + NIC models come from the one seam, so "virtio disk" and "driver ISO attached" can
+    // never disagree. See services/firmware.ts for why that pairing is an iff and not a default.
+    args.push('-drive', `file=${opts.diskPath},format=qcow2,if=${devices.diskInterface}`)
 
     // Cloud-init ISO (cloud-image path only)
     if (opts.cloudInitIso) {
@@ -336,13 +347,14 @@ chpasswd:
       args.push('-cdrom', opts.bootIso)
     }
 
-    // Network: e1000 for Windows (no driver needed), VirtIO for Linux
-    args.push('-netdev', `tap,id=net0,ifname=${opts.tapInterface},script=no,downscript=no`)
-    if (isWindows) {
-      args.push('-device', `e1000,netdev=net0,mac=${opts.macAddress}`)
-    } else {
-      args.push('-device', `virtio-net-pci,netdev=net0,mac=${opts.macAddress}`)
+    // VirtIO driver ISO — a SECOND CDROM, so it cannot displace the install media on -cdrom.
+    // Windows Setup reads its storage driver from here before it can see a virtio disk.
+    if (devices.attachVirtioIso && opts.virtioIso) {
+      args.push('-drive', `file=${opts.virtioIso},format=raw,if=ide,media=cdrom`)
     }
+
+    args.push('-netdev', `tap,id=net0,ifname=${opts.tapInterface},script=no,downscript=no`)
+    args.push('-device', `${devices.netDevice},netdev=net0,mac=${opts.macAddress}`)
 
     // Display: desktop (VGA+VNC) or server (serial console)
     if (vm.vmType === 'desktop') {
