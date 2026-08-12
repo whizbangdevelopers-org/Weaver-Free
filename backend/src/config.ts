@@ -48,6 +48,11 @@ export interface DashboardConfig {
   microvmsDir: string
   bridgeGateway: string | null
   bridgeInterface: string
+  /**
+   * DNS Core zone domain. NEVER `.local` — that is reserved for mDNS (RFC 6762) and a `.vm.local`
+   * zone collides with Avahi on exactly the home-lab networks this targets.
+   */
+  dnsDomain: string
   sudoBin: string
   systemctlBin: string
   iptablesBin: string
@@ -196,6 +201,7 @@ export function loadConfig(): DashboardConfig {
     microvmsDir: process.env.MICROVMS_DIR ?? '/var/lib/microvms',
     bridgeGateway: process.env.BRIDGE_GATEWAY || null,
     bridgeInterface: process.env.BRIDGE_INTERFACE ?? 'br-microvm',
+    dnsDomain: process.env.DNS_DOMAIN ?? 'vm.internal',
     sudoBin: process.env.SUDO_PATH ?? 'sudo',
     systemctlBin: process.env.SYSTEMCTL_PATH ?? 'systemctl',
     iptablesBin: process.env.IPTABLES_PATH ?? 'iptables',

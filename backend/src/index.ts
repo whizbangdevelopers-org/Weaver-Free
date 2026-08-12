@@ -2,7 +2,7 @@
 // Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE.
 import 'dotenv/config'
 import { resolve, join } from 'path'
-import { readFile } from 'node:fs/promises'
+import { readFile, writeFile } from 'node:fs/promises'
 import Fastify, { type FastifyError } from 'fastify'
 import compress from '@fastify/compress'
 import cors from '@fastify/cors'
@@ -23,9 +23,11 @@ import { agentRoutes } from './routes/agent.js'
 import { networkRoutes } from './routes/network.js'
 import { distroRoutes } from './routes/distros.js'
 import { consoleRoutes } from './routes/console.js'
+import { dnsRoutes } from './routes/dns.js'
 import { createRegistry } from './storage/index.js'
 import { setRegistry, setProvisioner, setConfig, startAutostartVms, scanMicrovms, getWorkloadDefinitions } from './services/microvm.js'
 import { MetricsCollector, retentionForTier } from './services/metrics.js'
+import { DnsZoneWriter } from './services/dns-writer.js'
 import { createImageManager } from './services/image-manager.js'
 import { UrlValidationService } from './services/url-validator.js'
 import type { Provisioner } from './services/provisioner-types.js'
@@ -34,6 +36,7 @@ import { DistroStore } from './storage/distro-store.js'
 import { CatalogStore } from './storage/catalog-store.js'
 import { loadConfig } from './config.js'
 import { TIERS, ROLES } from './constants/vocabularies.js'
+import { TIER_ORDER } from './license.js'
 import { NetworkStore } from './storage/network-store.js'
 import { UserStore } from './storage/user-store.js'
 import { MemorySessionStore } from './storage/memory-session-store.js'
@@ -438,9 +441,43 @@ const metricsCollector = new MetricsCollector({
   retention: retentionForTier(config.tier),
 })
 
+/**
+ * DNS Core — the `.vm.internal` auto-zone.
+ *
+ * Solo+ only, so the writer is not constructed below that tier: there is no zone to publish and a
+ * writer that never writes is a timer burning wakeups on a Free host.
+ *
+ * The reload is a placeholder until the NixOS module lands — it needs a `services.weaver.dns`
+ * option to own the dnsmasq unit, and that half is only meaningful once verified on a real NixOS
+ * host. Until then the zone file is written and the reload is a no-op, which is honest: the
+ * generated file is correct and inert rather than half-applied.
+ */
+const dnsWriter = TIER_ORDER[config.tier] >= TIER_ORDER[TIERS.SOLO]
+  ? new DnsZoneWriter(
+      {
+        writeFile: async (path: string, content: string) => {
+          await writeFile(path, content, 'utf-8')
+        },
+        reload: async () => {
+          // No-op until services.weaver.dns owns the resolver unit. Deliberately not a
+          // best-effort `systemctl reload` — signalling a unit this build does not manage would
+          // either fail on every host or, worse, reload someone else's dnsmasq.
+        },
+      },
+      { hostsPath: join(config.dataDir, 'dns-hosts'), domain: config.dnsDomain },
+    )
+  : null
+
 metricsCollector.start(async () => {
   const defs = await getWorkloadDefinitions()
-  return Object.values(defs).map(d => ({ name: d.name, vcpu: d.vcpu }))
+  const workloads = Object.values(defs)
+  // Rides the metrics tick rather than adding a second timer. The writer no-ops when the zone is
+  // unchanged, so this costs one comparison on a quiet host.
+  if (dnsWriter) {
+    void dnsWriter.sync(workloads.map(d => ({ name: d.name, ip: d.ip })))
+      .catch(err => fastify.log.error({ err }, 'DNS zone sync failed'))
+  }
+  return workloads.map(d => ({ name: d.name, vcpu: d.vcpu }))
 })
 
 // networkManager is the IP allocator the clone route uses when the caller omits an address. It is
@@ -451,6 +488,7 @@ metricsCollector.start(async () => {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- networkManager typed as unknown from dynamic import
 await fastify.register(workloadsRoutes, { prefix: '/api/workload', provisioner, imageManager, config, auditService, quotaStore, aclStore: vmAclStore, networkManager: networkManager as any, metricsCollector })
 await fastify.register(agentRoutes, { prefix: '/api/workload', config, auditService, aclStore: vmAclStore })
+await fastify.register(dnsRoutes, { prefix: '/api/dns', config, getZone: () => dnsWriter?.currentZone ?? null })
 const distroTester = provisioner ? new DistroTester(vmRegistry, provisioner, config) : undefined
 await fastify.register(distroRoutes, { prefix: '/api/distros', distroStore, catalogStore, imageManager, urlValidator, config, auditService, distroTester })
 await fastify.register(auditRoutes, { prefix: '/api/audit', auditService, config })
