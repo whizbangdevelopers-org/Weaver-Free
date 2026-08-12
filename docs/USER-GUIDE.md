@@ -252,9 +252,21 @@ Below the header, info cards display key specifications:
 
 ### Resource Metrics
 
-*Available: v1.1+*
+*Available: v1.1+ · Weaver Solo and above*
 
-CPU, memory, and disk I/O charts appear below the info cards with configurable time windows.
+CPU and memory charts appear below the info cards. Weaver samples each workload's control group
+every 30 seconds and keeps a rolling window: **one hour on Weaver Free, 24 hours on Solo and
+above**. The badge on the chart shows the window you are actually being served.
+
+**A break in a line means no reading was taken, not zero usage.** A workload that was stopped, or
+whose control group could not be read, produces a gap rather than a flat line at the bottom — the
+two are different facts and the chart keeps them apart. The same applies to the CPU and memory
+figures beside the chart: an unknown reading shows as an em dash, never as `0`.
+
+CPU is shown as a percentage of the workload's **allocated** vCPUs, so 100% means it is using
+everything it was given — a 4-vCPU workload at full load reads 100%, not 400%.
+
+Disk usage is not charted yet.
 
 ### Tabs
 
