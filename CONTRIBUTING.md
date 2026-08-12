@@ -62,11 +62,19 @@ cd backend && npm install && cd ..
 
 ### 3. Set Up Git Hooks
 
+Run this from the directory holding `package.json` — it derives the path rather than assuming
+where that sits in the tree:
+
 ```bash
-git config core.hooksPath .githooks
+git config core.hooksPath "$(git rev-parse --show-prefix).githooks"
 ```
 
 This enables pre-commit linting and pre-push testing.
+
+A literal `.githooks` is correct only when the package is at the repository root. Getting that
+wrong is silent — git runs **no** hooks at all and reports nothing, so the first sign is a defect
+reaching a branch that every gate was supposed to block. One repo in this portfolio sat that way
+for months. The derived form above is right in both layouts.
 
 ### 4. Create a Branch
 
