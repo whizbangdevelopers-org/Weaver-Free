@@ -17,6 +17,7 @@ import type { QuotaStore } from '../storage/quota-store.js'
 import type { VmAclStore } from '../storage/vm-acl-store.js'
 import { createVmAclCheck } from '../middleware/vm-acl.js'
 import { createRateLimit } from '../middleware/rate-limit.js'
+import { resolveWindowMs, SAMPLE_INTERVAL_MS, type MetricsCollector } from '../services/metrics.js'
 
 const vmNameSchema = z.object({
   name: z.string().regex(/^[a-z][a-z0-9-]*$/, 'Invalid VM name format')
@@ -58,6 +59,26 @@ const exportDocumentSchema = z.object({
   version: z.string(),
   exportedAt: z.string(),
   workloads: z.array(exportedWorkloadSchema),
+})
+
+/**
+ * Metrics response.
+ *
+ * Every numeric field is NULLABLE, and that is the contract rather than an oversight: a sample
+ * whose value could not be determined is null, never 0. Collapsing the two here would undo the
+ * whole point of the service layer — a chart cannot distinguish "idle" from "unknown" once the
+ * wire has turned one into the other.
+ */
+const metricsResponseSchema = z.object({
+  name: z.string(),
+  windowMs: z.number(),
+  intervalMs: z.number(),
+  samples: z.array(z.object({
+    timestamp: z.number(),
+    cpuPercent: z.number().nullable(),
+    memoryBytes: z.number().nullable(),
+    diskBytes: z.number().nullable(),
+  })),
 })
 
 /** Filename stamp: date only, so an export downloaded twice in a day overwrites rather than piles up. */
@@ -208,11 +229,12 @@ interface VmsRouteOptions {
   quotaStore?: QuotaStore
   aclStore?: VmAclStore
   networkManager?: IpAllocator | null
+  metricsCollector?: MetricsCollector | null
 }
 
 export const workloadsRoutes: FastifyPluginAsync<VmsRouteOptions> = async (fastify, opts) => {
   const app = fastify.withTypeProvider<ZodTypeProvider>()
-  const { provisioner, imageManager, config, auditService, quotaStore, aclStore, networkManager } = opts
+  const { provisioner, imageManager, config, auditService, quotaStore, aclStore, networkManager, metricsCollector } = opts
 
   // Per-VM ACL check middleware (fabrick only, admin bypass)
   const aclCheck = (aclStore && config) ? createVmAclCheck(aclStore, config) : undefined
@@ -432,6 +454,53 @@ export const workloadsRoutes: FastifyPluginAsync<VmsRouteOptions> = async (fasti
       }
 
       return reply.status(201).send(result)
+    }
+  )
+
+  // GET /api/workload/:name/metrics — resource history for one workload (all roles, Free tier)
+  //
+  // Free tier deliberately: "open Proxmox, see graphs; open Weaver, see nothing" is the gap this
+  // closes, and it is an ADOPTION gap. The tier difference is the WINDOW, not the feature — Free
+  // gets an hour, paid gets a day.
+  app.get(
+    '/:name/metrics',
+    {
+      schema: {
+        params: vmNameSchema,
+        querystring: z.object({ window: z.string().max(8).optional() }),
+        response: { 200: metricsResponseSchema, 404: errorResponseSchema },
+      },
+      preHandler: [requireRole(ROLES.ADMIN, ROLES.OPERATOR, ROLES.VIEWER), ...aclPreHandler],
+      // Reads an in-memory buffer — no subprocess, no filesystem — so this is cheap. The 60/min
+      // budget is deliberately generous: a detail page open on a chart is a legitimate poller,
+      // unlike the logs route which must never be polled.
+      config: { rateLimit: createRateLimit(60) },
+    },
+    async (request, reply) => {
+      const { name } = request.params
+      const definition = (await getWorkloadDefinitions())[name]
+      if (!definition) {
+        return reply.status(404).send({ error: `Workload '${name}' not found` })
+      }
+
+      const tier = config?.tier ?? TIERS.FREE
+      const windowMs = resolveWindowMs(request.query.window, tier)
+
+      // Absent collector (metrics disabled, or a build without it) returns an EMPTY SERIES rather
+      // than 404 or 500. The distinction the UI needs is "this workload does not exist" versus
+      // "there is no data for it yet", and both of those are already expressible; a 500 here
+      // would render as a broken page for a feature that is merely not collecting.
+      const samples = metricsCollector?.getSamples(name, windowMs) ?? []
+
+      return {
+        name,
+        windowMs,
+        intervalMs: SAMPLE_INTERVAL_MS,
+        // Reported so the UI can label the axis with what it actually received. A Free request
+        // for 24h is clamped to an hour, and a chart captioned "24 hours" over an hour of data
+        // is a lie the user has no way to detect.
+        samples,
+      }
     }
   )
 

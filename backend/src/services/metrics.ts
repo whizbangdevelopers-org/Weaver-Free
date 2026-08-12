@@ -174,6 +174,151 @@ export class MetricRingBuffer {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Collector — the one stateful piece
+// ---------------------------------------------------------------------------
+
+/**
+ * Reads one cgroup file. Returns null when it cannot be read for ANY reason.
+ *
+ * A workload that is stopped has no cgroup at all, so ENOENT is the ordinary case rather than an
+ * error worth logging — logging it would emit a line per stopped workload every 30 seconds
+ * forever, which is how a log becomes something nobody reads.
+ */
+export type CgroupReader = (path: string) => Promise<string | null>
+
+interface WorkloadState {
+  buffer: MetricRingBuffer
+  lastCpuUsec: number | null
+  lastSampleAt: number | null
+}
+
+/**
+ * Samples cgroup v2 into per-workload ring buffers on a timer.
+ *
+ * The reader and the clock are injected. That is not ceremony: the interesting behaviour of this
+ * class is what it does across TIME (counter resets, gaps, wraps) and against a filesystem that
+ * may not have the files, and neither is reachable in a test that has to use the real ones.
+ */
+export class MetricsCollector {
+  private readonly states = new Map<string, WorkloadState>()
+  private timer: ReturnType<typeof setInterval> | null = null
+
+  constructor(
+    private readonly opts: {
+      read: CgroupReader
+      now?: () => number
+      cgroupRoot?: string
+      retention?: number
+    },
+  ) {}
+
+  private now(): number {
+    return this.opts.now ? this.opts.now() : Date.now()
+  }
+
+  private stateFor(name: string): WorkloadState {
+    let s = this.states.get(name)
+    if (!s) {
+      s = {
+        buffer: new MetricRingBuffer(this.opts.retention ?? RETENTION_PAID),
+        lastCpuUsec: null,
+        lastSampleAt: null,
+      }
+      this.states.set(name, s)
+    }
+    return s
+  }
+
+  /** Take one sample for one workload. Exposed so a test drives it without a timer. */
+  async sampleOne(name: string, vcpus: number): Promise<MetricSample> {
+    const state = this.stateFor(name)
+    const base = this.opts.cgroupRoot
+      ? cgroupPathFor(name, this.opts.cgroupRoot)
+      : cgroupPathFor(name)
+    const timestamp = this.now()
+
+    const [cpuRaw, memRaw] = await Promise.all([
+      this.opts.read(`${base}/cpu.stat`),
+      this.opts.read(`${base}/memory.current`),
+    ])
+
+    const currentUsec = cpuRaw === null ? null : parseCpuUsageUsec(cpuRaw)
+    const cpuPercent = computeCpuPercent({
+      previousUsec: state.lastCpuUsec,
+      currentUsec,
+      elapsedMs: state.lastSampleAt === null ? 0 : timestamp - state.lastSampleAt,
+      vcpus,
+    })
+
+    const sample: MetricSample = {
+      timestamp,
+      cpuPercent,
+      memoryBytes: memRaw === null ? null : parseMemoryCurrent(memRaw),
+      diskBytes: null, // disk is sampled far less often; not wired yet
+    }
+
+    // Advance the CPU baseline ONLY on a real reading. Storing null here would make the next
+    // sample look like another cold start, so a workload whose cgroup is briefly unreadable would
+    // never produce a CPU number again — it would just silently stop having a CPU line.
+    if (currentUsec !== null) {
+      state.lastCpuUsec = currentUsec
+      state.lastSampleAt = timestamp
+    }
+
+    state.buffer.push(sample)
+    return sample
+  }
+
+  /** Samples every workload passed in. Failures are per-workload and never abort the round. */
+  async sampleAll(workloads: { name: string; vcpu: number }[]): Promise<void> {
+    // allSettled, not all: one unreadable cgroup must not cancel the sampling of every other
+    // workload in the same tick.
+    await Promise.allSettled(workloads.map(w => this.sampleOne(w.name, w.vcpu)))
+  }
+
+  /** Samples within a window, oldest first. Empty for an unknown workload. */
+  getSamples(name: string, windowMs: number): MetricSample[] {
+    return this.states.get(name)?.buffer.window(windowMs, this.now()) ?? []
+  }
+
+  /** Drop a workload's history — call when one is deleted, or the map grows without bound. */
+  forget(name: string): void {
+    this.states.delete(name)
+  }
+
+  get trackedCount(): number {
+    return this.states.size
+  }
+
+  start(listWorkloads: () => Promise<{ name: string; vcpu: number }[]>): void {
+    if (this.timer) return
+    this.timer = setInterval(() => {
+      void (async () => {
+        try {
+          const workloads = await listWorkloads()
+          await this.sampleAll(workloads)
+          // Forget anything that has gone away, so a host that creates and destroys workloads
+          // does not accumulate a buffer per name that ever existed.
+          const live = new Set(workloads.map(w => w.name))
+          for (const name of this.states.keys()) {
+            if (!live.has(name)) this.forget(name)
+          }
+        } catch {
+          // A failed round is skipped, never fatal — the collector must outlive a transient fault.
+        }
+      })()
+    }, SAMPLE_INTERVAL_MS)
+    // Do not hold the process open for a metrics timer.
+    this.timer.unref?.()
+  }
+
+  stop(): void {
+    if (this.timer) clearInterval(this.timer)
+    this.timer = null
+  }
+}
+
 /** Retention for a tier. Anything paid gets the long window. */
 export function retentionForTier(tier: string): number {
   return tier === 'free' ? RETENTION_FREE : RETENTION_PAID

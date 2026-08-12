@@ -22,7 +22,9 @@ import {
   RETENTION_FREE,
   RETENTION_PAID,
   SAMPLE_INTERVAL_MS,
+  MetricsCollector,
   type MetricSample,
+  type CgroupReader,
 } from '../../src/services/metrics.js'
 
 const sample = (timestamp: number, cpu: number | null = 1): MetricSample => ({
@@ -294,5 +296,168 @@ describe('resolveWindowMs', () => {
     expect(resolveWindowMs('bogus', 'weaver')).toBe(86_400_000)
     expect(resolveWindowMs('0h', 'weaver')).toBe(86_400_000)
     expect(resolveWindowMs('-5m', 'weaver')).toBe(86_400_000)
+  })
+})
+
+/**
+ * The collector — the stateful half.
+ *
+ * Its interesting behaviour is all across TIME (counter resets, gaps, restarts) and against a
+ * filesystem that may not have the files at all, so both the reader and the clock are injected.
+ * A test that used the real cgroupfs could not express a single case below.
+ */
+describe('MetricsCollector', () => {
+  /** A fake cgroupfs. Missing key = the file does not exist, which is the stopped-workload case. */
+  function fakeFs(files: Record<string, string>) {
+    const reads: string[] = []
+    return {
+      reads,
+      files,
+      read: async (path: string) => {
+        reads.push(path)
+        return path in files ? files[path]! : null
+      },
+    }
+  }
+
+  const ROOT = '/fake/cgroup'
+  const cpuPath = (n: string) => `${ROOT}/system.slice/microvm@${n}.service/cpu.stat`
+  const memPath = (n: string) => `${ROOT}/system.slice/microvm@${n}.service/memory.current`
+
+  function makeClock(start = 1_000_000) {
+    let t = start
+    return { now: () => t, advance: (ms: number) => { t += ms } }
+  }
+
+  it('produces no CPU number on the first sample, but does record memory', () => {
+    // Cold start: there is no previous counter to difference against. Memory is an absolute
+    // reading and is available immediately — the two must not share a fate.
+    const fs = fakeFs({ [cpuPath('a')]: 'usage_usec 1000', [memPath('a')]: '2048' })
+    const clock = makeClock()
+    const c = new MetricsCollector({ read: fs.read, now: clock.now, cgroupRoot: ROOT })
+
+    return c.sampleOne('a', 1).then(s => {
+      expect(s.cpuPercent).toBeNull()
+      expect(s.memoryBytes).toBe(2048)
+    })
+  })
+
+  it('computes CPU on the second sample', async () => {
+    const fs = fakeFs({ [cpuPath('a')]: 'usage_usec 0', [memPath('a')]: '2048' })
+    const clock = makeClock()
+    const c = new MetricsCollector({ read: fs.read, now: clock.now, cgroupRoot: ROOT })
+
+    await c.sampleOne('a', 1)
+    clock.advance(30_000)
+    fs.files[cpuPath('a')] = 'usage_usec 15000000' // 15s of CPU over 30s on 1 vCPU
+    const second = await c.sampleOne('a', 1)
+    expect(second.cpuPercent).toBe(50)
+  })
+
+  it('returns null for the interval spanning a unit restart, then recovers', async () => {
+    const fs = fakeFs({ [cpuPath('a')]: 'usage_usec 900000000', [memPath('a')]: '2048' })
+    const clock = makeClock()
+    const c = new MetricsCollector({ read: fs.read, now: clock.now, cgroupRoot: ROOT })
+
+    await c.sampleOne('a', 1)
+
+    // The unit restarts: the cgroup is recreated and the counter goes back to near zero.
+    clock.advance(30_000)
+    fs.files[cpuPath('a')] = 'usage_usec 1000'
+    expect((await c.sampleOne('a', 1)).cpuPercent).toBeNull()
+
+    // The NEXT interval must work again — the baseline has to have been re-anchored to the new
+    // counter. If the reset left the old baseline in place, every subsequent sample would also be
+    // null and the workload would simply stop having a CPU line after any restart.
+    clock.advance(30_000)
+    fs.files[cpuPath('a')] = 'usage_usec 15001000'
+    expect((await c.sampleOne('a', 1)).cpuPercent).toBe(50)
+  })
+
+  it('does not advance the baseline on an unreadable cgroup', async () => {
+    // A transient read failure must not permanently break CPU for that workload. Storing null as
+    // the baseline would make every later sample look like another cold start.
+    const fs = fakeFs({ [cpuPath('a')]: 'usage_usec 0', [memPath('a')]: '1' })
+    const clock = makeClock()
+    const c = new MetricsCollector({ read: fs.read, now: clock.now, cgroupRoot: ROOT })
+
+    await c.sampleOne('a', 1)
+
+    clock.advance(30_000)
+    delete fs.files[cpuPath('a')] // vanished for one round
+    expect((await c.sampleOne('a', 1)).cpuPercent).toBeNull()
+
+    clock.advance(30_000)
+    fs.files[cpuPath('a')] = 'usage_usec 60000000' // 60s of CPU since the last REAL reading (60s ago)
+    expect((await c.sampleOne('a', 1)).cpuPercent).toBe(100)
+  })
+
+  it('records a sample even when nothing could be read', async () => {
+    // A stopped workload has no cgroup. It still gets a timestamped sample with null values, so
+    // the graph shows a gap rather than silently omitting the period.
+    const fs = fakeFs({})
+    const c = new MetricsCollector({ read: fs.read, cgroupRoot: ROOT })
+    const s = await c.sampleOne('ghost', 1)
+    expect(s.cpuPercent).toBeNull()
+    expect(s.memoryBytes).toBeNull()
+    expect(c.getSamples('ghost', 3_600_000)).toHaveLength(1)
+  })
+
+  it('keeps per-workload state separate', async () => {
+    const fs = fakeFs({
+      [cpuPath('a')]: 'usage_usec 0', [memPath('a')]: '100',
+      [cpuPath('b')]: 'usage_usec 0', [memPath('b')]: '200',
+    })
+    const clock = makeClock()
+    const c = new MetricsCollector({ read: fs.read, now: clock.now, cgroupRoot: ROOT })
+
+    await c.sampleAll([{ name: 'a', vcpu: 1 }, { name: 'b', vcpu: 1 }])
+    clock.advance(30_000)
+    fs.files[cpuPath('a')] = 'usage_usec 30000000' // a is pinned
+    fs.files[cpuPath('b')] = 'usage_usec 0'        // b is idle
+    await c.sampleAll([{ name: 'a', vcpu: 1 }, { name: 'b', vcpu: 1 }])
+
+    expect(c.getSamples('a', 3_600_000).at(-1)!.cpuPercent).toBe(100)
+    expect(c.getSamples('b', 3_600_000).at(-1)!.cpuPercent).toBe(0)
+  })
+
+  it('one unreadable workload does not abort the others in the same round', async () => {
+    // Promise.all would reject the whole round on a single throwing read, so every other
+    // workload would silently lose that interval.
+    const throwing: CgroupReader = async (path: string) => {
+      if (path.includes('broken')) throw new Error('EACCES')
+      return path.endsWith('cpu.stat') ? 'usage_usec 0' : '512'
+    }
+    const c = new MetricsCollector({ read: throwing, cgroupRoot: ROOT })
+    await c.sampleAll([{ name: 'broken', vcpu: 1 }, { name: 'fine', vcpu: 1 }])
+    expect(c.getSamples('fine', 3_600_000)).toHaveLength(1)
+  })
+
+  it('honours the retention cap it was constructed with', async () => {
+    const fs = fakeFs({ [cpuPath('a')]: 'usage_usec 0', [memPath('a')]: '1' })
+    const clock = makeClock()
+    const c = new MetricsCollector({ read: fs.read, now: clock.now, cgroupRoot: ROOT, retention: 3 })
+    for (let i = 0; i < 10; i++) {
+      await c.sampleOne('a', 1)
+      clock.advance(30_000)
+    }
+    expect(c.getSamples('a', 86_400_000)).toHaveLength(3)
+  })
+
+  it('forgets a workload on request', async () => {
+    const fs = fakeFs({ [cpuPath('a')]: 'usage_usec 0', [memPath('a')]: '1' })
+    const c = new MetricsCollector({ read: fs.read, cgroupRoot: ROOT })
+    await c.sampleOne('a', 1)
+    expect(c.trackedCount).toBe(1)
+    c.forget('a')
+    expect(c.trackedCount).toBe(0)
+    expect(c.getSamples('a', 3_600_000)).toEqual([])
+  })
+
+  it('reads from the real cgroup root when none is injected', async () => {
+    const fs = fakeFs({})
+    const c = new MetricsCollector({ read: fs.read })
+    await c.sampleOne('web', 1)
+    expect(fs.reads).toContain('/sys/fs/cgroup/system.slice/microvm@web.service/cpu.stat')
   })
 })
