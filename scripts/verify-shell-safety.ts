@@ -128,6 +128,8 @@ function main(): number {
   }
   console.log(`  \x1b[32m✓\x1b[0m self-test: ${MUST_CATCH.length} catch + ${MUST_IGNORE.length} ignore cases\n`)
 
+  // audit:auditor-contracts reads this line to see BOTH halves rather than trust they exist.
+  console.log(`  auditor-contract: catch=${MUST_CATCH.length} ignore=${MUST_IGNORE.length}`)
   const tracked = execFileSync('git', ['-C', REPO, 'ls-files'], { encoding: 'utf-8' })
     .split('\n').filter(Boolean)
   const found: Finding[] = []

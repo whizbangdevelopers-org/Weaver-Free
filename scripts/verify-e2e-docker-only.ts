@@ -179,6 +179,7 @@ function selfTest(): void {
 
   const failures: string[] = []
   let cases = 0
+  let catches = 0
   for (const raw of corpus.split('\n')) {
     const line = raw.trim()
     if (!line || line.startsWith('#')) continue
@@ -189,6 +190,7 @@ function selfTest(): void {
       continue
     }
     cases++
+    if (expectCatch) catches++
     const subject = line.slice(expectCatch ? 6 : 7)
     const flagged = violates(subject)
     if (expectCatch && !flagged) failures.push(`MISSED (should CATCH): ${subject}`)
@@ -206,6 +208,8 @@ function selfTest(): void {
     process.exit(1)
   }
   console.log(`  \x1b[32m✓\x1b[0m self-test: ${cases}/${cases} corpus cases classified correctly`)
+  // audit:auditor-contracts reads this line to see BOTH halves rather than trust they exist.
+  console.log(`  auditor-contract: catch=${catches} ignore=${cases - catches}`)
 }
 
 function main(): number {
