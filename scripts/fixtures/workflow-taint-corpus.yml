@@ -1,0 +1,163 @@
+# Regression corpus for audit:workflow-taint.
+#
+# The auditor refuses to scan unless every case here classifies correctly. Both halves are
+# load-bearing: the CATCH half proves it can see attacker text reaching a shell, and the IGNORE
+# half proves it does not fire on the env-indirection that is the CORRECT way to use that text —
+# a checker that flagged the fix as well as the bug would be switched off within a day.
+#
+# Format: each document below has `expect: catch` or `expect: ignore` and a `workflow:` body.
+
+- name: title interpolated straight into a run block
+  expect: catch
+  workflow:
+    on: { issues: { types: [opened] } }
+    jobs:
+      j:
+        steps:
+          - run: echo "${{ github.event.issue.title }}"
+
+- name: body interpolated straight into a run block
+  expect: catch
+  workflow:
+    on: { issues: { types: [opened] } }
+    jobs:
+      j:
+        steps:
+          - run: BODY="${{ github.event.issue.body }}"
+
+- name: comment body, same shape
+  expect: catch
+  workflow:
+    on: { issue_comment: { types: [created] } }
+    jobs:
+      j:
+        steps:
+          - run: echo "${{ github.event.comment.body }}"
+
+- name: PR title on pull_request_target
+  expect: catch
+  workflow:
+    on: { pull_request_target: { types: [opened] } }
+    jobs:
+      j:
+        steps:
+          - run: echo "${{ github.event.pull_request.title }}"
+
+- name: head_ref, attacker-named branch
+  expect: catch
+  workflow:
+    on: { pull_request_target: { types: [opened] } }
+    jobs:
+      j:
+        steps:
+          - run: echo "${{ github.head_ref }}"
+
+# THE CASE ACTIONLINT MISSES. The title is laundered through a step output and re-interpolated one
+# step later. actionlint models github.event.* as untrusted and has no concept of a value that
+# PASSED THROUGH an output, so it reports this file clean once the first step uses env.
+- name: taint laundered through a step output
+  expect: catch
+  workflow:
+    on: { issues: { types: [opened] } }
+    jobs:
+      j:
+        steps:
+          - id: grab
+            env: { T: "${{ github.event.issue.title }}" }
+            run: echo "title=$T" >> "$GITHUB_OUTPUT"
+          - run: echo "${{ steps.grab.outputs.title }}"
+
+- name: taint laundered two hops
+  expect: catch
+  workflow:
+    on: { issues: { types: [opened] } }
+    jobs:
+      j:
+        steps:
+          - id: a
+            env: { T: "${{ github.event.issue.body }}" }
+            run: echo "v=$T" >> "$GITHUB_OUTPUT"
+          - id: b
+            env: { U: "${{ steps.a.outputs.v }}" }
+            run: echo "w=$U" >> "$GITHUB_OUTPUT"
+          - run: echo "${{ steps.b.outputs.w }}"
+
+# ── IGNORE: the correct pattern, and repo-controlled data ────────────────────────────────────
+- name: env indirection — the fix, must not be flagged
+  expect: ignore
+  workflow:
+    on: { issues: { types: [opened] } }
+    jobs:
+      j:
+        steps:
+          - env: { ISSUE_TITLE: "${{ github.event.issue.title }}" }
+            run: echo "$ISSUE_TITLE"
+
+- name: env indirection for a laundered output
+  expect: ignore
+  workflow:
+    on: { issues: { types: [opened] } }
+    jobs:
+      j:
+        steps:
+          - id: grab
+            env: { T: "${{ github.event.issue.title }}" }
+            run: echo "title=$T" >> "$GITHUB_OUTPUT"
+          - env: { TITLE: "${{ steps.grab.outputs.title }}" }
+            run: echo "$TITLE"
+
+- name: repo-controlled context is not attacker text
+  expect: ignore
+  workflow:
+    on: { push: { branches: [main] } }
+    jobs:
+      j:
+        steps:
+          - run: echo "${{ github.repository }} ${{ github.sha }} ${{ github.ref }}"
+
+- name: step output derived from literals only
+  expect: ignore
+  workflow:
+    on: { push: { branches: [main] } }
+    jobs:
+      j:
+        steps:
+          - id: pick
+            run: echo "value=Premium" >> "$GITHUB_OUTPUT"
+          - run: echo "${{ steps.pick.outputs.value }}"
+
+- name: secrets in with, which is allowed and not a shell context
+  expect: ignore
+  workflow:
+    on: { issues: { types: [opened] } }
+    jobs:
+      j:
+        steps:
+          - uses: some/action@v1
+            with: { token: "${{ secrets.GH_TOKEN }}" }
+
+- name: issue number is an integer, not free text
+  expect: ignore
+  workflow:
+    on: { issues: { types: [opened] } }
+    jobs:
+      j:
+        steps:
+          - run: echo "${{ github.event.issue.number }}"
+
+# The discriminator that forced per-assignment propagation: this step READS tainted text and emits
+# a hardcoded literal. Tainting it produced 6 false positives out of 13 on real files.
+- name: step ingests taint but emits a literal
+  expect: ignore
+  workflow:
+    on: { issues: { types: [opened] } }
+    jobs:
+      j:
+        steps:
+          - id: grab
+            env: { T: "${{ github.event.issue.title }}" }
+            run: echo "title=$T" >> "$GITHUB_OUTPUT"
+          - id: classify
+            env: { TITLE: "${{ steps.grab.outputs.title }}" }
+            run: echo "value=Premium" >> "$GITHUB_OUTPUT"
+          - run: echo "${{ steps.classify.outputs.value }}"

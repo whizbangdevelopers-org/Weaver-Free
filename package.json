@@ -156,7 +156,7 @@
     "sync:markers": "npx tsx scripts/sync-markers.ts",
     "test": "vitest run",
     "test:backend": "npm -w backend test",
-    "test:compliance": "npx tsx scripts/run-compliance.ts && npm run audit:workflows && npm run audit:test-suites && npm run audit:e2e-docker-only",
+    "test:compliance": "npx tsx scripts/run-compliance.ts && npm run audit:workflows && npm run audit:test-suites && npm run audit:e2e-docker-only && npm run audit:workflow-taint",
     "test:coverage": "vitest run --coverage",
     "test:coverage:free": "vitest run --coverage --config vitest.free.config.ts",
     "test:distros": "npx tsx scripts/test-distro-catalog.ts",
@@ -185,7 +185,8 @@
     "audit:version-parity": "npx tsx scripts/verify-version-parity.ts",
     "audit:workflows": "npx tsx scripts/verify-workflows.ts",
     "audit:test-suites": "npx tsx scripts/verify-test-suites.ts",
-    "audit:e2e-docker-only": "npx tsx scripts/verify-e2e-docker-only.ts"
+    "audit:e2e-docker-only": "npx tsx scripts/verify-e2e-docker-only.ts",
+    "audit:workflow-taint": "npx tsx scripts/verify-workflow-taint.ts"
   },
   "dependencies": {
     "@quasar/extras": "^1.16.9",
