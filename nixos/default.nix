@@ -208,6 +208,57 @@ in
       };
     };
 
+    nixLd = {
+      enable = mkOption {
+        type = types.bool;
+        default = true;
+        description = ''
+          Enable `nix-ld`, which lets unpatched dynamically-linked binaries run on NixOS.
+
+          On by default because it removes the most common objection to running NixOS at all: a
+          binary downloaded from the internet — a vendor SDK, a CUDA toolkit, a language server,
+          an editor's remote agent — has `/lib64/ld-linux-x86-64.so.2` baked into its ELF header,
+          and a stock NixOS host cannot run it.
+
+          **What it does NOT fix, because NixOS already did.** Since `environment.stub-ld`, a
+          stock host does have something at that path: a stub whose only job is to fail with an
+          explanation and a documentation link, rather than the bare "no such file or directory"
+          that made this a famously confusing first hour. Verified on NixOS 26.05 — the path is a
+          symlink to `stub-ld`, and the message names the problem outright. So nix-ld is not worth
+          enabling for the error message; the error message is already good. It is worth enabling
+          because the binary then **runs**.
+
+          **What it changes on the host:** replaces that stub with a real loader shim and sets
+          `NIX_LD` for all users. It runs nothing and opens nothing, and a binary that never looked
+          for the FHS loader is unaffected. Set to `false` to keep the stub — which is the right
+          choice if you would rather a stray prebuilt binary fail loudly than silently work.
+        '';
+      };
+
+      libraries = mkOption {
+        type = types.listOf types.package;
+        default = [ ];
+        description = ''
+          **Additional** libraries made visible to those binaries, on top of the set nixpkgs
+          already supplies through `programs.nix-ld.libraries`.
+
+          Empty by default, and that is not an oversight. `programs.nix-ld.libraries` is a MERGED
+          list, and nixpkgs' own default already covers the common ground — gcc's `libstdc++`,
+          zlib, openssl, curl, zstd, xz, bzip2, libxml2, libssh, libsodium, attr, acl, util-linux
+          and systemd. Restating any of those here does not strengthen anything; it just lands the
+          same store path in the list twice. (Measured: an earlier draft of this option defaulted
+          to `[ stdenv.cc.cc.lib zlib openssl ]` and produced exactly that — 17 entries, three of
+          them duplicates, and no behavioural difference whatsoever.)
+
+          So reach for this only for something genuinely outside that base — `icu`, `libGL`,
+          `alsa-lib`, a vendor runtime. The loader shim resolves the *interpreter*; the binary
+          then asks for its real shared libraries by name, and `ldd` on it says which is missing.
+          Add the package that provides it rather than turning the whole feature off.
+        '';
+        example = literalExpression "with pkgs; [ icu libGL alsa-lib ]";
+      };
+    };
+
     serviceUser = mkOption {
       type = types.str;
       default = "weaver";
@@ -602,6 +653,16 @@ in
       # Firewall
       networking.firewall.allowedTCPPorts = mkIf cfg.openFirewall [ cfg.port ];
     }
+
+    # --- nix-ld: let unpatched binaries run on the host ---
+    # Deliberately NOT gated on provisioningEnabled. This is about the host being usable to a
+    # person with a downloaded binary, which is true whether or not Weaver provisions anything.
+    (mkIf cfg.nixLd.enable {
+      programs.nix-ld = {
+        enable = true;
+        libraries = cfg.nixLd.libraries;
+      };
+    })
 
     # --- Provisioning configuration (conditional) ---
     (mkIf cfg.provisioningEnabled {
