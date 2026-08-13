@@ -301,6 +301,77 @@ Weaver supports two ways to run MicroVMs, and they complement each other:
 
 **Weaver Solo+** unlocks Live Provisioning — create and manage MicroVMs directly from the browser with any guest OS, no terminal needed. This is the core paid differentiator.
 
+### Running Prebuilt Binaries on the Host — nix-ld (All Tiers)
+
+*Available: v1.1+*
+
+A binary you download — a vendor SDK, a CUDA toolkit, a language server, an editor's remote agent —
+has `/lib64/ld-linux-x86-64.so.2` written into its ELF header. NixOS does not put a loader there,
+so the binary cannot start.
+
+Modern NixOS already makes this legible: it installs a stub at that path whose only job is to fail
+with an explanation and a link to `nix.dev/permalink/stub-ld`. Weaver goes one step further and
+makes the binary actually run, on by default:
+
+```nix
+services.weaver.nixLd.enable = true;   # default
+```
+
+Set it to `false` to keep the stub — a reasonable choice if you would rather a stray prebuilt
+binary fail loudly than silently work.
+
+When something still reports a missing `.so`, name the package that provides it rather than
+turning the feature off. `ldd <binary>` says which one:
+
+```nix
+services.weaver.nixLd.libraries = with pkgs; [ icu libGL ];
+```
+
+That list is **additive**. NixOS already supplies a base set — libstdc++, zlib, openssl, curl,
+zstd, xz, bzip2, libxml2, libssh, libsodium, attr, acl, util-linux, systemd — so restating any of
+those adds nothing.
+
+### Per-User Environments Inside a VM — Home Manager (All Tiers)
+
+*Available: v1.1+*
+
+**Weaver does not manage Home Manager, and that is the point.** It is a guest-internal concern, so
+what follows is a pattern to apply inside your NixOS-declared MicroVMs, not a Weaver feature with
+a button.
+
+The problem it solves is governance. On a shared research or build VM, the administrator owns the
+system — kernel, packages, users, security policy — while each user wants their own shell, editor,
+and dotfiles. Without a split, every personal preference becomes a ticket against the system
+config, and administrators end up either saying no to everything or handing out root.
+
+Home Manager draws the line at the user boundary: the administrator keeps `configuration.nix`, and
+each user declares their own environment underneath it, with no ability to alter the system.
+
+```nix
+# inside the MicroVM's own NixOS configuration
+{ inputs, ... }:
+{
+  imports = [ inputs.home-manager.nixosModules.home-manager ];
+
+  home-manager.users.researcher = { pkgs, ... }: {
+    home.stateVersion = "25.11";
+    home.packages = with pkgs; [ ripgrep jq python3 ];
+    programs.git = { enable = true; userName = "Researcher"; };
+    programs.neovim.enable = true;
+  };
+}
+```
+
+Rebuild the guest and the user's environment is there — reproducible, version-controlled, and
+rollback-able with the same guarantees as the system config.
+
+Two things worth knowing before you commit to it:
+
+- **It applies to NixOS-declared MicroVMs only.** A Live-Provisioned Ubuntu or Windows guest has no
+  Nix evaluation to hook into; there, per-user setup is whatever that distribution provides.
+- **`home.stateVersion` is per user and does not track the system's.** Leaving it out is an error;
+  bumping it casually is how a user's config silently changes behaviour on the next rebuild.
+
 ### Discovering Existing Workloads (All Tiers)
 
 *Available: v1.0+*

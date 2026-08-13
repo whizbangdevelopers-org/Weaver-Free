@@ -194,6 +194,24 @@ describe('Provisioner', () => {
       expect(vm!.provisioningState).toBe('provision-failed')
       expect(vm!.provisioningError).toContain('Unknown distro type')
     })
+
+    it('should tell a nixos user what to actually do, not blame the distro catalog', async () => {
+      // 'nixos' has no entry in ANY source and never will — a NixOS MicroVM is declared in the
+      // host's configuration.nix and adopted by scan, not built by Weaver. It is also the first
+      // option the create dialog offers, so this is the single most likely way a user of a NixOS
+      // product reaches a provisioning failure. The generic message sent them to check a catalog
+      // that was working perfectly.
+      await registry.add({
+        name: 'nixos-vm', ip: '10.10.0.77', mem: 512, vcpu: 1, hypervisor: 'qemu', distro: 'nixos',
+      })
+      await provisioner.provision('nixos-vm')
+      const vm = await registry.get('nixos-vm')
+      expect(vm!.provisioningState).toBe('provision-failed')
+      expect(vm!.provisioningError).toContain('configuration.nix')
+      expect(vm!.provisioningError).toContain('scan')
+      // The specific regression: it must NOT send the user to check the catalog.
+      expect(vm!.provisioningError).not.toContain('distro catalog is loaded')
+    })
   })
 
   describe('destroy', () => {
