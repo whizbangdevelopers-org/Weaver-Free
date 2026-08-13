@@ -7,6 +7,26 @@ export type ProvisioningState = VocabProvisioningState
 export type VmType = 'server' | 'desktop'
 export type GuestOs = 'linux' | 'windows'
 
+/**
+ * Health of one probed service inside a workload.
+ *
+ * Four states, not three, and the fourth is load-bearing: `unreachable` means the backend REFUSED
+ * to probe the target (not a private address — see health-probe.ts's SSRF guard), which is a
+ * configuration fault. Collapsing it into `unhealthy` would send someone debugging a service that
+ * was never contacted.
+ */
+export type ProbeHealth = 'healthy' | 'unhealthy' | 'unknown' | 'unreachable'
+
+export interface WorkloadServiceProbe {
+  port: number
+  type: 'http' | 'tcp'
+  /** HTTP only — the URL the "Open" button uses. Private-range only, enforced backend-side. */
+  url?: string
+  /** Display name, e.g. "Nginx", "PostgreSQL". */
+  label?: string
+  health: ProbeHealth
+}
+
 export interface WorkloadInfo {
   name: string
   status: WorkloadStatus
@@ -43,6 +63,14 @@ export interface WorkloadInfo {
   containerId?: string
   image?: string
   ports?: string[]
+  /**
+   * Per-service health for this workload, computed backend-side each broadcast and delivered on
+   * the existing `vm-status` payload — no protocol change.
+   *
+   * `status` answers "is the workload running"; this answers "does the service inside it reply".
+   * A workload can be `running` with a crashed nginx, which is the gap these close.
+   */
+  serviceProbes?: WorkloadServiceProbe[]
   /**
    * Runtime utilization snapshot. Optional by design:
    *   - Demo data populates this so public-demo visitors see VMs as
