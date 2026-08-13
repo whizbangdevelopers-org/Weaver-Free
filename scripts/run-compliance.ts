@@ -95,6 +95,7 @@ export const PHASES: Phase[] = [
       'audit:ws-codes',
       'audit:bundle',
       'audit:license',
+      'audit:license-headers',
       'audit:lockfile',
       'audit:sast',
       'audit:hooks',

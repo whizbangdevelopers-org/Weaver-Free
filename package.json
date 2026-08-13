@@ -57,6 +57,7 @@
     "audit:knowledge-universal-neutral": "npx tsx scripts/verify-knowledge-universal-neutral.ts",
     "audit:legal": "npx tsx scripts/verify-legal-ip.ts",
     "audit:license": "npx tsx scripts/audit-licenses.ts",
+    "audit:license-headers": "npx tsx scripts/verify-license-headers.ts",
     "audit:license-parity": "npx tsx scripts/verify-license-parity.ts",
     "audit:lockfile": "npx tsx scripts/verify-lockfile.ts",
     "audit:marker-sync": "npx tsx scripts/verify-marker-sync.ts",
