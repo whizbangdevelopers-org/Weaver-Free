@@ -34,3 +34,37 @@ code/scripts/fixtures/sast-secret-corpus.txt
 # uncaught. So the checker checks itself.
 code/scripts/audit-template-divergence.ts
 code/scripts/shared-with-template.txt
+
+# The licence-header guard. Its LOGIC must be identical everywhere — it is what stops a copied file
+# carrying another product's licence, which is how eight Gantry files came to claim AGPL/BSL in a
+# proprietary product. Its own HEADER, by contrast, must differ per repo (the template is
+# licence-blank; Gantry is proprietary), so audit-template-divergence.ts normalises the licence line
+# out of the comparison. This entry is why that exemption exists rather than being speculative: it is
+# the first shared file whose header is legitimately per-repo.
+#
+# NOT listed, deliberately: verify-push-gates.ts. Its logic is shared but its docblock is genuinely
+# project-specific (the template's hook gates a narrower chain than test:prepush, for a reason that
+# holds only there). Pin the contract, not every file that happens to be similar.
+code/scripts/verify-license-headers.ts
+
+# The Docker-first E2E contract. The policy is portfolio-wide (no bare Playwright runner; a browser
+# from a developer machine gives machine-dependent results), so the CORPUS is pinned: it is the spec
+# the rule is held to, and a project whose corpus differs is proving its rules against a different
+# guarantee than everyone else. The checker is pinned with it because nothing here is
+# project-specific — unlike audit-sast.ts, which projects legitimately extend with product rules.
+#
+# Added 2026-08-12. Until then the rule existed only in Gantry, so the template and every other
+# descendant had no commit-time guard on a policy all of them are subject to.
+code/scripts/fixtures/e2e-docker-only-corpus.txt
+code/scripts/verify-e2e-docker-only.ts
+
+# The workflow-taint contract. Same argument as the Docker-first pair above: the CORPUS is the spec
+# the rule is held to, and its IGNORE half carries the env-indirection remedy — a project whose
+# corpus differs is proving its rules against a different guarantee. The checker is pinned with it
+# because nothing in it is project-specific.
+#
+# Added 2026-08-13, and it earned the entry immediately: Weaver's copy went one section behind
+# within a day of landing, and the only thing that caught it was a peer mentioning it in passing.
+# That is exactly the population the WHY THIS EXISTS section above describes.
+code/scripts/fixtures/workflow-taint-corpus.yml
+code/scripts/verify-workflow-taint.ts
