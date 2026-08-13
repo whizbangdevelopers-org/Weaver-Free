@@ -49,6 +49,24 @@
  * KNOWN LIMIT: a value assembled indirectly (`X=$T; echo "k=$X"`) is not traced — that needs a
  * shell parser. The escape is the same `env:` indirection, so an over-flag has a correct fix
  * rather than a suppression.
+ *
+ * HOW TO NEGATIVE-TEST THIS — the obvious way gives a FALSE PASS
+ * -------------------------------------------------------------
+ * Dropping an injectable workflow into `.github/workflows/` and re-running gives PASS, with the
+ * workflow count UNCHANGED. That is not the scanner failing to reach the repo; it is the scanner
+ * being right. The universe is `git ls-files`, deliberately — an auditor's universe must match its
+ * consumer's, which is a fresh clone, and it means a scratch file cannot fail somebody's build.
+ * The unchanged count is the tool saying so, if you read it.
+ *
+ * So the probe has to be TRACKED. Use intent-to-add, which stages no content, and remove it in the
+ * same command — staging in a tree with live parallel sessions is what swept another session's work
+ * into an unrelated commit on 2026-08-12:
+ *
+ *     git -C <repo> add -N .github/workflows/zz-probe.yml && npm run audit:workflow-taint; \
+ *       git -C <repo> rm --cached -q .github/workflows/zz-probe.yml; rm .github/workflows/zz-probe.yml
+ *
+ * A competent reviewer hit the false pass first and briefly suspected the scanner. Recorded here so
+ * the next one does not.
  */
 import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
