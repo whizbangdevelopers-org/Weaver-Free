@@ -521,6 +521,18 @@ in
           export WEAVER_DATA_DIR="${cfg.dataDir}"
           # Workspace deps are hoisted to the package's root node_modules
           export WEAVER_NODE_MODULES="${cfg.package}/lib/weaver/node_modules"
+          # reset-admin-password.sh calls bare `node` three times, and a NixOS host running Weaver
+          # has no node on PATH — not in a non-interactive shell and not in a login shell. Nothing
+          # puts one there: the package's own nodejs sits in the closure but was never exposed.
+          #
+          # So this tool — the EMERGENCY recovery path, the one reached for while locked out —
+          # exited 127 on a clean install, after printing "Resetting password for 'admin'..." so it
+          # looked like it had started work. Verified against a real deployment 2026-08-13.
+          #
+          # Same rule the backend and TUI launchers in package.nix already follow
+          # (`${"\${pkgs.nodejs_24}"}/bin/node`): reference binaries by full store path, never rely
+          # on ambient PATH.
+          export PATH="${pkgs.nodejs_24}/bin:$PATH"
           exec ${pkgs.bash}/bin/bash ${cfg.package}/lib/weaver/scripts/reset-admin-password.sh "$@"
         '')
       ];
