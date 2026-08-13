@@ -8,6 +8,7 @@ import type { Provisioner } from './provisioner-types.js'
 import type { DashboardConfig } from '../config.js'
 import { STATUSES, PROVISIONING, TIERS, TIER_ORDER, type WorkloadStatus } from '../constants/vocabularies.js'
 import { isDivergentNetwork } from './network-ownership.js'
+import { runProbes, type WorkloadServiceProbe } from './health-probe.js'
 
 const execFileAsync = promisify(execFile)
 
@@ -47,6 +48,12 @@ export interface WorkloadInfo {
   containerId?: string
   image?: string
   ports?: string[]
+  /**
+   * Per-service health, computed each `listVms()` and shipped on the existing `vm-status`
+   * broadcast — no protocol change. `status` says the workload is running; this says whether the
+   * service inside it answers.
+   */
+  serviceProbes?: WorkloadServiceProbe[]
 }
 
 export type { WorkloadDefinition, ProvisioningState }
@@ -693,11 +700,27 @@ export async function listVms(): Promise<WorkloadInfo[]> {
     )
   )
 
+  // Phase 3: run service probes in parallel, for every workload that declares any.
+  //
+  // Sequenced AFTER status because a stopped workload must not be probed at all — runProbes()
+  // returns `unknown` for it rather than spending a timeout discovering what we already know.
+  // Total wall-clock stays inside the 2s broadcast window: probes for all workloads run
+  // concurrently, and the 1.5s TCP / 2s HTTP budgets are per-probe, not cumulative.
+  const probed = await Promise.all(
+    entries.map(([, def], i) => {
+      const probes = (def as WorkloadDefinition & { serviceProbes?: WorkloadServiceProbe[] })
+        .serviceProbes
+      if (!probes || probes.length === 0) return Promise.resolve(undefined)
+      return runProbes(def.ip, statuses[i]!, probes)
+    }),
+  )
+
   return entries.map(([, def], i) => ({
     ...def,
     status: statuses[i],
     uptime: uptimes[i],
     networkDivergent: networkDivergence(def),
+    ...(probed[i] ? { serviceProbes: probed[i] } : {}),
   }))
 }
 
