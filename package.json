@@ -48,7 +48,7 @@
     "audit:forms": "npx tsx scripts/verify-form-rules.ts",
     "audit:gaps": "npm run audit:doc-parity && npm run audit:engineering-discipline-parity && npm run audit:feature-lifecycle-parity && npm run audit:generated-artifact-freshness && npm run audit:docs-links && npm run audit:doc-freshness && npm run audit:decision-parity && npm run audit:compliance-parity && npm run audit:tier-parity && npm run audit:compatibility && npm run audit:license-parity && npm run audit:project-parity",
     "audit:generated-artifact-freshness": "npx tsx scripts/verify-generated-artifact-freshness.ts",
-    "audit:hooks": "bash .claude/hooks/block-dangerous.sh --self-test",
+    "audit:hooks": "npx tsx scripts/verify-hooks.ts",
     "audit:inference-node-parity": "npx tsx scripts/audit-inference-node-parity.ts",
     "audit:keyboard-reachability": "testing/e2e-docker/scripts/run-single.sh testing/e2e/keyboard-reachability.spec.ts",
     "audit:knowledge-ids-unique": "npx tsx scripts/verify-knowledge-ids-unique.ts",
