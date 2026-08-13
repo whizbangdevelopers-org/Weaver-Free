@@ -76,3 +76,17 @@ code/scripts/verify-workflow-taint.ts
 # repo (Weaver 85, template 32, Gantry 19), so scripts/data/auditor-contracts.json is a per-repo
 # declaration, the same split as verify-license-headers.ts against verify-legal-ip.ts.
 code/scripts/verify-auditor-contracts.ts
+
+# The hook meta-auditor. Built in Gantry 2026-08-12 after two of six hook pairs were found forked —
+# one of them the guard that actually loads for every `code/` session, carrying a naive grep that
+# blocked innocent commit messages. It replaced a one-command stub (`block-dangerous.sh
+# --self-test`) that tested one implementation of one hook and said nothing about whether the hook a
+# session LOADS is that implementation.
+#
+# Shared because all three legs are derived, not declared: settings files, hook trees and the
+# self-test target all come from `git ls-files`, so it fits any layout — this repo keeps root hooks
+# under core/ and stack/, Weaver keeps them flat. The one hardcoded path it originally carried
+# (.claude/hooks/core/block-dangerous.sh) was the only thing that would have forked it, and is now
+# derived from the wiring — which also made it strictly stronger, since a repo with the guard in two
+# trees now self-tests BOTH.
+code/scripts/verify-hooks.ts
