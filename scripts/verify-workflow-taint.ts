@@ -231,6 +231,8 @@ function selfTest(): void {
     `  ${GREEN}✓${OFF} self-test: ${cases.length}/${cases.length} corpus cases ` +
       `${DIM}(${catches} catch, ${cases.length - catches} ignore)${OFF}`
   )
+  // audit:auditor-contracts reads this line to see BOTH halves rather than trust they exist.
+  console.log(`  auditor-contract: catch=${catches} ignore=${cases.length - catches}`)
 }
 
 function main(): number {

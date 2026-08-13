@@ -68,3 +68,11 @@ code/scripts/verify-e2e-docker-only.ts
 # That is exactly the population the WHY THIS EXISTS section above describes.
 code/scripts/fixtures/workflow-taint-corpus.yml
 code/scripts/verify-workflow-taint.ts
+
+# The auditor-contract checker. Its LOGIC is portfolio-wide by definition — it enforces FORGE-41,
+# the standard that every auditor must be able to demonstrate it fails — so a repo running a forked
+# copy would be holding its auditors to a different contract than everyone else, which is the exact
+# class this file exists to catch. Its MANIFEST is deliberately NOT listed: auditor sets differ per
+# repo (Weaver 85, template 32, Gantry 19), so scripts/data/auditor-contracts.json is a per-repo
+# declaration, the same split as verify-license-headers.ts against verify-legal-ip.ts.
+code/scripts/verify-auditor-contracts.ts
