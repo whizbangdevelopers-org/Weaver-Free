@@ -40,6 +40,26 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          # persist-credentials: false is REQUIRED because this job pushes to a DIFFERENT repo.
+          #
+          # The default (true) writes GITHUB_TOKEN into this working copy's git config as
+          # `http.https://github.com/.extraheader`. That header is sent on every github.com
+          # request from this checkout — including the deploy step's push to the demo repo — and it
+          # OVERRIDES the credential in the push URL. So the deploy authenticated as
+          # `github-actions[bot]` no matter how good WEAVER_FREE_DEMO was, and failed with
+          # `remote: Permission to weaver-dev/weaver-dev.github.io.git denied to
+          # github-actions[bot]` → 403.
+          #
+          # That signature reads like an expired or wrongly-scoped PAT, so it sent two separate
+          # rotations chasing a credential that may have been fine the whole time — the exact
+          # wasted move the rotation runbook warns about. The tell is the IDENTITY in the error: a
+          # bad PAT is refused as its own owner, never as the bot.
+          persist-credentials: false
+          # Detached HEAD, so the source checkout does not hold `main` while the deploy action
+          # tries to create `main` for the target repo in a second worktree — the
+          # `fatal: 'main' is already used by worktree` line the deploy step recovers from noisily.
+          ref: ${{ github.sha }}
 
       - name: Setup Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
