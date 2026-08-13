@@ -62,8 +62,15 @@
  * same command — staging in a tree with live parallel sessions is what swept another session's work
  * into an unrelated commit on 2026-08-12:
  *
- *     git -C <repo> add -N .github/workflows/zz-probe.yml && npm run audit:workflow-taint; \
- *       git -C <repo> rm --cached -q .github/workflows/zz-probe.yml; rm .github/workflows/zz-probe.yml
+ *     git -C <repo> add -N .github/workflows/zz-probe.yml \
+ *       && npm --prefix <repo>/code run audit:workflow-taint; \
+ *       git -C <repo> rm --cached -q .github/workflows/zz-probe.yml; \
+ *       rm <repo>/.github/workflows/zz-probe.yml
+ *
+ * `npm --prefix <repo>/code`, not a bare `npm run`: no repo in this portfolio has a package.json at
+ * its root, so the bare form dies with ENOENT — output that reads exactly like a quiet success. The
+ * first version of this very section shipped the bare form, teaching the trap the paragraph above
+ * warns about.
  *
  * A competent reviewer hit the false pass first and briefly suspected the scanner. Recorded here so
  * the next one does not.
