@@ -85,10 +85,15 @@ jobs:
           # Create .nojekyll for GitHub Pages
           touch code/dist/spa/.nojekyll
 
-          # Copy demo README if exists
-          if [ -f code/demo/DEMO-README.md ]; then
-            cp code/demo/DEMO-README.md code/dist/spa/README.md
-          fi
+          # Nothing from code/demo/ is copied into the deployed folder. That directory holds
+          # internal operator notes — deploy procedures, secret names, the open-bug list — and
+          # this folder is served at https://weaver-dev.github.io, so anything placed here is
+          # public. A previous version copied an operator document in as README.md.
+          #
+          # The deployed tree must contain only built SPA output plus the four additions below
+          # (license, robots, noai meta, CSP). If you need to add a file here, confirm it is
+          # written for a public reader first. The demo repo keeps its own README via
+          # clean-exclude on the deploy step.
 
           # Include license in demo build
           cp code/LICENSE code/dist/spa/LICENSE
