@@ -81,36 +81,18 @@ jobs:
         run: npx quasar build -m spa
 
       - name: Prepare deployment
-        run: |
-          # Create .nojekyll for GitHub Pages
-          touch code/dist/spa/.nojekyll
-
-          # Nothing from code/demo/ is copied into the deployed folder. That directory holds
-          # internal operator notes — deploy procedures, secret names, the open-bug list — and
-          # this folder is served at https://weaver-dev.github.io, so anything placed here is
-          # public. A previous version copied an operator document in as README.md.
-          #
-          # The deployed tree must contain only built SPA output plus the four additions below
-          # (license, robots, noai meta, CSP). If you need to add a file here, confirm it is
-          # written for a public reader first. The demo repo keeps its own README via
-          # clean-exclude on the deploy step.
-
-          # Include license in demo build
-          cp code/LICENSE code/dist/spa/LICENSE
-
-          # Block AI crawlers from using the demo as training data
-          if [ -f code/demo/robots.txt ]; then
-            cp code/demo/robots.txt code/dist/spa/robots.txt
-          fi
-
-          # Inject noai meta tags into index.html (after charset meta)
-          sed -i 's|<meta charset="utf-8">|<meta charset="utf-8">\n    <meta name="robots" content="noai, noimageai">|' code/dist/spa/index.html
-
-          # Inject Content-Security-Policy meta tag (GitHub Pages can't set HTTP headers).
-          # X-Frame-Options / X-Content-Type-Options cannot be set via meta; the WBD-hosted
-          # deployment will add those at the HTTP layer. frame-ancestors replaces X-Frame-Options in modern browsers.
-          CSP="default-src 'self'; script-src 'self' https://js.hcaptcha.com https://*.hcaptcha.com; style-src 'self' 'unsafe-inline' https://*.hcaptcha.com; img-src 'self' data: blob: https://*.hcaptcha.com; font-src 'self' data:; connect-src 'self' https://*.hcaptcha.com; frame-src https://*.hcaptcha.com https://newassets.hcaptcha.com; frame-ancestors 'none'; form-action 'self'; base-uri 'self'; object-src 'none'"
-          sed -i "s|<meta name=\"robots\" content=\"noai, noimageai\">|<meta name=\"robots\" content=\"noai, noimageai\">\n    <meta http-equiv=\"Content-Security-Policy\" content=\"${CSP}\">|" code/dist/spa/index.html
+        # The ONE shared post-build step — .nojekyll, LICENSE, robots.txt, noai meta and the CSP
+        # meta — also called by the local build script and by the E2E entrypoint, so the artifact
+        # tested is the artifact deployed. These steps used to be inlined here and NOWHERE else,
+        # which meant the E2E suite validated a build with no content-security policy: on Pages
+        # that meta tag is the entire policy, so a regression in it would have shipped green.
+        #
+        # Anything hand-copied into the deployed folder is a publication decision, and this folder
+        # is served publicly — a previous version copied an internal operator document in as
+        # README.md. Add nothing here; add it to the shared step, where every caller gets it and
+        # its absence is verified rather than assumed. The demo repo keeps its own README via
+        # clean-exclude on the deploy step below.
+        run: code/scripts/demo-postbuild.sh code/dist/spa
 
       - name: Deploy to demo repo
         uses: JamesIves/github-pages-deploy-action@d92aa235d04922e8f08b40ce78cc5442fcfbfa2f  # v4
