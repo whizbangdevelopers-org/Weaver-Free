@@ -403,6 +403,72 @@ in
       '';
     };
 
+    metrics = {
+      enable = mkOption {
+        type = types.bool;
+        default = true;
+        description = ''
+          Run Prometheus alongside Weaver and scrape its `/metrics` endpoint.
+
+          On by DEFAULT, and on every tier including Free. The feature exists to close a
+          credibility gap — "open Proxmox, see graphs; open Weaver, see nothing" — and a graphing
+          stack a user has to discover and enable does not close it. The alternative considered and
+          rejected was Free keeping an in-process ring buffer while paid tiers got Prometheus,
+          which would have committed the product to two metrics backends permanently.
+
+          Retention is the tier lever, not this switch: the API clamps what a tier may SEE
+          (`resolveWindowMs`), while the store below keeps whatever the host is configured to keep.
+
+          Turn it off on a genuinely constrained host. Nothing else breaks — the in-process
+          collector still serves the existing metrics API.
+        '';
+      };
+
+      retention = mkOption {
+        type = types.str;
+        default = "7d";
+        example = "24h";
+        description = ''
+          How long Prometheus keeps samples (`--storage.tsdb.retention.time`).
+
+          This is HOST STORAGE, not the tier lever. The API never serves a window longer than 24
+          hours, so anything beyond that is there for an operator's own deep dive rather than for
+          the product UI — which is why the default is a week rather than a fortnight, and why
+          lowering it to `24h` on a small host costs nothing the product would have shown.
+
+          Do not set it BELOW the longest window a tier may request, or a paid user asking for 24
+          hours gets a chart that runs out of data partway with no indication why.
+        '';
+      };
+
+      port = mkOption {
+        type = types.port;
+        default = 9090;
+        description = ''
+          Port for the Prometheus server itself.
+
+          Bound to loopback (see `listenAddress`), so this is the port a local Grafana or a `curl`
+          uses, not one to open in the firewall.
+        '';
+      };
+
+      listenAddress = mkOption {
+        type = types.str;
+        default = "127.0.0.1";
+        description = ''
+          Address Prometheus binds. Loopback by default, deliberately.
+
+          The store holds every workload's series with no notion of Weaver's per-VM ACLs, so
+          exposing it is equivalent to publishing the full workload inventory and its usage to
+          anyone who can reach the port. That is the same reason Weaver's own `/metrics` endpoint
+          refuses non-loopback callers, and the same reason the product UI reads metrics through
+          Weaver's API rather than querying Prometheus directly.
+
+          Widen it only together with authentication in front — never on its own.
+        '';
+      };
+    };
+
     dns = {
       enable = mkEnableOption ''
         DNS Core — the .vm.internal auto-zone.
@@ -850,6 +916,54 @@ in
         name = i;
         value = { allowedUDPPorts = [ 53 ]; allowedTCPPorts = [ 53 ]; };
       }) (if cfg.dns.listenInterfaces == [ ] then [ cfg.bridgeInterface ] else cfg.dns.listenInterfaces));
+    })
+
+    # ── Prometheus: the metrics store ────────────────────────────────────────────────────────
+    #
+    # Weaver's backend exposes `/metrics` in-process; this is the thing that scrapes it. The two
+    # halves ship together so a host that installs Weaver has working graphs without a second
+    # decision — the credibility gap this feature exists for is not closed by a stack the user has
+    # to go and assemble.
+    #
+    # Written to COEXIST with an operator who already runs Prometheus rather than to own it:
+    #
+    #   * `scrapeConfigs` is a list, so this job merges alongside theirs instead of replacing it.
+    #   * everything an operator plausibly owns — retention, port, listen address — is `mkDefault`,
+    #     so their setting wins silently instead of throwing a conflict at eval time. A module that
+    #     fights the host config gets removed from the host config.
+    #
+    # Nothing here is firewalled open. Prometheus binds loopback by default, and the scrape target
+    # is `127.0.0.1`, which is also what satisfies the exporter's own loopback check — a same-host
+    # scraper is the shape this is designed around, not a limitation being worked around.
+    (mkIf (cfg.enable && cfg.metrics.enable) {
+      services.prometheus = {
+        enable = true;
+        port = mkDefault cfg.metrics.port;
+        listenAddress = mkDefault cfg.metrics.listenAddress;
+        retentionTime = mkDefault cfg.metrics.retention;
+
+        scrapeConfigs = [{
+          job_name = "weaver";
+          # 30s matches the in-process collector's sampling interval. A faster scrape would not
+          # produce finer data — the cgroup counters are read at scrape time, but the UI contract
+          # and the existing buffer are both built on 30s — and a slower one would leave gaps the
+          # chart would have to render as absent readings.
+          scrape_interval = "30s";
+          static_configs = [{
+            targets = [ "127.0.0.1:${toString cfg.port}" ];
+            labels = { instance = config.networking.hostName; };
+          }];
+        }];
+      };
+
+      # The scrape reaches Weaver over loopback, so the backend must actually be up for the target
+      # to be anything other than `down`. Ordering only — Prometheus still starts, and reports the
+      # target as down, if Weaver fails. That is the honest outcome: a scrape failure should look
+      # like a scrape failure, not like a host with no workloads.
+      systemd.services.prometheus = {
+        after = [ "weaver.service" ];
+        wants = [ "weaver.service" ];
+      };
     })
 
   ]);

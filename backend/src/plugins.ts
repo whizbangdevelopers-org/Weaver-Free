@@ -135,7 +135,7 @@ registerPlugin({
   category: 'dns',
   minimumTier: TIERS.SOLO,
   status: 'coming-soon',
-  targetVersion: 'v1.1.0',
+  targetVersion: 'v2.0.0',
   fabrickIncluded: true,
 })
 
@@ -146,7 +146,7 @@ registerPlugin({
   category: 'dns',
   minimumTier: TIERS.FABRICK,
   status: 'coming-soon',
-  targetVersion: 'v1.1.0',
+  targetVersion: 'v2.4.0',
   fabrickIncluded: true,
 })
 
@@ -180,7 +180,7 @@ registerPlugin({
   category: 'firewall',
   minimumTier: TIERS.FABRICK,
   status: 'coming-soon',
-  targetVersion: 'v1.2.0',
+  targetVersion: 'v2.4.0',
   fabrickIncluded: true,
 })
 
@@ -248,7 +248,7 @@ registerPlugin({
   category: 'auth',
   minimumTier: TIERS.FABRICK,
   status: 'coming-soon',
-  targetVersion: 'v1.2.0',
+  targetVersion: 'v2.4.0',
   fabrickIncluded: true,
 })
 

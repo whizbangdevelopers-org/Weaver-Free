@@ -108,6 +108,11 @@ export const PHASES: Phase[] = [
       'audit:demo-guards',
       'audit:demo-backing',
       'audit:demo-plugin-parity',
+      // Sibling of the above, asking the question it does not: demo-plugin-parity checks that the
+      // demo and the product AGREE about targetVersion; this checks whether the value is possible.
+      // Both agreeing on an unreachable date is exactly how four extensions advertised a release
+      // their own tier would not exist in.
+      'audit:extension-targets',
       'audit:decision-parity',
       'audit:compliance-parity',
       'audit:compliance-matrix-parity',
