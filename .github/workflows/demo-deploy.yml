@@ -92,7 +92,7 @@ jobs:
         # README.md. Add nothing here; add it to the shared step, where every caller gets it and
         # its absence is verified rather than assumed. The demo repo keeps its own README via
         # clean-exclude on the deploy step below.
-        run: code/scripts/demo-postbuild.sh code/dist/spa
+        run: code/scripts/demo-postbuild.sh code/dist/spa --public
 
       - name: Deploy to demo repo
         uses: JamesIves/github-pages-deploy-action@d92aa235d04922e8f08b40ce78cc5442fcfbfa2f  # v4
