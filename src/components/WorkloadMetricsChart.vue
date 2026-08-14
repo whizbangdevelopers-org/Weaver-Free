@@ -9,6 +9,14 @@
       <!-- The window SERVED, not the one requested. A Free request for 24h is clamped to an
            hour, and captioning it "24 hours" would be a claim the user cannot check. -->
       <q-badge outline color="grey-6" :label="windowLabel" data-testid="metrics-window-label" />
+      <!-- Derived from the SERVED intervalMs, never from a fixed string. The demo's own
+           `resolution: '1m' | '5m'` would caption 30-second samples "1-min intervals" — a claim
+           the reader cannot check, which is the same objection that makes windowLabel the served
+           window rather than the requested one. -->
+      <q-badge
+        outline color="grey-7" class="q-ml-xs"
+        :label="intervalLabel" data-testid="metrics-interval-label"
+      />
       <q-btn
         flat dense round size="sm" icon="mdi-refresh" class="q-ml-xs"
         :loading="loading" aria-label="Refresh metrics"
@@ -53,6 +61,12 @@
             <span class="text-body2 text-weight-medium q-ml-xs" data-testid="metrics-latest-memory">{{ formatBytes(latestMemory) }}</span>
             <span class="text-caption text-grey-6 q-ml-xs">Memory</span>
           </div>
+          <div class="stat-chip" data-testid="metrics-latest-disk">
+            <q-icon name="mdi-harddisk" size="16px" color="grey-7" />
+            <span class="text-body2 text-weight-medium q-ml-xs">&darr;{{ formatRate(latestDiskRead) }}</span>
+            <span class="text-body2 text-weight-medium q-ml-xs">&uarr;{{ formatRate(latestDiskWrite) }}</span>
+            <span class="text-caption text-grey-6 q-ml-xs">disk</span>
+          </div>
         </div>
       </q-card-section>
 
@@ -96,13 +110,13 @@
 <script setup lang="ts">
 import { computed, onMounted, getCurrentInstance } from 'vue'
 import { useWorkloadMetrics } from 'src/composables/useWorkloadMetrics'
-import { buildSparkline, latestValue, formatBytes, formatPercent } from 'src/utils/sparkline'
+import { buildSparkline, latestValue, formatBytes, formatPercent, formatRate, formatInterval } from 'src/utils/sparkline'
 
 const props = defineProps<{ workloadName: string }>()
 
 const {
-  samples, windowMs, loading, error,
-  cpuSeries, memorySeries, hasNoReadings,
+  samples, windowMs, intervalMs, loading, error,
+  cpuSeries, memorySeries, diskReadSeries, diskWriteSeries, hasNoReadings,
   fetchMetrics, startPolling,
 } = useWorkloadMetrics(() => props.workloadName)
 
@@ -124,6 +138,10 @@ const memory = computed(() => buildSparkline(memorySeries.value))
 
 const latestCpu = computed(() => latestValue(cpuSeries.value))
 const latestMemory = computed(() => latestValue(memorySeries.value))
+const latestDiskRead = computed(() => latestValue(diskReadSeries.value))
+const latestDiskWrite = computed(() => latestValue(diskWriteSeries.value))
+
+const intervalLabel = computed(() => formatInterval(intervalMs.value))
 
 /** Any null between two readings — the note below the chart only appears when it is relevant. */
 const hasGaps = computed(() => samples.value.some(s => s.cpuPercent === null || s.memoryBytes === null))

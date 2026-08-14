@@ -12,6 +12,8 @@ import { describe, it, expect } from 'vitest'
 import {
   parseCpuUsageUsec,
   computeCpuPercent,
+  parseIoStat,
+  computeDiskBps,
   parseMemoryCurrent,
   parseMemoryMax,
   cgroupPathFor,
@@ -31,7 +33,8 @@ const sample = (timestamp: number, cpu: number | null = 1): MetricSample => ({
   timestamp,
   cpuPercent: cpu,
   memoryBytes: 1024,
-  diskBytes: null,
+  diskReadBps: null,
+  diskWriteBps: null,
 })
 
 describe('cpu.stat parsing', () => {
@@ -134,6 +137,86 @@ describe('computeCpuPercent', () => {
     expect(computeCpuPercent({
       previousUsec: 500, currentUsec: 500, elapsedMs: 30_000, vcpus: 1,
     })).toBe(0)
+  })
+})
+
+describe('io.stat parsing', () => {
+  const ONE_LINE = '8:0 rbytes=4096 wbytes=512 rios=1 wios=2 dbytes=0 dios=0'
+
+  it('reads rbytes and wbytes off a single device', () => {
+    expect(parseIoStat(ONE_LINE)).toEqual({ readBytes: 4096, writeBytes: 512 })
+  })
+
+  it('SUMS across devices rather than taking the first', () => {
+    // A workload's disk is routinely more than one device — an overlay plus its backing image, or
+    // a separate data volume. Reporting only the first line under-reports by whatever the rest
+    // carry, and it under-reports as a plausible number rather than as an error.
+    const two = `${ONE_LINE}\n253:0 rbytes=1000 wbytes=2000 rios=3 wios=4 dbytes=0 dios=0`
+    expect(parseIoStat(two)).toEqual({ readBytes: 5096, writeBytes: 2512 })
+  })
+
+  it('returns null — not zero — when the file has no counters at all', () => {
+    // A cgroup with no io controller and a workload doing no I/O are different facts. Collapsing
+    // them makes the first sample after start read as a real zero.
+    expect(parseIoStat('')).toBeNull()
+    expect(parseIoStat('\n  \n')).toBeNull()
+    expect(parseIoStat('8:0 rios=1 wios=2')).toBeNull()
+  })
+
+  it('skips a malformed device line without discarding the others', () => {
+    const mixed = `garbage-with-no-fields\n${ONE_LINE}`
+    expect(parseIoStat(mixed)).toEqual({ readBytes: 4096, writeBytes: 512 })
+  })
+
+  it('ignores a negative or non-numeric counter rather than trusting it', () => {
+    expect(parseIoStat('8:0 rbytes=-5 wbytes=100')).toEqual({ readBytes: 0, writeBytes: 100 })
+    expect(parseIoStat('8:0 rbytes=abc wbytes=100')).toEqual({ readBytes: 0, writeBytes: 100 })
+  })
+})
+
+describe('computeDiskBps', () => {
+  const prev = { readBytes: 1000, writeBytes: 2000 }
+
+  it('computes bytes per second across the interval', () => {
+    const r = computeDiskBps({ previous: prev, current: { readBytes: 3000, writeBytes: 2000 }, elapsedMs: 2000 })
+    expect(r.readBps).toBe(1000) // 2000 bytes over 2s
+    expect(r.writeBps).toBe(0)   // genuinely idle, and that IS zero rather than null
+  })
+
+  it('returns null on a cold start', () => {
+    expect(computeDiskBps({ previous: null, current: prev, elapsedMs: 30_000 }))
+      .toEqual({ readBps: null, writeBps: null })
+  })
+
+  it('returns null when the cgroup is unreadable this tick', () => {
+    expect(computeDiskBps({ previous: prev, current: null, elapsedMs: 30_000 }))
+      .toEqual({ readBps: null, writeBps: null })
+  })
+
+  it('returns null on a non-positive interval', () => {
+    // Two reads inside one clock tick, or a clock adjustment. Dividing by it yields Infinity,
+    // which formats as a readable-looking rate.
+    expect(computeDiskBps({ previous: prev, current: prev, elapsedMs: 0 }))
+      .toEqual({ readBps: null, writeBps: null })
+  })
+
+  it('REFUSES across a counter reset rather than smoothing it (WVR-223 decision 4)', () => {
+    // The cgroup was recreated — the unit restarted between samples. A delta here is not a rate,
+    // and the restart is the thing the reader most needs to see.
+    const r = computeDiskBps({ previous: prev, current: { readBytes: 10, writeBytes: 20 }, elapsedMs: 30_000 })
+    expect(r).toEqual({ readBps: null, writeBps: null })
+  })
+
+  it('judges read and write INDEPENDENTLY', () => {
+    // A read-only workload's write counter never moves. Under a single shared verdict its read
+    // line would be discarded along with the write one.
+    const r = computeDiskBps({
+      previous: prev,
+      current: { readBytes: 5000, writeBytes: 5 }, // read advanced, write reset
+      elapsedMs: 1000,
+    })
+    expect(r.readBps).toBe(4000)
+    expect(r.writeBps).toBeNull()
   })
 })
 
@@ -459,5 +542,79 @@ describe('MetricsCollector', () => {
     const c = new MetricsCollector({ read: fs.read })
     await c.sampleOne('web', 1)
     expect(fs.reads).toContain('/sys/fs/cgroup/system.slice/microvm@web.service/cpu.stat')
+  })
+
+  const ioPath = (n: string) => `${ROOT}/system.slice/microvm@${n}.service/io.stat`
+
+  it('produces no disk rate on the first sample, then a real one', async () => {
+    const files: Record<string, string> = {
+      [cpuPath('a')]: 'usage_usec 0',
+      [memPath('a')]: '2048',
+      [ioPath('a')]: '8:0 rbytes=0 wbytes=0',
+    }
+    const fs = fakeFs(files)
+    const clock = makeClock()
+    const c = new MetricsCollector({ read: fs.read, now: clock.now, cgroupRoot: ROOT })
+
+    const first = await c.sampleOne('a', 1)
+    expect(first.diskReadBps).toBeNull()
+    expect(first.diskWriteBps).toBeNull()
+
+    clock.advance(1000)
+    files[ioPath('a')] = '8:0 rbytes=5000 wbytes=1000'
+    const second = await c.sampleOne('a', 1)
+    expect(second.diskReadBps).toBe(5000)
+    expect(second.diskWriteBps).toBe(1000)
+  })
+
+  it('keeps a separate clock per counter, so an unreadable cpu.stat cannot inflate the disk rate', async () => {
+    // The bug this guards: with ONE shared `lastSampleAt`, a tick where cpu.stat is missing but
+    // io.stat reads would still advance the shared clock. The next disk delta is then measured
+    // over a SHORTER interval than the counter actually spans, and the rate reads high — a
+    // plausible wrong number, which is precisely what this file exists to prevent.
+    const files: Record<string, string> = {
+      [cpuPath('a')]: 'usage_usec 0',
+      [memPath('a')]: '2048',
+      [ioPath('a')]: '8:0 rbytes=0 wbytes=0',
+    }
+    const fs = fakeFs(files)
+    const clock = makeClock()
+    const c = new MetricsCollector({ read: fs.read, now: clock.now, cgroupRoot: ROOT })
+
+    await c.sampleOne('a', 1) // establishes both baselines at t0
+
+    // A tick where CPU is unreadable. Disk advances 1000 bytes over 1s.
+    clock.advance(1000)
+    delete files[cpuPath('a')]
+    files[ioPath('a')] = '8:0 rbytes=1000 wbytes=0'
+    const mid = await c.sampleOne('a', 1)
+    expect(mid.cpuPercent).toBeNull()
+    expect(mid.diskReadBps).toBe(1000)
+
+    // CPU comes back. Its counter has advanced 2,000,000us of CPU time since t0 — 2 seconds of
+    // wall clock at 1 vCPU, which is 100%. Measured against an io-advanced clock it would be
+    // computed over 1s and read 200% before the clamp, i.e. a pinned 100 either way — so assert
+    // the honest case instead: half a second of CPU over the full 2s window is 25%.
+    clock.advance(1000)
+    files[cpuPath('a')] = 'usage_usec 500000'
+    files[ioPath('a')] = '8:0 rbytes=2000 wbytes=0'
+    const back = await c.sampleOne('a', 1)
+    expect(back.cpuPercent).toBe(25)
+    expect(back.diskReadBps).toBe(1000)
+  })
+
+  it('records CPU and memory on a host with no io controller at all', async () => {
+    // io.stat simply absent. The workload is running and must not be reported as unreadable.
+    const fs = fakeFs({ [cpuPath('a')]: 'usage_usec 1000', [memPath('a')]: '4096' })
+    const clock = makeClock()
+    const c = new MetricsCollector({ read: fs.read, now: clock.now, cgroupRoot: ROOT })
+
+    await c.sampleOne('a', 1)
+    clock.advance(1000)
+    const s = await c.sampleOne('a', 1)
+
+    expect(s.memoryBytes).toBe(4096)
+    expect(s.diskReadBps).toBeNull()
+    expect(s.diskWriteBps).toBeNull()
   })
 })

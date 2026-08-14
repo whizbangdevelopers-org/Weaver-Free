@@ -136,9 +136,12 @@ export function getDemoWorkloadMetrics(name: string, tier: string): WorkloadMetr
       timestamp: new Date(p.timestamp).getTime(),
       cpuPercent: p.cpuPercent,
       memoryBytes: Math.round(p.memoryMb * 1024 * 1024),
-      // The demo carries read/write throughput, which is a different quantity from the disk
-      // USAGE this field means. Left null rather than mapped to something it is not.
-      diskBytes: null,
+      // The demo has always generated read/write THROUGHPUT, and the wire now carries throughput
+      // too, so the two finally agree and the value stops being discarded here. It used to map to
+      // a `diskBytes` usage field — correctly refusing, because usage and throughput are different
+      // quantities — which is why the demo rendered a disk chip the product could not.
+      diskReadBps: Math.round(p.diskReadMbps * 1_000_000),
+      diskWriteBps: Math.round(p.diskWriteMbps * 1_000_000),
     })),
   }
 }

@@ -60,6 +60,8 @@ export function useWorkloadMetrics(name: () => string) {
 
   const cpuSeries = computed(() => samples.value.map(s => s.cpuPercent))
   const memorySeries = computed(() => samples.value.map(s => s.memoryBytes))
+  const diskReadSeries = computed(() => samples.value.map(s => s.diskReadBps))
+  const diskWriteSeries = computed(() => samples.value.map(s => s.diskWriteBps))
 
   /**
    * True when the window contains samples but none carries a usable reading.
@@ -67,6 +69,11 @@ export function useWorkloadMetrics(name: () => string) {
    * Distinct from "no samples at all": a stopped workload produces timestamped samples with null
    * values, and the UI should say "no data for this period" rather than render an empty chart
    * that looks like a loading state which never resolves.
+   *
+   * Deliberately judged on CPU and memory only, NOT on disk. A cgroup can legitimately have no
+   * `io.stat` — the io controller is not enabled on every host — so a running workload with real
+   * CPU and memory readings would otherwise be declared "not running" wherever disk accounting is
+   * simply unavailable.
    */
   const hasNoReadings = computed(
     () => samples.value.length > 0 && samples.value.every(s => s.cpuPercent === null && s.memoryBytes === null),
@@ -74,7 +81,7 @@ export function useWorkloadMetrics(name: () => string) {
 
   return {
     samples, windowMs, intervalMs, loading, error,
-    cpuSeries, memorySeries, hasNoReadings,
+    cpuSeries, memorySeries, diskReadSeries, diskWriteSeries, hasNoReadings,
     fetchMetrics, startPolling, stopPolling,
   }
 }

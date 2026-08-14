@@ -78,7 +78,8 @@ const metricsResponseSchema = z.object({
     timestamp: z.number(),
     cpuPercent: z.number().nullable(),
     memoryBytes: z.number().nullable(),
-    diskBytes: z.number().nullable(),
+    diskReadBps: z.number().nullable(),
+    diskWriteBps: z.number().nullable(),
   })),
 })
 
