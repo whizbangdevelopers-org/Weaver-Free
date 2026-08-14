@@ -96,11 +96,36 @@ export function computeCpuPercent(opts: {
 
   const deltaUsec = currentUsec - previousUsec
   const availableUsec = elapsedMs * 1000 * vcpus
-  const pct = (deltaUsec / availableUsec) * 100
+  return clampCpuPercent((deltaUsec / availableUsec) * 100)
+}
 
-  // Clamp the top: accounting granularity can put a busy workload marginally over 100, and a
-  // graph that peaks at 103% invites the reader to distrust the axis rather than the sample.
+/**
+ * Present a raw CPU percentage the way the chart expects it.
+ *
+ * Clamps the top because accounting granularity can put a busy workload marginally over 100, and a
+ * graph that peaks at 103% invites the reader to distrust the axis rather than the sample.
+ *
+ * **Extracted so the two metrics backends cannot drift.** The ring buffer computes this from two
+ * cgroup reads; the PromQL proxy computes it from a `rate()` divided by `weaver_workload_vcpus`.
+ * The arithmetic differs by construction, but the *presentation* must not — a chart that rounds to
+ * two places on one backend and not the other reads as a bug in the data. Sharing the function
+ * makes that agreement structural rather than a coincidence maintained by hand.
+ */
+export function clampCpuPercent(pct: number): number {
+  if (!Number.isFinite(pct)) return 0
   return Math.max(0, Math.min(100, Number(pct.toFixed(2))))
+}
+
+/**
+ * Present a raw bytes-per-second rate.
+ *
+ * No ceiling, deliberately — unlike CPU percent there is no meaningful maximum for I/O, and an
+ * invented one would silently flatten exactly the spike the chart exists to show. Shared with the
+ * PromQL proxy for the same reason as `clampCpuPercent`.
+ */
+export function roundBps(bps: number): number {
+  if (!Number.isFinite(bps)) return 0
+  return Math.max(0, Number(bps.toFixed(2)))
 }
 
 /**
@@ -212,7 +237,7 @@ export function computeDiskBps(opts: {
   const seconds = elapsedMs / 1000
   const rate = (prev: number, curr: number): number | null => {
     if (curr < prev) return null // counter reset — unit restarted between samples
-    return Math.max(0, Number(((curr - prev) / seconds).toFixed(2)))
+    return roundBps((curr - prev) / seconds)
   }
 
   return {
@@ -221,9 +246,29 @@ export function computeDiskBps(opts: {
   }
 }
 
-/** cgroup v2 path for a workload's systemd unit. */
+/**
+ * cgroup v2 path for a workload's systemd unit.
+ *
+ * **The `system-microvm.slice` component is systemd's, not ours, and omitting it is why this
+ * function returned a path that exists on no host.** systemd places instances of a template unit
+ * `foo@.service` into an implicit slice named `system-foo.slice`, without the unit file saying so
+ * — verified on a live host, where `microvm@.service` carries no `Slice=` line at all yet
+ * `systemctl show -p Slice` reports `system-microvm.slice`. The same host shows
+ * `getty@tty1.service` in `system-getty.slice` and `user@0.service` in `user-0.slice`, so this is
+ * the general rule for template units rather than anything microvm.nix does.
+ *
+ * The consequence of the old path was **silent and total**: every read returned null, and both
+ * consumers treat an unreadable cgroup as "no measurement" by design — which is right for a
+ * stopped workload and indistinguishable from a wrong path. So the chart drew nothing and the
+ * exporter published nothing, on every real host, with no error anywhere.
+ *
+ * Nothing caught it because the unit tests supply their own fake cgroupfs and assert that the
+ * reader reads the path this function builds. That is a closed loop: it can only ever confirm the
+ * two halves of our own code agree. The missing assertion was against systemd, which is why
+ * `collectWorkloadFamilies` now reports when it can read none of them.
+ */
 export function cgroupPathFor(name: string, root = '/sys/fs/cgroup'): string {
-  return `${root}/system.slice/microvm@${name}.service`
+  return `${root}/system.slice/system-microvm.slice/microvm@${name}.service`
 }
 
 // ---------------------------------------------------------------------------

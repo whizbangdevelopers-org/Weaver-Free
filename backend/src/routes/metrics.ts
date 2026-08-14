@@ -83,6 +83,16 @@ export async function metricsRoutes(
         read: opts.read,
         workloads,
         ...(opts.cgroupRoot ? { cgroupRoot: opts.cgroupRoot } : {}),
+        // Registered workloads, none of them measurable. Per workload that is ordinary (stopped);
+        // across ALL of them it means the base path is wrong for this host, and the previous
+        // behaviour was to publish an empty exposition and say nothing — which is exactly how a
+        // path missing systemd's implicit `system-microvm.slice` survived undetected.
+        onNoneReadable: ({ workloads: n, samplePath }) => {
+          request.log.warn(
+            { workloads: n, samplePath },
+            'metrics: no workload cgroup was readable — check the cgroup base path for this host'
+          )
+        },
       })))
     } catch (err) {
       // One failing source must not empty the whole exposition. A scrape that returns nothing looks

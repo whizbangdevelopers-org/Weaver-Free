@@ -25,7 +25,8 @@ import Fastify from 'fastify'
 import { serializerCompiler, validatorCompiler, ZodTypeProvider } from 'fastify-type-provider-zod'
 import { workloadsRoutes } from '../../src/routes/workloads.js'
 import { getWorkloadDefinitions } from '../../src/services/microvm.js'
-import { MetricsCollector, SAMPLE_INTERVAL_MS } from '../../src/services/metrics.js'
+import { MetricsCollector, SAMPLE_INTERVAL_MS, cgroupPathFor } from '../../src/services/metrics.js'
+import { PromqlMetricsSource, type PromMatrix, type RangeQuery } from '../../src/services/promql.js'
 
 const mockGetDefs = getWorkloadDefinitions as ReturnType<typeof vi.fn>
 
@@ -42,7 +43,7 @@ function collectorWith(files: Record<string, string>, now: () => number) {
   })
 }
 
-async function buildApp(opts: { tier?: string; collector?: MetricsCollector | null } = {}) {
+async function buildApp(opts: { tier?: string; collector?: MetricsCollector | null; promqlSource?: PromqlMetricsSource | null } = {}) {
   const fastify = Fastify().withTypeProvider<ZodTypeProvider>()
   fastify.decorateRequest('userId', undefined)
   fastify.decorateRequest('userRole', undefined)
@@ -58,6 +59,7 @@ async function buildApp(opts: { tier?: string; collector?: MetricsCollector | nu
     prefix: '/api/workload',
     config: { tier: opts.tier ?? 'weaver' } as unknown as DashboardConfig,
     metricsCollector: opts.collector === undefined ? null : opts.collector,
+    promqlSource: opts.promqlSource ?? null,
   })
   await fastify.ready()
   return fastify
@@ -102,7 +104,7 @@ describe('GET /api/workload/:name/metrics', () => {
     it('serves a null cpuPercent as null, not 0 and not a validation error', async () => {
       let t = 1_000_000
       // Only memory is readable: cpu.stat is absent, so cpuPercent is null by construction.
-      const collector = collectorWith({ '/fake/system.slice/microvm@web-nginx.service/memory.current': '4096' }, () => t)
+      const collector = collectorWith({ [`${cgroupPathFor('web-nginx', '/fake')}/memory.current`]: '4096' }, () => t)
       await collector.sampleOne('web-nginx', 2)
 
       const app = await buildApp({ collector })
@@ -120,8 +122,8 @@ describe('GET /api/workload/:name/metrics', () => {
     it('serves a real 0 as 0', async () => {
       let t = 1_000_000
       const files = {
-        '/fake/system.slice/microvm@web-nginx.service/cpu.stat': 'usage_usec 500',
-        '/fake/system.slice/microvm@web-nginx.service/memory.current': '4096',
+        [`${cgroupPathFor('web-nginx', '/fake')}/cpu.stat`]: 'usage_usec 500',
+        [`${cgroupPathFor('web-nginx', '/fake')}/memory.current`]: '4096',
       }
       const collector = collectorWith(files, () => t)
       await collector.sampleOne('web-nginx', 2)
@@ -173,8 +175,8 @@ describe('GET /api/workload/:name/metrics', () => {
     it('actually excludes samples outside the window', async () => {
       let t = 1_000_000
       const files = {
-        '/fake/system.slice/microvm@web-nginx.service/cpu.stat': 'usage_usec 0',
-        '/fake/system.slice/microvm@web-nginx.service/memory.current': '4096',
+        [`${cgroupPathFor('web-nginx', '/fake')}/cpu.stat`]: 'usage_usec 0',
+        [`${cgroupPathFor('web-nginx', '/fake')}/memory.current`]: '4096',
       }
       const collector = collectorWith(files, () => t)
       await collector.sampleOne('web-nginx', 2)   // t0
@@ -196,5 +198,113 @@ describe('GET /api/workload/:name/metrics', () => {
       expect((await get(app, '/api/workload/web-nginx/metrics')).statusCode).toBe(200)
       await app.close()
     })
+  })
+})
+
+/**
+ * The seam between the two metrics backends.
+ *
+ * These cover the ROUTE's choice between two backends, not the PromQL arithmetic — that is
+ * `services/promql.spec.ts`. The distinction that matters here is refuse-vs-absorb: exactly one
+ * of the two "no data" conditions is allowed to render as an ordinary empty chart.
+ */
+describe('GET /api/workload/:name/metrics — Prometheus read path', () => {
+  const emptyMatrix: PromMatrix = { resultType: 'matrix', result: [] }
+
+  beforeEach(() => {
+    vi.resetAllMocks()
+    mockUserRole = 'admin'
+    mockGetDefs.mockResolvedValue({ 'web-nginx': VM })
+  })
+  afterEach(() => { vi.resetAllMocks() })
+
+  const sourceFrom = (rq: RangeQuery) => new PromqlMetricsSource(rq)
+
+  it('serves from Prometheus and IGNORES the ring buffer when both are present', async () => {
+    // Not "prefers". The buffer must not contribute a single sample, or the two backends would
+    // interleave and the chart would show a history nobody can reproduce from either store.
+    const rq: RangeQuery = async ({ query }) =>
+      query.includes('memory_bytes')
+        ? { resultType: 'matrix', result: [{ metric: {}, values: [[1_800_000_000, '4096']] }] }
+        : emptyMatrix
+
+    const app = await buildApp({
+      collector: collectorWith({}, () => Date.now()),
+      promqlSource: sourceFrom(rq),
+    })
+    const res = await get(app, '/api/workload/web-nginx/metrics?window=10m')
+
+    expect(res.statusCode).toBe(200)
+    // 10 minutes at 30s — a full grid, not the buffer's (empty) contents.
+    expect(res.json().samples).toHaveLength(20)
+    await app.close()
+  })
+
+  it('503s when Prometheus is unreachable — never an empty chart', async () => {
+    // THE refuse case. Returning 200 with [] here would render a broken monitoring stack as a
+    // perfectly normal idle workload, which is the one failure an operator cannot see.
+    const rq: RangeQuery = async () => { throw new Error('connect ECONNREFUSED 127.0.0.1:9090') }
+    const app = await buildApp({ promqlSource: sourceFrom(rq) })
+    const res = await get(app, '/api/workload/web-nginx/metrics')
+
+    expect(res.statusCode).toBe(503)
+    expect(res.json().error).toBe('Metrics store is unavailable')
+    await app.close()
+  })
+
+  it('does not leak the store address or the query into the error body', async () => {
+    // A raw system error names hosts, ports and internal expressions — never return one.
+    const rq: RangeQuery = async () => {
+      throw new Error('connect ECONNREFUSED 127.0.0.1:9090 querying weaver_workload_vcpus')
+    }
+    const app = await buildApp({ promqlSource: sourceFrom(rq) })
+    const body = (await get(app, '/api/workload/web-nginx/metrics')).payload
+
+    expect(body).not.toMatch(/9090|ECONNREFUSED|weaver_workload/)
+    await app.close()
+  })
+
+  it('404s an unknown workload BEFORE querying Prometheus', async () => {
+    // Ordering is the assertion: a query issued for a workload that does not exist is both a
+    // wasted round-trip and a way for a bad name to reach the store at all.
+    mockGetDefs.mockResolvedValue({})
+    const queried = vi.fn(async () => emptyMatrix)
+    const app = await buildApp({ promqlSource: sourceFrom(queried) })
+
+    expect((await get(app, '/api/workload/no-such/metrics')).statusCode).toBe(404)
+    expect(queried).not.toHaveBeenCalled()
+    await app.close()
+  })
+
+  it('still applies the tier clamp — Prometheus is not a way around retention', async () => {
+    // resolveWindowMs is the tier gate and it lives on this seam deliberately (§2.4). A Free
+    // request for 24h must reach Prometheus as one hour, and be REPORTED as one hour.
+    const windows: number[] = []
+    const rq: RangeQuery = async ({ startSec, endSec }) => {
+      windows.push(endSec - startSec)
+      return emptyMatrix
+    }
+    const app = await buildApp({ tier: 'free', promqlSource: sourceFrom(rq) })
+    const res = await get(app, '/api/workload/web-nginx/metrics?window=24h')
+
+    expect(res.json().windowMs).toBe(3_600_000)
+    // 120 slots of 30s spans 119 intervals between first and last point.
+    expect(new Set(windows)).toEqual(new Set([119 * 30]))
+    await app.close()
+  })
+
+  it('nullability survives response validation on the Prometheus path too', async () => {
+    // The same last-hop hazard the buffer path carries: a schema without `.nullable()` turns
+    // every materialised gap into a validation failure or a 0.
+    const rq: RangeQuery = async () => emptyMatrix
+    const app = await buildApp({ promqlSource: sourceFrom(rq) })
+    const samples = (await get(app, '/api/workload/web-nginx/metrics?window=5m')).json().samples
+
+    expect(samples).toHaveLength(10)
+    expect(samples[0]).toMatchObject({
+      cpuPercent: null, memoryBytes: null, diskReadBps: null, diskWriteBps: null,
+    })
+    expect(typeof samples[0].timestamp).toBe('number')
+    await app.close()
   })
 })

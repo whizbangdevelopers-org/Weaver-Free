@@ -13,6 +13,14 @@ export default [
       'node_modules/',
       '**/dist/',
       '**/.quasar/',
+      // Quasar compiles its config to a timestamped temp file and normally deletes it — but an
+      // interrupted or killed run leaves it behind, and it is generated CommonJS carrying its own
+      // eslint-disable header. Lint then reports "unused eslint-disable directive" against a file
+      // nobody wrote, forever, until someone notices and deletes it by hand. Already covered by
+      // .gitignore (`quasar.config.*.temporary.compiled.*.cjs`); the two must agree, or the file
+      // is invisible to git and visible to lint. Two such files had been sitting here since
+      // 2026-08-10.
+      'quasar.config.*.temporary.compiled.*.cjs',
       'src-capacitor/',
       'src-cordova/',
       'src-electron/dist/',

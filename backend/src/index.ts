@@ -32,6 +32,7 @@ import { dnsRoutes } from './routes/dns.js'
 import { createRegistry } from './storage/index.js'
 import { setRegistry, setProvisioner, setConfig, startAutostartVms, scanMicrovms, getWorkloadDefinitions } from './services/microvm.js'
 import { MetricsCollector, retentionForTier } from './services/metrics.js'
+import { PromqlMetricsSource, httpRangeQuery } from './services/promql.js'
 import { DnsZoneWriter } from './services/dns-writer.js'
 import { createImageManager } from './services/image-manager.js'
 import { UrlValidationService } from './services/url-validator.js'
@@ -517,6 +518,24 @@ const dnsWriter = TIER_ORDER[config.tier] >= TIER_ORDER[TIERS.SOLO]
     )
   : null
 
+/**
+ * PromQL read path — history is served from Prometheus, not from the in-process buffer.
+ *
+ * Constructed only when the NixOS module told us where Prometheus lives. When it is null the
+ * metrics endpoint reads the ring buffer exactly as before — that is the pre-migration path, not
+ * a degraded one, and it remains the correct answer on a host with `metrics.enable = false`.
+ *
+ * The collector above keeps running either way: it is what `/metrics` exposes for Prometheus to
+ * scrape, so retiring it belongs to phase 4 alongside the buffer, not here.
+ */
+const promqlSource = config.prometheusUrl
+  ? new PromqlMetricsSource(httpRangeQuery(config.prometheusUrl))
+  : null
+
+if (promqlSource) {
+  fastify.log.info({ url: config.prometheusUrl }, 'metrics: serving history from Prometheus')
+}
+
 metricsCollector.start(async () => {
   const defs = await getWorkloadDefinitions()
   const workloads = Object.values(defs)
@@ -535,7 +554,7 @@ metricsCollector.start(async () => {
 // in practice. Cast for the same reason as the ws registration below: the dynamic import above
 // types it `unknown`.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- networkManager typed as unknown from dynamic import
-await fastify.register(workloadsRoutes, { prefix: '/api/workload', provisioner, imageManager, config, auditService, quotaStore, aclStore: vmAclStore, networkManager: networkManager as any, metricsCollector })
+await fastify.register(workloadsRoutes, { prefix: '/api/workload', provisioner, imageManager, config, auditService, quotaStore, aclStore: vmAclStore, networkManager: networkManager as any, metricsCollector, promqlSource })
 await fastify.register(agentRoutes, { prefix: '/api/workload', config, auditService, aclStore: vmAclStore })
 await fastify.register(dnsRoutes, { prefix: '/api/dns', config, getZone: () => dnsWriter?.currentZone ?? null })
 const distroTester = provisioner ? new DistroTester(vmRegistry, provisioner, config) : undefined

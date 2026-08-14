@@ -956,6 +956,27 @@ in
         }];
       };
 
+      # Tell the backend where to READ history from. Without this the module
+      # would run a Prometheus that nothing queries: the exporter feeds it, it retains samples
+      # across restarts, and the UI keeps serving the in-process ring buffer that phase 4 deletes.
+      #
+      # Derived from the same two options the server is configured with, never restated — a
+      # literal `127.0.0.1:9090` here would silently point at nothing the moment an operator
+      # overrode either. `listenAddress` is `mkDefault`, so their value is what appears below.
+      #
+      # An IPv6 listen address needs brackets in a URL; `0.0.0.0` and `::` mean "all interfaces"
+      # to a listener but are not routable as destinations, so both are dialled as loopback.
+      systemd.services.weaver.environment.PROMETHEUS_URL =
+        let
+          addr = cfg.metrics.listenAddress;
+          host =
+            if addr == "0.0.0.0" || addr == "" then "127.0.0.1"
+            else if addr == "::" then "[::1]"
+            else if lib.hasInfix ":" addr then "[${addr}]"
+            else addr;
+        in
+        "http://${host}:${toString cfg.metrics.port}";
+
       # The scrape reaches Weaver over loopback, so the backend must actually be up for the target
       # to be anything other than `down`. Ordering only — Prometheus still starts, and reports the
       # target as down, if Weaver fails. That is the honest outcome: a scrape failure should look
