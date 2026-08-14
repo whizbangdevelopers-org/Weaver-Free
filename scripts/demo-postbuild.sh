@@ -165,6 +165,43 @@ if [ "${1:-}" = "--self-test" ]; then
   fi
   rm -rf "$FAKE2"
 
+  # Frame-guard: PUBLIC gets it, PRIVATE must NOT. The private build is iframe-embedded by the
+  # investor deck, so a guard there would blank that slide — the IGNORE half is the point.
+  FG=$(mktemp -d); mkdir -p "$FG/scripts" "$FG/demo" "$FG/dist"
+  cp "$SELF" "$FG/scripts/demo-postbuild.sh"
+  printf '%s' 'x' > "$FG/demo/frame-guard.js"
+  printf '%s\n' '# r' 'User-agent: GPTBot' 'Disallow: /' > "$FG/demo/robots.txt"
+  : > "$FG/LICENSE"
+  # Clear the whole dist between cases, not just index.html. A leftover frame-guard.js from a
+  # previous run makes the "source missing" case pass on a stale artifact — which is a real
+  # property of the check, not only a test artefact: it verifies the OUTPUT, so a dirty dist can
+  # mask a missing input. CI always builds fresh; a local rebuild may not.
+  _fg() { rm -rf "$FG/dist"; mkdir -p "$FG/dist"
+          printf '%s' '<html><head><meta charset=utf-8></head><body></body></html>' > "$FG/dist/index.html"; }
+
+  _fg; "$FG/scripts/demo-postbuild.sh" "$FG/dist" --public >/dev/null 2>&1
+  if [ -f "$FG/dist/frame-guard.js" ] && grep -q 'src="/frame-guard.js"' "$FG/dist/index.html"; then
+    echo "  PASS  --public injects the frame-guard"; pass=$((pass+1))
+  else
+    echo "  FAIL  --public did not inject the frame-guard"; fail=$((fail+1))
+  fi
+
+  _fg; "$FG/scripts/demo-postbuild.sh" "$FG/dist" >/dev/null 2>&1
+  if grep -q 'frame-guard' "$FG/dist/index.html"; then
+    echo "  FAIL  private build got a frame-guard (breaks the investor deck iframe)"; fail=$((fail+1))
+  else
+    echo "  PASS  private build stays embeddable (no frame-guard)"; pass=$((pass+1))
+  fi
+
+  # A public build whose guard source is missing must FAIL, not ship unguarded.
+  rm -f "$FG/demo/frame-guard.js"; _fg
+  if "$FG/scripts/demo-postbuild.sh" "$FG/dist" --public >/dev/null 2>&1; then
+    echo "  FAIL  public build shipped without the frame-guard"; fail=$((fail+1))
+  else
+    echo "  PASS  refuses a public build with no frame-guard"; pass=$((pass+1))
+  fi
+  rm -rf "$FG"
+
   # The IGNORE half: it must still REFUSE when it genuinely cannot inject, rather than pass.
   rm -rf "$TMP/e"; mkdir -p "$TMP/e"; printf '%s' '<html><body>no head</body></html>' > "$TMP/e/index.html"
   if "$SELF" "$TMP/e" >/dev/null 2>&1; then echo "  FAIL  should refuse with no anchor"; fail=$((fail+1))
@@ -186,7 +223,12 @@ if [ "${1:-}" = "--self-test" ]; then
   exit 0
 fi
 
-DIST="${1:?usage: demo-postbuild.sh <dist-dir> | --self-test}"
+DIST="${1:?usage: demo-postbuild.sh <dist-dir> [--public] | --self-test}"
+
+# --public adds the clickjacking frame-guard. PRIVATE builds deliberately omit it: the investor
+# deck embeds the private demo in an iframe, and a guard on every build would blank that slide.
+PUBLIC=0
+[ "${2:-}" = "--public" ] && PUBLIC=1
 
 # Resolve assets relative to THIS script, never the caller's cwd — the four callers run from four
 # different directories (code/, the repo root in CI, /app in Docker, and a template checkout).
@@ -221,6 +263,22 @@ if [ -f "$CODE_ROOT/demo/robots.txt" ]; then
   cp "$CODE_ROOT/demo/robots.txt" "$DIST/robots.txt"
 fi
 
+# Clickjacking guard — PUBLIC builds only.
+#
+# The correct control is a frame-ancestors / X-Frame-Options HEADER, and neither can be delivered
+# from a host that sets no headers. `frame-ancestors` inside a <meta> is ignored, which is why it
+# was removed from the policy above. This script is the honest in-page fallback; it is weaker than
+# a header and does not replace moving to header-capable hosting.
+#
+# PRIVATE builds are deliberately left embeddable: the investor deck iframes the private demo.
+# The COPY happens here with the other assets; the <script> tag is injected further down, once
+# inject_after and the anchors are defined. Splitting them is deliberate — putting the injection
+# here would reference a function that does not exist yet, which is the same ordering trap the CSP
+# definition hit.
+if [ "$PUBLIC" = "1" ] && [ -f "$CODE_ROOT/demo/frame-guard.js" ]; then
+  cp "$CODE_ROOT/demo/frame-guard.js" "$DIST/frame-guard.js"
+fi
+
 # 4 + 5. Inject the noai and CSP metas, once each.
 #
 # THE ANCHOR MUST NOT ASSUME THE BUILDER'S QUOTING. The source template writes
@@ -251,6 +309,22 @@ fi
 if ! grep -q 'http-equiv="Content-Security-Policy"' "$INDEX"; then
   inject_after "$ANCHOR" "<meta http-equiv=\"Content-Security-Policy\" content=\"${CSP}\">"
 fi
+# Frame-guard, PUBLIC only.
+#
+# Anchored AFTER the CSP meta, not after <head>. A policy governs only what follows it, so a
+# script injected above the CSP would sit outside the very policy that permits it — and the
+# charset meta would be pushed later for no benefit. Falls back to <head> only if the CSP anchor
+# somehow is not there, in which case the verification below fails the build anyway.
+if [ "$PUBLIC" = "1" ] && [ -f "$DIST/frame-guard.js" ]; then
+  if ! grep -q 'src="/frame-guard.js"' "$INDEX"; then
+    CSP_META_RE='<meta http-equiv="Content-Security-Policy"[^>]*>'
+    if grep -q "$CSP_META_RE" "$INDEX"; then
+      inject_after "$CSP_META_RE" '<script src="/frame-guard.js"></script>'
+    else
+      inject_after "$HEAD_RE" '<script src="/frame-guard.js"></script>'
+    fi
+  fi
+fi
 
 # Verify rather than assume. A sed whose pattern stopped matching (a Quasar template change, a
 # different charset spelling) fails silently and every caller still reports success — which is
@@ -269,6 +343,11 @@ grep -q 'http-equiv="Content-Security-Policy"' "$INDEX" || missing="$missing csp
 # one vanish without a word. audit:legal expects all three of LICENSE / robots.txt / noai meta to
 # reach the deployed tree, so all three are verified here.
 [ -f "$DIST/robots.txt" ] || missing="$missing robots.txt"
+# A public build must carry the frame-guard AND reference it; the file alone does nothing.
+if [ "$PUBLIC" = "1" ]; then
+  [ -f "$DIST/frame-guard.js" ] || missing="$missing frame-guard.js"
+  grep -q 'src="/frame-guard.js"' "$INDEX" || missing="$missing frame-guard-tag"
+fi
 [ -f "$DIST/LICENSE" ] || missing="$missing LICENSE"
 
 # An empty or truncated robots.txt is a file that exists and protects nothing, so presence is not
