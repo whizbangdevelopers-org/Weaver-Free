@@ -22,7 +22,7 @@
  *   npm run audit:e2e-docs
  */
 
-import { readFileSync } from 'fs'
+import { execFileSync } from 'child_process'
 import { resolve, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import { gatherSpecs, renderCoverage } from './generate-e2e-coverage.ts'
@@ -30,7 +30,31 @@ import { gatherSpecs, renderCoverage } from './generate-e2e-coverage.ts'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 const CODE_ROOT = resolve(__dirname, '..')
-const OUTPUT_PATH = resolve(CODE_ROOT, 'docs', 'E2E-COVERAGE.md')
+const PROJECT_ROOT = resolve(CODE_ROOT, '..')
+/** Repo-relative, because the baseline is read out of git rather than off disk. */
+const OUTPUT_REL = 'code/docs/E2E-COVERAGE.md'
+
+/**
+ * Committed/staged content for a repo-relative path — the index first, then HEAD.
+ *
+ * Returns '' when the path is neither staged nor committed (nothing to drift from yet). Never
+ * reads the working tree: a git blob is immutable for the duration of the run, so it cannot be
+ * rewritten underneath the comparison by a generator or a hook.
+ */
+function gitBaseline(relPath: string): string {
+  for (const ref of [`:${relPath}`, `HEAD:${relPath}`]) {
+    try {
+      return execFileSync('git', ['show', ref], {
+        cwd: PROJECT_ROOT,
+        stdio: ['ignore', 'pipe', 'ignore'],
+        encoding: 'utf8',
+      })
+    } catch {
+      // not staged / not committed under this ref — try the next
+    }
+  }
+  return ''
+}
 
 // Feature-tag allowlist. Every @feature value on every spec must be
 // in this set. Update when new coherent feature areas are introduced;
@@ -129,14 +153,24 @@ function main(): void {
   }
 
   // Check 4: generated file is fresh.
+  //
+  // The baseline is GIT, never the working tree. This auditor does not write — it renders in
+  // memory — so it cannot mask ITSELF, and that is exactly what makes reading the working tree
+  // look safe here. It isn't: anything that regenerates the coverage catalog in place before this
+  // runs (the generator, a pre-commit hook, another auditor, a developer) leaves the tree fresh
+  // while the COMMIT stays stale, and the comparison then answers a question nobody asked. What
+  // ships is the commit, so the commit is what must be checked.
+  //
+  // `:path` is the staged blob — what the next commit will actually contain — with `HEAD:path` as
+  // the fallback when nothing is staged. A git blob is immutable for the duration of the run and
+  // therefore cannot be rewritten underneath the comparison. Same helper and same reasoning as
+  // verify-generated-artifact-freshness.ts's gitBaseline().
   const expected = renderCoverage(result)
-  let actual = ''
-  try {
-    actual = readFileSync(OUTPUT_PATH, 'utf8')
-  } catch {
+  const actual = gitBaseline(OUTPUT_REL)
+  if (!actual) {
     violations.push({
       check: 'coverage-missing',
-      detail: `docs/E2E-COVERAGE.md does not exist — run: npm run generate:e2e-coverage`,
+      detail: `docs/E2E-COVERAGE.md is not committed or staged — run: npm run generate:e2e-coverage && git add code/docs/E2E-COVERAGE.md`,
     })
   }
   if (actual && actual !== expected) {
