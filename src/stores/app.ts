@@ -307,11 +307,15 @@ function getDemoPlugins(): PluginManifest[] {
     // isDemoMode(). It still has to agree with the product, because a demo that shows a feature
     // as coming-soon while the product ships it is the demo lying about the product.
     { id: 'dns-core', name: 'DNS Management', description: 'Auto-zone .vm.internal, dnsmasq integration, per-VM DNS records.', category: 'dns', minimumTier: TIERS.SOLO, status: 'active', fabrickIncluded: true, replacedByFabrick: true },
-    { id: 'dns-resolver', name: 'DNS Resolver', description: 'CoreDNS resolver VM with security filtering and query logging.', category: 'dns', minimumTier: TIERS.SOLO, status: 'coming-soon', targetVersion: 'v1.1.0', fabrickIncluded: true, replacedByFabrick: true },
-    { id: 'dns-fabrick', name: 'DNS FabricK', description: 'Split-horizon DNS, Active Directory integration, audit trail.', category: 'dns', minimumTier: TIERS.FABRICK, status: 'coming-soon', targetVersion: 'v1.1.0', fabrickIncluded: true },
+    // Retargeted v1.1.0 -> v2.0.0 (2026-08-14). This is a template-catalog entry, and the catalog
+    // itself first ships in v2.0.0 — a catalog entry cannot arrive before the catalog.
+    { id: 'dns-resolver', name: 'DNS Resolver', description: 'CoreDNS resolver VM with security filtering and query logging.', category: 'dns', minimumTier: TIERS.SOLO, status: 'coming-soon', targetVersion: 'v2.0.0', fabrickIncluded: true, replacedByFabrick: true },
+    // Retargeted v1.1.0 -> v2.4.0 (2026-08-14). Gated at TIERS.FABRICK, and the Fabrick tier does
+    // not itself ship until v2.4.0 — an extension cannot arrive before its own tier.
+    { id: 'dns-fabrick', name: 'DNS FabricK', description: 'Split-horizon DNS, Active Directory integration, audit trail.', category: 'dns', minimumTier: TIERS.FABRICK, status: 'coming-soon', targetVersion: 'v2.4.0', fabrickIncluded: true },
     { id: 'firewall-presets', name: 'Firewall Presets', description: 'One-click nftables firewall profiles for common VM workloads.', category: 'firewall', minimumTier: TIERS.SOLO, status: 'coming-soon', targetVersion: 'v1.2.0', fabrickIncluded: true, replacedByFabrick: true },
     { id: 'firewall-custom', name: 'Custom Firewall Rules', description: 'Per-VM egress filtering, port whitelisting, and custom nftables rules.', category: 'firewall', minimumTier: TIERS.SOLO, status: 'coming-soon', targetVersion: 'v1.2.0', fabrickIncluded: true, replacedByFabrick: true },
-    { id: 'firewall-fabrick', name: 'Firewall FabricK', description: 'Security zones, drift detection, firewall audit log.', category: 'firewall', minimumTier: TIERS.FABRICK, status: 'coming-soon', targetVersion: 'v1.2.0', fabrickIncluded: true },
+    { id: 'firewall-fabrick', name: 'Firewall FabricK', description: 'Security zones, drift detection, firewall audit log.', category: 'firewall', minimumTier: TIERS.FABRICK, status: 'coming-soon', targetVersion: 'v2.4.0', fabrickIncluded: true },
     { id: 'hardening-apparmor', name: 'AppArmor Profiles', description: 'Managed AppArmor profiles for VM process isolation.', category: 'security', minimumTier: TIERS.SOLO, status: 'coming-soon', targetVersion: 'v1.2.0', fabrickIncluded: true },
     { id: 'hardening-seccomp', name: 'Seccomp Filters', description: 'Syscall filtering for VM QEMU processes. Reduces attack surface.', category: 'security', minimumTier: TIERS.SOLO, status: 'coming-soon', targetVersion: 'v1.2.0', fabrickIncluded: true },
     // minimumTier SOLO, not FREE: MFA is paid-tier only and the Free tier has no MFA option by
@@ -322,7 +326,7 @@ function getDemoPlugins(): PluginManifest[] {
     // both copies must move together, and the backend copy carries the full reasoning.
     { id: 'auth-totp', name: 'TOTP (2FA)', description: 'Time-based one-time passwords for two-factor authentication.', category: 'auth', minimumTier: TIERS.SOLO, status: 'coming-soon', targetVersion: 'v1.3.0', fabrickIncluded: true },
     { id: 'auth-fido2', name: 'FIDO2 / WebAuthn', description: 'Hardware key authentication (YubiKey, passkeys).', category: 'auth', minimumTier: TIERS.SOLO, status: 'coming-soon', targetVersion: 'v1.3.0', fabrickIncluded: true },
-    { id: 'auth-sso', name: 'SSO / LDAP', description: 'SAML, OIDC, and LDAP integration for organizational identity.', category: 'auth', minimumTier: TIERS.FABRICK, status: 'coming-soon', targetVersion: 'v1.2.0', fabrickIncluded: true },
+    { id: 'auth-sso', name: 'SSO / LDAP', description: 'SAML, OIDC, and LDAP integration for organizational identity.', category: 'auth', minimumTier: TIERS.FABRICK, status: 'coming-soon', targetVersion: 'v2.4.0', fabrickIncluded: true },
     { id: 'backup-disk', name: 'Disk Backup', description: 'Scheduled disk snapshots with configurable retention.', category: 'backup', minimumTier: TIERS.SOLO, status: 'coming-soon', targetVersion: 'v2.0.0', fabrickIncluded: true, replacedByFabrick: true },
     { id: 'backup-fabrick', name: 'Backup FabricK', description: 'Multi-target backup (S3, restic, borg), file-level restore, encryption.', category: 'backup', minimumTier: TIERS.FABRICK, status: 'coming-soon', targetVersion: 'v2.6.0', fabrickIncluded: true },
   ]
