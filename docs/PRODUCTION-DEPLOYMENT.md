@@ -150,10 +150,41 @@ services.weaver = {
   bridgeInterface = "br-microvm";    # Bridge interface name for VM networking
   bridgeGateway = "10.10.0.1";       # Gateway IP on the VM bridge (host-side)
 
+  # --- Metrics (Prometheus) ---
+  metrics = {
+    enable = true;                    # Run Prometheus and scrape Weaver (default: true, all tiers)
+    retention = "7d";                 # Host storage window (default: 7d)
+    port = 9090;                      # Prometheus server port (default: 9090)
+    listenAddress = "127.0.0.1";      # Loopback by default — see the warning below
+  };
+
   # --- Optional ---
   distroCatalogUrl = null;            # Remote URL to refresh the curated distro catalog
 };
 ```
+
+### Metrics and Prometheus
+
+Weaver's backend exposes `/metrics` in-process, and with `metrics.enable` (the default) the module
+configures Prometheus to scrape it. Graphs work on a fresh install with no extra setup, on every
+tier including Free.
+
+**`retention` is host storage, not a tier limit.** What a tier may *see* is clamped by the API — Free
+is served a 1-hour window, paid tiers 24 hours — while this option controls how long samples are kept
+on disk. Set it *below* the longest window a tier may request and a paid user's 24-hour chart runs
+out of data partway with no indication why. Anything above 24 hours exists for your own deep dive
+rather than for the product UI, so `24h` is a reasonable floor on a small host.
+
+**Do not widen `listenAddress` without putting authentication in front of it.** The store holds every
+workload's series and has no notion of Weaver's per-VM ACLs, so exposing the port publishes the full
+workload inventory and its usage to anyone who can reach it. Weaver's own `/metrics` endpoint refuses
+non-loopback callers for the same reason, and the product UI reads metrics through Weaver's API
+rather than querying Prometheus directly.
+
+**Already running Prometheus?** The module is written to coexist rather than take over. Its scrape job
+merges alongside yours, and `retention`, `port` and `listenAddress` are all set with `mkDefault`, so
+anything you set in your own configuration wins without an eval conflict. Set `metrics.enable = false`
+to opt out entirely — nothing else breaks; the in-process collector still serves the metrics API.
 
 ### Secrets Management
 
