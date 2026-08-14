@@ -81,6 +81,7 @@
     "audit:routes": "npx tsx scripts/verify-route-auth.ts",
     "audit:runbooks": "npx tsx scripts/verify-runbooks.ts",
     "audit:sast": "npx tsx scripts/audit-sast.ts",
+    "audit:shell-continuation": "npx tsx scripts/verify-shell-continuation.ts",
     "audit:shell-safety": "npx tsx scripts/verify-shell-safety.ts",
     "audit:skill-parity": "npx tsx scripts/verify-skill-parity.ts",
     "audit:submit-gate-coverage": "npx tsx scripts/verify-submit-gate-coverage.ts",
