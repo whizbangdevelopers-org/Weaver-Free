@@ -146,3 +146,44 @@ export function formatBytes(bytes: number | null): string {
 export function formatPercent(pct: number | null): string {
   return pct === null ? '—' : `${pct >= 10 ? Math.round(pct) : Number(pct.toFixed(1))}%`
 }
+
+/**
+ * A byte-per-second rate for display, e.g. `2.2 MB/s`.
+ *
+ * Decimal units (1000), not binary (1024), because throughput is conventionally quoted in decimal
+ * and the demo's own figures are MB/s in that sense. Using 1024 here would render the same number
+ * ~5% lower than every other tool the reader compares against, which reads as the graph being
+ * wrong rather than differently-defined.
+ *
+ * Em dash for null, never `0 B/s`: an unmeasurable interval and a genuinely idle disk are
+ * different facts, and this whole pipeline keeps them apart from the cgroup read onward.
+ */
+export function formatRate(bps: number | null): string {
+  if (bps === null) return '—'
+  if (bps < 1000) return `${Math.round(bps)} B/s`
+  const units = ['KB/s', 'MB/s', 'GB/s', 'TB/s']
+  let value = bps / 1000
+  let unit = 0
+  while (value >= 1000 && unit < units.length - 1) {
+    value /= 1000
+    unit++
+  }
+  // `.toFixed(1)` as a STRING, not `Number(...)`: the numeric form drops the trailing zero, so
+  // 1000 B/s renders "1 KB/s" beside a memory chip reading "1.0 KB". Matches formatBytes above,
+  // and matches the chip this restores, which always showed one decimal.
+  return `${value >= 10 ? Math.round(value) : value.toFixed(1)} ${units[unit]}`
+}
+
+/**
+ * A sampling interval as a readable cadence, e.g. `30-sec intervals`, `1-min intervals`.
+ *
+ * Takes the interval the server actually SERVED rather than a tier assumption. The demo layer
+ * carries its own `resolution: '1m' | '5m'`, and captioning real 30-second samples with it would
+ * be a claim the reader cannot verify — the same reason the window badge shows what was served.
+ */
+export function formatInterval(ms: number): string {
+  if (!(ms > 0)) return ''
+  if (ms < 60_000) return `${Math.round(ms / 1000)}-sec intervals`
+  const mins = ms / 60_000
+  return `${mins >= 10 ? Math.round(mins) : Number(mins.toFixed(1))}-min intervals`
+}

@@ -14,7 +14,9 @@ export interface MetricSample {
   timestamp: number
   cpuPercent: number | null
   memoryBytes: number | null
-  diskBytes: number | null
+  /** Disk THROUGHPUT in bytes/sec, from cgroup `io.stat` counters — not disk usage. */
+  diskReadBps: number | null
+  diskWriteBps: number | null
 }
 
 /** The metrics endpoint response. `windowMs` is what was SERVED, which may be less than asked. */

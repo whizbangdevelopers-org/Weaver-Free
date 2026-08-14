@@ -18,7 +18,23 @@ export interface MetricSample {
   timestamp: number
   cpuPercent: number | null
   memoryBytes: number | null
-  diskBytes: number | null
+  /**
+   * Disk THROUGHPUT, bytes per second, derived from `io.stat`'s cumulative counters.
+   *
+   * This replaces a `diskBytes` *usage* field that was declared at v1.1 and never populated —
+   * `diskBytes: null, // not wired yet`. Usage was the wrong quantity for this chart: a VM image
+   * size sampled every 30 seconds draws a flat line, which is plausibly why nobody ever wired it,
+   * and it needs a separate expensive source (`qemu-img info`) on a different clock. Throughput is
+   * what `io.stat` already exposes, and what the chart has always been designed to show.
+   */
+  diskReadBps: number | null
+  diskWriteBps: number | null
+}
+
+/** Cumulative disk byte counters for one cgroup, summed across every backing device. */
+export interface IoCounters {
+  readBytes: number
+  writeBytes: number
 }
 
 /** Retention, in samples, by tier. 30s resolution: 120 = 1 hour, 2880 = 24 hours. */
@@ -116,6 +132,95 @@ export function parseMemoryMax(content: string): number | null {
   return Number.isFinite(n) && n > 0 ? n : null
 }
 
+/**
+ * `io.stat` — cumulative byte counters, summed across every backing device.
+ *
+ * The format is one line per device, `MAJ:MIN key=value key=value …`:
+ *
+ *     8:0 rbytes=4096 wbytes=0 rios=1 wios=0 dbytes=0 dios=0
+ *
+ * Summing across devices is deliberate. A workload's disk is frequently more than one device — an
+ * overlay plus its backing image, a separate data volume — and reporting only the first line would
+ * silently under-report by whatever the others carry, which is a plausible number rather than an
+ * error. The same reason the memory parser refuses an empty string.
+ *
+ * Returns null when NO device line yields a counter, rather than `{0, 0}`. A stopped workload has
+ * no cgroup at all, and a running one that has not yet touched its disk is a different fact from
+ * one doing no I/O — collapsing them makes the first sample after start read as a real zero.
+ *
+ * Unparseable devices are skipped rather than failing the whole read: one malformed line must not
+ * discard the counters of every other device in the file.
+ */
+export function parseIoStat(content: string): IoCounters | null {
+  let readBytes = 0
+  let writeBytes = 0
+  let sawAny = false
+
+  for (const line of content.split('\n')) {
+    const trimmed = line.trim()
+    if (trimmed === '') continue
+
+    let sawOnThisLine = false
+    let r = 0
+    let w = 0
+    for (const field of trimmed.split(/\s+/)) {
+      const eq = field.indexOf('=')
+      if (eq <= 0) continue // the `MAJ:MIN` device token, or a malformed field
+      const key = field.slice(0, eq)
+      if (key !== 'rbytes' && key !== 'wbytes') continue
+      const n = Number(field.slice(eq + 1))
+      if (!Number.isFinite(n) || n < 0) continue
+      if (key === 'rbytes') r = n
+      else w = n
+      sawOnThisLine = true
+    }
+    if (sawOnThisLine) {
+      readBytes += r
+      writeBytes += w
+      sawAny = true
+    }
+  }
+
+  return sawAny ? { readBytes, writeBytes } : null
+}
+
+/**
+ * Disk throughput in bytes per second from two cumulative samples.
+ *
+ * Refuses in exactly the same cases as `computeCpuPercent`, for the same reasons — cold start, a
+ * non-positive elapsed time, and a counter that went BACKWARDS because the cgroup was recreated
+ * when the unit restarted. The refusal is deliberate rather than smoothed: a restart is
+ * operationally significant, and a visible gap is the cheapest way to show it.
+ *
+ * Read and write are judged INDEPENDENTLY. They are separate counters on the same reset, so a
+ * workload that only ever reads would have its read line discarded by a write counter that never
+ * moves if a single shared verdict were used.
+ *
+ * There is no clamp. Unlike CPU percent there is no meaningful ceiling on bytes per second, and an
+ * invented one would silently flatten exactly the I/O spike the chart exists to show.
+ */
+export function computeDiskBps(opts: {
+  previous: IoCounters | null
+  current: IoCounters | null
+  elapsedMs: number
+}): { readBps: number | null; writeBps: number | null } {
+  const { previous, current, elapsedMs } = opts
+  const none = { readBps: null, writeBps: null }
+  if (previous === null || current === null) return none
+  if (!(elapsedMs > 0)) return none
+
+  const seconds = elapsedMs / 1000
+  const rate = (prev: number, curr: number): number | null => {
+    if (curr < prev) return null // counter reset — unit restarted between samples
+    return Math.max(0, Number(((curr - prev) / seconds).toFixed(2)))
+  }
+
+  return {
+    readBps: rate(previous.readBytes, current.readBytes),
+    writeBps: rate(previous.writeBytes, current.writeBytes),
+  }
+}
+
 /** cgroup v2 path for a workload's systemd unit. */
 export function cgroupPathFor(name: string, root = '/sys/fs/cgroup'): string {
   return `${root}/system.slice/microvm@${name}.service`
@@ -190,7 +295,18 @@ export type CgroupReader = (path: string) => Promise<string | null>
 interface WorkloadState {
   buffer: MetricRingBuffer
   lastCpuUsec: number | null
-  lastSampleAt: number | null
+  lastIo: IoCounters | null
+  /**
+   * One timestamp PER COUNTER, not one per sample.
+   *
+   * `cpu.stat` and `io.stat` fail independently — a cgroup with no io controller enabled has no
+   * `io.stat` while `cpu.stat` reads perfectly — so a single shared clock lets one file's success
+   * advance the other's baseline. The delta would then be measured over a shorter interval than
+   * the counter actually spans, and both rates read HIGH: a plausible wrong number, which is the
+   * one failure mode this file is written to avoid.
+   */
+  lastCpuAt: number | null
+  lastIoAt: number | null
 }
 
 /**
@@ -223,7 +339,9 @@ export class MetricsCollector {
       s = {
         buffer: new MetricRingBuffer(this.opts.retention ?? RETENTION_PAID),
         lastCpuUsec: null,
-        lastSampleAt: null,
+        lastIo: null,
+        lastCpuAt: null,
+        lastIoAt: null,
       }
       this.states.set(name, s)
     }
@@ -238,24 +356,33 @@ export class MetricsCollector {
       : cgroupPathFor(name)
     const timestamp = this.now()
 
-    const [cpuRaw, memRaw] = await Promise.all([
+    const [cpuRaw, memRaw, ioRaw] = await Promise.all([
       this.opts.read(`${base}/cpu.stat`),
       this.opts.read(`${base}/memory.current`),
+      this.opts.read(`${base}/io.stat`),
     ])
 
     const currentUsec = cpuRaw === null ? null : parseCpuUsageUsec(cpuRaw)
     const cpuPercent = computeCpuPercent({
       previousUsec: state.lastCpuUsec,
       currentUsec,
-      elapsedMs: state.lastSampleAt === null ? 0 : timestamp - state.lastSampleAt,
+      elapsedMs: state.lastCpuAt === null ? 0 : timestamp - state.lastCpuAt,
       vcpus,
+    })
+
+    const currentIo = ioRaw === null ? null : parseIoStat(ioRaw)
+    const { readBps, writeBps } = computeDiskBps({
+      previous: state.lastIo,
+      current: currentIo,
+      elapsedMs: state.lastIoAt === null ? 0 : timestamp - state.lastIoAt,
     })
 
     const sample: MetricSample = {
       timestamp,
       cpuPercent,
       memoryBytes: memRaw === null ? null : parseMemoryCurrent(memRaw),
-      diskBytes: null, // disk is sampled far less often; not wired yet
+      diskReadBps: readBps,
+      diskWriteBps: writeBps,
     }
 
     // Advance the CPU baseline ONLY on a real reading. Storing null here would make the next
@@ -263,7 +390,14 @@ export class MetricsCollector {
     // never produce a CPU number again — it would just silently stop having a CPU line.
     if (currentUsec !== null) {
       state.lastCpuUsec = currentUsec
-      state.lastSampleAt = timestamp
+      state.lastCpuAt = timestamp
+    }
+
+    // Each counter advances its own value AND its own clock, together. Advancing one file's clock
+    // on the other file's success is what would make a rate read high (see WorkloadState).
+    if (currentIo !== null) {
+      state.lastIo = currentIo
+      state.lastIoAt = timestamp
     }
 
     state.buffer.push(sample)
