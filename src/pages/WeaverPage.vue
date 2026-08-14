@@ -569,24 +569,6 @@ const unifiedWorkloads = computed(() => {
   return items
 })
 
-/**
- * Publish the rendered order to the ui-store so the j/k/Enter shortcuts act on what the user can
- * actually see.
- *
- * This page owns sorting, filtering and the VM/container/remote interleave, so it is the only
- * place that knows what "the next workload" means — the store holds the index and re-resolves the
- * focused NAME on every change, which is what stops a re-sort from silently moving focus onto a
- * different machine mid-keystroke.
- *
- * `immediate` because the list is populated before any interaction; without it the first `j` after
- * a cold load would find an empty roster and do nothing.
- */
-watch(
-  unifiedWorkloads,
-  (items) => uiStore.setFocusableWorkloads(items.map(i => i.name)),
-  { immediate: true, deep: false },
-)
-
 // Containers to display — hidden on VMs filter, narrowed by runtime filter
 const filteredContainers = computed(() => {
   if (activeFilter.value === 'vms') return []
@@ -617,6 +599,37 @@ const filteredContainers = computed(() => {
   }
   return list
 })
+
+/**
+ * Publish the rendered order to the ui-store so the j/k/Enter shortcuts act on what the user can
+ * actually see.
+ *
+ * This page owns sorting, filtering and the VM/container/remote interleave, so it is the only
+ * place that knows what "the next workload" means — the store holds the index and re-resolves the
+ * focused NAME on every change, which is what stops a re-sort from silently moving focus onto a
+ * different machine mid-keystroke.
+ *
+ * `immediate` because the list is populated before any interaction; without it the first `j` after
+ * a cold load would find an empty roster and do nothing.
+ *
+ * MUST stay below `filteredContainers`. `immediate: true` evaluates `unifiedWorkloads` during
+ * `<script setup>` execution, and that getter reads `filteredContainers.value` — so declaring this
+ * watch above it puts the computed in the temporal dead zone and throws
+ * `Cannot access 'filteredContainers' before initialization` at page setup. The ErrorBoundary
+ * swallows it, the Weaver page renders nothing, and the visible symptom is a *different*,
+ * misleading error further down the template (`Cannot read properties of undefined (reading
+ * 'totalCount')`).
+ *
+ * The general rule: any composable that reads a getter at declaration time — `useMeta`,
+ * `watchEffect`, `watch(..., { immediate: true })` — makes `<script setup>` declaration order a
+ * correctness concern. Declare every transitive dependency of the getter above the eager call.
+ * `npm run audit:eager-eval-tdz` enforces this.
+ */
+watch(
+  unifiedWorkloads,
+  (items) => uiStore.setFocusableWorkloads(items.map(i => i.name)),
+  { immediate: true, deep: false },
+)
 
 // Sync WebSocket data to Pinia store
 watch(vms, (newVms) => {
