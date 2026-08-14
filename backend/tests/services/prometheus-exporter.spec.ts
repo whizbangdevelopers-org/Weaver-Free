@@ -14,9 +14,14 @@ import {
   type MetricFamily,
 } from '../../src/services/prometheus-exporter.js'
 import { isLoopback } from '../../src/routes/metrics.js'
+import { cgroupPathFor } from '../../src/services/metrics.js'
 
 const ROOT = '/fake/cgroup'
-const cg = (n: string, f: string) => `${ROOT}/system.slice/microvm@${n}.service/${f}`
+// DERIVED from the production path builder, never restated. A fake cgroupfs keyed by a
+// hand-written path can silently disagree with the real one — which is how a base path
+// missing systemd's implicit `system-microvm.slice` passed every test while reading a
+// directory that exists on no host.
+const cg = (n: string, f: string) => `${cgroupPathFor(n, ROOT)}/${f}`
 
 function fakeFs(files: Record<string, string>) {
   return async (path: string) => (path in files ? files[path]! : null)
@@ -193,5 +198,51 @@ describe('isLoopback — the boundary that makes an unauthenticated /metrics saf
     expect(isLoopback('10.0.0.1:127.0.0.1')).toBe(false)
     expect(isLoopback('1127.0.0.1')).toBe(false)
     expect(isLoopback('foo127.0.0.1')).toBe(false)
+  })
+})
+
+describe('collectWorkloadFamilies — the all-unreadable signal', () => {
+  const targets = [{ name: 'a', vcpu: 1 }, { name: 'b', vcpu: 2 }]
+
+  it('reports when NOT ONE workload cgroup could be read', async () => {
+    // The condition that hid a wrong base path on every real host. Per workload an unreadable
+    // cgroup is ordinary (stopped); across all of them it means the path is wrong, and the old
+    // behaviour was to publish an empty exposition silently.
+    const seen: Array<{ workloads: number; samplePath: string }> = []
+    await collectWorkloadFamilies({
+      read: async () => null,
+      workloads: targets,
+      cgroupRoot: '/fake',
+      onNoneReadable: info => { seen.push(info) },
+    })
+
+    expect(seen).toHaveLength(1)
+    expect(seen[0]!.workloads).toBe(2)
+    expect(seen[0]!.samplePath).toContain('system-microvm.slice')
+  })
+
+  it('stays QUIET when some workloads are readable — a stopped one is not a fault', async () => {
+    // The IGNORE half. A signal that fires on the normal case gets switched off, after which it
+    // reports nothing at all.
+    const seen: unknown[] = []
+    await collectWorkloadFamilies({
+      read: async (p: string) => (p.includes('/microvm@a.service/') ? '0' : null),
+      workloads: targets,
+      cgroupRoot: '/fake',
+      onNoneReadable: info => { seen.push(info) },
+    })
+    expect(seen).toHaveLength(0)
+  })
+
+  it('stays QUIET when there are no workloads at all', async () => {
+    // An empty host is not a misconfigured one.
+    const seen: unknown[] = []
+    await collectWorkloadFamilies({
+      read: async () => null,
+      workloads: [],
+      cgroupRoot: '/fake',
+      onNoneReadable: info => { seen.push(info) },
+    })
+    expect(seen).toHaveLength(0)
   })
 })

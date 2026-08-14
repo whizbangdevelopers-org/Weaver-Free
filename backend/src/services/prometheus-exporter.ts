@@ -112,12 +112,25 @@ export async function collectWorkloadFamilies(opts: {
   read: CgroupReader
   workloads: WorkloadTarget[]
   cgroupRoot?: string
+  /**
+   * Called when there are workloads to measure and NOT ONE of their cgroups could be read.
+   *
+   * "Unreadable cgroup contributes no samples" is correct per workload — a stopped one has no
+   * cgroup — but the same rule makes a systematically wrong path invisible, because every read
+   * fails in exactly the way a stopped workload does. That is not hypothetical: the base path
+   * omitted systemd's implicit `system-microvm.slice` and published zero workload series on every
+   * real host, silently, while unit tests against a fake cgroupfs passed.
+   *
+   * All-of-them is the signal worth raising; some-of-them is ordinary and stays quiet.
+   */
+  onNoneReadable?: (info: { workloads: number; samplePath: string }) => void
 }): Promise<MetricFamily[]> {
   const cpu: Sample[] = []
   const memory: Sample[] = []
   const diskRead: Sample[] = []
   const diskWrite: Sample[] = []
   const vcpus: Sample[] = []
+  let readable = 0
 
   for (const w of opts.workloads) {
     const base = opts.cgroupRoot ? cgroupPathFor(w.name, opts.cgroupRoot) : cgroupPathFor(w.name)
@@ -128,6 +141,8 @@ export async function collectWorkloadFamilies(opts: {
       opts.read(`${base}/memory.current`),
       opts.read(`${base}/io.stat`),
     ])
+
+    if (cpuRaw !== null || memRaw !== null || ioRaw !== null) readable++
 
     const usec = cpuRaw === null ? null : parseCpuUsageUsec(cpuRaw)
     if (usec !== null) cpu.push({ labels, value: usec / 1_000_000 })
@@ -145,6 +160,15 @@ export async function collectWorkloadFamilies(opts: {
     // definition, not a measurement of it, and a consumer normalising CPU needs the divisor to
     // exist independently of whether the workload happens to be running.
     if (w.vcpu > 0) vcpus.push({ labels, value: w.vcpu })
+  }
+
+  if (opts.workloads.length > 0 && readable === 0) {
+    opts.onNoneReadable?.({
+      workloads: opts.workloads.length,
+      samplePath: opts.cgroupRoot
+        ? cgroupPathFor(opts.workloads[0]!.name, opts.cgroupRoot)
+        : cgroupPathFor(opts.workloads[0]!.name),
+    })
   }
 
   return [

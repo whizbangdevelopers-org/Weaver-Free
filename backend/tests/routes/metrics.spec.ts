@@ -9,9 +9,14 @@
 import { describe, it, expect } from 'vitest'
 import Fastify from 'fastify'
 import { metricsRoutes, EXPOSITION_CONTENT_TYPE } from '../../src/routes/metrics.js'
+import { cgroupPathFor } from '../../src/services/metrics.js'
 
 const ROOT = '/fake/cgroup'
-const cg = (n: string, f: string) => `${ROOT}/system.slice/microvm@${n}.service/${f}`
+// DERIVED from the production path builder, never restated. A fake cgroupfs keyed by a
+// hand-written path can silently disagree with the real one — which is how a base path
+// missing systemd's implicit `system-microvm.slice` passed every test while reading a
+// directory that exists on no host.
+const cg = (n: string, f: string) => `${cgroupPathFor(n, ROOT)}/${f}`
 
 function build(overrides: Partial<Parameters<typeof metricsRoutes>[1]> = {}) {
   const fastify = Fastify()

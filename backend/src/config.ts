@@ -127,6 +127,17 @@ export interface DashboardConfig {
   siteUrl: string
   /** SMTP configuration for transactional emails (null = email disabled) */
   smtp: SmtpConfig | null
+  /**
+   * Base URL of the Prometheus that scrapes this host, or null to serve metrics from the
+   * in-process ring buffer.
+   *
+   * Set by the NixOS module when `services.weaver.metrics.enable` is on. Null is not a
+   * degraded state during the migration — it is the pre-Prometheus path, still correct and
+   * still tested — but once this IS set, a query failure is refused rather than falling back:
+   * an unreachable store rendering as an empty chart is indistinguishable from an idle
+   * workload. See `services/promql.ts`.
+   */
+  prometheusUrl: string | null
 }
 
 
@@ -279,6 +290,7 @@ export function loadConfig(): DashboardConfig {
     bridgeGateway: process.env.BRIDGE_GATEWAY || null,
     bridgeInterface: process.env.BRIDGE_INTERFACE ?? 'br-microvm',
     dnsDomain: process.env.DNS_DOMAIN ?? 'vm.internal',
+    prometheusUrl: process.env.PROMETHEUS_URL || null,
     wsBroadcastIntervalMs: parseBroadcastInterval(process.env.WS_BROADCAST_INTERVAL_MS),
     dnsReloadCommand: process.env.DNS_RELOAD_COMMAND ?? '',
     sudoBin: process.env.SUDO_PATH ?? 'sudo',

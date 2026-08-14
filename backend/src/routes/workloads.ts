@@ -18,6 +18,7 @@ import type { VmAclStore } from '../storage/vm-acl-store.js'
 import { createVmAclCheck } from '../middleware/vm-acl.js'
 import { createRateLimit } from '../middleware/rate-limit.js'
 import { resolveWindowMs, SAMPLE_INTERVAL_MS, type MetricsCollector } from '../services/metrics.js'
+import type { PromqlMetricsSource } from '../services/promql.js'
 import { firmwareRejectionReason } from '../services/firmware.js'
 
 const vmNameSchema = z.object({
@@ -242,11 +243,17 @@ interface VmsRouteOptions {
   aclStore?: VmAclStore
   networkManager?: IpAllocator | null
   metricsCollector?: MetricsCollector | null
+  /**
+   * PromQL read path. When present it REPLACES the ring buffer for `/:name/metrics`; the
+   * collector keeps running so the exporter has something to read, and so the buffer and the
+   * collector can be retired together rather than leaving the endpoint sourceless.
+   */
+  promqlSource?: PromqlMetricsSource | null
 }
 
 export const workloadsRoutes: FastifyPluginAsync<VmsRouteOptions> = async (fastify, opts) => {
   const app = fastify.withTypeProvider<ZodTypeProvider>()
-  const { provisioner, imageManager, config, auditService, quotaStore, aclStore, networkManager, metricsCollector } = opts
+  const { provisioner, imageManager, config, auditService, quotaStore, aclStore, networkManager, metricsCollector, promqlSource } = opts
 
   // Per-VM ACL check middleware (fabrick only, admin bypass)
   const aclCheck = (aclStore && config) ? createVmAclCheck(aclStore, config) : undefined
@@ -498,7 +505,10 @@ export const workloadsRoutes: FastifyPluginAsync<VmsRouteOptions> = async (fasti
       schema: {
         params: vmNameSchema,
         querystring: z.object({ window: z.string().max(8).optional() }),
-        response: { 200: metricsResponseSchema, 404: errorResponseSchema },
+        // 503 is declared because Fastify validates EVERY response, not just 200 — an
+        // undeclared status is a serialization failure, so the Prometheus-unavailable path
+        // would 500 with a schema error instead of reporting what actually went wrong.
+        response: { 200: metricsResponseSchema, 404: errorResponseSchema, 503: errorResponseSchema },
       },
       preHandler: [requireRole(ROLES.ADMIN, ROLES.OPERATOR, ROLES.VIEWER), ...aclPreHandler],
       // Reads an in-memory buffer — no subprocess, no filesystem — so this is cheap. The 60/min
@@ -516,11 +526,35 @@ export const workloadsRoutes: FastifyPluginAsync<VmsRouteOptions> = async (fasti
       const tier = config?.tier ?? TIERS.FREE
       const windowMs = resolveWindowMs(request.query.window, tier)
 
-      // Absent collector (metrics disabled, or a build without it) returns an EMPTY SERIES rather
-      // than 404 or 500. The distinction the UI needs is "this workload does not exist" versus
-      // "there is no data for it yet", and both of those are already expressible; a 500 here
-      // would render as a broken page for a feature that is merely not collecting.
-      const samples = metricsCollector?.getSamples(name, windowMs) ?? []
+      // Two backends during the migration, and the choice is made HERE rather than inside a
+      // service so phase 4 deletes a branch instead of unpicking an abstraction.
+      //
+      // The split follows "can this condition change the answer?":
+      //
+      //   * Prometheus NOT configured — the ring buffer is the answer, not a degraded one. This
+      //     is the pre-migration path, still correct and still tested. Absorb.
+      //   * Prometheus configured but FAILING — refuse. Falling back to the buffer here would
+      //     silently serve an hour of data from a host whose store is down, and returning []
+      //     would render a broken monitoring stack as a perfectly normal idle workload. Both
+      //     hide the one condition an operator needs to see.
+      let samples
+      if (promqlSource) {
+        try {
+          samples = await promqlSource.getSamples(name, windowMs)
+        } catch (err) {
+          // Full fidelity server-side; the client gets nothing that leaks the store's address or
+          // a PromQL expression. A raw system error names hosts, ports and internal paths, so it
+          // is logged and never returned.
+          request.log.error({ err, workload: name }, 'metrics: Prometheus query failed')
+          return reply.status(503).send({ error: 'Metrics store is unavailable' })
+        }
+      } else {
+        // Absent collector (metrics disabled, or a build without it) returns an EMPTY SERIES
+        // rather than 404 or 500. The distinction the UI needs is "this workload does not exist"
+        // versus "there is no data for it yet", and both of those are already expressible; a 500
+        // here would render as a broken page for a feature that is merely not collecting.
+        samples = metricsCollector?.getSamples(name, windowMs) ?? []
+      }
 
       return {
         name,

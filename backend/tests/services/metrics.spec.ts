@@ -254,12 +254,38 @@ describe('memory parsing', () => {
 })
 
 describe('cgroupPathFor', () => {
-  it('builds the systemd unit path', () => {
-    expect(cgroupPathFor('web-nginx')).toBe('/sys/fs/cgroup/system.slice/microvm@web-nginx.service')
+  /**
+   * These assertions are about SYSTEMD, not about us, and that is the whole point.
+   *
+   * The previous version of this block asserted
+   * `/sys/fs/cgroup/system.slice/microvm@web-nginx.service` — the path the function built, checked
+   * against the path the function built. It passed for as long as it existed while naming a
+   * directory that exists on no host, because the rest of the suite supplies a fake cgroupfs at
+   * whatever path this function returns. A closed loop cannot fail.
+   *
+   * The missing component is systemd's implicit slice for template units: an instance of
+   * `foo@.service` is placed in `system-foo.slice` with no `Slice=` line in the unit file.
+   * Verified on a live host — `microvm@discover-probe.service` → `system-microvm.slice`, and on
+   * the same host `getty@tty1.service` → `system-getty.slice`, `user@0.service` → `user-0.slice`.
+   */
+  it('includes the implicit template slice systemd puts instance units in', () => {
+    expect(cgroupPathFor('web-nginx')).toBe(
+      '/sys/fs/cgroup/system.slice/system-microvm.slice/microvm@web-nginx.service'
+    )
+  })
+
+  it('does NOT use the flat system.slice path, which exists on no host', () => {
+    // Written as its own negative case so a "simplification" back to the flat path fails loudly
+    // rather than reintroducing a silent, total loss of workload metrics.
+    expect(cgroupPathFor('web-nginx')).not.toBe(
+      '/sys/fs/cgroup/system.slice/microvm@web-nginx.service'
+    )
   })
 
   it('accepts an alternate root, so tests need no real cgroupfs', () => {
-    expect(cgroupPathFor('db', '/tmp/cg')).toBe('/tmp/cg/system.slice/microvm@db.service')
+    expect(cgroupPathFor('db', '/tmp/cg')).toBe(
+      '/tmp/cg/system.slice/system-microvm.slice/microvm@db.service'
+    )
   })
 })
 
@@ -404,8 +430,8 @@ describe('MetricsCollector', () => {
   }
 
   const ROOT = '/fake/cgroup'
-  const cpuPath = (n: string) => `${ROOT}/system.slice/microvm@${n}.service/cpu.stat`
-  const memPath = (n: string) => `${ROOT}/system.slice/microvm@${n}.service/memory.current`
+  const cpuPath = (n: string) => `${cgroupPathFor(n, ROOT)}/cpu.stat`
+  const memPath = (n: string) => `${cgroupPathFor(n, ROOT)}/memory.current`
 
   function makeClock(start = 1_000_000) {
     let t = start
@@ -541,10 +567,10 @@ describe('MetricsCollector', () => {
     const fs = fakeFs({})
     const c = new MetricsCollector({ read: fs.read })
     await c.sampleOne('web', 1)
-    expect(fs.reads).toContain('/sys/fs/cgroup/system.slice/microvm@web.service/cpu.stat')
+    expect(fs.reads).toContain(`${cgroupPathFor('web')}/cpu.stat`)
   })
 
-  const ioPath = (n: string) => `${ROOT}/system.slice/microvm@${n}.service/io.stat`
+  const ioPath = (n: string) => `${cgroupPathFor(n, ROOT)}/io.stat`
 
   it('produces no disk rate on the first sample, then a real one', async () => {
     const files: Record<string, string> = {
