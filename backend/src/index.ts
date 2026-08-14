@@ -22,6 +22,7 @@ import cookie from '@fastify/cookie'
 import websocket from '@fastify/websocket'
 import { workloadsRoutes } from './routes/workloads.js'
 import { healthRoutes } from './routes/health.js'
+import { metricsRoutes } from './routes/metrics.js'
 import { wsRoutes } from './routes/ws.js'
 import { agentRoutes } from './routes/agent.js'
 import { networkRoutes } from './routes/network.js'
@@ -424,6 +425,42 @@ fastify.addHook('onResponse', async (request, reply) => {
 // Register routes (auth routes are public, other routes protected by middleware)
 await fastify.register(authRoutes, { prefix: '/api/auth', authService, auditService, onFirstAdmin: triggerExampleVm })
 await fastify.register(healthRoutes, { prefix: '/api/health', config, hostInfoService, organizationStore })
+
+// Prometheus scrape endpoint. Mounted at the conventional `/metrics` (NOT under /api) because
+// that is where every scrape config looks by default, and a non-standard path is a configuration
+// step that gets skipped. Loopback-only — see routes/metrics.ts for why that is the whole reason
+// it can be unauthenticated.
+//
+// Reads cgroups at scrape time through its own reader; the ring buffer that serves the existing
+// metrics API is untouched and still running on its own 30-second clock. Two independent readers
+// of the same files, which is what lets the exporter land before anything migrates onto it.
+await fastify.register(metricsRoutes, {
+  prefix: '/metrics',
+  read: async (path: string) => {
+    try {
+      return await readFile(path, 'utf-8')
+    } catch {
+      return null
+    }
+  },
+  listWorkloads: async () => {
+    const defs = await getWorkloadDefinitions()
+    return Object.values(defs).map(d => ({ name: d.name, vcpu: d.vcpu }))
+  },
+  getHost: async () => {
+    const basic = await hostInfoService.getBasicInfo()
+    return {
+      loadAvg1: basic.liveMetrics?.loadAvg1,
+      loadAvg5: basic.liveMetrics?.loadAvg5,
+      loadAvg15: basic.liveMetrics?.loadAvg15,
+      totalMemBytes: basic.totalMemMb * 1024 * 1024,
+      freeMemBytes: basic.liveMetrics?.freeMemMb === undefined
+        ? undefined
+        : basic.liveMetrics.freeMemMb * 1024 * 1024,
+      cpuCount: basic.cpuCount,
+    }
+  },
+})
 /**
  * Resource-metrics collector.
  *
