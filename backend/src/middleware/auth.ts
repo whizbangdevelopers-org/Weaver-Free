@@ -38,6 +38,12 @@ const PUBLIC_ROUTES = [
   '/api/health/',
   '/api/stripe/webhook',
   '/api/stripe/webhook/',
+  // Prometheus scrape endpoint. Public HERE only because routes/metrics.ts refuses any peer that
+  // is not loopback — the two are one decision. The exposition lists every workload by name and
+  // Prometheus cannot express per-VM ACLs, so an unauthenticated /metrics reachable from the
+  // network would hand out the full inventory and void that ACL. Never relax one without the other.
+  '/metrics',
+  '/metrics/',
 ]
 
 // No public prefixes. (/api/engram/* — formerly listed here — was removed 2026-07-20 when the
