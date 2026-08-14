@@ -164,7 +164,7 @@
         v-if="isDemoMode() && !appStore.isDemoVersionAtLeast('1.1')"
         version="1.1"
         title="Resource Metrics"
-        description="CPU, memory, and disk I/O charts"
+        description="CPU and memory history plus live disk I/O — 1 hour on Free, 24 hours on Solo+"
         class="q-mb-md"
       />
       <WorkloadMetricsChart v-else :workload-name="vm.name" class="q-mb-md" />

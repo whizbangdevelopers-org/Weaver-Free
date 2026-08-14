@@ -129,6 +129,11 @@ export const PHASES: Phase[] = [
       'audit:workflow-cwd',
       'audit:command-cwd',
       'audit:shell-safety',
+      // Sibling of shell-safety, opposite failure: shell-safety catches a body that RUNS when it
+      // should be data; this catches a command that STOPS when it should continue. Scans workflow
+      // run: bodies too — the defect it was written from lived in one, so a shell-only scan would
+      // have missed its own motivating case.
+      'audit:shell-continuation',
       'audit:workflow-node-version',
       'audit:published-entrypoints',
       'audit:published-secrets',
