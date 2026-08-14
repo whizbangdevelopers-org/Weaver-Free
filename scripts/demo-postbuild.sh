@@ -140,6 +140,31 @@ if [ "${1:-}" = "--self-test" ]; then
     echo "  FAIL  shipped CSP contains a header-only directive"; fail=$((fail+1))
   fi
 
+  # robots.txt is the PRIMARY AI Training Restriction enforcement, so its absence must FAIL rather
+  # than skip. This is tested by pointing the script at a dist whose source tree has no robots.txt,
+  # which is exactly what the `if [ -f ]` copy guard used to swallow.
+  FAKE=$(mktemp -d); mkdir -p "$FAKE/scripts" "$FAKE/dist"
+  cp "$SELF" "$FAKE/scripts/demo-postbuild.sh"   # a code-root with no demo/robots.txt and no LICENSE
+  printf '%s' '<html><head><meta charset=utf-8></head><body></body></html>' > "$FAKE/dist/index.html"
+  if "$FAKE/scripts/demo-postbuild.sh" "$FAKE/dist" >/dev/null 2>&1; then
+    echo "  FAIL  shipped without robots.txt/LICENSE and said nothing"; fail=$((fail+1))
+  else
+    echo "  PASS  refuses when robots.txt/LICENSE cannot be copied"; pass=$((pass+1))
+  fi
+  rm -rf "$FAKE"
+
+  # Present-but-useless is not protection: an empty robots.txt must fail too.
+  FAKE2=$(mktemp -d); mkdir -p "$FAKE2/scripts" "$FAKE2/demo" "$FAKE2/dist"
+  cp "$SELF" "$FAKE2/scripts/demo-postbuild.sh"
+  : > "$FAKE2/demo/robots.txt"; : > "$FAKE2/LICENSE"
+  printf '%s' '<html><head><meta charset=utf-8></head><body></body></html>' > "$FAKE2/dist/index.html"
+  if "$FAKE2/scripts/demo-postbuild.sh" "$FAKE2/dist" >/dev/null 2>&1; then
+    echo "  FAIL  accepted an empty robots.txt as protection"; fail=$((fail+1))
+  else
+    echo "  PASS  rejects an empty robots.txt"; pass=$((pass+1))
+  fi
+  rm -rf "$FAKE2"
+
   # The IGNORE half: it must still REFUSE when it genuinely cannot inject, rather than pass.
   rm -rf "$TMP/e"; mkdir -p "$TMP/e"; printf '%s' '<html><body>no head</body></html>' > "$TMP/e/index.html"
   if "$SELF" "$TMP/e" >/dev/null 2>&1; then echo "  FAIL  should refuse with no anchor"; fail=$((fail+1))
@@ -235,9 +260,29 @@ grep -q 'name="robots" content="noai, noimageai"' "$INDEX" || missing="$missing 
 grep -q 'http-equiv="Content-Security-Policy"' "$INDEX" || missing="$missing csp-meta"
 [ -f "$DIST/.nojekyll" ] || missing="$missing .nojekyll"
 
+# robots.txt and LICENSE are COPIES, and a copy whose source is absent skips silently under the
+# `if [ -f ]` guards above. They were originally left unverified because a copy "obviously works" —
+# the same assumption that let a no-op sed ship a policy-less demo for the life of the workflow.
+#
+# robots.txt is the PRIMARY enforcement of the AI Training Restriction; the noai meta is the
+# belt-and-braces layer. Verifying only the meta checks the weaker of the two and lets the stronger
+# one vanish without a word. audit:legal expects all three of LICENSE / robots.txt / noai meta to
+# reach the deployed tree, so all three are verified here.
+[ -f "$DIST/robots.txt" ] || missing="$missing robots.txt"
+[ -f "$DIST/LICENSE" ] || missing="$missing LICENSE"
+
+# An empty or truncated robots.txt is a file that exists and protects nothing, so presence is not
+# sufficient — require the AI-crawler directives to actually be in it.
+if [ -f "$DIST/robots.txt" ]; then
+  grep -qi 'GPTBot' "$DIST/robots.txt" || missing="$missing robots.txt:no-ai-crawler-rules"
+  grep -qi 'Disallow' "$DIST/robots.txt" || missing="$missing robots.txt:no-disallow"
+fi
+
 if [ -n "$missing" ]; then
   echo "demo-postbuild: FAILED to apply:$missing" >&2
-  echo "  The injection anchors are '<meta charset=\"utf-8\">' and the noai meta." >&2
+  echo "  A missing robots.txt means the AI Training Restriction has no enforcement on the" >&2
+  echo "  deployed site; its source is <code-root>/demo/robots.txt." >&2
+  echo "  The meta anchors are the charset meta (any quoting) then <head>." >&2
   echo "  If the built index.html no longer contains them, fix the anchors here —" >&2
   echo "  do not let the build proceed without a policy." >&2
   exit 1
