@@ -1,6 +1,6 @@
 # Copyright (c) 2026 whizBANG Developers LLC. All rights reserved.
 # Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE.
-{ config, pkgs, lib, ... }:
+{ config, options, pkgs, lib, ... }:
 
 with lib;
 
@@ -143,7 +143,23 @@ in
     microvmsDir = mkOption {
       type = types.str;
       default = "/var/lib/microvms";
-      description = "Directory for MicroVM disk images and cloud-init ISOs";
+      defaultText = literalExpression ''config.microvm.stateDir, when the microvm.nix host module is present; otherwise "/var/lib/microvms"'';
+      description = ''
+        Directory for MicroVM disk images and cloud-init ISOs.
+
+        **Defaults to microvm.nix's own `microvm.stateDir` when that module is present**, because
+        the two pointing at different directories is silent rather than loud. Weaver reads each
+        VM's generated `current/bin/microvm-run` from here to learn its vCPU count, memory and
+        hypervisor; when the path is wrong the read simply fails and the workload registers as
+        `0 vCPU / 0 MB / unknown`. Nothing errors, the VM still appears, and its CPU chart is
+        empty forever — there is no vCPU count to normalise the CPU rate by.
+
+        Measured on a host with `microvm.stateDir = "/data/microvms"`: a running declarative
+        microvm declaring `vcpu = 1; mem = 256;` registered as 0/0/unknown.
+
+        Set this explicitly only if Weaver's images genuinely live somewhere other than the
+        microvm.nix state directory; an explicit value always wins over the derived default.
+      '';
     };
 
     bridgeInterface = mkOption {
@@ -558,6 +574,17 @@ in
     runtimePackage = { inherit (pkgs) docker podman apptainer; };
     containerRuntimePackages = map (r: runtimePackage.${r}) cfg.containerRuntimes;
   in mkIf cfg.enable (mkMerge [
+    # Follow microvm.nix's state directory when that module is present.
+    #
+    # `mkDefault`, so an explicit `services.weaver.microvmsDir` still wins — this only replaces
+    # the fallback literal, which is right for a host that never moved its state and wrong for
+    # every host that did. The guard is on the OPTION being declared, not on a value, because
+    # reading `config.microvm.stateDir` when microvm.nix is not imported is an eval error rather
+    # than a null.
+    (mkIf (options ? microvm && options.microvm ? stateDir) {
+      services.weaver.microvmsDir = mkDefault config.microvm.stateDir;
+    })
+
     # --- Base configuration (always applied) ---
     {
       # System user (only created when using the default dedicated user)

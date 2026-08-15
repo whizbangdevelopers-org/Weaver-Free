@@ -988,13 +988,27 @@ export interface ScanResult {
 
 /**
  * Read microvm specs from the NixOS-generated run script at
- * /var/lib/microvms/<name>/current/bin/microvm-run.
+ * `<microvmsDir>/<name>/current/bin/microvm-run`.
  * Parses QEMU/cloud-hypervisor/firecracker flags for memory, vCPU, and hypervisor.
+ *
+ * **The directory comes from config, and used to be hardcoded to `/var/lib/microvms`.** Every
+ * other consumer of that path already read `config.microvmsDir` — `image-manager.ts` and
+ * `provisioner.ts` both do — so a host that moved its state directory got correct behaviour
+ * everywhere except here, in the discovery path.
+ *
+ * The failure was silent and specific: `readFile` throws, the catch returns the defaults, and the
+ * workload registers with `vcpu: 0, mem: 0, hypervisor: 'unknown'`. Nothing errors. The UI shows a
+ * VM with no specs, and because `weaver_workload_vcpus` is only published for a positive vCPU
+ * count, the CPU chart for that workload is null forever — there is no divisor to normalise by.
+ *
+ * Measured on a host whose `microvm.stateDir` is `/data/microvms`: a running declarative microvm
+ * declaring `vcpu = 1; mem = 256;` in its own config registered as 0/0/unknown.
  */
 async function readMicrovmSpecs(name: string): Promise<{ mem: number; vcpu: number; hypervisor: string }> {
   const defaults = { mem: 0, vcpu: 0, hypervisor: 'unknown' }
+  const microvmsDir = config?.microvmsDir ?? '/var/lib/microvms'
   try {
-    const script = await readFile(`/var/lib/microvms/${name}/current/bin/microvm-run`, 'utf-8')
+    const script = await readFile(`${microvmsDir}/${name}/current/bin/microvm-run`, 'utf-8')
 
     // Detect hypervisor from the binary path
     let hypervisor = 'unknown'
