@@ -18,6 +18,7 @@
     "audit:cli-args": "npx tsx scripts/verify-cli-args.ts",
     "audit:code-scanning": "npx tsx scripts/audit-code-scanning.ts",
     "audit:codeql-coverage": "npx tsx scripts/verify-codeql-semgrep-coverage.ts",
+    "audit:semgrep-regression": "npx tsx scripts/verify-semgrep-regression.ts",
     "audit:command-cwd": "npx tsx scripts/verify-command-cwd.ts",
     "audit:compatibility": "npx tsx scripts/verify-compatibility-sync.ts",
     "audit:compliance-matrix-parity": "npx tsx scripts/verify-compliance-matrix-parity.ts",
