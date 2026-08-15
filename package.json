@@ -172,6 +172,7 @@
     "test:load:frontend": "testing/e2e-docker/scripts/run-load-perf.sh",
     "test:load:ws": "k6 run testing/load/ws/ws-scale.js",
     "test:load:metrics": "tsx testing/load/metrics/oracle.ts",
+    "test:load:metrics:sweep": "tsx testing/load/metrics/sweep.ts",
     "test:manual": "npx tsx scripts/manual-test-checklist.ts",
     "test:manual:verify": "npx tsx scripts/manual-test-checklist.ts --verify",
     "test:mutation": "npx stryker run",
