@@ -291,6 +291,10 @@ export const workloadsRoutes: FastifyPluginAsync<VmsRouteOptions> = async (fasti
             discovered: z.array(z.string()),
             added: z.array(z.string()),
             existing: z.array(z.string()),
+            // Fastify validates every response and Zod strips unknown keys, so an unlisted field
+            // is dropped silently between the service and the client. Without this line the
+            // spec-refresh would happen and the operator would never be told it had.
+            refreshed: z.array(z.string()),
           }),
         },
       },
@@ -335,6 +339,7 @@ export const workloadsRoutes: FastifyPluginAsync<VmsRouteOptions> = async (fasti
         discovered: results.flatMap((r) => r.discovered),
         added: results.flatMap((r) => r.added),
         existing: results.flatMap((r) => r.existing),
+        refreshed: results.flatMap((r) => r.refreshed ?? []),
       }
 
       await auditService?.log({
