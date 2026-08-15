@@ -5,7 +5,12 @@
 //
 // The service suite covers the arithmetic. What this file covers is the wire: nullability
 // surviving Fastify's response validation, the tier clamp being REPORTED and not just applied,
-// and an absent collector degrading to an empty series rather than an error.
+// and an absent metrics store degrading to an empty series rather than an error.
+//
+// Phase 4 of the Prometheus migration removed the in-process collector, so every case below now
+// drives the route through a fake `RangeQuery` instead of a fake cgroupfs. The cases themselves
+// are unchanged in intent — a null must still arrive as null, a real 0 must still arrive as 0 —
+// which is the point: the contract did not move when the backend did.
 //
 // The nullability case is the one that cannot be caught anywhere else. Zod strips unknown keys
 // and coerces what it does not expect, so a schema written with `z.number()` instead of
@@ -25,7 +30,7 @@ import Fastify from 'fastify'
 import { serializerCompiler, validatorCompiler, ZodTypeProvider } from 'fastify-type-provider-zod'
 import { workloadsRoutes } from '../../src/routes/workloads.js'
 import { getWorkloadDefinitions } from '../../src/services/microvm.js'
-import { MetricsCollector, SAMPLE_INTERVAL_MS, cgroupPathFor } from '../../src/services/metrics.js'
+import { SAMPLE_INTERVAL_MS } from '../../src/services/metrics.js'
 import { PromqlMetricsSource, type PromMatrix, type RangeQuery } from '../../src/services/promql.js'
 
 const mockGetDefs = getWorkloadDefinitions as ReturnType<typeof vi.fn>
@@ -34,16 +39,7 @@ const VM = { name: 'web-nginx', ip: '10.10.0.10', mem: 512, vcpu: 2, hypervisor:
 
 let mockUserRole: UserRole = 'admin'
 
-/** A collector fed from a fake cgroupfs, so no real filesystem is involved. */
-function collectorWith(files: Record<string, string>, now: () => number) {
-  return new MetricsCollector({
-    read: async (p: string) => (p in files ? files[p]! : null),
-    now,
-    cgroupRoot: '/fake',
-  })
-}
-
-async function buildApp(opts: { tier?: string; collector?: MetricsCollector | null; promqlSource?: PromqlMetricsSource | null } = {}) {
+async function buildApp(opts: { tier?: string; promqlSource?: PromqlMetricsSource | null } = {}) {
   const fastify = Fastify().withTypeProvider<ZodTypeProvider>()
   fastify.decorateRequest('userId', undefined)
   fastify.decorateRequest('userRole', undefined)
@@ -58,7 +54,6 @@ async function buildApp(opts: { tier?: string; collector?: MetricsCollector | nu
   await fastify.register(workloadsRoutes, {
     prefix: '/api/workload',
     config: { tier: opts.tier ?? 'weaver' } as unknown as DashboardConfig,
-    metricsCollector: opts.collector === undefined ? null : opts.collector,
     promqlSource: opts.promqlSource ?? null,
   })
   await fastify.ready()
@@ -83,69 +78,81 @@ describe('GET /api/workload/:name/metrics', () => {
     await app.close()
   })
 
-  it('returns an empty series — not an error — when no collector is running', async () => {
+  it('returns an empty series — not an error — when no metrics store is configured', async () => {
     // "Metrics are not being collected" and "this workload does not exist" are different facts,
     // and the second already has a 404. A 500 here would render a broken page for a feature that
     // is merely switched off.
-    const app = await buildApp({ collector: null })
+    const app = await buildApp({ promqlSource: null })
     const res = await get(app, '/api/workload/web-nginx/metrics')
     expect(res.statusCode).toBe(200)
     expect(res.json().samples).toEqual([])
     await app.close()
   })
 
+  it('SAYS there is no store rather than looking idle', async () => {
+    // The case phase 4 created. Deleting the ring buffer made an empty series ambiguous: it used
+    // to mean "nothing recorded yet" and can now also mean "nowhere to record it". A client that
+    // cannot tell them apart draws the same flat chart for a healthy new workload and for a host
+    // with metrics switched off.
+    const app = await buildApp({ promqlSource: null })
+    expect((await get(app, '/api/workload/web-nginx/metrics')).json().historySource).toBe('none')
+    await app.close()
+  })
+
   it('reports the interval alongside the samples', async () => {
-    const app = await buildApp({ collector: null })
+    const app = await buildApp({ promqlSource: null })
     expect((await get(app, '/api/workload/web-nginx/metrics')).json().intervalMs).toBe(SAMPLE_INTERVAL_MS)
     await app.close()
   })
 
   describe('nullability survives response validation', () => {
-    it('serves a null cpuPercent as null, not 0 and not a validation error', async () => {
-      let t = 1_000_000
-      // Only memory is readable: cpu.stat is absent, so cpuPercent is null by construction.
-      const collector = collectorWith({ [`${cgroupPathFor('web-nginx', '/fake')}/memory.current`]: '4096' }, () => t)
-      await collector.sampleOne('web-nginx', 2)
+    // Both cases used to be driven through the collector and a fake cgroupfs. They are driven
+    // through a fake Prometheus now, and they assert the same thing at the same place: the last
+    // hop, where Zod either preserves the distinction the layers below worked to keep or quietly
+    // destroys it.
+    const at = (sec: number, value: string): PromMatrix =>
+      ({ resultType: 'matrix', result: [{ metric: {}, values: [[sec, value]] }] })
 
-      const app = await buildApp({ collector })
-      const res = await get(app, '/api/workload/web-nginx/metrics')
+    it('serves a null cpuPercent as null, not 0 and not a validation error', async () => {
+      // Memory answers, CPU does not — so cpuPercent is null by construction while a sibling lane
+      // on the same sample carries a real number. A schema written `z.number()` fails here.
+      const rq: RangeQuery = async ({ query, startSec }) =>
+        query.includes('memory_bytes') ? at(startSec, '4096') : { resultType: 'matrix', result: [] }
+
+      const app = await buildApp({ promqlSource: new PromqlMetricsSource(rq) })
+      const res = await get(app, '/api/workload/web-nginx/metrics?window=5m')
       expect(res.statusCode).toBe(200)
 
       const [s] = res.json().samples
-      // The whole service layer works to keep "unknown" apart from "idle". A z.number() schema
-      // here would collapse them at the very last hop.
       expect(s.cpuPercent).toBeNull()
       expect(s.memoryBytes).toBe(4096)
       await app.close()
     })
 
     it('serves a real 0 as 0', async () => {
-      let t = 1_000_000
-      const files = {
-        [`${cgroupPathFor('web-nginx', '/fake')}/cpu.stat`]: 'usage_usec 500',
-        [`${cgroupPathFor('web-nginx', '/fake')}/memory.current`]: '4096',
-      }
-      const collector = collectorWith(files, () => t)
-      await collector.sampleOne('web-nginx', 2)
-      t += 30_000
-      await collector.sampleOne('web-nginx', 2) // counter unchanged → genuinely idle
+      // An idle workload reports 0, and 0 must survive the wire as 0. This is the mirror of the
+      // case above and the reason both exist: a serializer that turns null into 0 passes the
+      // first test, and one that drops falsy values passes the second — only the pair pins it.
+      const rq: RangeQuery = async ({ query, startSec }) =>
+        query.includes('memory_bytes') ? at(startSec, '4096') : at(startSec, '0')
 
-      const app = await buildApp({ collector })
-      const samples = (await get(app, '/api/workload/web-nginx/metrics')).json().samples
-      expect(samples.at(-1).cpuPercent).toBe(0)
+      const app = await buildApp({ promqlSource: new PromqlMetricsSource(rq) })
+      const [s] = (await get(app, '/api/workload/web-nginx/metrics?window=5m')).json().samples
+      expect(s.cpuPercent).toBe(0)
+      expect(s.memoryBytes).toBe(4096)
       await app.close()
     })
   })
 
   describe('tier windows', () => {
     it('defaults a paid tier to 24 hours', async () => {
-      const app = await buildApp({ tier: 'weaver', collector: null })
+      const app = await buildApp({ tier: 'weaver' })
       expect((await get(app, '/api/workload/web-nginx/metrics')).json().windowMs).toBe(86_400_000)
       await app.close()
     })
 
     it('defaults Free to one hour', async () => {
-      const app = await buildApp({ tier: 'free', collector: null })
+      const app = await buildApp({ tier: 'free' })
       expect((await get(app, '/api/workload/web-nginx/metrics')).json().windowMs).toBe(3_600_000)
       await app.close()
     })
@@ -153,7 +160,7 @@ describe('GET /api/workload/:name/metrics', () => {
     it('clamps a Free request for 24h and REPORTS the hour it served', async () => {
       // Reporting is the load-bearing half. Serving an hour under a caption the client wrote as
       // "24 hours" is a lie the user cannot detect from the chart.
-      const app = await buildApp({ tier: 'free', collector: null })
+      const app = await buildApp({ tier: 'free' })
       const res = await get(app, '/api/workload/web-nginx/metrics?window=24h')
       expect(res.statusCode).toBe(200)
       expect(res.json().windowMs).toBe(3_600_000)
@@ -161,40 +168,28 @@ describe('GET /api/workload/:name/metrics', () => {
     })
 
     it('honours a narrower request from a paid tier', async () => {
-      const app = await buildApp({ tier: 'weaver', collector: null })
+      const app = await buildApp({ tier: 'weaver' })
       expect((await get(app, '/api/workload/web-nginx/metrics?window=30m')).json().windowMs).toBe(1_800_000)
       await app.close()
     })
 
     it('falls back to the tier maximum on a malformed window', async () => {
-      const app = await buildApp({ tier: 'weaver', collector: null })
+      const app = await buildApp({ tier: 'weaver' })
       expect((await get(app, '/api/workload/web-nginx/metrics?window=bogus')).json().windowMs).toBe(86_400_000)
       await app.close()
     })
 
-    it('actually excludes samples outside the window', async () => {
-      let t = 1_000_000
-      const files = {
-        [`${cgroupPathFor('web-nginx', '/fake')}/cpu.stat`]: 'usage_usec 0',
-        [`${cgroupPathFor('web-nginx', '/fake')}/memory.current`]: '4096',
-      }
-      const collector = collectorWith(files, () => t)
-      await collector.sampleOne('web-nginx', 2)   // t0
-      t += 7_200_000                              // two hours pass
-      await collector.sampleOne('web-nginx', 2)   // t0 + 2h
-
-      const app = await buildApp({ tier: 'free', collector })
-      // Free window is one hour, so only the recent sample qualifies. A count-based window would
-      // return both and present a two-hour-old reading as current.
-      expect((await get(app, '/api/workload/web-nginx/metrics')).json().samples).toHaveLength(1)
-      await app.close()
-    })
+    // 'actually excludes samples outside the window' lived here. It asserted the ring buffer's
+    // timestamp filter, which no longer exists: the window is now the PromQL query's own
+    // start/end, and that it matches the clamped tier window is asserted in the Prometheus block
+    // below ('still applies the tier clamp'). Re-adding a route-level version would test
+    // Prometheus rather than us.
   })
 
   describe('access', () => {
     it('lets a viewer read metrics — this is a Free-tier adoption feature', async () => {
       mockUserRole = 'viewer'
-      const app = await buildApp({ tier: 'free', collector: null })
+      const app = await buildApp({ tier: 'free' })
       expect((await get(app, '/api/workload/web-nginx/metrics')).statusCode).toBe(200)
       await app.close()
     })
@@ -220,23 +215,22 @@ describe('GET /api/workload/:name/metrics — Prometheus read path', () => {
 
   const sourceFrom = (rq: RangeQuery) => new PromqlMetricsSource(rq)
 
-  it('serves from Prometheus and IGNORES the ring buffer when both are present', async () => {
-    // Not "prefers". The buffer must not contribute a single sample, or the two backends would
-    // interleave and the chart would show a history nobody can reproduce from either store.
+  it('serves a full grid from Prometheus and labels the source', async () => {
+    // This case used to read "IGNORES the ring buffer when both are present" — the two-backend
+    // seam phase 4 removed. What survives is the half that still has content: the response is a
+    // complete grid for the requested window, and it says where it came from.
     const rq: RangeQuery = async ({ query }) =>
       query.includes('memory_bytes')
         ? { resultType: 'matrix', result: [{ metric: {}, values: [[1_800_000_000, '4096']] }] }
         : emptyMatrix
 
-    const app = await buildApp({
-      collector: collectorWith({}, () => Date.now()),
-      promqlSource: sourceFrom(rq),
-    })
+    const app = await buildApp({ promqlSource: sourceFrom(rq) })
     const res = await get(app, '/api/workload/web-nginx/metrics?window=10m')
 
     expect(res.statusCode).toBe(200)
-    // 10 minutes at 30s — a full grid, not the buffer's (empty) contents.
+    // 10 minutes at 30s, with gaps materialised — a grid, never just the points returned.
     expect(res.json().samples).toHaveLength(20)
+    expect(res.json().historySource).toBe('prometheus')
     await app.close()
   })
 

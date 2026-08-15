@@ -6,12 +6,12 @@
  * This exporter deliberately publishes **raw cumulative counters**, not the percentages the UI
  * shows. `rate()` is what turns a counter into a rate, and doing that arithmetic here would mean
  * exporting a number whose meaning depends on when it was sampled — unusable for any query with a
- * different window than the one baked in. The in-process ring buffer keeps computing percentages
- * for the existing API; this is a second, independent reader of the same cgroup files.
+ * different window than the one baked in. `services/promql.ts` turns these counters into the
+ * percentages the API serves, at query time, for whatever window was asked for.
  *
- * It reads cgroups **at scrape time** rather than serving the ring buffer. The buffer holds
- * derived, tier-clamped, gap-filled samples on a 30-second clock; a scrape wants the counter as it
- * is now. Coupling them would make the scrape interval a function of the retention policy.
+ * It reads cgroups **at scrape time**, which since phase 4 makes it the ONLY reader of them: the
+ * in-process collector that used to sample every workload on a 30-second timer is gone, and this
+ * pull replaced it. Nothing in the backend now holds metric state between requests.
  *
  * The vCPU gauge is here for one reason worth stating: CPU seconds alone cannot be normalised.
  * `rate(weaver_workload_cpu_usage_seconds_total[5m])` yields core-seconds per second, so a 4-vCPU

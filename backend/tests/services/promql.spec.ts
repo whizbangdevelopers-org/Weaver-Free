@@ -40,9 +40,11 @@ const empty: PromMatrix = { resultType: 'matrix', result: [] }
 const noResets = new Map<number, number>()
 
 describe('buildGrid', () => {
-  it('emits windowMs / stepMs points — the same count the ring buffer holds', () => {
-    // Free: 1 hour at 30s. RETENTION_FREE is 120, so 121 points would put one MORE sample on the
-    // chart under Prometheus than under the buffer — a visible difference this phase forbids.
+  it('emits windowMs / stepMs points — the count the ring buffer used to hold', () => {
+    // Free: 1 hour at 30s = 120 slots, which is exactly what RETENTION_FREE sized the buffer to
+    // hold before phase 4 deleted it. 121 points would put one MORE sample on the chart than the
+    // buffer ever did — the visible difference the migration's gate forbade, and still the reason
+    // the boundary point is excluded.
     const grid = buildGrid({ nowMs: 1_800_000_000_000, windowMs: 3_600_000 })
     expect(grid).toHaveLength(120)
   })

@@ -17,7 +17,7 @@ import type { QuotaStore } from '../storage/quota-store.js'
 import type { VmAclStore } from '../storage/vm-acl-store.js'
 import { createVmAclCheck } from '../middleware/vm-acl.js'
 import { createRateLimit } from '../middleware/rate-limit.js'
-import { resolveWindowMs, SAMPLE_INTERVAL_MS, type MetricsCollector } from '../services/metrics.js'
+import { resolveWindowMs, SAMPLE_INTERVAL_MS } from '../services/metrics.js'
 import type { PromqlMetricsSource } from '../services/promql.js'
 import { firmwareRejectionReason } from '../services/firmware.js'
 
@@ -75,6 +75,15 @@ const metricsResponseSchema = z.object({
   name: z.string(),
   windowMs: z.number(),
   intervalMs: z.number(),
+  /**
+   * Where the history came from — `'none'` when no metrics store is configured.
+   *
+   * Added with phase 4, because deleting the in-process buffer made "no samples" ambiguous in a
+   * way it had not been: previously an empty series meant the workload had produced nothing yet,
+   * and now it can also mean there is nowhere to have stored it. Those need different words in
+   * front of a user, and a field is the only way the client can tell them apart.
+   */
+  historySource: z.enum(['prometheus', 'none']),
   samples: z.array(z.object({
     timestamp: z.number(),
     cpuPercent: z.number().nullable(),
@@ -242,18 +251,20 @@ interface VmsRouteOptions {
   quotaStore?: QuotaStore
   aclStore?: VmAclStore
   networkManager?: IpAllocator | null
-  metricsCollector?: MetricsCollector | null
   /**
-   * PromQL read path. When present it REPLACES the ring buffer for `/:name/metrics`; the
-   * collector keeps running so the exporter has something to read, and so the buffer and the
-   * collector can be retired together rather than leaving the endpoint sourceless.
+   * PromQL read path — the only source of metric history since phase 4 retired the ring buffer.
+   *
+   * Null means no metrics store is configured (`services.weaver.metrics.enable = false`), and
+   * `/:name/metrics` then serves an empty series labelled `historySource: 'none'`. There is no
+   * second backend to fall back to, by design: two stores of the same numbers is what the
+   * migration existed to end.
    */
   promqlSource?: PromqlMetricsSource | null
 }
 
 export const workloadsRoutes: FastifyPluginAsync<VmsRouteOptions> = async (fastify, opts) => {
   const app = fastify.withTypeProvider<ZodTypeProvider>()
-  const { provisioner, imageManager, config, auditService, quotaStore, aclStore, networkManager, metricsCollector, promqlSource } = opts
+  const { provisioner, imageManager, config, auditService, quotaStore, aclStore, networkManager, promqlSource } = opts
 
   // Per-VM ACL check middleware (fabrick only, admin bypass)
   const aclCheck = (aclStore && config) ? createVmAclCheck(aclStore, config) : undefined
@@ -531,40 +542,46 @@ export const workloadsRoutes: FastifyPluginAsync<VmsRouteOptions> = async (fasti
       const tier = config?.tier ?? TIERS.FREE
       const windowMs = resolveWindowMs(request.query.window, tier)
 
-      // Two backends during the migration, and the choice is made HERE rather than inside a
-      // service so phase 4 deletes a branch instead of unpicking an abstraction.
+      // One backend. The migration's phase 4 deleted the ring-buffer branch that used to sit
+      // here, which is why this reads as a single call rather than a choice.
       //
-      // The split follows "can this condition change the answer?":
+      // Three states, and they must stay distinguishable — collapsing any two of them is how a
+      // chart comes to lie:
       //
-      //   * Prometheus NOT configured — the ring buffer is the answer, not a degraded one. This
-      //     is the pre-migration path, still correct and still tested. Absorb.
-      //   * Prometheus configured but FAILING — refuse. Falling back to the buffer here would
-      //     silently serve an hour of data from a host whose store is down, and returning []
-      //     would render a broken monitoring stack as a perfectly normal idle workload. Both
-      //     hide the one condition an operator needs to see.
-      let samples
-      if (promqlSource) {
-        try {
-          samples = await promqlSource.getSamples(name, windowMs)
-        } catch (err) {
-          // Full fidelity server-side; the client gets nothing that leaks the store's address or
-          // a PromQL expression. A raw system error names hosts, ports and internal paths, so it
-          // is logged and never returned.
-          request.log.error({ err, workload: name }, 'metrics: Prometheus query failed')
-          return reply.status(503).send({ error: 'Metrics store is unavailable' })
+      //   * Prometheus configured and answering — the samples, gaps materialised as nulls.
+      //   * Prometheus configured but FAILING — 503. Returning [] would render a broken
+      //     monitoring stack as a perfectly normal idle workload, hiding the one condition an
+      //     operator needs to see.
+      //   * Prometheus NOT configured — an empty series with `historySource: 'none'`. There is
+      //     no store to ask, so this is not an error and must not 503: the host is working
+      //     exactly as its operator configured it. But it is also not "idle", and the response
+      //     says which.
+      if (!promqlSource) {
+        return {
+          name,
+          windowMs,
+          intervalMs: SAMPLE_INTERVAL_MS,
+          historySource: 'none' as const,
+          samples: [],
         }
-      } else {
-        // Absent collector (metrics disabled, or a build without it) returns an EMPTY SERIES
-        // rather than 404 or 500. The distinction the UI needs is "this workload does not exist"
-        // versus "there is no data for it yet", and both of those are already expressible; a 500
-        // here would render as a broken page for a feature that is merely not collecting.
-        samples = metricsCollector?.getSamples(name, windowMs) ?? []
+      }
+
+      let samples
+      try {
+        samples = await promqlSource.getSamples(name, windowMs)
+      } catch (err) {
+        // Full fidelity server-side; the client gets nothing that leaks the store's address or
+        // a PromQL expression. A raw system error names hosts, ports and internal paths, so it
+        // is logged and never returned.
+        request.log.error({ err, workload: name }, 'metrics: Prometheus query failed')
+        return reply.status(503).send({ error: 'Metrics store is unavailable' })
       }
 
       return {
         name,
         windowMs,
         intervalMs: SAMPLE_INTERVAL_MS,
+        historySource: 'prometheus' as const,
         // Reported so the UI can label the axis with what it actually received. A Free request
         // for 24h is clamped to an hour, and a chart captioned "24 hours" over an hour of data
         // is a lie the user has no way to detect.

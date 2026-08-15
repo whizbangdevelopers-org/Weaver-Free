@@ -17,25 +17,12 @@ import {
   parseMemoryCurrent,
   parseMemoryMax,
   cgroupPathFor,
-  MetricRingBuffer,
-  retentionForTier,
   resolveWindowMs,
   maxWindowMsForTier,
-  RETENTION_FREE,
-  RETENTION_PAID,
+  MAX_WINDOW_MS_FREE,
+  MAX_WINDOW_MS_PAID,
   SAMPLE_INTERVAL_MS,
-  MetricsCollector,
-  type MetricSample,
-  type CgroupReader,
 } from '../../src/services/metrics.js'
-
-const sample = (timestamp: number, cpu: number | null = 1): MetricSample => ({
-  timestamp,
-  cpuPercent: cpu,
-  memoryBytes: 1024,
-  diskReadBps: null,
-  diskWriteBps: null,
-})
 
 describe('cpu.stat parsing', () => {
   const REAL = [
@@ -289,96 +276,34 @@ describe('cgroupPathFor', () => {
   })
 })
 
-describe('MetricRingBuffer', () => {
-  it('rejects a non-positive capacity', () => {
-    expect(() => new MetricRingBuffer(0)).toThrow()
-  })
-
-  it('accumulates below capacity, oldest first', () => {
-    const buf = new MetricRingBuffer(5)
-    buf.push(sample(1))
-    buf.push(sample(2))
-    expect(buf.toArray().map(s => s.timestamp)).toEqual([1, 2])
-    expect(buf.size).toBe(2)
-  })
-
-  it('overwrites the oldest once full and preserves chronological order', () => {
-    const buf = new MetricRingBuffer(3)
-    for (const t of [1, 2, 3, 4, 5]) buf.push(sample(t))
-    // The wrap is where a hand-rolled ring buffer usually returns the right VALUES in the wrong
-    // ORDER, which draws a graph that jumps backwards in time mid-line.
-    expect(buf.toArray().map(s => s.timestamp)).toEqual([3, 4, 5])
-    expect(buf.size).toBe(3)
-  })
-
-  it('stays correct across several full wraps', () => {
-    const buf = new MetricRingBuffer(3)
-    for (let t = 1; t <= 10; t++) buf.push(sample(t))
-    expect(buf.toArray().map(s => s.timestamp)).toEqual([8, 9, 10])
-  })
-
-  it('is exactly correct at the boundary where it first fills', () => {
-    const buf = new MetricRingBuffer(3)
-    for (const t of [1, 2, 3]) buf.push(sample(t))
-    expect(buf.toArray().map(s => s.timestamp)).toEqual([1, 2, 3])
-    buf.push(sample(4))
-    expect(buf.toArray().map(s => s.timestamp)).toEqual([2, 3, 4])
-  })
-
-  it('never exceeds capacity — the leak this class exists to prevent', () => {
-    const buf = new MetricRingBuffer(10)
-    for (let t = 0; t < 5000; t++) buf.push(sample(t))
-    expect(buf.size).toBe(10)
-  })
-
-  describe('window()', () => {
-    it('filters by timestamp, not by count', () => {
-      const buf = new MetricRingBuffer(10)
-      const now = 1_000_000
-      buf.push(sample(now - 7_200_000)) // 2h ago
-      buf.push(sample(now - 1_800_000)) // 30m ago
-      buf.push(sample(now - 60_000))    // 1m ago
-
-      expect(buf.window(3_600_000, now).map(s => s.timestamp))
-        .toEqual([now - 1_800_000, now - 60_000])
-    })
-
-    it('excludes stale samples after a collection gap', () => {
-      // The collector was paused — host asleep, service restarted. Counting back N samples would
-      // present hours-old data under a "last hour" heading; only a timestamp filter can tell.
-      const buf = new MetricRingBuffer(10)
-      const now = 10_000_000
-      for (const ago of [50_000_000, 49_000_000, 48_000_000]) buf.push(sample(now - ago))
-      expect(buf.window(3_600_000, now)).toEqual([])
-    })
-
-    it('includes a sample exactly on the boundary', () => {
-      const buf = new MetricRingBuffer(4)
-      const now = 5_000_000
-      buf.push(sample(now - 3_600_000))
-      expect(buf.window(3_600_000, now)).toHaveLength(1)
-    })
-  })
-})
-
-describe('tier retention', () => {
-  it('gives Free one hour and paid tiers 24', () => {
-    expect(retentionForTier('free')).toBe(RETENTION_FREE)
-    expect(retentionForTier('weaver')).toBe(RETENTION_PAID)
-    expect(retentionForTier('team')).toBe(RETENTION_PAID)
-    expect(retentionForTier('fabrick')).toBe(RETENTION_PAID)
-  })
-
-  it('the sample counts really are an hour and a day at the sampling interval', () => {
-    // Guards the constants against each other: changing SAMPLE_INTERVAL_MS without changing the
-    // retention counts silently redefines what "1 hour" means in the UI.
-    expect(RETENTION_FREE * SAMPLE_INTERVAL_MS).toBe(3_600_000)
-    expect(RETENTION_PAID * SAMPLE_INTERVAL_MS).toBe(86_400_000)
-  })
-
-  it('caps the window a tier may see', () => {
+describe('tier windows', () => {
+  // These were RETENTION_FREE/RETENTION_PAID — sample counts sizing a ring buffer that phase 4
+  // deleted. The product rule they also encoded (Free sees an hour, paid sees a day) survives,
+  // now stated in milliseconds because that is the unit it is enforced in.
+  it('gives Free one hour and every paid tier 24', () => {
     expect(maxWindowMsForTier('free')).toBe(3_600_000)
     expect(maxWindowMsForTier('weaver')).toBe(86_400_000)
+    expect(maxWindowMsForTier('team')).toBe(86_400_000)
+    expect(maxWindowMsForTier('fabrick')).toBe(86_400_000)
+  })
+
+  it('treats an UNKNOWN tier as paid, not as Free', () => {
+    // Deliberate: the rule is "not Free", never an enumeration. A tier added later gets the paid
+    // window by default rather than silently inheriting Free's — the demo's own gate enumerated
+    // SOLO || FABRICK and excluded Team, a paying tier, for exactly this reason.
+    expect(maxWindowMsForTier('tier-invented-next-year')).toBe(86_400_000)
+  })
+
+  it('the constants really are an hour and a day', () => {
+    expect(MAX_WINDOW_MS_FREE).toBe(3_600_000)
+    expect(MAX_WINDOW_MS_PAID).toBe(86_400_000)
+  })
+
+  it('the window is still a whole number of sample intervals', () => {
+    // Not arithmetic for its own sake: a window that is not a multiple of the scrape interval
+    // makes the last grid slot a partial one, which materialises as a null nobody can explain.
+    expect(MAX_WINDOW_MS_FREE % SAMPLE_INTERVAL_MS).toBe(0)
+    expect(MAX_WINDOW_MS_PAID % SAMPLE_INTERVAL_MS).toBe(0)
   })
 })
 
@@ -405,242 +330,5 @@ describe('resolveWindowMs', () => {
     expect(resolveWindowMs('bogus', 'weaver')).toBe(86_400_000)
     expect(resolveWindowMs('0h', 'weaver')).toBe(86_400_000)
     expect(resolveWindowMs('-5m', 'weaver')).toBe(86_400_000)
-  })
-})
-
-/**
- * The collector — the stateful half.
- *
- * Its interesting behaviour is all across TIME (counter resets, gaps, restarts) and against a
- * filesystem that may not have the files at all, so both the reader and the clock are injected.
- * A test that used the real cgroupfs could not express a single case below.
- */
-describe('MetricsCollector', () => {
-  /** A fake cgroupfs. Missing key = the file does not exist, which is the stopped-workload case. */
-  function fakeFs(files: Record<string, string>) {
-    const reads: string[] = []
-    return {
-      reads,
-      files,
-      read: async (path: string) => {
-        reads.push(path)
-        return path in files ? files[path]! : null
-      },
-    }
-  }
-
-  const ROOT = '/fake/cgroup'
-  const cpuPath = (n: string) => `${cgroupPathFor(n, ROOT)}/cpu.stat`
-  const memPath = (n: string) => `${cgroupPathFor(n, ROOT)}/memory.current`
-
-  function makeClock(start = 1_000_000) {
-    let t = start
-    return { now: () => t, advance: (ms: number) => { t += ms } }
-  }
-
-  it('produces no CPU number on the first sample, but does record memory', () => {
-    // Cold start: there is no previous counter to difference against. Memory is an absolute
-    // reading and is available immediately — the two must not share a fate.
-    const fs = fakeFs({ [cpuPath('a')]: 'usage_usec 1000', [memPath('a')]: '2048' })
-    const clock = makeClock()
-    const c = new MetricsCollector({ read: fs.read, now: clock.now, cgroupRoot: ROOT })
-
-    return c.sampleOne('a', 1).then(s => {
-      expect(s.cpuPercent).toBeNull()
-      expect(s.memoryBytes).toBe(2048)
-    })
-  })
-
-  it('computes CPU on the second sample', async () => {
-    const fs = fakeFs({ [cpuPath('a')]: 'usage_usec 0', [memPath('a')]: '2048' })
-    const clock = makeClock()
-    const c = new MetricsCollector({ read: fs.read, now: clock.now, cgroupRoot: ROOT })
-
-    await c.sampleOne('a', 1)
-    clock.advance(30_000)
-    fs.files[cpuPath('a')] = 'usage_usec 15000000' // 15s of CPU over 30s on 1 vCPU
-    const second = await c.sampleOne('a', 1)
-    expect(second.cpuPercent).toBe(50)
-  })
-
-  it('returns null for the interval spanning a unit restart, then recovers', async () => {
-    const fs = fakeFs({ [cpuPath('a')]: 'usage_usec 900000000', [memPath('a')]: '2048' })
-    const clock = makeClock()
-    const c = new MetricsCollector({ read: fs.read, now: clock.now, cgroupRoot: ROOT })
-
-    await c.sampleOne('a', 1)
-
-    // The unit restarts: the cgroup is recreated and the counter goes back to near zero.
-    clock.advance(30_000)
-    fs.files[cpuPath('a')] = 'usage_usec 1000'
-    expect((await c.sampleOne('a', 1)).cpuPercent).toBeNull()
-
-    // The NEXT interval must work again — the baseline has to have been re-anchored to the new
-    // counter. If the reset left the old baseline in place, every subsequent sample would also be
-    // null and the workload would simply stop having a CPU line after any restart.
-    clock.advance(30_000)
-    fs.files[cpuPath('a')] = 'usage_usec 15001000'
-    expect((await c.sampleOne('a', 1)).cpuPercent).toBe(50)
-  })
-
-  it('does not advance the baseline on an unreadable cgroup', async () => {
-    // A transient read failure must not permanently break CPU for that workload. Storing null as
-    // the baseline would make every later sample look like another cold start.
-    const fs = fakeFs({ [cpuPath('a')]: 'usage_usec 0', [memPath('a')]: '1' })
-    const clock = makeClock()
-    const c = new MetricsCollector({ read: fs.read, now: clock.now, cgroupRoot: ROOT })
-
-    await c.sampleOne('a', 1)
-
-    clock.advance(30_000)
-    delete fs.files[cpuPath('a')] // vanished for one round
-    expect((await c.sampleOne('a', 1)).cpuPercent).toBeNull()
-
-    clock.advance(30_000)
-    fs.files[cpuPath('a')] = 'usage_usec 60000000' // 60s of CPU since the last REAL reading (60s ago)
-    expect((await c.sampleOne('a', 1)).cpuPercent).toBe(100)
-  })
-
-  it('records a sample even when nothing could be read', async () => {
-    // A stopped workload has no cgroup. It still gets a timestamped sample with null values, so
-    // the graph shows a gap rather than silently omitting the period.
-    const fs = fakeFs({})
-    const c = new MetricsCollector({ read: fs.read, cgroupRoot: ROOT })
-    const s = await c.sampleOne('ghost', 1)
-    expect(s.cpuPercent).toBeNull()
-    expect(s.memoryBytes).toBeNull()
-    expect(c.getSamples('ghost', 3_600_000)).toHaveLength(1)
-  })
-
-  it('keeps per-workload state separate', async () => {
-    const fs = fakeFs({
-      [cpuPath('a')]: 'usage_usec 0', [memPath('a')]: '100',
-      [cpuPath('b')]: 'usage_usec 0', [memPath('b')]: '200',
-    })
-    const clock = makeClock()
-    const c = new MetricsCollector({ read: fs.read, now: clock.now, cgroupRoot: ROOT })
-
-    await c.sampleAll([{ name: 'a', vcpu: 1 }, { name: 'b', vcpu: 1 }])
-    clock.advance(30_000)
-    fs.files[cpuPath('a')] = 'usage_usec 30000000' // a is pinned
-    fs.files[cpuPath('b')] = 'usage_usec 0'        // b is idle
-    await c.sampleAll([{ name: 'a', vcpu: 1 }, { name: 'b', vcpu: 1 }])
-
-    expect(c.getSamples('a', 3_600_000).at(-1)!.cpuPercent).toBe(100)
-    expect(c.getSamples('b', 3_600_000).at(-1)!.cpuPercent).toBe(0)
-  })
-
-  it('one unreadable workload does not abort the others in the same round', async () => {
-    // Promise.all would reject the whole round on a single throwing read, so every other
-    // workload would silently lose that interval.
-    const throwing: CgroupReader = async (path: string) => {
-      if (path.includes('broken')) throw new Error('EACCES')
-      return path.endsWith('cpu.stat') ? 'usage_usec 0' : '512'
-    }
-    const c = new MetricsCollector({ read: throwing, cgroupRoot: ROOT })
-    await c.sampleAll([{ name: 'broken', vcpu: 1 }, { name: 'fine', vcpu: 1 }])
-    expect(c.getSamples('fine', 3_600_000)).toHaveLength(1)
-  })
-
-  it('honours the retention cap it was constructed with', async () => {
-    const fs = fakeFs({ [cpuPath('a')]: 'usage_usec 0', [memPath('a')]: '1' })
-    const clock = makeClock()
-    const c = new MetricsCollector({ read: fs.read, now: clock.now, cgroupRoot: ROOT, retention: 3 })
-    for (let i = 0; i < 10; i++) {
-      await c.sampleOne('a', 1)
-      clock.advance(30_000)
-    }
-    expect(c.getSamples('a', 86_400_000)).toHaveLength(3)
-  })
-
-  it('forgets a workload on request', async () => {
-    const fs = fakeFs({ [cpuPath('a')]: 'usage_usec 0', [memPath('a')]: '1' })
-    const c = new MetricsCollector({ read: fs.read, cgroupRoot: ROOT })
-    await c.sampleOne('a', 1)
-    expect(c.trackedCount).toBe(1)
-    c.forget('a')
-    expect(c.trackedCount).toBe(0)
-    expect(c.getSamples('a', 3_600_000)).toEqual([])
-  })
-
-  it('reads from the real cgroup root when none is injected', async () => {
-    const fs = fakeFs({})
-    const c = new MetricsCollector({ read: fs.read })
-    await c.sampleOne('web', 1)
-    expect(fs.reads).toContain(`${cgroupPathFor('web')}/cpu.stat`)
-  })
-
-  const ioPath = (n: string) => `${cgroupPathFor(n, ROOT)}/io.stat`
-
-  it('produces no disk rate on the first sample, then a real one', async () => {
-    const files: Record<string, string> = {
-      [cpuPath('a')]: 'usage_usec 0',
-      [memPath('a')]: '2048',
-      [ioPath('a')]: '8:0 rbytes=0 wbytes=0',
-    }
-    const fs = fakeFs(files)
-    const clock = makeClock()
-    const c = new MetricsCollector({ read: fs.read, now: clock.now, cgroupRoot: ROOT })
-
-    const first = await c.sampleOne('a', 1)
-    expect(first.diskReadBps).toBeNull()
-    expect(first.diskWriteBps).toBeNull()
-
-    clock.advance(1000)
-    files[ioPath('a')] = '8:0 rbytes=5000 wbytes=1000'
-    const second = await c.sampleOne('a', 1)
-    expect(second.diskReadBps).toBe(5000)
-    expect(second.diskWriteBps).toBe(1000)
-  })
-
-  it('keeps a separate clock per counter, so an unreadable cpu.stat cannot inflate the disk rate', async () => {
-    // The bug this guards: with ONE shared `lastSampleAt`, a tick where cpu.stat is missing but
-    // io.stat reads would still advance the shared clock. The next disk delta is then measured
-    // over a SHORTER interval than the counter actually spans, and the rate reads high — a
-    // plausible wrong number, which is precisely what this file exists to prevent.
-    const files: Record<string, string> = {
-      [cpuPath('a')]: 'usage_usec 0',
-      [memPath('a')]: '2048',
-      [ioPath('a')]: '8:0 rbytes=0 wbytes=0',
-    }
-    const fs = fakeFs(files)
-    const clock = makeClock()
-    const c = new MetricsCollector({ read: fs.read, now: clock.now, cgroupRoot: ROOT })
-
-    await c.sampleOne('a', 1) // establishes both baselines at t0
-
-    // A tick where CPU is unreadable. Disk advances 1000 bytes over 1s.
-    clock.advance(1000)
-    delete files[cpuPath('a')]
-    files[ioPath('a')] = '8:0 rbytes=1000 wbytes=0'
-    const mid = await c.sampleOne('a', 1)
-    expect(mid.cpuPercent).toBeNull()
-    expect(mid.diskReadBps).toBe(1000)
-
-    // CPU comes back. Its counter has advanced 2,000,000us of CPU time since t0 — 2 seconds of
-    // wall clock at 1 vCPU, which is 100%. Measured against an io-advanced clock it would be
-    // computed over 1s and read 200% before the clamp, i.e. a pinned 100 either way — so assert
-    // the honest case instead: half a second of CPU over the full 2s window is 25%.
-    clock.advance(1000)
-    files[cpuPath('a')] = 'usage_usec 500000'
-    files[ioPath('a')] = '8:0 rbytes=2000 wbytes=0'
-    const back = await c.sampleOne('a', 1)
-    expect(back.cpuPercent).toBe(25)
-    expect(back.diskReadBps).toBe(1000)
-  })
-
-  it('records CPU and memory on a host with no io controller at all', async () => {
-    // io.stat simply absent. The workload is running and must not be reported as unreadable.
-    const fs = fakeFs({ [cpuPath('a')]: 'usage_usec 1000', [memPath('a')]: '4096' })
-    const clock = makeClock()
-    const c = new MetricsCollector({ read: fs.read, now: clock.now, cgroupRoot: ROOT })
-
-    await c.sampleOne('a', 1)
-    clock.advance(1000)
-    const s = await c.sampleOne('a', 1)
-
-    expect(s.memoryBytes).toBe(4096)
-    expect(s.diskReadBps).toBeNull()
-    expect(s.diskWriteBps).toBeNull()
   })
 })
