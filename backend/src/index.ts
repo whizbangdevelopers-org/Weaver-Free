@@ -31,9 +31,9 @@ import { consoleRoutes } from './routes/console.js'
 import { dnsRoutes } from './routes/dns.js'
 import { createRegistry } from './storage/index.js'
 import { setRegistry, setProvisioner, setConfig, startAutostartVms, scanMicrovms, getWorkloadDefinitions } from './services/microvm.js'
-import { MetricsCollector, retentionForTier } from './services/metrics.js'
+import { SAMPLE_INTERVAL_MS } from './services/metrics.js'
 import { PromqlMetricsSource, httpRangeQuery } from './services/promql.js'
-import { DnsZoneWriter } from './services/dns-writer.js'
+import { DnsZoneWriter, retireZone } from './services/dns-writer.js'
 import { createImageManager } from './services/image-manager.js'
 import { UrlValidationService } from './services/url-validator.js'
 import type { Provisioner } from './services/provisioner-types.js'
@@ -462,71 +462,88 @@ await fastify.register(metricsRoutes, {
     }
   },
 })
-/**
- * Resource-metrics collector.
- *
- * Reads cgroup v2 through an injected reader so the service never imports fs directly and stays
- * testable without a real cgroupfs. A missing file — the ordinary case for a stopped workload,
- * which has no cgroup at all — resolves to null rather than throwing, because logging it would
- * emit a line per stopped workload every 30 seconds forever.
- *
- * Retention is sized from the tier at startup: an hour for Free, a day for paid.
- */
-const metricsCollector = new MetricsCollector({
-  read: async (path: string) => {
-    try {
-      return await readFile(path, 'utf-8')
-    } catch {
-      return null
-    }
-  },
-  retention: retentionForTier(config.tier),
-})
+// The in-process MetricsCollector was constructed here until the Prometheus migration retired it.
+// Prometheus scrapes /metrics and holds the history; nothing samples cgroups on a timer any more.
+// See services/metrics.ts for why the buffer went.
 
 /**
  * DNS Core — the `.vm.internal` auto-zone.
  *
  * Solo+ only, so the writer is not constructed below that tier: there is no zone to publish and a
- * writer that never writes is a timer burning wakeups on a Free host.
+ * writer that never writes is a timer burning wakeups on a Free host. What a Free host DOES do is
+ * withdraw a zone an earlier licence left behind — see the retirement below.
  *
  * The reload is a placeholder until the NixOS module lands — it needs a `services.weaver.dns`
  * option to own the dnsmasq unit, and that half is only meaningful once verified on a real NixOS
  * host. Until then the zone file is written and the reload is a no-op, which is honest: the
  * generated file is correct and inert rather than half-applied.
  */
+const dnsHostsPath = join(config.dataDir, 'dns-hosts')
+
+const dnsDeps = {
+  writeFile: async (path: string, content: string) => {
+    await writeFile(path, content, 'utf-8')
+  },
+  reload: async () => {
+    // Only when the NixOS module told us how. An empty command means DNS Core is not
+    // deployed here, and the zone file is written-but-unserved — which is a correct,
+    // inert state rather than a half-applied one. Never guess at a systemctl invocation:
+    // signalling a unit this build does not manage would either fail on every host or
+    // reload someone else's dnsmasq.
+    const command = config.dnsReloadCommand
+    if (!command) return
+    const [bin, ...args] = command.split(/\s+/)
+    if (!bin) return
+    // execFile with an argument array, never a shell — the value crosses a config boundary.
+    await execFileAsync(config.sudoBin, [bin, ...args])
+  },
+}
+
 const dnsWriter = TIER_ORDER[config.tier] >= TIER_ORDER[TIERS.SOLO]
-  ? new DnsZoneWriter(
-      {
-        writeFile: async (path: string, content: string) => {
-          await writeFile(path, content, 'utf-8')
-        },
-        reload: async () => {
-          // Only when the NixOS module told us how. An empty command means DNS Core is not
-          // deployed here, and the zone file is written-but-unserved — which is a correct,
-          // inert state rather than a half-applied one. Never guess at a systemctl invocation:
-          // signalling a unit this build does not manage would either fail on every host or
-          // reload someone else's dnsmasq.
-          const command = config.dnsReloadCommand
-          if (!command) return
-          const [bin, ...args] = command.split(/\s+/)
-          if (!bin) return
-          // execFile with an argument array, never a shell — the value crosses a config boundary.
-          await execFileAsync(config.sudoBin, [bin, ...args])
-        },
-      },
-      { hostsPath: join(config.dataDir, 'dns-hosts'), domain: config.dnsDomain },
-    )
+  ? new DnsZoneWriter(dnsDeps, { hostsPath: dnsHostsPath, domain: config.dnsDomain })
   : null
 
+if (!dnsWriter) {
+  // Below Solo there is no writer — and, until now, nothing that dealt with a zone a PREVIOUS
+  // licence had published. `weaver-dnsmasq` is gated on `services.weaver.dns.enable`, the option
+  // rather than the tier, so on a host where DNS Core is deployed it keeps running and keeps
+  // answering from the last file Weaver wrote. The records then outlive the licence indefinitely,
+  // frozen at the moment it lapsed and drifting from the registry from then on.
+  //
+  // Withdrawing them is a start-up concern rather than a timer one: a lapse is discovered when the
+  // process comes up without a key, and there is nothing to poll for afterwards.
+  void retireZone({ ...dnsDeps, readFile: async (path) => {
+    try {
+      return await readFile(path, 'utf-8')
+    } catch {
+      return null
+    }
+  } }, dnsHostsPath)
+    .then(result => {
+      if (result.retired) {
+        fastify.log.warn(
+          { hostsPath: dnsHostsPath, reloaded: result.reloaded },
+          'dns: withdrew a published zone — DNS Core requires Solo or above and this host has no ' +
+            'licence for it. The file is emptied, not removed, because dnsmasq refuses to start ' +
+            'without it. Install a licence and the zone republishes on the next sync.',
+        )
+      }
+    })
+    .catch(err => fastify.log.error({ err }, 'dns: failed to withdraw a published zone'))
+}
+
 /**
- * PromQL read path — history is served from Prometheus, not from the in-process buffer.
+ * PromQL read path — the ONLY source of metric history since phase 4.
  *
- * Constructed only when the NixOS module told us where Prometheus lives. When it is null the
- * metrics endpoint reads the ring buffer exactly as before — that is the pre-migration path, not
- * a degraded one, and it remains the correct answer on a host with `metrics.enable = false`.
+ * Constructed only when the NixOS module told us where Prometheus lives. When it is null there is
+ * no history at all: the ring buffer that used to answer in that case is gone, so the endpoint
+ * returns an empty series and says so via `historySource`.
  *
- * The collector above keeps running either way: it is what `/metrics` exposes for Prometheus to
- * scrape, so retiring it belongs to phase 4 alongside the buffer, not here.
+ * That is a deliberate consequence of `metrics.enable`, not a degradation to paper over. The
+ * option defaults to TRUE on every tier including Free, precisely so the ordinary install has
+ * graphs; switching it off is an operator choosing a constrained host over charts. Keeping the
+ * buffer as a silent fallback would have committed the product to two metrics backends forever,
+ * which is the alternative the migration considered and rejected before any code was written.
  */
 const promqlSource = config.prometheusUrl
   ? new PromqlMetricsSource(httpRangeQuery(config.prometheusUrl))
@@ -534,19 +551,42 @@ const promqlSource = config.prometheusUrl
 
 if (promqlSource) {
   fastify.log.info({ url: config.prometheusUrl }, 'metrics: serving history from Prometheus')
+} else {
+  // WARN, not info, and at startup rather than per request: this is the one moment an operator is
+  // watching, and the symptom otherwise is a permanently empty chart with no stated cause.
+  fastify.log.warn(
+    'metrics: PROMETHEUS_URL is unset — no metric history will be served. ' +
+      'Set services.weaver.metrics.enable = true (the default) to restore charts.',
+  )
 }
 
-metricsCollector.start(async () => {
-  const defs = await getWorkloadDefinitions()
-  const workloads = Object.values(defs)
-  // Rides the metrics tick rather than adding a second timer. The writer no-ops when the zone is
-  // unchanged, so this costs one comparison on a quiet host.
-  if (dnsWriter) {
-    void dnsWriter.sync(workloads.map(d => ({ name: d.name, ip: d.ip })))
-      .catch(err => fastify.log.error({ err }, 'DNS zone sync failed'))
-  }
-  return workloads.map(d => ({ name: d.name, vcpu: d.vcpu }))
-})
+/**
+ * DNS zone sync.
+ *
+ * This used to ride the metrics collector's 30-second tick — "rather than adding a second timer",
+ * which was true while that timer had to exist anyway. Phase 4 removed it, so the zone now owns
+ * its own interval at the same cadence.
+ *
+ * Only when there IS a writer: below Solo there is no zone to publish, and a timer that wakes
+ * every 30 seconds to do nothing is exactly the cost the old comment was avoiding. On a Free host
+ * this leaves the backend with no periodic work at all, which is a strict improvement on sampling
+ * every cgroup on the box every 30 seconds for a buffer nobody read.
+ */
+if (dnsWriter) {
+  const dnsTimer = setInterval(() => {
+    void (async () => {
+      try {
+        const defs = await getWorkloadDefinitions()
+        // The writer no-ops when the zone is unchanged, so a quiet host costs one comparison.
+        await dnsWriter.sync(Object.values(defs).map(d => ({ name: d.name, ip: d.ip })))
+      } catch (err) {
+        fastify.log.error({ err }, 'DNS zone sync failed')
+      }
+    })()
+  }, SAMPLE_INTERVAL_MS)
+  // Never hold the process open for a housekeeping timer.
+  dnsTimer.unref?.()
+}
 
 // networkManager is the IP allocator the clone route uses when the caller omits an address. It is
 // null on a Free build (services/weaver is sync-excluded) — the route degrades to requiring an
@@ -554,7 +594,7 @@ metricsCollector.start(async () => {
 // in practice. Cast for the same reason as the ws registration below: the dynamic import above
 // types it `unknown`.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- networkManager typed as unknown from dynamic import
-await fastify.register(workloadsRoutes, { prefix: '/api/workload', provisioner, imageManager, config, auditService, quotaStore, aclStore: vmAclStore, networkManager: networkManager as any, metricsCollector, promqlSource })
+await fastify.register(workloadsRoutes, { prefix: '/api/workload', provisioner, imageManager, config, auditService, quotaStore, aclStore: vmAclStore, networkManager: networkManager as any, promqlSource })
 await fastify.register(agentRoutes, { prefix: '/api/workload', config, auditService, aclStore: vmAclStore })
 await fastify.register(dnsRoutes, { prefix: '/api/dns', config, getZone: () => dnsWriter?.currentZone ?? null })
 const distroTester = provisioner ? new DistroTester(vmRegistry, provisioner, config) : undefined

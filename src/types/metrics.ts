@@ -6,9 +6,9 @@
  *
  * Every value is NULLABLE and that is the contract, not laxity: null means "this could not be
  * determined", which is a different fact from a measured zero. The backend keeps the two apart
- * through the cgroup parser, the ring buffer and the response schema; collapsing them here would
- * undo all of it at the last hop, and a chart cannot tell an idle workload from an unobserved one
- * once that has happened.
+ * through the cgroup parser, the PromQL gap materialisation and the response schema; collapsing
+ * them here would undo all of it at the last hop, and a chart cannot tell an idle workload from an
+ * unobserved one once that has happened.
  */
 export interface MetricSample {
   timestamp: number
@@ -24,6 +24,15 @@ export interface WorkloadMetrics {
   name: string
   windowMs: number
   intervalMs: number
+  /**
+   * Where the history came from. `'none'` means no metrics store is configured on the host, so an
+   * empty `samples` says "nowhere to record this" rather than "nothing recorded yet" — two states
+   * that looked identical to a client until phase 4 made the distinction real.
+   *
+   * Optional here because a demo build and older snapshots do not set it; treat absent as
+   * `'prometheus'` for display purposes rather than inventing a third state.
+   */
+  historySource?: 'prometheus' | 'none'
   samples: MetricSample[]
 }
 

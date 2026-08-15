@@ -435,8 +435,14 @@ in
           Retention is the tier lever, not this switch: the API clamps what a tier may SEE
           (`resolveWindowMs`), while the store below keeps whatever the host is configured to keep.
 
-          Turn it off on a genuinely constrained host. Nothing else breaks — the in-process
-          collector still serves the existing metrics API.
+          TURNING IT OFF NOW COSTS THE CHARTS. This paragraph used to end "nothing else breaks —
+          the in-process collector still serves the existing metrics API", and that was true until
+          phase 4 of the migration deleted the collector. There is no second backend: with this
+          off, `/api/workload/:name/metrics` returns an empty series labelled
+          `historySource: "none"`, and the resource charts have nothing to draw.
+
+          Live status is unaffected — the dashboard's running/stopped state, uptime and the host
+          gauges come from a different path entirely. What you lose is per-workload HISTORY.
         '';
       };
 
@@ -971,10 +977,11 @@ in
 
         scrapeConfigs = [{
           job_name = "weaver";
-          # 30s matches the in-process collector's sampling interval. A faster scrape would not
-          # produce finer data — the cgroup counters are read at scrape time, but the UI contract
-          # and the existing buffer are both built on 30s — and a slower one would leave gaps the
-          # chart would have to render as absent readings.
+          # 30s is the UI contract, and since phase 4 retired the in-process collector it is the
+          # ONLY clock in the metrics path — this scrape is what defines sample spacing. It must
+          # agree with SAMPLE_INTERVAL_MS, which the PromQL grid is materialised on: a faster
+          # scrape produces samples the grid discards, and a slower one leaves slots the grid
+          # renders as absent readings on a workload that was reporting fine.
           scrape_interval = "30s";
           static_configs = [{
             targets = [ "127.0.0.1:${toString cfg.port}" ];
@@ -983,9 +990,10 @@ in
         }];
       };
 
-      # Tell the backend where to READ history from. Without this the module
-      # would run a Prometheus that nothing queries: the exporter feeds it, it retains samples
-      # across restarts, and the UI keeps serving the in-process ring buffer that phase 4 deletes.
+      # Tell the backend where to READ history from. Without this the module would run a
+      # Prometheus that nothing queries — the exporter feeding a store no one asks — and, since
+      # phase 4 removed the in-process buffer that used to answer instead, the charts would be
+      # empty on a host that is collecting perfectly well.
       #
       # Derived from the same two options the server is configured with, never restated — a
       # literal `127.0.0.1:9090` here would silently point at nothing the moment an operator

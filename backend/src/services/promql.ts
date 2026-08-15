@@ -2,10 +2,10 @@
 // Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE.
 
 /**
- * PromQL read path — history served from Prometheus rather than from an in-process buffer.
+ * PromQL read path — the source of metric history.
  *
- * Serves the SAME `MetricSample[]` the in-process ring buffer serves, from Prometheus instead of
- * from memory. The gate for this phase is that the UI does not move: `WorkloadMetricsChart.vue`
+ * Serves `MetricSample[]`, the same shape the in-process ring buffer served until phase 4 deleted
+ * it. The gate for this phase was that the UI does not move: `WorkloadMetricsChart.vue`
  * and `useWorkloadMetrics.ts` are the specification, and every decision below exists because the
  * *rendered product* demands it rather than because Prometheus offers it.
  *
@@ -27,7 +27,9 @@
  *      Prometheus has no notion of Weaver's per-VM ACLs, and `resolveWindowMs` is the tier gate.
  *
  * Presentation (rounding, clamping) is deliberately NOT reimplemented here — `clampCpuPercent`
- * and `roundBps` are imported from the ring buffer's module so the two backends cannot drift.
+ * and `roundBps` are imported from `services/metrics.ts`, which is now the pure-arithmetic module
+ * they always were. Sharing them is what kept the two backends from drifting while both existed,
+ * and it is what keeps this path and the exporter agreeing now that one of them is gone.
  */
 
 import { clampCpuPercent, roundBps, SAMPLE_INTERVAL_MS, type MetricSample } from './metrics.js'
@@ -77,10 +79,10 @@ export function escapeMatcherValue(value: string): string {
  * would shift the whole series by a few seconds and the chart would jitter horizontally while
  * showing identical data.
  *
- * Length is `windowMs / stepMs` points ending at the aligned now — matching the ring buffer, which
- * holds exactly that many samples for a tier. Emitting the extra boundary point would put one more
- * sample on the chart under Prometheus than under the buffer, which is precisely the kind of
- * visible difference this phase's gate forbids.
+ * Length is `windowMs / stepMs` points ending at the aligned now — the count the ring buffer held
+ * for a tier, kept deliberately after the buffer went. Emitting the extra boundary point would put
+ * one more sample on the chart than the buffer ever did, which is precisely the kind of visible
+ * difference the migration's gate forbade.
  */
 export function buildGrid(opts: { nowMs: number; windowMs: number; stepMs?: number }): number[] {
   const stepMs = opts.stepMs ?? SAMPLE_INTERVAL_MS
@@ -221,8 +223,8 @@ export function buildQueries(name: string, stepSec: number): {
 /**
  * Reads a workload's series from Prometheus.
  *
- * Deliberately shaped like `MetricsCollector.getSamples` so the route's call site is a one-line
- * swap and phase 4 can delete the buffer without touching the handler again.
+ * Shaped like the retired `MetricsCollector.getSamples` — which is why phase 4 deleted the buffer
+ * by removing a branch from the route rather than rewriting the handler.
  *
  * **This class never absorbs a query failure.** `getSamples` returning `[]` on an unreachable
  * Prometheus would be indistinguishable from a workload with no history, so a broken monitoring

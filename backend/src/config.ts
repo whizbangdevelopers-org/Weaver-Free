@@ -128,14 +128,18 @@ export interface DashboardConfig {
   /** SMTP configuration for transactional emails (null = email disabled) */
   smtp: SmtpConfig | null
   /**
-   * Base URL of the Prometheus that scrapes this host, or null to serve metrics from the
-   * in-process ring buffer.
+   * Base URL of the Prometheus that scrapes this host, or null for no metric history at all.
    *
-   * Set by the NixOS module when `services.weaver.metrics.enable` is on. Null is not a
-   * degraded state during the migration — it is the pre-Prometheus path, still correct and
-   * still tested — but once this IS set, a query failure is refused rather than falling back:
-   * an unreachable store rendering as an empty chart is indistinguishable from an idle
-   * workload. See `services/promql.ts`.
+   * Set by the NixOS module when `services.weaver.metrics.enable` is on, which is the default on
+   * every tier. Null used to mean "serve from the in-process ring buffer"; phase 4 deleted that
+   * buffer, so null now means the metrics endpoint returns an empty series labelled
+   * `historySource: 'none'`. That is the honest consequence of switching the option off, not a
+   * degradation — what it is NOT is a fallback, because two stores of the same numbers is the
+   * state the migration existed to end.
+   *
+   * When this IS set, a query failure is refused rather than absorbed: an unreachable store
+   * rendering as an empty chart is indistinguishable from an idle workload. See
+   * `services/promql.ts`.
    */
   prometheusUrl: string | null
 }
