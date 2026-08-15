@@ -648,6 +648,24 @@ curl -sf http://localhost:3100/api/health > /dev/null || echo "Weaver is down"
 
 ### Host Information (Weaver Solo+ Admin)
 
+### MicroVM state directory
+
+`services.weaver.microvmsDir` tells Weaver where microvm.nix keeps each VM's generated files. It
+**defaults to `microvm.stateDir`** when the microvm.nix host module is present, so on a normal
+install there is nothing to set — and setting it to something that disagrees with `stateDir` is
+almost always a mistake.
+
+It matters more than a path option looks like it should. Weaver reads each VM's
+`<microvmsDir>/<name>/current/bin/microvm-run` to learn its vCPU count, memory and hypervisor. If
+the path is wrong the read simply fails, the workload registers as **0 vCPU / 0 MB / unknown**, and
+nothing errors — the VM still appears in the dashboard, with no specs and a permanently empty CPU
+chart, because there is no vCPU count to normalise its CPU usage against.
+
+If you see workloads listed with zero vCPU and an `unknown` hypervisor, that is the symptom.
+Confirm the two directories agree, then run a scan (Settings → Workloads → Scan, or
+`POST /api/workload/scan`): a scan re-reads the specs of workloads it already knows and corrects
+stale rows in place.
+
 Weaver Solo/Team admins can view detailed host metrics in Settings under "Host Information":
 
 - NixOS version
