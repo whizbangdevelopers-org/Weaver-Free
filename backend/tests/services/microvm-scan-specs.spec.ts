@@ -156,3 +156,91 @@ describe('scanMicrovms — reading specs from the configured state directory', (
     expect(registry.added[0]).toMatchObject({ vcpu: 2, mem: 512, hypervisor: 'cloud-hypervisor' })
   })
 })
+
+describe('scanMicrovms — refreshing specs on an already-known workload', () => {
+  /** A registry pre-seeded with a workload, so scan takes the `existing` branch. */
+  function seeded(initial: WorkloadDefinition): WorkloadRegistry & { rows: Record<string, WorkloadDefinition> } {
+    const rows: Record<string, WorkloadDefinition> = { [initial.name]: { ...initial } }
+    return {
+      rows,
+      init: async () => {},
+      getAll: async () => ({ ...rows }),
+      get: async (n: string) => rows[n] ?? null,
+      has: async (n: string) => n in rows,
+      add: async (vm: WorkloadDefinition) => { rows[vm.name] = vm; return true },
+      remove: async () => true,
+      update: async (n: string, fields: Partial<WorkloadDefinition>) => {
+        if (!rows[n]) return false
+        rows[n] = { ...rows[n], ...fields }
+        return true
+      },
+    } as unknown as WorkloadRegistry & { rows: Record<string, WorkloadDefinition> }
+  }
+
+  const STALE = {
+    name: 'probe', ip: '10.0.0.5', mem: 0, vcpu: 0, hypervisor: 'unknown',
+    description: 'set by a human', tags: ['keep-me'], autostart: true,
+  } as unknown as WorkloadDefinition
+
+  beforeEach(() => {
+    vi.resetAllMocks()
+    setConfig(configWith('/data/microvms'))
+    mockUnitList(['probe'])
+  })
+
+  it('re-reads and CORRECTS a stale 0/0/unknown row', async () => {
+    // The repair path. Without it, a workload discovered while the path was wrong keeps its bad
+    // specs forever — scan only ever added — so fixing the path fixes nothing already installed.
+    const reg = seeded(STALE)
+    setRegistry(reg)
+    mockReadFile.mockResolvedValue(RUN_SCRIPT)
+
+    const result = await scanMicrovms()
+
+    expect(reg.rows['probe']).toMatchObject({ vcpu: 4, mem: 2048, hypervisor: 'qemu' })
+    expect(result.refreshed).toEqual(['probe'])
+    expect(result.added).toEqual([])
+    expect(result.existing).toEqual(['probe'])
+  })
+
+  it('does NOT touch user-owned fields while refreshing derived ones', async () => {
+    // mem/vcpu/hypervisor come from the generated run script; ip, tags, description and autostart
+    // are the operator's. A whole-row rewrite would silently discard their work.
+    const reg = seeded(STALE)
+    setRegistry(reg)
+    mockReadFile.mockResolvedValue(RUN_SCRIPT)
+
+    await scanMicrovms()
+
+    expect(reg.rows['probe']).toMatchObject({
+      ip: '10.0.0.5', description: 'set by a human', tags: ['keep-me'], autostart: true,
+    })
+  })
+
+  it('leaves GOOD specs alone when the script becomes unreadable', async () => {
+    // The guard that makes the whole refresh safe. readMicrovmSpecs returns null rather than
+    // zeros precisely so a transient read failure cannot blank a healthy workload's vCPU count
+    // and kill its CPU chart — the very failure this change exists to repair.
+    const healthy = { ...STALE, mem: 2048, vcpu: 4, hypervisor: 'qemu' } as WorkloadDefinition
+    const reg = seeded(healthy)
+    setRegistry(reg)
+    mockReadFile.mockRejectedValue(new Error('EIO'))
+
+    const result = await scanMicrovms()
+
+    expect(reg.rows['probe']).toMatchObject({ mem: 2048, vcpu: 4, hypervisor: 'qemu' })
+    expect(result.refreshed).toEqual([])
+  })
+
+  it('reports nothing refreshed when the specs already agree', async () => {
+    // Idempotence: a scan on a healthy host must be a no-op, or `refreshed` becomes noise and
+    // stops meaning "something was corrected".
+    const reg = seeded({ ...STALE, mem: 2048, vcpu: 4, hypervisor: 'qemu' } as WorkloadDefinition)
+    setRegistry(reg)
+    mockReadFile.mockResolvedValue(RUN_SCRIPT)
+
+    const result = await scanMicrovms()
+
+    expect(result.refreshed).toEqual([])
+  })
+})

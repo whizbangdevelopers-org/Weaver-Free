@@ -984,6 +984,12 @@ export interface ScanResult {
   discovered: string[]
   added: string[]
   existing: string[]
+  /**
+   * Already-known workloads whose derived specs (mem / vCPU / hypervisor) were re-read and had
+   * changed. MicroVM scans only; container runtimes report their specs inline, so there is no
+   * second source to drift from.
+   */
+  refreshed?: string[]
 }
 
 /**
@@ -1004,8 +1010,7 @@ export interface ScanResult {
  * Measured on a host whose `microvm.stateDir` is `/data/microvms`: a running declarative microvm
  * declaring `vcpu = 1; mem = 256;` in its own config registered as 0/0/unknown.
  */
-async function readMicrovmSpecs(name: string): Promise<{ mem: number; vcpu: number; hypervisor: string }> {
-  const defaults = { mem: 0, vcpu: 0, hypervisor: 'unknown' }
+async function readMicrovmSpecs(name: string): Promise<{ mem: number; vcpu: number; hypervisor: string } | null> {
   const microvmsDir = config?.microvmsDir ?? '/var/lib/microvms'
   try {
     const script = await readFile(`${microvmsDir}/${name}/current/bin/microvm-run`, 'utf-8')
@@ -1038,15 +1043,23 @@ async function readMicrovmSpecs(name: string): Promise<{ mem: number; vcpu: numb
 
     return { mem, vcpu, hypervisor }
   } catch {
-    return defaults
+    // NULL, not zeros. The caller must be able to tell "this VM has no specs" from "I could not
+    // read them", because the second must never be written over specs that are already correct —
+    // a transient read failure would otherwise blank a healthy workload's vCPU count and silently
+    // kill its CPU chart.
+    return null
   }
 }
+
+/** The row a workload gets when its run script has never been readable. */
+const UNKNOWN_SPECS = { mem: 0, vcpu: 0, hypervisor: 'unknown' } as const
 
 export async function scanMicrovms(): Promise<ScanResult> {
   const systemctl = config?.systemctlBin ?? 'systemctl'
   const discovered: string[] = []
   const added: string[] = []
   const existing: string[] = []
+  const refreshed: string[] = []
 
   try {
     const { stdout } = await execFileAsync(systemctl, [
@@ -1061,11 +1074,33 @@ export async function scanMicrovms(): Promise<ScanResult> {
       const name = match[1]
       discovered.push(name)
 
+      const specs = await readMicrovmSpecs(name)
+
       if (await registry.has(name)) {
         existing.push(name)
+
+        // REFRESH, don't just acknowledge. Scan used to only ever ADD, so a workload whose specs
+        // were read wrong once kept that row forever — and since mem/vcpu/hypervisor are derived
+        // from the generated run script rather than entered by a user, a stale row is simply
+        // wrong rather than a preference to preserve. That made a path bug unrepairable in place:
+        // every already-discovered VM stayed at 0/0/unknown after the path was corrected, on
+        // every host, with no way to fix it below the tier that can delete a workload.
+        //
+        // Only when the script was actually readable (see the null above), and only the three
+        // derived fields — ip, tags, description and autostart are the user's and are not touched.
+        if (specs) {
+          const current = await registry.get(name)
+          const changed = !current
+            || current.mem !== specs.mem
+            || current.vcpu !== specs.vcpu
+            || current.hypervisor !== specs.hypervisor
+          if (changed) {
+            await registry.update(name, specs)
+            refreshed.push(name)
+          }
+        }
       } else {
-        const specs = await readMicrovmSpecs(name)
-        await registry.add({ name, ip: '', ...specs })
+        await registry.add({ name, ip: '', ...(specs ?? UNKNOWN_SPECS) })
         added.push(name)
       }
     }
@@ -1073,7 +1108,7 @@ export async function scanMicrovms(): Promise<ScanResult> {
     // systemctl list-units returns exit code 1 when no units match — not an error
   }
 
-  return { discovered, added, existing }
+  return { discovered, added, existing, refreshed }
 }
 
 /**
