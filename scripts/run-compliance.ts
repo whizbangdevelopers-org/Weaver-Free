@@ -101,6 +101,7 @@ export const PHASES: Phase[] = [
       'audit:hooks',
       'audit:template-divergence',
       'audit:taint',
+      'audit:semgrep-regression',
       'audit:codeql-coverage',
       'audit:redos',
       'audit:doc-parity',
