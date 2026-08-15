@@ -32,6 +32,19 @@
       <div class="text-caption">{{ error }}</div>
     </q-card-section>
 
+    <!-- No metrics store on this host. Ordered BEFORE the empty state because it is also empty,
+         and the empty state's message ("samples are taken every 30 seconds") is a promise that
+         never resolves here — the reader waits, then decides the feature is broken. -->
+    <q-card-section v-else-if="hasNoHistoryStore" class="text-center text-grey-8 q-pa-lg" data-testid="metrics-no-store">
+      <q-icon name="mdi-database-off-outline" size="36px" class="q-mb-xs" />
+      <div class="text-caption">
+        Resource history is not being stored on this host.
+      </div>
+      <div class="text-caption text-grey-6 q-mt-xs">
+        Set <code>services.weaver.metrics.enable = true</code> and rebuild to record it.
+      </div>
+    </q-card-section>
+
     <!-- Nothing collected yet. Distinct from "collected, but unmeasurable" below: this is the
          first-30-seconds state and it resolves on its own. -->
     <q-card-section v-else-if="samples.length === 0" class="text-center text-grey-8 q-pa-lg" data-testid="metrics-empty">
@@ -116,7 +129,7 @@ const props = defineProps<{ workloadName: string }>()
 
 const {
   samples, windowMs, intervalMs, loading, error,
-  cpuSeries, memorySeries, diskReadSeries, diskWriteSeries, hasNoReadings,
+  cpuSeries, memorySeries, diskReadSeries, diskWriteSeries, hasNoReadings, hasNoHistoryStore,
   fetchMetrics, startPolling,
 } = useWorkloadMetrics(() => props.workloadName)
 

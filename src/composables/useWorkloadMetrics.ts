@@ -23,6 +23,14 @@ export function useWorkloadMetrics(name: () => string) {
   const intervalMs = ref(0)
   const loading = ref(false)
   const error = ref<string | null>(null)
+  /**
+   * Where the backend got the history — `'none'` when the host has no metrics store.
+   *
+   * Defaults to `'prometheus'` rather than `'none'`, because an older backend and a demo build
+   * both omit the field, and treating an omission as "no store" would show every one of them a
+   * configuration warning for a feature that is working.
+   */
+  const historySource = ref<'prometheus' | 'none'>('prometheus')
   let timer: ReturnType<typeof setInterval> | null = null
 
   async function fetchMetrics(window?: string): Promise<void> {
@@ -35,6 +43,7 @@ export function useWorkloadMetrics(name: () => string) {
       samples.value = data.samples
       windowMs.value = data.windowMs
       intervalMs.value = data.intervalMs
+      historySource.value = data.historySource ?? 'prometheus'
     } catch (err) {
       error.value = extractErrorMessage(err, 'Failed to load metrics')
     } finally {
@@ -79,9 +88,21 @@ export function useWorkloadMetrics(name: () => string) {
     () => samples.value.length > 0 && samples.value.every(s => s.cpuPercent === null && s.memoryBytes === null),
   )
 
+  /**
+   * The host has no metrics store, so there is no history and there never will be until an
+   * operator turns one on.
+   *
+   * This is a THIRD kind of empty and it has to outrank the other two in the template. Before the
+   * in-process ring buffer was retired, an empty series meant "nothing sampled yet" and resolved
+   * on its own within 30 seconds; the chart says exactly that. On a host with
+   * `services.weaver.metrics.enable = false` it now never resolves, so that message becomes a
+   * promise the product cannot keep — the reader waits, then concludes the feature is broken.
+   */
+  const hasNoHistoryStore = computed(() => historySource.value === 'none')
+
   return {
-    samples, windowMs, intervalMs, loading, error,
-    cpuSeries, memorySeries, diskReadSeries, diskWriteSeries, hasNoReadings,
+    samples, windowMs, intervalMs, loading, error, historySource,
+    cpuSeries, memorySeries, diskReadSeries, diskWriteSeries, hasNoReadings, hasNoHistoryStore,
     fetchMetrics, startPolling, stopPolling,
   }
 }
