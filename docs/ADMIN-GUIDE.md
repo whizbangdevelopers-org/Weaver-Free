@@ -160,6 +160,34 @@ curl -s http://localhost:3100/api/health | jq '.tier'
 
 After expiry, tier features remain accessible in read-only mode for a 30-day grace period. A warning banner appears in Settings. After the grace period, the instance reverts to the Free tier.
 
+**You are warned before any of that happens.** Weaver raises a notification at **30, 20, 10, 7, 5,
+3, 2 and 1 days** before the expiry date, on the `license:expiring` event. Combined with the
+30-day grace period that follows, that is a 60-day window in which to renew before anything is
+withdrawn. The last four warnings are raised at error severity, so a channel filtered to errors
+still receives them.
+
+The event is enabled by default on new channels — an expiry warning nobody switched on is a
+warning nobody gets. If a host was powered off across several thresholds, you receive one
+notification for the tightest one rather than a burst for all of them.
+
+### Renewal Takes Effect Without a Restart
+
+*Available: v1.1+*
+
+When a subscription renews, a new key is issued for the new period and emailed to the address on
+the subscription. Install it over the existing key file — the running Weaver re-reads that file
+periodically and picks up the new expiry on its own. There is no need to restart the service, and
+no window in which a renewed customer is running an expired key.
+
+The same mechanism means a licence that genuinely lapses is noticed while Weaver is running rather
+than at the next reboot, and the tier change is written to the audit log as
+`license.tier-changed`. A key file that is present but unreadable — most often because it is being
+written at that moment — never causes a downgrade: Weaver holds the current tier and tries again.
+
+> **Note:** hosts configured with the `LICENSE_KEY` environment variable rather than a key file
+> have nothing to re-read, since a process's environment cannot change while it runs. Those hosts
+> still need a restart to pick up a renewal.
+
 > **Note:** Tier restrictions are enforced at the API level, not just the UI. The TUI and direct API calls respect the same tier gates.
 
 ---
@@ -521,7 +549,7 @@ Admins can configure push notification channels in Settings under "Notifications
 
 ### Notification Events
 
-Events are grouped into four categories:
+Events are grouped into five categories:
 
 | Category | Events |
 |----------|--------|
@@ -529,6 +557,7 @@ Events are grouped into four categories:
 | Provisioning | provisioned, provision-failed |
 | Resource alerts | high CPU, high memory |
 | Security | auth failure, unauthorized access, permission denied |
+| License | expiring, changed |
 
 Session lifecycle events (login kick, logout) do not trigger security notifications. Each channel can subscribe to any combination of events.
 

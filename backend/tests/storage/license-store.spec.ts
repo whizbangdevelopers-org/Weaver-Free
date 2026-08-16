@@ -62,17 +62,41 @@ describe('LicenseStore', () => {
     expect(found).toHaveLength(2)
   })
 
-  it('updates expiry by subscription ID', async () => {
+  // `renew` replaced `updateExpiry`, which moved the expiry ALONE. That wrote to a field no
+  // enforcement path reads — the authority is the key, which carries its own signed expiry — so
+  // a renewed row recorded a customer as current while the key on their host still expired at
+  // the end of their first billing period.
+  it('replaces the key and the expiry together', async () => {
     await store.save(makeRecord())
-    const updated = await store.updateExpiry('sub_test456', '2028-01-01T00:00:00.000Z')
-    expect(updated).toBe(true)
+    const renewed = await store.renew('sub_test456', 'WVR-WVS-NEWKEY123456-C3D4', '2028-01-01T00:00:00.000Z')
+
+    expect(renewed).toBe(true)
     const found = store.findBySubscription('sub_test456')
     expect(found!.expiresAt).toBe('2028-01-01T00:00:00.000Z')
+    // The half that used to be missed: the stored key must be the one that carries that expiry.
+    expect(found!.key).toBe('WVR-WVS-NEWKEY123456-C3D4')
   })
 
-  it('returns false when updating non-existent subscription', async () => {
-    const updated = await store.updateExpiry('sub_nonexistent', '2028-01-01T00:00:00.000Z')
-    expect(updated).toBe(false)
+  it('finds the renewed licence by its NEW key, and no longer by the old one', async () => {
+    await store.save(makeRecord())
+    await store.renew('sub_test456', 'WVR-WVS-NEWKEY123456-C3D4', '2028-01-01T00:00:00.000Z')
+
+    expect(store.findByKey('WVR-WVS-NEWKEY123456-C3D4')).not.toBeNull()
+    expect(store.findByKey('WVR-WVS-ABCD1234EFGH-A1B2')).toBeNull()
+  })
+
+  it('returns false when renewing a non-existent subscription', async () => {
+    const renewed = await store.renew('sub_nonexistent', 'WVR-WVS-NEWKEY123456-C3D4', '2028-01-01T00:00:00.000Z')
+    expect(renewed).toBe(false)
+  })
+
+  // Re-minting for a revoked licence would silently un-revoke it through a routine Stripe event.
+  it('refuses to renew a revoked licence', async () => {
+    await store.save(makeRecord())
+    await store.revoke('sub_test456')
+
+    expect(await store.renew('sub_test456', 'WVR-WVS-NEWKEY123456-C3D4', '2028-01-01T00:00:00.000Z')).toBe(false)
+    expect(store.findBySubscription('sub_test456')!.key).toBe('WVR-WVS-ABCD1234EFGH-A1B2')
   })
 
   it('revokes a license by subscription ID', async () => {

@@ -15,6 +15,9 @@ export type NotificationEventType =
   | 'security:auth-failure'
   | 'security:unauthorized-access'
   | 'security:permission-denied'
+  // License lifecycle — expiry countdown and runtime tier changes
+  | 'license:expiring'
+  | 'license:changed'
   // Migration events (Fabrick v2.3+)
   | 'migration:eligible'
   | 'migration:completed'
@@ -25,12 +28,13 @@ export type NotificationEventType =
   | 'fleet-bridge:endpoint-registered'
   | 'fleet-bridge:hub-sync'
 
-export type NotificationEventCategory = 'vm' | 'resource' | 'security' | 'migration' | 'fleet-bridge'
+export type NotificationEventCategory = 'vm' | 'resource' | 'security' | 'license' | 'migration' | 'fleet-bridge'
 
 export const EVENT_CATEGORIES: Record<NotificationEventCategory, NotificationEventType[]> = {
   vm: ['vm:started', 'vm:stopped', 'vm:failed', 'vm:recovered'],
   resource: ['resource:high-cpu', 'resource:high-memory'],
   security: ['security:auth-failure', 'security:unauthorized-access', 'security:permission-denied'],
+  license: ['license:expiring', 'license:changed'],
   migration: ['migration:eligible', 'migration:completed'],
   'fleet-bridge': ['fleet-bridge:blue-green', 'fleet-bridge:cordon', 'fleet-bridge:weight-adjust', 'fleet-bridge:endpoint-registered', 'fleet-bridge:hub-sync'],
 }

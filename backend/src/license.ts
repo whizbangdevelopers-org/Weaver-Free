@@ -66,9 +66,18 @@ export function computeChecksum(prefix: string, hmacSecret: string): string {
  *
  * Returns the parsed tier and expiry. Handles grace period logic:
  * - If expired within 30 days: tier stays, graceMode = true
- * - If expired beyond 30 days: tier = demo, graceMode = false
+ * - If expired beyond 30 days: tier = free, graceMode = false
+ *
+ * (That last line read `tier = demo` until 2026-08-16, against code that has always returned
+ * FREE — and the inline comment at the return says why FREE is deliberate: a lapsed customer
+ * keeps real access to their own workloads, they do not get moved onto demo data.)
+ *
+ * `now` is injectable because expiry and grace are the whole point of this function and both are
+ * time-dependent. Resolution happens on every re-read of the key file, not only at start-up, so
+ * "the same key parsed later gives a different tier" is a behaviour with its own tests rather
+ * than an implementation detail.
  */
-export function parseLicenseKey(key: string, hmacSecret: string): LicenseResult {
+export function parseLicenseKey(key: string, hmacSecret: string, now: Date = new Date()): LicenseResult {
   if (!KEY_REGEX.test(key)) {
     throw new Error(`Invalid license key format: key must match ${KEY_REGEX.source}`)
   }
@@ -111,7 +120,6 @@ export function parseLicenseKey(key: string, hmacSecret: string): LicenseResult 
 
   // Check expiry and grace period
   if (expiry) {
-    const now = new Date()
     if (now > expiry) {
       const graceCutoff = new Date(expiry.getTime() + GRACE_PERIOD_DAYS * 24 * 60 * 60 * 1000)
       if (now <= graceCutoff) {

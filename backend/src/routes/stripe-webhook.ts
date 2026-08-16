@@ -132,18 +132,99 @@ export const stripeWebhookRoutes: FastifyPluginAsync<StripeWebhookOptions> = asy
         break
       }
 
+      /**
+       * Renewal — mint a NEW key and push it to the customer.
+       *
+       * This branch used to move the stored `expiresAt` forward and stop there. That is a write
+       * to a field nothing enforces: the expiry that decides a host's tier is encoded in the
+       * signed key the customer installed, and a renewal that does not mint a key leaves them
+       * holding one that expires at the end of their FIRST period. It keeps working only because
+       * the host reads its key at start-up — so the failure surfaces at the next restart, as a
+       * paying customer silently dropping to Free.
+       *
+       * So: mint for the new period, replace key and expiry as one write, and email it. The
+       * host picks it up on its next key-file read without a restart.
+       */
       case 'customer.subscription.updated': {
         const sub = event.data.object
         const subId = sub.id
 
-        // Update license expiry when subscription renews
-        if (sub.status === 'active') {
-          const periodEnd = (sub as unknown as { current_period_end: number }).current_period_end
-          const expiresAt = new Date(periodEnd * 1000)
-          const updated = await opts.licenseStore.updateExpiry(subId, expiresAt.toISOString())
-          if (updated) {
-            fastify.log.info({ subscriptionId: subId, expiresAt: expiresAt.toISOString() }, 'License expiry updated from subscription renewal')
+        if (sub.status !== 'active') break
+
+        const existing = opts.licenseStore.findBySubscription(subId)
+        if (!existing) {
+          // Nothing to renew — a subscription we never issued for. Not an error: the checkout
+          // branch owns first issuance, and Stripe emits `updated` for changes we don't act on.
+          fastify.log.debug({ subscriptionId: subId }, 'subscription.updated for an unknown subscription — ignoring')
+          break
+        }
+        if (existing.revokedAt) {
+          // Revoked locally. Re-minting here would silently un-revoke a licence through a
+          // routine Stripe event, which is a grant nobody made.
+          fastify.log.warn({ subscriptionId: subId }, 'subscription.updated for a revoked licence — not re-issuing')
+          break
+        }
+
+        try {
+          const license = await generateLicenseFromSubscription(subId, opts.hmacSecret)
+          const renewed = await opts.licenseStore.renew(
+            subId,
+            license.key,
+            license.expiresAt.toISOString(),
+          )
+          if (!renewed) break
+
+          fastify.log.info({
+            subscriptionId: subId,
+            key: license.key.slice(0, 8) + '...',
+            expiresAt: license.expiresAt.toISOString(),
+          }, 'License renewed — new key minted for the new period')
+
+          opts.auditService?.log({
+            action: 'license.renewed',
+            success: true,
+            userId: null,
+            username: 'stripe-webhook',
+            ip: request.ip,
+            details: { tier: license.tier, subscriptionId: subId, expiresAt: license.expiresAt.toISOString() },
+          })
+
+          // Fire-and-forget, exactly as first issuance is: a mail failure must not fail the
+          // webhook, or Stripe retries and we mint again. The key is already persisted and the
+          // customer can retrieve it, so the durable half has happened either way.
+          const to = existing.email
+          if (opts.emailService && to) {
+            opts.emailService.sendLicenseKey({
+              to,
+              licenseKey: license.key,
+              tier: license.tier,
+              expiresAt: license.expiresAt.toISOString(),
+              foundingMember: existing.foundingMember,
+              siteUrl: opts.siteUrl,
+            }).then(() => {
+              fastify.log.info({ to }, 'Renewal license key email sent')
+            }).catch((err) => {
+              fastify.log.error(err, 'Failed to send renewal license key email')
+              opts.auditService?.log({
+                action: 'license.email-failed',
+                success: false,
+                userId: null,
+                username: 'stripe-webhook',
+                ip: request.ip,
+                details: { tier: license.tier, to, error: String(err) },
+              })
+            })
           }
+        } catch (err) {
+          fastify.log.error(err, 'Failed to renew license from subscription')
+          opts.auditService?.log({
+            action: 'license.renewal-failed',
+            success: false,
+            userId: null,
+            username: 'stripe-webhook',
+            ip: request.ip,
+            details: { subscriptionId: subId, error: String(err) },
+          })
         }
         break
       }

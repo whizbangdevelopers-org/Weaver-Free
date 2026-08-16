@@ -389,9 +389,27 @@ describe('Stripe Webhook Route', () => {
 
   // --- customer.subscription.updated ---
 
+  /**
+   * Renewal must MINT and PUSH a new key.
+   *
+   * The test that stood here asserted `expiresAt` had moved to 2028 and stopped — and it passed,
+   * against an implementation that advanced the stored expiry and never touched the key. That is
+   * a write to a field nothing enforces: the expiry that decides a host's tier is signed into the
+   * key the customer installed. So a "renewed" customer kept a key expiring at the end of their
+   * FIRST period, and dropped to Free on their next restart.
+   *
+   * The assertion that would have caught it is the one about the key, so these tests lead with it.
+   */
   describe('customer.subscription.updated', () => {
-    it('updates license expiry on renewal', async () => {
-      // Pre-seed a license
+    const RENEWED = {
+      key: 'WVR-WVS-RENEWED123456-B2C3',
+      tier: 'weaver' as const,
+      customerId: 'cus_existing',
+      subscriptionId: 'sub_renew_123',
+      expiresAt: new Date('2028-01-01T00:00:00Z'),
+    }
+
+    async function seedLicense(over: Record<string, unknown> = {}) {
       await licenseStore.save({
         key: 'WVR-WVS-EXISTING00000-XXXX',
         tier: 'weaver',
@@ -401,21 +419,131 @@ describe('Stripe Webhook Route', () => {
         createdAt: new Date().toISOString(),
         email: 'user@example.com',
         foundingMember: false,
+        ...over,
       })
+    }
 
-      const newPeriodEnd = Math.floor(new Date('2028-01-01').getTime() / 1000)
-      const event = makeSubscriptionUpdatedEvent('sub_renew_123', newPeriodEnd)
+    it('mints a new key and stores it with the new expiry', async () => {
+      await seedLicense()
+      mockGenerateLicenseFromSubscription.mockResolvedValue(RENEWED)
+      mockConstructWebhookEvent.mockReturnValue(
+        makeSubscriptionUpdatedEvent('sub_renew_123', Math.floor(RENEWED.expiresAt.getTime() / 1000)),
+      )
+
+      const app = buildApp({})
+      await app.ready()
+      expect((await injectWebhook(app)).statusCode).toBe(200)
+
+      const updated = licenseStore.findBySubscription('sub_renew_123')
+      expect(updated!.key).toBe('WVR-WVS-RENEWED123456-B2C3')
+      expect(updated!.expiresAt).toContain('2028')
+      await app.close()
+    })
+
+    it('emails the new key to the address on the existing record', async () => {
+      await seedLicense()
+      mockGenerateLicenseFromSubscription.mockResolvedValue(RENEWED)
+      mockConstructWebhookEvent.mockReturnValue(
+        makeSubscriptionUpdatedEvent('sub_renew_123', Math.floor(RENEWED.expiresAt.getTime() / 1000)),
+      )
+
+      const sendLicenseKey = vi.fn().mockResolvedValue(undefined)
+      const app = buildApp({ emailService: { sendLicenseKey } as unknown as EmailService })
+      await app.ready()
+      await injectWebhook(app)
+
+      // A stored key nobody is told about is not a push — the customer has to install it.
+      expect(sendLicenseKey).toHaveBeenCalledWith(
+        expect.objectContaining({ to: 'user@example.com', licenseKey: 'WVR-WVS-RENEWED123456-B2C3' }),
+      )
+      await app.close()
+    })
+
+    it('carries founding-member status onto the renewal', async () => {
+      await seedLicense({ foundingMember: true })
+      mockGenerateLicenseFromSubscription.mockResolvedValue(RENEWED)
+      mockConstructWebhookEvent.mockReturnValue(
+        makeSubscriptionUpdatedEvent('sub_renew_123', Math.floor(RENEWED.expiresAt.getTime() / 1000)),
+      )
+
+      const sendLicenseKey = vi.fn().mockResolvedValue(undefined)
+      const app = buildApp({ emailService: { sendLicenseKey } as unknown as EmailService })
+      await app.ready()
+      await injectWebhook(app)
+
+      expect(sendLicenseKey).toHaveBeenCalledWith(expect.objectContaining({ foundingMember: true }))
+      await app.close()
+    })
+
+    it('ignores a non-active subscription status', async () => {
+      await seedLicense()
+      const event = makeSubscriptionUpdatedEvent('sub_renew_123', 0)
+      event.data.object.status = 'past_due'
       mockConstructWebhookEvent.mockReturnValue(event)
 
       const app = buildApp({})
       await app.ready()
+      expect((await injectWebhook(app)).statusCode).toBe(200)
 
-      const res = await injectWebhook(app)
-      expect(res.statusCode).toBe(200)
+      expect(mockGenerateLicenseFromSubscription).not.toHaveBeenCalled()
+      expect(licenseStore.findBySubscription('sub_renew_123')!.key).toBe('WVR-WVS-EXISTING00000-XXXX')
+      await app.close()
+    })
 
-      const updated = licenseStore.findBySubscription('sub_renew_123')
-      expect(updated).not.toBeNull()
-      expect(updated!.expiresAt).toContain('2028')
+    it('does not issue for a subscription it never issued for', async () => {
+      mockConstructWebhookEvent.mockReturnValue(makeSubscriptionUpdatedEvent('sub_unknown', 0))
+
+      const app = buildApp({})
+      await app.ready()
+      expect((await injectWebhook(app)).statusCode).toBe(200)
+
+      expect(mockGenerateLicenseFromSubscription).not.toHaveBeenCalled()
+      await app.close()
+    })
+
+    // Stripe emits `updated` for plenty of changes. Re-minting on one of them after a local
+    // revoke would silently restore a licence somebody deliberately took away.
+    it('does not re-issue for a revoked licence', async () => {
+      await seedLicense()
+      await licenseStore.revoke('sub_renew_123')
+      mockConstructWebhookEvent.mockReturnValue(makeSubscriptionUpdatedEvent('sub_renew_123', 0))
+
+      const app = buildApp({})
+      await app.ready()
+      expect((await injectWebhook(app)).statusCode).toBe(200)
+
+      expect(mockGenerateLicenseFromSubscription).not.toHaveBeenCalled()
+      await app.close()
+    })
+
+    // Stripe retries a non-2xx, and a retry would mint again. The key is already persisted, so
+    // the durable half has happened either way.
+    it('still returns 200 when minting fails, and leaves the old key in place', async () => {
+      await seedLicense()
+      mockGenerateLicenseFromSubscription.mockRejectedValue(new Error('Stripe unreachable'))
+      mockConstructWebhookEvent.mockReturnValue(makeSubscriptionUpdatedEvent('sub_renew_123', 0))
+
+      const app = buildApp({})
+      await app.ready()
+      expect((await injectWebhook(app)).statusCode).toBe(200)
+
+      expect(licenseStore.findBySubscription('sub_renew_123')!.key).toBe('WVR-WVS-EXISTING00000-XXXX')
+      await app.close()
+    })
+
+    it('still returns 200 when the renewal email fails', async () => {
+      await seedLicense()
+      mockGenerateLicenseFromSubscription.mockResolvedValue(RENEWED)
+      mockConstructWebhookEvent.mockReturnValue(makeSubscriptionUpdatedEvent('sub_renew_123', 0))
+
+      const app = buildApp({
+        emailService: { sendLicenseKey: vi.fn().mockRejectedValue(new Error('SMTP down')) } as unknown as EmailService,
+      })
+      await app.ready()
+      expect((await injectWebhook(app)).statusCode).toBe(200)
+
+      // Persisted regardless — the mail is fire-and-forget precisely so it cannot cost the key.
+      expect(licenseStore.findBySubscription('sub_renew_123')!.key).toBe('WVR-WVS-RENEWED123456-B2C3')
       await app.close()
     })
   })

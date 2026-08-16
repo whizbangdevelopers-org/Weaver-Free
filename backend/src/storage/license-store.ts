@@ -55,9 +55,23 @@ export class LicenseStore {
     return this.records.filter(r => r.stripeCustomerId === customerId && !r.revokedAt)
   }
 
-  async updateExpiry(subscriptionId: string, expiresAt: string): Promise<boolean> {
-    const record = this.records.find(r => r.stripeSubscriptionId === subscriptionId)
+  /**
+   * Replace a subscription's key and expiry together, as one write.
+   *
+   * There is deliberately no method that moves the expiry on its own. This replaced
+   * `updateExpiry`, which did exactly that on every renewal — and it was writing to a field no
+   * enforcement path reads. The authority is the KEY: it carries its own expiry in a signed
+   * payload, and `parseLicenseKey` resolves the tier from that, never from this row. So a renewal
+   * that advanced `expiresAt` here and left `key` alone recorded a customer as current while the
+   * key on their host still expired at the end of their first billing period.
+   *
+   * Keeping the two fields inseparable is the fix, not a tidy-up: a row whose `key` and
+   * `expiresAt` disagree is unrepresentable now rather than merely unlikely.
+   */
+  async renew(subscriptionId: string, key: string, expiresAt: string): Promise<boolean> {
+    const record = this.records.find(r => r.stripeSubscriptionId === subscriptionId && !r.revokedAt)
     if (!record) return false
+    record.key = key
     record.expiresAt = expiresAt
     await this.persist()
     return true

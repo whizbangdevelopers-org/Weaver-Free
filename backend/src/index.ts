@@ -5,6 +5,7 @@ import { resolve, join } from 'path'
 import { readFile, writeFile } from 'node:fs/promises'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
+import { randomUUID } from 'node:crypto'
 
 const execFileAsync = promisify(execFile)
 import Fastify, { type FastifyError } from 'fastify'
@@ -34,6 +35,11 @@ import { setRegistry, setProvisioner, setConfig, startAutostartVms, scanMicrovms
 import { SAMPLE_INTERVAL_MS } from './services/metrics.js'
 import { PromqlMetricsSource, httpRangeQuery } from './services/promql.js'
 import { DnsZoneWriter, retireZone } from './services/dns-writer.js'
+import {
+  resolveLicense, snapshotChanged, daysUntil, decideWarning, sentFor,
+  FREE_SNAPSHOT, EMPTY_WARNING_STATE, DEFAULT_POLL_INTERVAL_MS,
+  type LicenseSnapshot, type WarningState,
+} from './services/license-watcher.js'
 import { createImageManager } from './services/image-manager.js'
 import { UrlValidationService } from './services/url-validator.js'
 import type { Provisioner } from './services/provisioner-types.js'
@@ -499,37 +505,244 @@ const dnsDeps = {
   },
 }
 
-const dnsWriter = TIER_ORDER[config.tier] >= TIER_ORDER[TIERS.SOLO]
-  ? new DnsZoneWriter(dnsDeps, { hostsPath: dnsHostsPath, domain: config.dnsDomain })
-  : null
+/**
+ * DNS Core is Solo+, so whether this host publishes a zone follows the tier — and the tier can
+ * now change while the process runs. Publishing is therefore a state to enter and
+ * leave, not a decision taken once at start-up.
+ *
+ * `weaver-dnsmasq` is gated on `services.weaver.dns.enable`, the OPTION rather than the tier, so
+ * on a host where DNS Core is deployed the resolver keeps running and keeps answering from the
+ * last file Weaver wrote. Records left behind by a lapsed licence therefore outlive it
+ * indefinitely, frozen at the moment it lapsed and drifting from the registry thereafter — which
+ * is why leaving is an explicit withdrawal and not simply "stop writing".
+ */
+let dnsWriter: DnsZoneWriter | null = null
+let dnsTimer: ReturnType<typeof setInterval> | null = null
 
-if (!dnsWriter) {
-  // Below Solo there is no writer — and, until now, nothing that dealt with a zone a PREVIOUS
-  // licence had published. `weaver-dnsmasq` is gated on `services.weaver.dns.enable`, the option
-  // rather than the tier, so on a host where DNS Core is deployed it keeps running and keeps
-  // answering from the last file Weaver wrote. The records then outlive the licence indefinitely,
-  // frozen at the moment it lapsed and drifting from the registry from then on.
-  //
-  // Withdrawing them is a start-up concern rather than a timer one: a lapse is discovered when the
-  // process comes up without a key, and there is nothing to poll for afterwards.
-  void retireZone({ ...dnsDeps, readFile: async (path) => {
+const dnsRetireDeps = {
+  ...dnsDeps,
+  readFile: async (path: string): Promise<string | null> => {
     try {
       return await readFile(path, 'utf-8')
     } catch {
       return null
     }
-  } }, dnsHostsPath)
-    .then(result => {
-      if (result.retired) {
-        fastify.log.warn(
-          { hostsPath: dnsHostsPath, reloaded: result.reloaded },
-          'dns: withdrew a published zone — DNS Core requires Solo or above and this host has no ' +
-            'licence for it. The file is emptied, not removed, because dnsmasq refuses to start ' +
-            'without it. Install a licence and the zone republishes on the next sync.',
-        )
+  },
+}
+
+/**
+ * Begin (or resume) publishing.
+ *
+ * Idempotent, because it is called both at start-up and on every upward tier transition, and a
+ * second writer would mean two timers racing to advance the same zone serial.
+ */
+function startDnsPublishing(): void {
+  if (dnsWriter) return
+  dnsWriter = new DnsZoneWriter(dnsDeps, { hostsPath: dnsHostsPath, domain: config.dnsDomain })
+
+  // Only while there IS a writer: below Solo there is no zone to publish, and a timer that wakes
+  // every 30 seconds to do nothing is real cost on a Free host.
+  dnsTimer = setInterval(() => {
+    void (async () => {
+      try {
+        const defs = await getWorkloadDefinitions()
+        // The writer no-ops when the zone is unchanged, so a quiet host costs one comparison.
+        await dnsWriter?.sync(Object.values(defs).map(d => ({ name: d.name, ip: d.ip })))
+      } catch (err) {
+        fastify.log.error({ err }, 'DNS zone sync failed')
       }
+    })()
+  }, SAMPLE_INTERVAL_MS)
+  // Never hold the process open for a housekeeping timer.
+  dnsTimer.unref?.()
+}
+
+/**
+ * Stop publishing and withdraw whatever is already published.
+ *
+ * Safe to call when nothing was ever published: `retireZone` inspects first and reports
+ * `retired: false` for an absent file or one already carrying the banner, so an ordinary Free
+ * host neither creates a file it never had nor signals the resolver on every boot.
+ */
+async function stopDnsPublishing(): Promise<void> {
+  if (dnsTimer) {
+    clearInterval(dnsTimer)
+    dnsTimer = null
+  }
+  dnsWriter = null
+
+  try {
+    const result = await retireZone(dnsRetireDeps, dnsHostsPath)
+    if (result.retired) {
+      fastify.log.warn(
+        { hostsPath: dnsHostsPath, reloaded: result.reloaded },
+        'dns: withdrew a published zone — DNS Core requires Solo or above and this host has no ' +
+          'licence for it. The file is emptied, not removed, because dnsmasq refuses to start ' +
+          'without it. Install a licence and the zone republishes on the next sync.',
+      )
+    }
+  } catch (err) {
+    fastify.log.error({ err }, 'dns: failed to withdraw a published zone')
+  }
+}
+
+/** True when the CURRENT tier licenses DNS Core. Read live — never captured. */
+const dnsLicensed = (): boolean => TIER_ORDER[config.tier] >= TIER_ORDER[TIERS.SOLO]
+
+if (dnsLicensed()) {
+  startDnsPublishing()
+} else {
+  void stopDnsPublishing()
+}
+
+/**
+ * Licence re-read.
+ *
+ * The tier used to be resolved once, at start-up, and every gate in the backend reads that one
+ * value — so a renewal key could not take effect without a restart, and an expiry that elapsed
+ * mid-run left the process serving a tier the customer no longer had. Both are the same defect
+ * seen from opposite ends, and both are fixed by re-parsing the key on a timer.
+ *
+ * Nothing to do when the tier did not come from a file: `LICENSE_KEY` and `PREMIUM_ENABLED` are
+ * process environment, which cannot change under a running process.
+ */
+const warningStatePath = join(config.dataDir, 'license-warnings.json')
+
+async function readWarningState(): Promise<WarningState> {
+  try {
+    return JSON.parse(await readFile(warningStatePath, 'utf-8')) as WarningState
+  } catch {
+    return EMPTY_WARNING_STATE
+  }
+}
+
+async function writeWarningState(state: WarningState): Promise<void> {
+  try {
+    await writeFile(warningStatePath, JSON.stringify(state, null, 2), 'utf-8')
+  } catch (err) {
+    // A warning we cannot record is still a warning worth sending — the cost of failing to
+    // persist is a duplicate after a restart, which is strictly better than staying silent.
+    fastify.log.error({ err, path: warningStatePath }, 'license: failed to persist warning state')
+  }
+}
+
+/** Apply a freshly-resolved licence to the running process. */
+async function applyLicense(next: LicenseSnapshot): Promise<void> {
+  const previous: LicenseSnapshot = {
+    tier: config.tier,
+    expiry: config.licenseExpiry,
+    graceMode: config.licenseGraceMode,
+  }
+  if (!snapshotChanged(previous, next)) return
+
+  // Mutated in place, deliberately: every route plugin holds a reference to this one object and
+  // reads `config.tier` per request, so an in-place update is what makes a tier change reach
+  // `requireTier` without re-registering anything.
+  config.tier = next.tier
+  config.licenseExpiry = next.expiry
+  config.licenseGraceMode = next.graceMode
+
+  const direction = TIER_ORDER[next.tier] - TIER_ORDER[previous.tier]
+  fastify.log.warn(
+    { from: previous.tier, to: next.tier, graceMode: next.graceMode, expiresAt: next.expiry?.toISOString() ?? null },
+    'license: tier changed while running',
+  )
+
+  void auditService.log({
+    action: 'license.tier-changed',
+    success: true,
+    userId: null,
+    username: 'license-watcher',
+    details: { from: previous.tier, to: next.tier, graceMode: next.graceMode },
+  })
+
+  if (previous.tier !== next.tier) {
+    await notificationService.emitEvent({
+      id: randomUUID(),
+      timestamp: new Date().toISOString(),
+      event: 'license:changed',
+      severity: direction < 0 ? 'error' : 'success',
+      message: direction < 0
+        ? `License downgraded to ${next.tier} — features above that tier are no longer available`
+        : `License is now ${next.tier}`,
+      details: { from: previous.tier, to: next.tier, graceMode: next.graceMode },
     })
-    .catch(err => fastify.log.error({ err }, 'dns: failed to withdraw a published zone'))
+  }
+
+  // DNS follows the tier rather than the start-up tier. This is the whole of what a DNS-local
+  // timer would have bought, obtained at the layer where the staleness originates.
+  if (dnsLicensed()) {
+    startDnsPublishing()
+  } else {
+    await stopDnsPublishing()
+  }
+}
+
+/** Raise the tightest expiry warning that is newly due, at most one per check. */
+async function checkExpiryWarnings(now: Date): Promise<void> {
+  const expiry = config.licenseExpiry
+  if (!expiry) return
+
+  const state = await readWarningState()
+  const decision = decideWarning(daysUntil(expiry, now), sentFor(state, expiry))
+  if (decision.send === null) return
+
+  const days = decision.send
+  await notificationService.emitEvent({
+    id: randomUUID(),
+    timestamp: now.toISOString(),
+    event: 'license:expiring',
+    // The last week is not the same news as the first month, and an admin who filters on
+    // severity should still see the ones that are about to cost them their tier.
+    severity: days <= 7 ? 'error' : 'info',
+    message: days === 1
+      ? 'License expires tomorrow — renew to keep your tier'
+      : `License expires in ${days} days — renew to keep your tier`,
+    details: { daysRemaining: days, expiresAt: expiry.toISOString(), tier: config.tier },
+  })
+
+  await writeWarningState({ expiry: expiry.toISOString(), sent: decision.sent })
+}
+
+if (config.licenseKeyFile) {
+  const keyFile = config.licenseKeyFile
+
+  const pollLicense = async (): Promise<void> => {
+    const now = new Date()
+    let read: { content: string | null; error?: string }
+    try {
+      read = { content: await readFile(keyFile, 'utf-8') }
+    } catch (err) {
+      read = (err as NodeJS.ErrnoException)?.code === 'ENOENT'
+        ? { content: null }
+        : { content: null, error: err instanceof Error ? err.message : 'unreadable' }
+    }
+
+    const outcome = resolveLicense(read, config.licenseHmacSecret, now)
+    if (outcome.kind === 'unreadable') {
+      // Hold the current tier. A present-but-unusable file is a mid-write far more often than a
+      // real downgrade, and this poll can land inside the very push it is waiting for.
+      fastify.log.warn({ path: keyFile, reason: outcome.reason }, 'license: key file unusable — holding current tier')
+      return
+    }
+
+    await applyLicense(outcome.kind === 'absent' ? FREE_SNAPSHOT : outcome.snapshot)
+    await checkExpiryWarnings(now)
+  }
+
+  // Once at start-up too: the expiry countdown must not wait a full interval to say a licence
+  // expires tomorrow, and a host that was off across a threshold has to catch up on boot.
+  void pollLicense().catch(err => fastify.log.error({ err }, 'license: initial poll failed'))
+
+  const licenseTimer = setInterval(() => {
+    void pollLicense().catch(err => fastify.log.error({ err }, 'license: poll failed'))
+  }, DEFAULT_POLL_INTERVAL_MS)
+  licenseTimer.unref?.()
+
+  fastify.log.info(
+    { path: keyFile, intervalMs: DEFAULT_POLL_INTERVAL_MS },
+    'license: watching key file — a renewal takes effect without a restart',
+  )
 }
 
 /**
@@ -560,33 +773,10 @@ if (promqlSource) {
   )
 }
 
-/**
- * DNS zone sync.
- *
- * This used to ride the metrics collector's 30-second tick — "rather than adding a second timer",
- * which was true while that timer had to exist anyway. Phase 4 removed it, so the zone now owns
- * its own interval at the same cadence.
- *
- * Only when there IS a writer: below Solo there is no zone to publish, and a timer that wakes
- * every 30 seconds to do nothing is exactly the cost the old comment was avoiding. On a Free host
- * this leaves the backend with no periodic work at all, which is a strict improvement on sampling
- * every cgroup on the box every 30 seconds for a buffer nobody read.
- */
-if (dnsWriter) {
-  const dnsTimer = setInterval(() => {
-    void (async () => {
-      try {
-        const defs = await getWorkloadDefinitions()
-        // The writer no-ops when the zone is unchanged, so a quiet host costs one comparison.
-        await dnsWriter.sync(Object.values(defs).map(d => ({ name: d.name, ip: d.ip })))
-      } catch (err) {
-        fastify.log.error({ err }, 'DNS zone sync failed')
-      }
-    })()
-  }, SAMPLE_INTERVAL_MS)
-  // Never hold the process open for a housekeeping timer.
-  dnsTimer.unref?.()
-}
+// The DNS zone-sync timer moved into `startDnsPublishing()` above, alongside the writer it
+// drives. It used to ride the metrics collector's 30-second tick — "rather than adding a second
+// timer", true while that timer had to exist anyway — and then owned its own interval here. Both
+// forms decided ONCE whether to run; the timer now starts and stops with the licence.
 
 // networkManager is the IP allocator the clone route uses when the caller omits an address. It is
 // null on a Free build (services/weaver is sync-excluded) — the route degrades to requiring an
