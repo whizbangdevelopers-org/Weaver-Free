@@ -25,7 +25,25 @@ import { execSync } from 'child_process'
 import { readFileSync, existsSync } from 'fs'
 import { resolve, dirname } from 'path'
 import { fileURLToPath } from 'url'
-type SaveReportFn = (report: Record<string, unknown>) => void
+/**
+ * Structural mirror of `saveReport` in `scripts/lib/`, declared locally rather than imported.
+ *
+ * `scripts/lib/` is sync-excluded while THIS file ships, and an `import type` is erased at
+ * runtime but NOT at typecheck time — so importing the real type would fail to resolve wherever
+ * the lib is absent.
+ *
+ * It read `(report: Record<string, unknown>) => void` until 2026-08-16, matching neither the
+ * parameter nor the return of the function it stands for. The `as` cast below is what kept that
+ * quiet, and nothing typechecked this directory, so both halves of the disguise held.
+ */
+type SaveReportFn = (envelope: {
+  reportName: string
+  timestamp: string
+  durationMs: number
+  result: 'pass' | 'fail' | 'warn'
+  summary: Record<string, unknown>
+  data: unknown
+}) => string
 
 /**
  * `scripts/lib/` is sync-excluded, but THIS script ships — Weaver-Free's own

@@ -1,0 +1,22 @@
+// Typecheck for scripts/ and codebase-mcp/ — the build tooling, auditors and generators.
+//
+// These 139 files were never typechecked by anything: tsconfig.json includes only src/**, and
+// tsx (which runs them) strips types without checking them. The first run found a ReferenceError
+// in the compliance runner's own --json path, an auditor comparing against prices that no longer
+// exist, and a tuple type that disagreed with every value in it.
+//
+// Separate from tsconfig.json rather than folded into it, because these run under tsx as Node
+// ESM: they import each other with explicit .ts extensions, and they have no DOM. Adding them to
+// the Vue config would mean checking them against the wrong environment and paying for it on
+// every frontend typecheck.
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    // tsx resolves `./x.ts` directly; the frontend's bundler resolution forbids the extension.
+    "allowImportingTsExtensions": true,
+    "lib": ["ES2022"],
+    "jsx": "react-jsx"
+  },
+  "include": ["scripts/**/*.ts", "codebase-mcp/src/**/*.ts"]
+}
