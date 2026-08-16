@@ -45,7 +45,7 @@ fi
 # ── 0. Kill stale dev servers ────────────────────────────────────────────────
 step "Killing stale dev servers"
 killed_pids=""
-for port in 9010 9011 9012 9020 3110 3120 3130 3100; do
+for port in 9010 9011 9012 9011 3110 3120 3130 3100; do
     pids=$(lsof -ti ":$port" 2>/dev/null || true)
     if [ -n "$pids" ]; then
         echo "$pids" | xargs kill 2>/dev/null || true
