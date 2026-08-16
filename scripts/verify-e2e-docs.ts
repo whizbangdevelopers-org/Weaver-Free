@@ -77,6 +77,7 @@ const FEATURE_ALLOWLIST = new Set<string>([
   'host-info',
   'keyboard',
   'license',
+  'metrics',
   'mobile',
   'navigation',
   'network',
