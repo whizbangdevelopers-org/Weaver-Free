@@ -160,7 +160,7 @@
     "sync:markers": "npx tsx scripts/sync-markers.ts",
     "test": "vitest run",
     "test:backend": "npm -w backend test",
-    "test:compliance": "npx tsx scripts/run-compliance.ts && npm run audit:workflows && npm run audit:test-suites && npm run audit:e2e-docker-only && npm run audit:workflow-taint && npm run audit:auditor-contracts",
+    "test:compliance": "npx tsx scripts/run-compliance.ts && npm run audit:workflows && npm run audit:test-suites && npm run audit:e2e-docker-only && npm run audit:workflow-taint && npm run audit:auditor-contracts && npm run audit:rule-contracts",
     "test:coverage": "vitest run --coverage",
     "test:coverage:free": "vitest run --coverage --config vitest.free.config.ts",
     "test:distros": "npx tsx scripts/test-distro-catalog.ts",
@@ -194,7 +194,9 @@
     "audit:test-suites": "npx tsx scripts/verify-test-suites.ts",
     "audit:e2e-docker-only": "npx tsx scripts/verify-e2e-docker-only.ts",
     "audit:workflow-taint": "npx tsx scripts/verify-workflow-taint.ts",
-    "audit:auditor-contracts": "npx tsx scripts/verify-auditor-contracts.ts"
+    "audit:auditor-contracts": "npx tsx scripts/verify-auditor-contracts.ts",
+    "audit:rule-contracts": "npx tsx scripts/verify-rule-contracts.ts",
+    "audit:rule-contracts:global": "npx tsx scripts/verify-rule-contracts.ts --repo /home/mark/.claude --manifest /home/mark/.claude/rule-contracts.json"
   },
   "dependencies": {
     "@quasar/extras": "^1.16.9",

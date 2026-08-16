@@ -77,6 +77,14 @@ code/scripts/verify-workflow-taint.ts
 # declaration, the same split as verify-license-headers.ts against verify-legal-ip.ts.
 code/scripts/verify-auditor-contracts.ts
 
+# The rule-contract checker — third in the FORGE-36 / FORGE-41 line, and shared for exactly the
+# reason above: "a rule that cannot fail is a suggestion" is a portfolio standard, so a forked copy
+# would hold one repo's rules to a weaker contract than the rest. Its MANIFEST is per-repo for the
+# same reason auditor-contracts.json is (weaver 25 rules, gantry 21, qepton 15, dotclaude 18), and
+# the universe is DERIVED from each repo's own .engram.yaml rules: block rather than restated here.
+# Requires js-yaml (declared in weaver; a consuming repo needs it before adopting this file).
+code/scripts/verify-rule-contracts.ts
+
 # The hook meta-auditor. Built in Gantry 2026-08-12 after two of six hook pairs were found forked —
 # one of them the guard that actually loads for every `code/` session, carrying a naive grep that
 # blocked innocent commit messages. It replaced a one-command stub (`block-dangerous.sh
