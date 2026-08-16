@@ -45,9 +45,8 @@
  *   npx tsx scripts/verify-semgrep-regression.ts --self-test
  */
 
-import { readFileSync, existsSync, mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'fs'
+import { readFileSync, existsSync } from 'fs'
 import { execFileSync } from 'child_process'
-import { tmpdir } from 'os'
 import { resolve, dirname, relative } from 'path'
 import { fileURLToPath } from 'url'
 

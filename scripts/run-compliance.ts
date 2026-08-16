@@ -308,6 +308,13 @@ async function main(): Promise<void> {
   const isSelected = (name: string) =>
     (opts.only ? opts.only.has(name) : true) && !opts.skip.has(name)
 
+  // Everything --only/--skip left in play, across every phase. `--json` reported this as
+  // `selected.length` against a variable that does not exist — a leftover from the refactor that
+  // replaced a flat selected[] with this per-phase predicate — so the machine-readable mode threw
+  // a ReferenceError, and did it AFTER running every auditor. Derived from the same phase entries
+  // the loop below iterates, so the two cannot disagree.
+  const selectedCount = PHASES.flatMap((p) => p.entries).filter(isSelected).length
+
   const results: Result[] = []
   const startAll = Date.now()
 
@@ -335,7 +342,7 @@ async function main(): Promise<void> {
     console.log(
       JSON.stringify(
         {
-          total: selected.length,
+          total: selectedCount,
           ran: results.length,
           passed: results.length - failed.length,
           failed: failed.length,

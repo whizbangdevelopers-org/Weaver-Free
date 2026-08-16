@@ -14,7 +14,7 @@
  * Invoked from pre-commit hook when .claude/skills/** is staged.
  */
 
-import { readFileSync, writeFileSync, existsSync, readdirSync, statSync, mkdirSync, cpSync } from 'fs'
+import { readFileSync, existsSync, readdirSync, statSync, mkdirSync, cpSync } from 'fs'
 import { resolve, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import { homedir } from 'os'
