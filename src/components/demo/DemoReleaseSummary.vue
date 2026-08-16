@@ -42,14 +42,14 @@
         <q-icon name="mdi-hammer-wrench" size="sm" color="grey-7" class="q-mr-sm" />
         <div class="col">
           <div class="text-body2 text-weight-medium">We're actively building Weaver</div>
-          <div class="text-caption text-grey-6">New features ship regularly. Become a Founding Member to shape what comes next.</div>
+          <div class="text-caption text-grey-6">New features ship regularly. Become an Early Adopter to shape what comes next.</div>
         </div>
         <q-btn
           unelevated
           color="light-green-8"
           text-color="white"
           label="Learn More"
-          :href="PUBLIC_DEMO_LINKS.fmProgram"
+          :href="PUBLIC_DEMO_LINKS.eaProgram"
           target="_blank"
           no-caps
           size="sm"

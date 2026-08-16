@@ -71,12 +71,13 @@
       </q-card-section>
     </q-card>
 
-    <!-- Founding Member CTA -->
+    <!-- Founding Member CTA — Fabrick is the INVITED programme; its rate is disclosed in
+         direct outreach only, so this names the programme, never a price. -->
     <q-card flat bordered class="bg-fabrick text-white">
       <q-card-section>
         <div class="text-h6 q-mb-sm">Become a Founding Member</div>
         <p class="text-body2">
-          Lock in Founding Member pricing — permanently. Shape the fleet management
+          Founding Members shape the fleet management
           roadmap with direct feedback. Get priority support and early builds.
         </p>
         <div class="row q-gutter-sm q-mt-md">
