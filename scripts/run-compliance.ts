@@ -149,6 +149,11 @@ export const PHASES: Phase[] = [
       // fails at publish time — the sync auto-merges with `--admin` and consults nothing else.
       'audit:free-tree',
       'audit:doc-host-locators',
+      // Adjacent to the publication checks above and asking a different question of the same
+      // tree: those decide whether a document may leave the repo, this decides whether a
+      // document still speaks for it. An archived file that does not say so answers greps in a
+      // recommendation voice years after anyone believed it.
+      'audit:archive-markers',
       'audit:nur-dispatch-completeness',
       'audit:engineering-discipline-parity',
       'audit:feature-lifecycle-parity',
