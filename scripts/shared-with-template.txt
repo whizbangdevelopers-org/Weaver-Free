@@ -98,3 +98,15 @@ code/scripts/verify-rule-contracts.ts
 # derived from the wiring — which also made it strictly stronger, since a repo with the guard in two
 # trees now self-tests BOTH.
 code/scripts/verify-hooks.ts
+
+# The port-block checker (FORGE-43). Portfolio-wide by definition: it enforces that a repo names
+# only ports inside its OWN block, and the whole point of a block scheme is that every product
+# obeys it. Product-agnostic by construction — it reads productName from package.json and parses
+# the blocks out of docs/development/PORT-ALLOCATION.md, so the file is byte-identical everywhere
+# and a scaffolded project needs to edit nothing.
+#
+# The template ships it deliberately even though a fresh scaffold has no blocks yet: it reports
+# NOT YET CONFIGURED rather than a green tick, which is what stops a new project inheriting a
+# silent pass. That distinction was found BY putting it in the template — in weaver the table is
+# populated, so the vacuous path never ran.
+code/scripts/verify-port-allocation.ts
