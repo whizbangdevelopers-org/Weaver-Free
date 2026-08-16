@@ -43,7 +43,7 @@
         <q-card flat bordered class="full-height">
           <q-card-section class="text-center">
             <div class="text-subtitle1 text-weight-bold">Free</div>
-            <div class="text-h4 text-weight-bold text-primary q-my-sm">{{ PRICING.free.fmShort }}</div>
+            <div class="text-h4 text-weight-bold text-primary q-my-sm">{{ PRICING.free.foundingShort }}</div>
             <div class="text-caption text-grey-6">Forever</div>
             <q-btn
               unelevated
@@ -62,15 +62,17 @@
           <q-card-section class="text-center">
             <div class="text-subtitle1 text-weight-bold">Solo</div>
             <div class="text-h4 text-weight-bold text-primary q-my-sm">
-              {{ fmCardPrice('solo') }}
+              {{ foundingCardPrice('solo') }}
             </div>
-            <div v-if="FM_AVAILABLE" class="text-caption text-grey-6">Founding Member pricing</div>
+            <div v-if="foundingAvailable('solo')" class="text-caption text-grey-6">
+              {{ foundingLabel('solo')?.full }} pricing
+            </div>
             <div v-else class="text-caption text-grey-6">{{ PRICING.solo.standard }}</div>
             <q-btn
               unelevated
               color="primary"
-              label="Become a Founding Member"
-              :href="PUBLIC_DEMO_LINKS.fmProgram"
+              :label="foundingLabel('solo')?.cta"
+              :href="PUBLIC_DEMO_LINKS.eaProgram"
               target="_blank"
               no-caps
               class="q-mt-md full-width"
@@ -116,25 +118,31 @@
       </div>
     </div>
 
-    <!-- Founding Member callout -->
+    <!-- Early Adopter callout — the only founding rate this page publishes. FabricK's
+         Founding Member rate is disclosed in direct outreach and never rendered here. -->
     <q-card flat bordered class="bg-amber-1 q-mb-lg">
       <q-card-section>
         <div class="row items-center q-mb-sm">
           <q-icon name="mdi-star-circle" color="amber-8" size="sm" class="q-mr-sm" />
-          <div class="text-h6">Founding Member Pricing</div>
+          <div class="text-h6">Early Adopter Pricing</div>
         </div>
         <p class="text-body2 text-grey-8">
-          Founding Members lock in their pricing — permanently.
+          Early Adopters lock in their pricing — permanently.
           As features ship and the product matures, standard pricing increases.
           Your rate stays locked at the founding level for as long as you're
-          a member. No surprises, no bait-and-switch.
+          an Early Adopter. No surprises, no bait-and-switch.
+        </p>
+        <p class="text-body2 text-grey-8">
+          Running a fleet? FabricK has its own founding programme —
+          <strong>Founding Members</strong> are invited design partners, and its pricing is
+          discussed directly rather than published. Talk to us.
         </p>
         <q-btn
           unelevated
           color="amber-8"
           text-color="white"
-          label="Become a Founding Member"
-          :href="PUBLIC_DEMO_LINKS.fmProgram"
+          :label="foundingLabel('solo')?.cta"
+          :href="PUBLIC_DEMO_LINKS.eaProgram"
           target="_blank"
           no-caps
           class="q-mt-sm"
@@ -147,7 +155,12 @@
 <script setup lang="ts">
 import type { QTableColumn } from 'quasar'
 import { PUBLIC_DEMO_LINKS } from 'src/config/demo-mode'
-import { PRICING, FM_AVAILABLE, fmCardPrice } from 'src/constants/pricing'
+import {
+  PRICING,
+  foundingAvailable,
+  foundingCardPrice,
+  foundingLabel,
+} from 'src/constants/pricing'
 
 // Phase 1 competitors: Proxmox + DIY only.
 // Fabrick-tier competitors (VMware, K8s) added when Team dev starts.
@@ -163,7 +176,7 @@ const tcoRows = [
   {
     category: 'License cost',
     weaverFree: 'Free',
-    weaverSolo: FM_AVAILABLE ? `Under $150/yr (FM)` : PRICING.solo.standard,
+    weaverSolo: foundingAvailable('solo') ? `Under $150/yr (EA)` : PRICING.solo.standard,
     proxmox: 'Free (community) or $110+/yr/socket',
     diy: 'Free',
   },

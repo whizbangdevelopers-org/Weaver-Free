@@ -57,18 +57,18 @@
         </div>
         <p class="text-body2 text-grey-8">
           We've mapped out a comprehensive development plan for Weaver Team.
-          Founding Members get to shape the product as it's built —
+          Early Adopters get to shape the product as it's built —
           your feedback directly influences what ships.
         </p>
       </q-card-section>
     </q-card>
 
-    <!-- Founding Member CTA -->
+    <!-- Early Adopter CTA — Team is the self-serve programme -->
     <q-card flat bordered class="bg-primary text-white">
       <q-card-section>
-        <div class="text-h6 q-mb-sm">Become a Founding Member</div>
+        <div class="text-h6 q-mb-sm">Become an Early Adopter</div>
         <p class="text-body2">
-          Lock in Founding Member pricing — permanently. Shape the product roadmap
+          Lock in Early Adopter pricing — permanently. Shape the product roadmap
           with direct feedback. Get priority support from the development team.
         </p>
         <div class="row q-gutter-sm q-mt-md">
@@ -76,8 +76,8 @@
             unelevated
             color="white"
             text-color="primary"
-            label="Become a Founding Member"
-            :href="PUBLIC_DEMO_LINKS.fmProgram"
+            label="Become an Early Adopter"
+            :href="PUBLIC_DEMO_LINKS.eaProgram"
             target="_blank"
             no-caps
           />

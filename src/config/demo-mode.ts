@@ -61,6 +61,9 @@ export const DEMO_LINKS = {
 
 /** Links for the public demo funnel — CTAs point to the WBD website forms. */
 export const PUBLIC_DEMO_LINKS = {
+  // Two founding programmes, two pages. Neither exists on the site yet — both are
+  // tracked as prerequisites for the public demo, and the split adds the second one.
+  eaProgram: 'https://whizbangdevelopers.com/early-adopter',
   fmProgram: 'https://whizbangdevelopers.com/founding-member',
   contact: 'https://whizbangdevelopers.com/contact',
   getStarted: DEMO_LINKS.install,

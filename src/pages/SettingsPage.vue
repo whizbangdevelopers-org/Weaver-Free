@@ -151,9 +151,9 @@
                   <tr><td class="text-weight-medium">Status</td><td><q-badge color="positive" label="Valid" /></td></tr>
                   <tr><td class="text-weight-medium">Issued</td><td>{{ mockLicenseIssued }}</td></tr>
                   <tr><td class="text-weight-medium">Expires</td><td>{{ mockLicenseExpiry }}</td></tr>
-                  <tr v-if="mockFmSlot"><td class="text-weight-medium">Program</td><td><q-badge color="amber-9" label="Founding Member" /> <span class="text-caption text-grey-8 q-ml-xs">#{{ mockFmSlot.current }} of {{ mockFmSlot.cap }}</span></td></tr>
-                  <tr><td class="text-weight-medium">Pricing</td><td>{{ mockLicensePricing }} <span v-if="mockFmSlot" class="text-caption text-grey-8 q-ml-xs">(standard: {{ mockStandardPricing }}) — locked forever</span></td></tr>
-                  <tr v-if="mockFmSlot"><td class="text-weight-medium">FM window</td><td>Closes at {{ mockFmSlot.capVersion }} or when {{ mockFmSlot.cap }} slots fill</td></tr>
+                  <tr v-if="mockFoundingSlot"><td class="text-weight-medium">Program</td><td><q-badge color="amber-9" label="Founding Member" /> <span class="text-caption text-grey-8 q-ml-xs">#{{ mockFoundingSlot.current }} of {{ mockFoundingSlot.cap }}</span></td></tr>
+                  <tr><td class="text-weight-medium">Pricing</td><td>{{ mockLicensePricing }} <span v-if="mockFoundingSlot" class="text-caption text-grey-8 q-ml-xs">(standard: {{ mockStandardPricing }}) — locked forever</span></td></tr>
+                  <tr v-if="mockFoundingSlot"><td class="text-weight-medium">FM window</td><td>Closes at {{ mockFoundingSlot.capVersion }} or when {{ mockFoundingSlot.cap }} slots fill</td></tr>
                 </tbody>
               </q-markup-table>
 
@@ -492,7 +492,7 @@ import { extractErrorMessage } from 'src/utils/error'
 import { downloadText, dateStamp } from 'src/utils/download'
 import { useWorkloadApi } from 'src/composables/useVmApi'
 import { TIERS, STATUSES } from 'src/constants/vocabularies'
-import { PRICING, FM_SLOTS } from 'src/constants/pricing'
+import { PRICING, EA_SLOTS, FM_SLOTS } from 'src/constants/pricing'
 
 const $q = useQuasar()
 const settingsStore = useSettingsStore()
@@ -642,14 +642,15 @@ const mockLicenseExpiry = computed(() => {
   return d.toLocaleDateString()
 })
 
-interface FmSlotInfo { current: number; cap: number; capVersion: string }
+interface FoundingSlotInfo { current: number; cap: number; capVersion: string }
 
-const mockFmSlot = computed((): FmSlotInfo | null => {
+// Two cohorts with separate caps: Solo/Team draw on EA_SLOTS, FabricK on FM_SLOTS.
+const mockFoundingSlot = computed((): FoundingSlotInfo | null => {
   const tier = appStore.effectiveTier
-  if (tier === TIERS.FREE) return null // Free has no FM program
+  if (tier === TIERS.FREE) return null // Free has no founding programme
   if (tier === TIERS.SOLO) {
-    if (appStore.demoWeaverSubTier === 'team') return { current: 12, cap: FM_SLOTS.team.cap, capVersion: FM_SLOTS.team.capVersion }
-    return { current: 47, cap: FM_SLOTS.solo.cap, capVersion: FM_SLOTS.solo.capVersion }
+    if (appStore.demoWeaverSubTier === 'team') return { current: 12, cap: EA_SLOTS.team.cap, capVersion: EA_SLOTS.team.capVersion }
+    return { current: 47, cap: EA_SLOTS.solo.cap, capVersion: EA_SLOTS.solo.capVersion }
   }
   if (tier === TIERS.FABRICK) return { current: 8, cap: FM_SLOTS.fabrick.cap, capVersion: FM_SLOTS.fabrick.capVersion }
   return null
@@ -657,11 +658,11 @@ const mockFmSlot = computed((): FmSlotInfo | null => {
 
 const mockLicensePricing = computed(() => {
   const tier = appStore.effectiveTier
-  if (tier === TIERS.FREE) return PRICING.free.fm
+  if (tier === TIERS.FREE) return PRICING.free.founding
   if (tier === TIERS.SOLO) {
-    return appStore.demoWeaverSubTier === 'team' ? PRICING.team.fm : PRICING.solo.fm
+    return appStore.demoWeaverSubTier === 'team' ? PRICING.team.founding : PRICING.solo.founding
   }
-  if (tier === TIERS.FABRICK) return PRICING.fabrick.fm
+  if (tier === TIERS.FABRICK) return PRICING.fabrick.founding
   return '—'
 })
 

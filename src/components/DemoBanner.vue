@@ -6,12 +6,12 @@
     <span v-show="isPublic" class="text-white q-mx-sm">|</span>
     <a
       v-show="isPublic"
-      :href="PUBLIC_DEMO_LINKS.fmProgram"
+      :href="PUBLIC_DEMO_LINKS.eaProgram"
       target="_blank"
       rel="noopener noreferrer"
       class="text-white text-weight-bold demo-banner__link"
     >
-      Become a Founding Member
+      Become an Early Adopter
     </a>
   </div>
 </template>
