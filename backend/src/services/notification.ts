@@ -23,6 +23,11 @@ const EVENT_SEVERITY: Record<NotificationEventType, NotificationSeverity> = {
   'security:auth-failure': 'error',
   'security:unauthorized-access': 'error',
   'security:permission-denied': 'info',
+  // Severity here is the FLOOR. Both licence events carry a computed severity through
+  // `emitEvent` — a 30-day warning and a 1-day warning are not the same news, and a tier that
+  // dropped is not the same news as one that renewed.
+  'license:expiring': 'info',
+  'license:changed': 'info',
 }
 
 const EVENT_MESSAGES: Record<NotificationEventType, (name?: string) => string> = {
@@ -35,6 +40,10 @@ const EVENT_MESSAGES: Record<NotificationEventType, (name?: string) => string> =
   'security:auth-failure': () => 'Authentication failure detected',
   'security:unauthorized-access': () => 'Unauthorized access — invalid or missing credentials',
   'security:permission-denied': () => 'Permission denied — insufficient role',
+  // Placeholders: both licence events are raised through `emitEvent` with a message built from
+  // the days remaining or the tier transition, because a fixed string could not say either.
+  'license:expiring': () => 'License is approaching expiry',
+  'license:changed': () => 'License tier changed',
 }
 
 export class NotificationService {

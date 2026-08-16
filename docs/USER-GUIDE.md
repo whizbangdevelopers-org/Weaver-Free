@@ -890,6 +890,16 @@ Each `nixos-rebuild` creates a new generation, and the Nix store grows over time
 
 After expiry, your tier features remain accessible in read-only mode for a 30-day grace period. A warning banner appears in Settings during this time. After 30 days, the instance downgrades to Free tier.
 
+You will not arrive there without notice: Weaver warns you 30, 20, 10, 7, 5, 3, 2 and 1 days
+before the expiry date. With the grace period that follows, that is 60 days of warning.
+
+### Do I have to restart Weaver after renewing?
+
+No. When your subscription renews you receive a new key by email; install it over your existing
+key file and the running Weaver picks it up on its own, usually within the hour. Hosts that supply
+the key through the `LICENSE_KEY` environment variable instead of a file are the exception — a
+process's environment cannot change while it runs, so those need a restart.
+
 ### What is Live Provisioning?
 
 Live Provisioning is the core Weaver Solo+ differentiator — creating and managing VMs dynamically via the API and UI without running `nixos-rebuild switch` on the host. A one-time NixOS setup, then zero host rebuilds forever.

@@ -67,6 +67,10 @@ export type AuditAction =
   | 'license.revoked'
   | 'license.email-sent'
   | 'license.email-failed'
+  // Renewal push + runtime re-read
+  | 'license.renewed'
+  | 'license.renewal-failed'
+  | 'license.tier-changed'
 
 // Resource category — enables query filtering by domain without string parsing
 export type AuditResourceType =

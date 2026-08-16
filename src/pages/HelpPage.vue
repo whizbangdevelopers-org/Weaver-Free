@@ -575,7 +575,12 @@ const helpSections = computed<HelpSection[]>(() => [
       {
         question: 'What happens when a license expires?',
         answer:
-          'After expiry, your tier features remain accessible in read-only mode for a 30-day grace period. A warning banner appears in Settings during this time. After 30 days, the instance downgrades to Free tier. See the Admin Guide in the Docs tab for license management details.',
+          'After expiry, your tier features remain accessible in read-only mode for a 30-day grace period. A warning banner appears in Settings during this time. After 30 days, the instance downgrades to Free tier. You are warned well before any of that: Weaver notifies you 30, 20, 10, 7, 5, 3, 2 and 1 days before the expiry date, so with the grace period you have 60 days of notice. See the Admin Guide in the Docs tab for license management details.',
+      },
+      {
+        question: 'Do I have to restart Weaver after renewing my license?',
+        answer:
+          'No. When your subscription renews you receive a new key by email — install it over your existing key file and the running Weaver picks it up on its own, usually within the hour. Hosts that supply the key through the LICENSE_KEY environment variable instead of a key file are the exception, since a running process cannot see a changed environment; those need a restart.',
       },
       {
         question: 'What is Live Provisioning?',

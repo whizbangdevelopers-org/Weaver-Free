@@ -42,6 +42,15 @@ export interface DashboardConfig {
   tier: Tier
   licenseExpiry: Date | null
   licenseGraceMode: boolean
+  /**
+   * Where the key is read from, or null when the tier came from `LICENSE_KEY` / `PREMIUM_ENABLED`.
+   *
+   * Exposed because the file is re-read while the process runs: a renewal pushes a new
+   * key and the host must pick it up without a restart. Nothing to poll when this is null.
+   */
+  licenseKeyFile: string | null
+  /** Secret the key checksum is verified against; empty string when none is configured. */
+  licenseHmacSecret: string
   storageBackend: 'json' | 'sqlite'
   dataDir: string
   provisioningEnabled: boolean
@@ -287,6 +296,8 @@ export function loadConfig(): DashboardConfig {
     tier,
     licenseExpiry,
     licenseGraceMode,
+    licenseKeyFile: licenseKeyFile ?? null,
+    licenseHmacSecret: hmacSecret,
     storageBackend: (process.env.VM_STORAGE_BACKEND ?? 'json') as 'json' | 'sqlite',
     dataDir: process.env.VM_DATA_DIR ?? './data',
     provisioningEnabled: toBool(process.env.PROVISIONING_ENABLED),

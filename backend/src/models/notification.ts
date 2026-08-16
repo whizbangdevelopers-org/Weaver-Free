@@ -15,13 +15,17 @@ export type NotificationEventType =
   | 'security:auth-failure'
   | 'security:unauthorized-access'
   | 'security:permission-denied'
+  // License lifecycle
+  | 'license:expiring'
+  | 'license:changed'
 
-export type NotificationEventCategory = 'vm' | 'resource' | 'security'
+export type NotificationEventCategory = 'vm' | 'resource' | 'security' | 'license'
 
 export const EVENT_CATEGORIES: Record<NotificationEventCategory, NotificationEventType[]> = {
   vm: ['vm:started', 'vm:stopped', 'vm:failed', 'vm:recovered'],
   resource: ['resource:high-cpu', 'resource:high-memory'],
   security: ['security:auth-failure', 'security:unauthorized-access', 'security:permission-denied'],
+  license: ['license:expiring', 'license:changed'],
 }
 
 export interface NotificationEvent {
@@ -53,10 +57,21 @@ export const ALL_NOTIFICATION_EVENTS: NotificationEventType[] = [
   'security:auth-failure',
   'security:unauthorized-access',
   'security:permission-denied',
+  'license:expiring',
+  'license:changed',
 ]
 
+/**
+ * Both licence events are on by DEFAULT, unlike most of this list.
+ *
+ * An expiry warning nobody enabled is a warning nobody gets, and the failure it exists to prevent
+ * — a paying customer's tier lapsing unannounced — is exactly the one an admin cannot recover
+ * from after the fact. Opt-out is the right default for a deadline; opt-in is not.
+ */
 export const DEFAULT_ENABLED_EVENTS: NotificationEventType[] = [
   'vm:started',
   'vm:failed',
   'vm:recovered',
+  'license:expiring',
+  'license:changed',
 ]
