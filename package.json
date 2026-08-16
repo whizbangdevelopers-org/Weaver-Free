@@ -194,6 +194,7 @@
     "audit:test-suites": "npx tsx scripts/verify-test-suites.ts",
     "audit:e2e-docker-only": "npx tsx scripts/verify-e2e-docker-only.ts",
     "audit:workflow-taint": "npx tsx scripts/verify-workflow-taint.ts",
+    "audit:archive-markers": "npx tsx scripts/verify-archive-markers.ts",
     "audit:auditor-contracts": "npx tsx scripts/verify-auditor-contracts.ts",
     "audit:rule-contracts": "npx tsx scripts/verify-rule-contracts.ts",
     "audit:rule-contracts:global": "npx tsx scripts/verify-rule-contracts.ts --repo /home/mark/.claude --manifest /home/mark/.claude/rule-contracts.json"
