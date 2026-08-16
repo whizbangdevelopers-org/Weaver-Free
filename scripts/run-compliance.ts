@@ -154,6 +154,9 @@ export const PHASES: Phase[] = [
       // document still speaks for it. An archived file that does not say so answers greps in a
       // recommendation voice years after anyone believed it.
       'audit:archive-markers',
+      // Sibling of the above in shape: both ask whether a value in this tree still belongs to it.
+      // This one answers it for ports, against an allocation table nothing used to read.
+      'audit:port-allocation',
       'audit:nur-dispatch-completeness',
       'audit:engineering-discipline-parity',
       'audit:feature-lifecycle-parity',
