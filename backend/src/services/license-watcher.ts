@@ -1,6 +1,6 @@
 // Copyright (c) 2026 whizBANG Developers LLC. All rights reserved.
 // Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE.
-import { parseLicenseKey, type Tier } from '../license.js'
+import { parseLicenseKey, TIER_ORDER, type Tier } from '../license.js'
 import { TIERS } from '../constants/vocabularies.js'
 
 /**
@@ -144,4 +144,122 @@ export const EMPTY_WARNING_STATE: WarningState = { expiry: null, sent: [] }
 export function sentFor(state: WarningState, expiry: Date | null): number[] {
   const iso = expiry?.toISOString() ?? null
   return state.expiry === iso ? state.sent : []
+}
+
+/**
+ * True when a tier licenses DNS Core (Solo and above).
+ *
+ * Read from a tier that is passed in, never from ambient config, so the caller cannot accidentally
+ * ask about the tier it is replacing rather than the one it is applying.
+ */
+export function dnsPublishable(tier: Tier): boolean {
+  return TIER_ORDER[tier] >= TIER_ORDER[TIERS.SOLO]
+}
+
+/** The mutable licence fields of the live config object. */
+export interface LicenseConfigTarget {
+  tier: Tier
+  licenseExpiry: Date | null
+  licenseGraceMode: boolean
+}
+
+export interface TierChangeNotification {
+  event: 'license:changed'
+  severity: 'error' | 'success'
+  message: string
+  details: { from: Tier; to: Tier; graceMode: boolean }
+}
+
+export interface TierChangeAudit {
+  action: 'license.tier-changed'
+  success: true
+  userId: null
+  username: 'license-watcher'
+  details: { from: Tier; to: Tier; graceMode: boolean }
+}
+
+/**
+ * Everything applying a licence touches, as injectable seams.
+ *
+ * `dns` is the one that matters. Publishing is a state to enter and leave — a lapse has to
+ * *withdraw* a zone that is already on disk, not merely stop writing one — and until this was
+ * extracted there was no way to drive a process across that transition in a test. The re-read had
+ * thirty unit tests and the withdrawal had its own; nothing exercised the step between them, which
+ * is the only step that can leave a Free host serving a Solo zone forever.
+ */
+export interface ApplyLicenseDeps {
+  /**
+   * The live config object, mutated in place. Every route plugin holds a reference to this one
+   * object and reads `tier` per request, so in-place mutation is what makes a tier change reach
+   * `requireTier` without re-registering anything. Replacing the object would silently strand them.
+   */
+  config: LicenseConfigTarget
+  log: { warn(obj: Record<string, unknown>, msg: string): void }
+  audit(entry: TierChangeAudit): void
+  notify(notification: TierChangeNotification): Promise<void>
+  dns: { start(): void; stop(): Promise<void> }
+}
+
+/**
+ * Build the function that applies a freshly-resolved licence to the running process.
+ *
+ * A factory rather than a free function because the effects it drives — config mutation, audit,
+ * notification, DNS publishing — are the whole behaviour. A pure planner returning "what should
+ * happen" would be testable and would assert nothing about whether the zone was actually
+ * withdrawn, which is the one claim worth making.
+ */
+export function createLicenseApplier(
+  deps: ApplyLicenseDeps,
+): (next: LicenseSnapshot) => Promise<void> {
+  return async function applyLicense(next: LicenseSnapshot): Promise<void> {
+    const previous: LicenseSnapshot = {
+      tier: deps.config.tier,
+      expiry: deps.config.licenseExpiry,
+      graceMode: deps.config.licenseGraceMode,
+    }
+    if (!snapshotChanged(previous, next)) return
+
+    deps.config.tier = next.tier
+    deps.config.licenseExpiry = next.expiry
+    deps.config.licenseGraceMode = next.graceMode
+
+    const direction = TIER_ORDER[next.tier] - TIER_ORDER[previous.tier]
+    deps.log.warn(
+      {
+        from: previous.tier,
+        to: next.tier,
+        graceMode: next.graceMode,
+        expiresAt: next.expiry?.toISOString() ?? null,
+      },
+      'license: tier changed while running',
+    )
+
+    deps.audit({
+      action: 'license.tier-changed',
+      success: true,
+      userId: null,
+      username: 'license-watcher',
+      details: { from: previous.tier, to: next.tier, graceMode: next.graceMode },
+    })
+
+    if (previous.tier !== next.tier) {
+      await deps.notify({
+        event: 'license:changed',
+        severity: direction < 0 ? 'error' : 'success',
+        message:
+          direction < 0
+            ? `License downgraded to ${next.tier} — features above that tier are no longer available`
+            : `License is now ${next.tier}`,
+        details: { from: previous.tier, to: next.tier, graceMode: next.graceMode },
+      })
+    }
+
+    // DNS follows the tier rather than the start-up tier. This is the whole of what a DNS-local
+    // timer would have bought, obtained at the layer where the staleness originates.
+    if (dnsPublishable(next.tier)) {
+      deps.dns.start()
+    } else {
+      await deps.dns.stop()
+    }
+  }
 }

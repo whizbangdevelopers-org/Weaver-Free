@@ -36,9 +36,9 @@ import { SAMPLE_INTERVAL_MS } from './services/metrics.js'
 import { PromqlMetricsSource, httpRangeQuery } from './services/promql.js'
 import { DnsZoneWriter, retireZone } from './services/dns-writer.js'
 import {
-  resolveLicense, snapshotChanged, daysUntil, decideWarning, sentFor,
+  resolveLicense, daysUntil, decideWarning, sentFor, createLicenseApplier, dnsPublishable,
   FREE_SNAPSHOT, EMPTY_WARNING_STATE, DEFAULT_POLL_INTERVAL_MS,
-  type LicenseSnapshot, type WarningState,
+  type WarningState,
 } from './services/license-watcher.js'
 import { createImageManager } from './services/image-manager.js'
 import { UrlValidationService } from './services/url-validator.js'
@@ -48,7 +48,6 @@ import { DistroStore } from './storage/distro-store.js'
 import { CatalogStore } from './storage/catalog-store.js'
 import { loadConfig } from './config.js'
 import { TIERS, ROLES } from './constants/vocabularies.js'
-import { TIER_ORDER } from './license.js'
 import { NetworkStore } from './storage/network-store.js'
 import { UserStore } from './storage/user-store.js'
 import { MemorySessionStore } from './storage/memory-session-store.js'
@@ -586,10 +585,7 @@ async function stopDnsPublishing(): Promise<void> {
   }
 }
 
-/** True when the CURRENT tier licenses DNS Core. Read live — never captured. */
-const dnsLicensed = (): boolean => TIER_ORDER[config.tier] >= TIER_ORDER[TIERS.SOLO]
-
-if (dnsLicensed()) {
+if (dnsPublishable(config.tier)) {
   startDnsPublishing()
 } else {
   void stopDnsPublishing()
@@ -626,57 +622,26 @@ async function writeWarningState(state: WarningState): Promise<void> {
   }
 }
 
-/** Apply a freshly-resolved licence to the running process. */
-async function applyLicense(next: LicenseSnapshot): Promise<void> {
-  const previous: LicenseSnapshot = {
-    tier: config.tier,
-    expiry: config.licenseExpiry,
-    graceMode: config.licenseGraceMode,
-  }
-  if (!snapshotChanged(previous, next)) return
-
-  // Mutated in place, deliberately: every route plugin holds a reference to this one object and
-  // reads `config.tier` per request, so an in-place update is what makes a tier change reach
-  // `requireTier` without re-registering anything.
-  config.tier = next.tier
-  config.licenseExpiry = next.expiry
-  config.licenseGraceMode = next.graceMode
-
-  const direction = TIER_ORDER[next.tier] - TIER_ORDER[previous.tier]
-  fastify.log.warn(
-    { from: previous.tier, to: next.tier, graceMode: next.graceMode, expiresAt: next.expiry?.toISOString() ?? null },
-    'license: tier changed while running',
-  )
-
-  void auditService.log({
-    action: 'license.tier-changed',
-    success: true,
-    userId: null,
-    username: 'license-watcher',
-    details: { from: previous.tier, to: next.tier, graceMode: next.graceMode },
-  })
-
-  if (previous.tier !== next.tier) {
+/**
+ * Apply a freshly-resolved licence to the running process.
+ *
+ * The behaviour lives in `createLicenseApplier` so the lapse transition can be driven in a test —
+ * `index.ts` starts a server on import, so anything defined here is reachable only by running one.
+ * What stays here is the wiring: the live config object, the logger, and the two DNS controls.
+ */
+const applyLicense = createLicenseApplier({
+  config,
+  log: { warn: (obj, msg) => fastify.log.warn(obj, msg) },
+  audit: entry => { void auditService.log(entry) },
+  notify: async n => {
     await notificationService.emitEvent({
       id: randomUUID(),
       timestamp: new Date().toISOString(),
-      event: 'license:changed',
-      severity: direction < 0 ? 'error' : 'success',
-      message: direction < 0
-        ? `License downgraded to ${next.tier} — features above that tier are no longer available`
-        : `License is now ${next.tier}`,
-      details: { from: previous.tier, to: next.tier, graceMode: next.graceMode },
+      ...n,
     })
-  }
-
-  // DNS follows the tier rather than the start-up tier. This is the whole of what a DNS-local
-  // timer would have bought, obtained at the layer where the staleness originates.
-  if (dnsLicensed()) {
-    startDnsPublishing()
-  } else {
-    await stopDnsPublishing()
-  }
-}
+  },
+  dns: { start: startDnsPublishing, stop: stopDnsPublishing },
+})
 
 /** Raise the tightest expiry warning that is newly due, at most one per check. */
 async function checkExpiryWarnings(now: Date): Promise<void> {
