@@ -101,9 +101,39 @@ function effectiveDir(command: string, workingDir: string): string {
  */
 const PRINTING = /(?:^|[;&|(]\s*)(?:echo|printf|cat|print)\b/
 
+/**
+ * A heredoc BODY is data — an issue-comment body, a commit message, a config file.
+ *
+ * `PRINTING` above catches single-line prose (`echo`/`printf` at a command position), but a
+ * heredoc body has no such marker on each line and carries no quotes either. On 2026-08-17 that
+ * flagged version-drift-check.yml for the words `npm run refresh:security-allowlist` inside a
+ * sentence telling a human what to type. Rewording the sentence would be gaming the auditor.
+ *
+ * DUPLICATED, deliberately: `verify-workflow-cwd.ts` has the same function and the same fix, but
+ * it lives behind the sync exclusion and imports from `scripts/lib/`, which does not ship. This
+ * file DOES ship to Weaver-Free, so importing a shared copy would leave the mirror with an auditor
+ * whose dependency is absent — present-but-broken, the exact failure the exclusion list exists to
+ * prevent. Do not "deduplicate" these two without moving both to the same side of that boundary.
+ */
+function stripHeredocBodies(text: string): string {
+  const out: string[] = []
+  const open: string[] = []
+  for (const line of text.split('\n')) {
+    if (open.length > 0) {
+      if (line.trim() === open[open.length - 1]) open.pop()
+      continue
+    }
+    out.push(line)
+    const re = /<<-?\s*(?:"([^"]+)"|'([^']+)'|([A-Za-z_][A-Za-z0-9_]*))/g
+    let m: RegExpExecArray | null
+    while ((m = re.exec(line)) !== null) open.push(m[1] ?? m[2] ?? m[3])
+  }
+  return out.join('\n')
+}
+
 function npmRunScripts(command: string): { script: string; raw: string }[] {
   const out: { script: string; raw: string }[] = []
-  for (const line of command.split('\n')) {
+  for (const line of stripHeredocBodies(command).split('\n')) {
     if (PRINTING.test(line.trim())) continue
     for (const m of line.matchAll(/\bnpm\b[^\n&|;]*?\brun\b\s+([A-Za-z0-9:_-]+)/g)) {
       out.push({ script: m[1]!, raw: m[0]!.trim() })
@@ -113,7 +143,7 @@ function npmRunScripts(command: string): { script: string; raw: string }[] {
 }
 
 function isInstall(command: string): boolean {
-  return /\bnpm\s+(ci|install|i)\b/.test(command)
+  return /\bnpm\s+(ci|install|i)\b/.test(stripHeredocBodies(command))
 }
 
 /** Paired self-test: the checks must fire on broken input and hold their fire on good input. */
@@ -155,6 +185,29 @@ function selfTest(): void {
 
   if (!isInstall('npm ci')) failures.push('isInstall missed `npm ci`')
   if (isInstall('npm run build')) failures.push('isInstall wrongly flagged `npm run build`')
+
+  // Heredoc bodies are DATA. Paired, because a stripper that ate too much would silently stop
+  // seeing real commands — so the CATCH case matters as much as the IGNORE one.
+  const heredocProse = [
+    'B=$(cat <<EOF',
+    'Fix it by running npm run refresh:allowlist',
+    'and then npm ci',
+    'EOF',
+    ')',
+  ].join('\n')
+  if (npmRunScripts(heredocProse).length) {
+    failures.push('npmRunScripts read a heredoc BODY as a command')
+  }
+  if (isInstall(heredocProse)) {
+    failures.push('isInstall read a heredoc BODY as a command')
+  }
+  const heredocThenReal = heredocProse + '\nnpm run lint'
+  if (!npmRunScripts(heredocThenReal).some((x) => x.script === 'lint')) {
+    failures.push('stripHeredocBodies swallowed a real command after the heredoc')
+  }
+  if (!isInstall(heredocProse + '\nnpm ci')) {
+    failures.push('stripHeredocBodies swallowed a real npm ci after the heredoc')
+  }
 
   if (failures.length) {
     console.error(`\n  ${RED}✗${OFF} self-test failed — refusing to report on workflows:`)
