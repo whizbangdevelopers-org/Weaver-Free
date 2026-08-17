@@ -187,7 +187,7 @@ describe('computeDiskBps', () => {
       .toEqual({ readBps: null, writeBps: null })
   })
 
-  it('REFUSES across a counter reset rather than smoothing it (WVR-223 decision 4)', () => {
+  it('REFUSES across a counter reset rather than smoothing it', () => {
     // The cgroup was recreated — the unit restarted between samples. A delta here is not a rate,
     // and the restart is the thing the reader most needs to see.
     const r = computeDiskBps({ previous: prev, current: { readBytes: 10, writeBytes: 20 }, elapsedMs: 30_000 })
