@@ -1,6 +1,7 @@
 // Copyright (c) 2026 whizBANG Developers LLC. All rights reserved.
 // Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE.
 import Stripe from 'stripe'
+import { type KeyObject } from 'node:crypto'
 import { generateLicenseKey } from '../license.js'
 import { TIERS } from '../constants/vocabularies.js'
 
@@ -117,7 +118,7 @@ export interface GeneratedLicense {
  */
 export async function generateLicenseFromSubscription(
   subscriptionId: string,
-  hmacSecret: string
+  signingKey: KeyObject
 ): Promise<GeneratedLicense> {
   const s = getStripe()
   const response = await s.subscriptions.retrieve(subscriptionId, { expand: ['items.data.price.product'] })
@@ -141,7 +142,7 @@ export async function generateLicenseFromSubscription(
   // Truncate Stripe customer ID to 4 chars for license payload
   const shortCustId = customerId.replace('cus_', '').slice(0, 4).toUpperCase()
 
-  const key = generateLicenseKey(tier, hmacSecret, {
+  const key = generateLicenseKey(tier, signingKey, {
     expiry: expiresAt,
     customerId: shortCustId,
   })

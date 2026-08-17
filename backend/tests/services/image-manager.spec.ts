@@ -308,8 +308,12 @@ describe('ImageManager', () => {
 
     it('should call genisoimage to create ISO', async () => {
       await mgr.generateCloudInit(makeVm())
-      const calls = (execFile as unknown as ReturnType<typeof vi.fn>).mock.calls
-      const isoCall = calls.find((c: string[][]) => c[0] === 'genisoimage')
+      // Each execFile call is [command, args]. This was annotated `string[][]`, making
+      // `c[0]` a string[] compared against a string — always false to any reader, and
+      // passing only because the annotation is erased at runtime. Asserting the shape on
+      // the array rather than the predicate parameter also types `isoCall[1]` below.
+      const calls = (execFile as unknown as ReturnType<typeof vi.fn>).mock.calls as [string, string[]][]
+      const isoCall = calls.find((c) => c[0] === 'genisoimage')
       expect(isoCall).toBeDefined()
       expect(isoCall![1]).toContain('-volid')
       expect(isoCall![1]).toContain('cidata')

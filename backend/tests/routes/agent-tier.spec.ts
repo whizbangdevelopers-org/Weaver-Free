@@ -18,13 +18,14 @@ import {
 import { agentRoutes } from '../../src/routes/agent.js'
 import { runAgent, hasActiveOperation } from '../../src/services/agent.js'
 import type { DashboardConfig } from '../../src/config.js'
+import { makeTestConfig } from '../helpers/config.js'
 
 const mockRunAgent = runAgent as ReturnType<typeof vi.fn>
 const mockHasActiveOperation = hasActiveOperation as ReturnType<typeof vi.fn>
 
 /** Create a minimal DashboardConfig for testing */
 function makeConfig(overrides: Partial<DashboardConfig> = {}): DashboardConfig {
-  return {
+  return makeTestConfig({
     tier: 'demo',
     licenseExpiry: null,
     licenseGraceMode: false,
@@ -46,7 +47,7 @@ function makeConfig(overrides: Partial<DashboardConfig> = {}): DashboardConfig {
     notify: { ntfyUrl: null, ntfyTopic: null, ntfyToken: null },
     aiApiKey: '',
     ...overrides,
-  }
+  })
 }
 
 describe('Agent Tier Enforcement', () => {

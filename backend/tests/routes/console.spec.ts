@@ -41,7 +41,8 @@ describe('Console WebSocket Proxy', () => {
     await app.register(consoleRoutes, { provisioner: null })
     await app.ready()
 
-    const ws = await new Promise<import('ws')>((resolve) => {
+    // `import('ws')` is the module namespace, not the socket type.
+    const ws = await new Promise<import('ws').WebSocket>((resolve) => {
       // eslint-disable-next-line @typescript-eslint/no-var-requires
       const WebSocket = require('ws')
       const wsClient = new WebSocket(`ws://localhost:${(app.server.address() as { port: number }).port}/ws/console/test-vm`)

@@ -17,12 +17,13 @@ import type { DashboardConfig } from '../../src/config.js'
 import { mkdir, rm } from 'node:fs/promises'
 import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
+import { makeTestConfig } from '../helpers/config.js'
 
 const TEST_DIR = join('/tmp', `host-routes-test-${randomUUID()}`)
 const JWT_SECRET = 'test-secret-for-host-testing'
 
 function makeConfig(overrides: Partial<DashboardConfig> = {}): DashboardConfig {
-  return {
+  return makeTestConfig({
     tier: 'weaver',
     licenseExpiry: null,
     licenseGraceMode: false,
@@ -47,7 +48,7 @@ function makeConfig(overrides: Partial<DashboardConfig> = {}): DashboardConfig {
     notify: { ntfyUrl: null, ntfyTopic: null, ntfyToken: null },
     aiApiKey: '',
     ...overrides,
-  }
+  })
 }
 
 describe('Host Routes', () => {

@@ -10,10 +10,11 @@ import Fastify from 'fastify'
 import { networkRoutes } from '../../src/routes/network.js'
 import { listVms } from '../../src/services/microvm.js'
 import type { DashboardConfig } from '../../src/config.js'
+import { makeTestConfig } from '../helpers/config.js'
 
 const mockListVms = listVms as ReturnType<typeof vi.fn>
 
-const testConfig = {
+const testConfig = makeTestConfig({
   tier: 'demo' as const,
   licenseExpiry: null,
   licenseGraceMode: false,
@@ -28,7 +29,7 @@ const testConfig = {
   jwtSecret: 'test-secret',
   sessionStoreType: 'memory' as const,
   notify: { ntfyUrl: null, ntfyTopic: null, ntfyToken: null },
-} satisfies DashboardConfig
+})
 
 describe('Network Routes', () => {
   const fastify = Fastify()

@@ -140,8 +140,8 @@ function buildLicenseEmailHtml(data: LicenseEmailData): string {
   <h2 style="font-size: 18px; margin-top: 32px;">Activation</h2>
   <ol style="line-height: 1.8;">
     <li>Set <code>LICENSE_KEY</code> in your Weaver environment (or <code>LICENSE_KEY_FILE</code> for sops-nix)</li>
-    <li>Set <code>LICENSE_HMAC_SECRET</code> to the HMAC secret from your account</li>
-    <li>Restart Weaver — the license tier activates automatically</li>
+    <li>That's it — no secret to configure. Weaver verifies the key on its own.</li>
+    <li>Your tier activates within the hour, or immediately on restart</li>
   </ol>
 
   <p style="margin-top: 24px;">
@@ -182,8 +182,8 @@ function buildLicenseEmailText(data: LicenseEmailData): string {
     'Activation',
     '-'.repeat(20),
     '1. Set LICENSE_KEY in your Weaver environment (or LICENSE_KEY_FILE for sops-nix)',
-    '2. Set LICENSE_HMAC_SECRET to the HMAC secret from your account',
-    '3. Restart Weaver — the license tier activates automatically',
+    "2. That's it — no secret to configure. Weaver verifies the key on its own.",
+    '3. Your tier activates within the hour, or immediately on restart',
     '',
     `Full guide: ${data.siteUrl}/docs/activation`,
     '',

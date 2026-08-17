@@ -1,6 +1,7 @@
 // Copyright (c) 2026 whizBANG Developers LLC. All rights reserved.
 // Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE.
 import { FastifyPluginAsync } from 'fastify'
+import { type KeyObject } from 'node:crypto'
 import { constructWebhookEvent, generateLicenseFromSubscription } from '../services/stripe.js'
 import type { LicenseStore } from '../storage/license-store.js'
 import type { AuditService } from '../services/audit.js'
@@ -8,7 +9,13 @@ import type { EmailService } from '../services/email.js'
 
 interface StripeWebhookOptions {
   webhookSecret: string
-  hmacSecret: string
+  /**
+   * The hub's Ed25519 PRIVATE signing key. Was `hmacSecret: string` — the symmetric
+   * value that both minted and validated, and which every host also held. Only the issuer needs
+   * this now, and a shipped product build has no way to obtain it. Until the hub key is
+   * provisioned this plugin is only reachable in tests.
+   */
+  signingKey: KeyObject
   licenseStore: LicenseStore
   auditService?: AuditService
   emailService?: EmailService
@@ -58,8 +65,28 @@ export const stripeWebhookRoutes: FastifyPluginAsync<StripeWebhookOptions> = asy
           break
         }
 
+        // Stripe delivers at least once. A redelivery carries a VALID signature — it is the same
+        // request — so the signature check cannot distinguish it from the first, by design.
+        // Without this guard a retry mints a second key, stores a second record, and emails the
+        // customer a second licence, all reported as success.
+        //
+        // Keyed on the SUBSCRIPTION rather than on `event.id`, deliberately. Stripe's own advice
+        // is event-id idempotency, which here would mean persisting every processed id forever to
+        // answer a question the licence store already answers. One subscription has one licence;
+        // if we hold one, this checkout has been handled — and that stays true across a restart,
+        // across a differently-numbered event for the same subscription, and with no new storage
+        // to grow or prune.
+        const alreadyIssued = opts.licenseStore.findBySubscription(subscriptionId)
+        if (alreadyIssued) {
+          fastify.log.info(
+            { subscriptionId, eventId: event.id },
+            'checkout.session.completed for a subscription that already has a licence — not re-issuing',
+          )
+          break
+        }
+
         try {
-          const license = await generateLicenseFromSubscription(subscriptionId, opts.hmacSecret)
+          const license = await generateLicenseFromSubscription(subscriptionId, opts.signingKey)
           await opts.licenseStore.save({
             key: license.key,
             tier: license.tier,
@@ -166,7 +193,7 @@ export const stripeWebhookRoutes: FastifyPluginAsync<StripeWebhookOptions> = asy
         }
 
         try {
-          const license = await generateLicenseFromSubscription(subId, opts.hmacSecret)
+          const license = await generateLicenseFromSubscription(subId, opts.signingKey)
           const renewed = await opts.licenseStore.renew(
             subId,
             license.key,

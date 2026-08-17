@@ -28,6 +28,7 @@ vi.mock('../../src/services/stripe.js', () => ({
 }))
 
 import Fastify from 'fastify'
+import { generateKeyPairSync } from 'node:crypto'
 import { stripeWebhookRoutes } from '../../src/routes/stripe-webhook.js'
 import { LicenseStore } from '../../src/storage/license-store.js'
 import type { EmailService } from '../../src/services/email.js'
@@ -75,6 +76,8 @@ function makeSubscriptionDeletedEvent(subId: string) {
   }
 }
 
+const TEST_SIGNING_KEY = generateKeyPairSync('ed25519').privateKey
+
 const TEST_LICENSE = {
   key: 'WVR-WVS-TESTKEY12345-A1B2',
   tier: 'weaver' as const,
@@ -98,7 +101,10 @@ function buildApp(opts: {
   app.register(stripeWebhookRoutes, {
     prefix: '/webhook',
     webhookSecret: 'whsec_test',
-    hmacSecret: 'hmac_test',
+    // Required by the plugin, unused by these tests: they mock the issuer, so nothing signs.
+    // It was `hmacSecret: 'hmac_test'` until the option changed, and every test here kept passing
+    // against a registration that could not compile — the gap tsconfig.tests.json closes.
+    signingKey: TEST_SIGNING_KEY,
     licenseStore,
     auditService: opts.auditService,
     emailService: opts.emailService,

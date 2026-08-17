@@ -21,6 +21,8 @@ import type { UserRole } from '../../src/models/user.js'
 import { mkdir, rm } from 'node:fs/promises'
 import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
+import { makeTestConfig } from '../helpers/config.js'
+import type { FastifyRequest } from 'fastify'
 
 const mockGetVmDefinitions = getWorkloadDefinitions as ReturnType<typeof vi.fn>
 
@@ -28,7 +30,7 @@ const TEST_DIR = join('/tmp', `quota-routes-test-${randomUUID()}`)
 
 // Minimal DashboardConfig for testing
 function makeConfig(tier: 'demo' | 'free' | 'weaver' | 'fabrick'): DashboardConfig {
-  return {
+  return makeTestConfig({
     tier,
     licenseExpiry: null,
     licenseGraceMode: false,
@@ -49,7 +51,7 @@ function makeConfig(tier: 'demo' | 'free' | 'weaver' | 'fabrick'): DashboardConf
     sessionStoreType: 'memory',
     notify: { ntfyUrl: null, ntfyTopic: null, ntfyToken: null },
     aiApiKey: '',
-  }
+  })
 }
 
 const sampleVms = {
@@ -74,7 +76,7 @@ describe('Quota Routes', () => {
     fastify.setSerializerCompiler(serializerCompiler)
 
     // Simulate auth middleware
-    fastify.addHook('onRequest', async (request) => {
+    fastify.addHook('onRequest', async (request: FastifyRequest) => {
       request.userRole = mockUserRole
       request.userId = mockUserId
       request.username = 'test-user'
@@ -265,7 +267,7 @@ describe('Quota Routes — Tier Gating', () => {
     fastify.setValidatorCompiler(validatorCompiler)
     fastify.setSerializerCompiler(serializerCompiler)
 
-    fastify.addHook('onRequest', async (request) => {
+    fastify.addHook('onRequest', async (request: FastifyRequest) => {
       request.userRole = 'admin'
       request.userId = 'admin-id'
       request.username = 'admin'

@@ -14,11 +14,13 @@ import type { UserRole } from '../../src/models/user.js'
 import { mkdir, rm } from 'node:fs/promises'
 import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
+import { makeTestConfig } from '../helpers/config.js'
+import type { FastifyRequest } from 'fastify'
 
 const TEST_DIR = join('/tmp', `org-routes-test-${randomUUID()}`)
 
 function makeConfig(tier: 'demo' | 'free' | 'weaver' | 'fabrick'): DashboardConfig {
-  return {
+  return makeTestConfig({
     tier,
     licenseExpiry: null,
     licenseGraceMode: false,
@@ -39,7 +41,7 @@ function makeConfig(tier: 'demo' | 'free' | 'weaver' | 'fabrick'): DashboardConf
     sessionStoreType: 'memory',
     notify: { ntfyUrl: null, ntfyTopic: null, ntfyToken: null },
     aiApiKey: '',
-  }
+  })
 }
 
 let mockUserRole: UserRole = 'admin'
@@ -56,7 +58,7 @@ describe('Organization Routes', () => {
     fastify.setValidatorCompiler(validatorCompiler)
     fastify.setSerializerCompiler(serializerCompiler)
 
-    fastify.addHook('onRequest', async (request) => {
+    fastify.addHook('onRequest', async (request: FastifyRequest) => {
       request.userRole = mockUserRole
       request.userId = mockUserId
       request.username = 'test-admin'
@@ -170,7 +172,7 @@ describe('Organization Routes', () => {
       freeFastify.setValidatorCompiler(validatorCompiler)
       freeFastify.setSerializerCompiler(serializerCompiler)
 
-      freeFastify.addHook('onRequest', async (request) => {
+      freeFastify.addHook('onRequest', async (request: FastifyRequest) => {
         request.userRole = 'admin'
         request.userId = 'test-admin-id'
         request.username = 'test-admin'

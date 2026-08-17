@@ -132,9 +132,20 @@ describe('EmailService', () => {
 
       const call = mockSendMail.mock.calls[0][0]
       expect(call.html).toContain('LICENSE_KEY')
-      expect(call.html).toContain('LICENSE_HMAC_SECRET')
-      expect(call.html).toContain('Restart Weaver')
       expect(call.text).toContain('LICENSE_KEY')
+    })
+
+    it('does NOT tell the customer to configure a licence secret', async () => {
+      await service.sendLicenseKey(baseLicenseOpts)
+
+      // The old instructions said "set LICENSE_HMAC_SECRET to the HMAC secret from your account".
+      // There is no such secret now, and there must never be again: handing every customer the
+      // value that validates keys is handing them the value that mints them. This assertion is the
+      // customer-facing half of that guarantee — a regression here would be the product instructing
+      // users to recreate the vulnerability.
+      const call = mockSendMail.mock.calls[0][0]
+      expect(call.html).not.toContain('LICENSE_HMAC_SECRET')
+      expect(call.text).not.toContain('LICENSE_HMAC_SECRET')
     })
 
     it('includes site URL links', async () => {

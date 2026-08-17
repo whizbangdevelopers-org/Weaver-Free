@@ -34,14 +34,22 @@ function createMockImageManager(sources: Record<string, { url: string; format: s
   } as unknown as ImageManager
 }
 
+interface MockHttpResponse {
+  statusCode: number
+  headers: Record<string, string>
+  resume: ReturnType<typeof vi.fn>
+}
+
 function simulateResponse(statusCode: number, headers: Record<string, string> = {}) {
-  const res = {
+  const res: MockHttpResponse = {
     statusCode,
     headers,
     resume: vi.fn(),
   }
 
-  mockRequest.mockImplementation((_proto: string, _url: string, _opts: unknown, cb: (res: typeof res) => void) => {
+  // Named rather than `typeof res`: the callback is part of `res`'s own initialiser, so
+  // `typeof res` referred to the binding being defined.
+  mockRequest.mockImplementation((_proto: string, _url: string, _opts: unknown, cb: (res: MockHttpResponse) => void) => {
     cb(res)
     return { on: vi.fn().mockReturnThis(), destroy: vi.fn() }
   })

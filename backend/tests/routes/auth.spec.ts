@@ -1,7 +1,7 @@
 // Copyright (c) 2026 whizBANG Developers LLC. All rights reserved.
 // Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE.
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
-import Fastify from 'fastify'
+import Fastify, { type FastifyError } from 'fastify'
 import {
   serializerCompiler,
   validatorCompiler,
@@ -42,7 +42,9 @@ describe('Auth Routes', () => {
     authService = new AuthService(userStore, sessionStore, JWT_SECRET)
 
     // Custom error handler matching the one in backend/src/index.ts
-    fastify.setErrorHandler((error, _request, reply) => {
+    // Annotated because `withTypeProvider<ZodTypeProvider>()` leaves the handler's error
+    // parameter as `unknown`, and this handler reads `error.validation`.
+    fastify.setErrorHandler((error: FastifyError, _request, reply) => {
       if (error.validation) {
         const messages = error.validation
           .map((v: { message?: string }) => v.message ?? '')

@@ -8,11 +8,12 @@ import { VmAclStore } from '../../src/storage/vm-acl-store.js'
 import { createVmAclCheck } from '../../src/middleware/vm-acl.js'
 import type { DashboardConfig } from '../../src/config.js'
 import type { FastifyRequest, FastifyReply } from 'fastify'
+import { makeTestConfig } from '../helpers/config.js'
 
 const TEST_DIR = join('/tmp', `vm-acl-mw-test-${randomUUID()}`)
 
 function makeConfig(tier: 'demo' | 'free' | 'weaver' | 'fabrick'): DashboardConfig {
-  return {
+  return makeTestConfig({
     tier,
     licenseExpiry: null,
     licenseGraceMode: false,
@@ -33,7 +34,7 @@ function makeConfig(tier: 'demo' | 'free' | 'weaver' | 'fabrick'): DashboardConf
     sessionStoreType: 'memory',
     notify: { ntfyUrl: null, ntfyTopic: null, ntfyToken: null },
     aiApiKey: '',
-  }
+  })
 }
 
 function makeRequest(overrides: Partial<FastifyRequest & { params: Record<string, string> }> = {}): FastifyRequest {

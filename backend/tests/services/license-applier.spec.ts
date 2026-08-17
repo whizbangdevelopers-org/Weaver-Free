@@ -59,7 +59,9 @@ function harness(initialTier: string, zone: string | null = PUBLISHED) {
   const stop = vi.fn(async () => { await retireZone(dnsDeps, HOSTS) })
   const warn = vi.fn()
   const audit = vi.fn()
-  const notify = vi.fn(async () => {})
+  // Declares its argument so the assertions can read `calls[0][0]`; a zero-parameter
+  // double types `mock.calls` as an empty tuple.
+  const notify = vi.fn(async (_event: unknown) => {})
 
   const applyLicense = createLicenseApplier({
     config,
