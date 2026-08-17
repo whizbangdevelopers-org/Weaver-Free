@@ -118,7 +118,7 @@ function isShell(path: string, body: string): boolean {
 
 function main(): number {
   console.log('\x1b[1mShell Safety Audit\x1b[0m')
-  console.log('\x1b[2mA committed heredoc must not execute its own body (FORGE-36)\x1b[0m\n')
+  console.log('\x1b[2mA committed heredoc must not execute its own body\x1b[0m\n')
 
   const fails = selfTest()
   if (fails.length) {

@@ -32,7 +32,7 @@ const baseConfig = {
   ipBin: '/bin/ip', distroCatalogUrl: null,
 } as unknown as DashboardConfig
 
-describe('IP allocation (WVR-208 single-authority IPAM)', () => {
+describe('IP allocation — single-authority IPAM', () => {
   let tempDir: string
   let store: NetworkStore
   let mgr: NetworkManager

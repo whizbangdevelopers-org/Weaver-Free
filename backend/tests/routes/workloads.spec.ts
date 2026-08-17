@@ -274,7 +274,7 @@ describe('VM Routes', () => {
 //
 // Both directions are asserted. A gate only ever tested in its blocking direction is
 // indistinguishable from a route that is broken for everyone.
-describe('GET /:name/logs — Apptainer tier gate (WVR-206)', () => {
+describe('GET /:name/logs — Apptainer tier gate', () => {
   const apptainerWorkload = {
     name: 'sif-hpc', status: 'running', ip: '', mem: 512, vcpu: 1,
     hypervisor: 'apptainer', uptime: null, runtime: 'apptainer',
