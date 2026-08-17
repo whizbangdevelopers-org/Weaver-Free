@@ -75,6 +75,6 @@ export const useNotificationStore = defineStore('notifications', {
   },
 
   persist: {
-    paths: ['readIds'],
+    pick: ['readIds'],
   },
 })

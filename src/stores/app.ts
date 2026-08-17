@@ -269,7 +269,7 @@ export const useAppStore = defineStore('app', {
   },
 
   persist: {
-    paths: [
+    pick: [
       // Demo preferences (survive page reload for presenters)
       'demoTierOverride',
       'demoVersion',

@@ -130,6 +130,6 @@ export const useUiStore = defineStore('ui', {
 
   persist: {
     // sortPreference intentionally excluded — Attention needed is always the right default on load
-    paths: ['sidebarOpen', 'autoRefresh', 'refreshInterval', 'dashboardView', 'searchQuery', 'filterTags', 'filterStatus', 'filterHypervisors'],
+    pick: ['sidebarOpen', 'autoRefresh', 'refreshInterval', 'dashboardView', 'searchQuery', 'filterTags', 'filterStatus', 'filterHypervisors'],
   },
 })

@@ -1,6 +1,6 @@
 // Copyright (c) 2026 whizBANG Developers LLC. All rights reserved.
 // Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE.
-import { route } from 'quasar/wrappers'
+import { defineRouter } from '#q-app'
 import {
   createMemoryHistory,
   createRouter,
@@ -12,7 +12,7 @@ import { useAuthStore } from 'src/stores/auth-store'
 import { useAppStore } from 'src/stores/app'
 import { isDemoMode, isPublicDemo } from 'src/config/demo-mode'
 
-export default route(function (/* { store, ssrContext } */) {
+export default defineRouter(function (/* { store, ssrContext } */) {
   const createHistory = process.env.SERVER
     ? createMemoryHistory
     : process.env.VUE_ROUTER_MODE === 'history'
