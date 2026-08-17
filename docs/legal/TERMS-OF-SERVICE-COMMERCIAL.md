@@ -3,7 +3,7 @@
 # Terms of Service — Weaver Solo / Team / Fabrick
 
 **Effective date:** 2026-04-05
-**Last updated:** 2026-04-25
+**Last updated:** 2026-08-17
 **Licensor:** whizBANG Developers LLC
 **Applies to:** Weaver Solo, Weaver Team, and Fabrick tiers
 
@@ -79,11 +79,41 @@ IN NO EVENT SHALL THE LICENSOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, S
 
 Weaver provides security control mappings to industry standards (NIST 800-171, HIPAA, PCI DSS, CIS Benchmarks, SOC 2). These documents describe technical controls implemented in the software. They are **not** certification claims, audit attestations, or guarantees of compliance with any regulatory framework. You are responsible for verifying controls against your specific compliance requirements.
 
-## 7. Changes to These Terms
+## 7. Term and Termination
+
+### 7.1 Term
+
+Your commercial license is granted for the subscription period you have paid for, and continues only for so long as that subscription remains active.
+
+### 7.2 Termination
+
+Your license terminates:
+
+- (a) at the end of the subscription period, if the subscription is cancelled and not renewed;
+- (b) immediately upon non-payment, following any applicable payment retry period;
+- (c) immediately upon a material breach of these Terms or of the applicable license.
+
+### 7.3 Effect of Termination
+
+Upon termination, your right to use the Software under the commercial license ends. You must cease using the tier-restricted functionality of the Software and may either remove the Software or continue under the terms of the free-tier license, where those terms permit your use.
+
+**This obligation does not depend on the behavior of any license key.** A license key is a technical convenience for identifying your tier. It is not the grant of the license, and it is not the measure of your rights under it. Continued use of tier-restricted functionality after termination is a breach of these Terms whether or not the license key installed on your systems remains technically operative, whether or not it has expired, and whether or not any technical measure prevents that use.
+
+### 7.4 License Key Integrity
+
+You may not generate, mint, forge, alter, tamper with, reverse-engineer, or circumvent a license key or any mechanism by which the Software verifies one. You may not use a license key that was not issued to you by the Licensor.
+
+Doing any of these things is a material breach and terminates your license immediately under §7.2(c), in addition to any other remedy available to the Licensor.
+
+### 7.5 Survival
+
+Sections 2 (AI Training Restriction), 4 (Disclaimer of Warranty), 5 (Limitation of Liability), 7.3 (Effect of Termination), and 7.4 (License Key Integrity) survive termination.
+
+## 8. Changes to These Terms
 
 We may update these Terms from time to time. The "Last updated" date at the top of this page reflects the most recent revision. Continued use of the Software after changes constitutes acceptance of the revised Terms.
 
-## 8. Contact
+## 9. Contact
 
 For questions about these Terms, contact whizBANG Developers LLC at the address listed on the product website.
 
