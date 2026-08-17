@@ -1,12 +1,18 @@
 // Copyright (c) 2026 whizBANG Developers LLC. All rights reserved.
 // Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE.
-/* global process, __dirname */
+/* global process */
 
 // Configuration for Quasar app
 // https://v2.quasar.dev/quasar-cli-vite/quasar-config-js
 
-const { readFileSync } = require('fs')
-const { join } = require('path')
+import { readFileSync } from 'node:fs'
+import { join, dirname } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { getCompatibleVersions } from 'baseline-browser-mapping'
+
+// ESM has no __dirname; app-vite 3 only loads quasar.config.js (ESM) or .ts — the .cjs form
+// it replaced is not recognised at all, which presents as "not a Quasar project folder".
+const __dirname = dirname(fileURLToPath(import.meta.url))
 
 // Read package.json version
 const packageJson = JSON.parse(readFileSync(join(__dirname, 'package.json'), 'utf-8'))
@@ -42,7 +48,7 @@ const ESBUILD_TARGET_NAME = {
 // compatible with Baseline in the future", "none of the core set were released before 2002").
 // Verified both, rather than assumed; a `length === 0` check on this call would be unreachable
 // dead code, which is worse than no check because it implies a failure mode that cannot occur.
-const BASELINE_VERSIONS = require('baseline-browser-mapping').getCompatibleVersions({
+const BASELINE_VERSIONS = getCompatibleVersions({
   widelyAvailableOnDate: BASELINE_WIDELY_AVAILABLE_ON,
   includeDownstreamBrowsers: false,
 })
@@ -65,7 +71,10 @@ if (BASELINE_TARGETS.length === 0) {
   )
 }
 
-module.exports = function (/* ctx */) {
+// Plain default export rather than `defineConfig` from '#q-app/wrappers': that specifier is
+// resolvable only AFTER `quasar prepare` has run, and prepare must compile this file first.
+// The wrapper is a types-only convenience, so the config works identically without it.
+export default function (/* ctx */) {
   return {
     // TypeScript is auto-detected in @quasar/app-vite v2
 
