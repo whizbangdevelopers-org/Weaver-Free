@@ -5,6 +5,7 @@ import type { WorkloadRegistry, WorkloadDefinition } from '../../src/storage/wor
 import type { Provisioner } from '../../src/services/provisioner-types.js'
 import type { DashboardConfig } from '../../src/config.js'
 import { provisionExampleVm, EXAMPLE_VM_NAME } from '../../src/services/example-vm.js'
+import { makeTestConfig } from '../helpers/config.js'
 
 function createMockRegistry(vms: Record<string, WorkloadDefinition> = {}): WorkloadRegistry {
   const store = { ...vms }
@@ -37,7 +38,7 @@ function createMockProvisioner(): Provisioner {
   }
 }
 
-const baseConfig: DashboardConfig = {
+const baseConfig: DashboardConfig = makeTestConfig({
   tier: 'weaver',
   licenseExpiry: null,
   licenseGraceMode: false,
@@ -57,7 +58,7 @@ const baseConfig: DashboardConfig = {
   jwtSecret: 'test-secret',
   sessionStoreType: 'memory',
   notify: { ntfyUrl: null, ntfyTopic: null, ntfyToken: null },
-}
+})
 
 const log = { info: vi.fn(), error: vi.fn() }
 

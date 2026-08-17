@@ -39,7 +39,7 @@ describe('AuthService', () => {
       expect(result.token).toBeDefined()
       expect(result.refreshToken).toBeDefined()
       // Ensure passwordHash is not in the safe user object
-      expect((result.user as Record<string, unknown>).passwordHash).toBeUndefined()
+      expect((result.user as unknown as Record<string, unknown>).passwordHash).toBeUndefined()
     })
 
     it('should reject duplicate username', async () => {

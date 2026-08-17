@@ -5,7 +5,8 @@ import { resolve, join } from 'path'
 import { readFile, writeFile } from 'node:fs/promises'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
-import { randomUUID } from 'node:crypto'
+import { randomUUID, createPrivateKey, type KeyObject } from 'node:crypto'
+import { readFileSync } from 'node:fs'
 
 const execFileAsync = promisify(execFile)
 import Fastify, { type FastifyError } from 'fastify'
@@ -683,7 +684,7 @@ if (config.licenseKeyFile) {
         : { content: null, error: err instanceof Error ? err.message : 'unreadable' }
     }
 
-    const outcome = resolveLicense(read, config.licenseHmacSecret, now)
+    const outcome = resolveLicense(read, now)
     if (outcome.kind === 'unreadable') {
       // Hold the current tier. A present-but-unusable file is a mid-write far more often than a
       // real downgrade, and this poll can land inside the very push it is waiting for.
@@ -786,11 +787,35 @@ if (config.stripeSecretKey) {
   initProductMap(config.stripeProducts)
   fastify.log.info('Stripe initialized')
 
-  // License + checkout routes (authenticated — users create checkout sessions)
+  /**
+   * Load the hub's Ed25519 private signing key, if this deployment is an issuer.
+   *
+   * Returns null when unset or unusable — never a fallback key, never a generated one. A
+   * generated key would sign licences nothing on earth can verify (the accepted public keys are
+   * compiled in), so it would look like issuance working while producing dead credentials.
+   * A missing config must fail loudly; a silent fallback to a baked-in default is how a
+   * placeholder credential ends up in production.
+   */
+  function loadLicenseSigningKey(log: typeof fastify.log): KeyObject | null {
+    const path = process.env.LICENSE_SIGNING_KEY_FILE
+    if (!path) return null
+    try {
+      return createPrivateKey(readFileSync(path, 'utf-8'))
+    } catch (err) {
+      log.error(
+        { path, err: err instanceof Error ? err.message : String(err) },
+        'license: LICENSE_SIGNING_KEY_FILE set but unusable — issuance stays disabled',
+      )
+      return null
+    }
+  }
+
+  // License + checkout routes (authenticated — users create checkout sessions).
+  // The `hmacSecret: config.jwtSecret` option is gone: these routes verify keys, and
+  // verification material now comes from the build, not from a caller-supplied value.
   await fastify.register(licenseRoutes, {
     prefix: '/api/license',
     config,
-    hmacSecret: config.jwtSecret, // Reuse JWT secret for HMAC in dev; LICENSE_HMAC_SECRET in prod
     licenseStore,
     priceMap: config.stripePrices,
     siteUrl: config.siteUrl,
@@ -806,16 +831,35 @@ if (config.stripeSecretKey) {
       fastify.log.info('Email service not configured (SMTP_HOST not set) — license emails disabled')
     }
 
-    await fastify.register(stripeWebhookRoutes, {
-      prefix: '/api/stripe/webhook',
-      webhookSecret: config.stripeWebhookSecret,
-      hmacSecret: config.jwtSecret,
-      licenseStore,
-      auditService,
-      emailService,
-      siteUrl: config.siteUrl,
-    })
-    fastify.log.info('Stripe webhook route registered')
+    // The issuer needs the hub's Ed25519 PRIVATE key. This slot used to read
+    // `hmacSecret: config.jwtSecret` — the webhook minted licence keys with the JWT secret while
+    // every host validated against `LICENSE_HMAC_SECRET`, two unrelated credentials with different
+    // lifecycles, so a Stripe-issued key could not have verified anywhere. Both halves are now
+    // gone.
+    //
+    // Reading a private key from a path is safe here in a way the old symmetric secret was not:
+    // a customer who points this at their own key mints keys that fail verification, because the
+    // accepted PUBLIC keys are compiled in and are not theirs. The asymmetry is doing the work.
+    const signingKey = loadLicenseSigningKey(fastify.log)
+    if (!signingKey) {
+      // Fail closed and loudly. Registering the webhook without a signing key would accept
+      // checkouts and then fail to issue, taking payment for a licence never delivered.
+      fastify.log.warn(
+        'Stripe webhook NOT registered — no licence signing key (LICENSE_SIGNING_KEY_FILE). ' +
+        'Issuance is disabled until the hub signing key is provisioned.',
+      )
+    } else {
+      await fastify.register(stripeWebhookRoutes, {
+        prefix: '/api/stripe/webhook',
+        webhookSecret: config.stripeWebhookSecret,
+        signingKey,
+        licenseStore,
+        auditService,
+        emailService,
+        siteUrl: config.siteUrl,
+      })
+      fastify.log.info('Stripe webhook route registered')
+    }
   }
 } else {
   fastify.log.info('Stripe not configured (STRIPE_SECRET_KEY not set) — commerce routes disabled')

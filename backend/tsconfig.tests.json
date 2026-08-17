@@ -1,0 +1,28 @@
+// Typecheck for backend/tests/ — the backend test suite.
+//
+// `backend/tsconfig.json` includes only `src/**/*`, so ~90 spec files were checked by nothing:
+// vitest transpiles them without typechecking, exactly as tsx does for `scripts/` (the same gap,
+// found the same way — see tsconfig.scripts.json). A test that no longer compiles against the code
+// it tests still RUNS, and passes, as long as the wrong property is one the mocks never reach.
+//
+// Found by it immediately: `stripe-webhook.spec.ts` registered the webhook plugin with the removed
+// `hmacSecret` and without the required `signingKey` after changed that interface. Every
+// test in the file passed, because `generateLicenseFromSubscription` was mocked and nothing ever
+// touched the option. The suite was green against a plugin registration that cannot exist.
+//
+// Separate from tsconfig.json for the same reason the scripts config is: these are Node ESM with
+// no DOM, and they pull in vitest's globals rather than the frontend's environment.
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    // The base config sets rootDir to src/ for the build. Typechecking is not a build, and tests
+    // legitimately live outside it, so widen the root rather than move the files. It reaches up to
+    // code/ because a spec may exercise test infrastructure that is not under backend/ — the
+    // substitute licence hub lives in testing/, and the spec that drives it belongs beside the
+    // other licensing specs.
+    "rootDir": "..",
+    "types": ["node", "vitest/globals"]
+  },
+  "include": ["tests/**/*.ts", "src/**/*.ts", "../testing/license-hub/**/*.ts"]
+}

@@ -13,10 +13,21 @@ import {
   resolveLicense, snapshotChanged, daysUntil, decideWarning, sentFor,
   EXPIRY_WARNING_DAYS, FREE_SNAPSHOT, EMPTY_WARNING_STATE,
 } from '../../src/services/license-watcher.js'
+import { generateKeyPairSync } from 'node:crypto'
 import { generateLicenseKey } from '../../src/license.js'
 import { TIERS } from '../../src/constants/vocabularies.js'
 
-const SECRET = 'test-hmac-secret'
+/**
+ * An ephemeral licence authority for this file.
+ *
+ * The shared `SECRET` is gone: it was one symmetric value used to BOTH mint and validate, which is
+ * the defect these keys used to be minted with. `ACCEPTED` is passed explicitly because the
+ * shipped `ACCEPTED_PUBLIC_KEYS` is empty until the production key ships — the behaviours under
+ * test here (grace transitions, renewal without restart, warning idempotence) are about the
+ * watcher, not about which authority signed, and they must stay testable meanwhile.
+ */
+const AUTHORITY = generateKeyPairSync('ed25519')
+const ACCEPTED = [(AUTHORITY.publicKey.export({ format: 'jwk' }) as { x: string }).x]
 const DAY = 86_400_000
 
 function at(iso: string): Date {
@@ -25,8 +36,8 @@ function at(iso: string): Date {
 
 describe('resolveLicense — what a re-read is allowed to conclude', () => {
   it('resolves a valid key to its tier', () => {
-    const key = generateLicenseKey(TIERS.SOLO, SECRET, { expiry: at('2027-01-01T00:00:00Z') })
-    const outcome = resolveLicense({ content: key }, SECRET, at('2026-08-16T00:00:00Z'))
+    const key = generateLicenseKey(TIERS.SOLO, AUTHORITY.privateKey, { expiry: at('2027-01-01T00:00:00Z') })
+    const outcome = resolveLicense({ content: key }, at('2026-08-16T00:00:00Z'), ACCEPTED)
 
     expect(outcome.kind).toBe('resolved')
     if (outcome.kind !== 'resolved') return
@@ -35,8 +46,8 @@ describe('resolveLicense — what a re-read is allowed to conclude', () => {
   })
 
   it('tolerates surrounding whitespace — the install path writes with a trailing newline', () => {
-    const key = generateLicenseKey(TIERS.TEAM, SECRET, { expiry: at('2027-01-01T00:00:00Z') })
-    const outcome = resolveLicense({ content: `  ${key}\n` }, SECRET, at('2026-08-16T00:00:00Z'))
+    const key = generateLicenseKey(TIERS.TEAM, AUTHORITY.privateKey, { expiry: at('2027-01-01T00:00:00Z') })
+    const outcome = resolveLicense({ content: `  ${key}\n` }, at('2026-08-16T00:00:00Z'), ACCEPTED)
 
     expect(outcome.kind).toBe('resolved')
     if (outcome.kind !== 'resolved') return
@@ -46,10 +57,10 @@ describe('resolveLicense — what a re-read is allowed to conclude', () => {
   // The reason the watcher exists at all: the SAME key, unchanged on disk, resolves differently
   // as time passes. A start-up-only read can never observe either of these transitions.
   describe('the same key, later', () => {
-    const key = generateLicenseKey(TIERS.SOLO, SECRET, { expiry: at('2026-08-16T00:00:00Z') })
+    const key = generateLicenseKey(TIERS.SOLO, AUTHORITY.privateKey, { expiry: at('2026-08-16T00:00:00Z') })
 
     it('keeps the tier and flags grace inside the 30-day window', () => {
-      const outcome = resolveLicense({ content: key }, SECRET, new Date(at('2026-08-16T00:00:00Z').getTime() + 10 * DAY))
+      const outcome = resolveLicense({ content: key }, new Date(at('2026-08-16T00:00:00Z').getTime() + 10 * DAY), ACCEPTED)
 
       expect(outcome.kind).toBe('resolved')
       if (outcome.kind !== 'resolved') return
@@ -58,7 +69,7 @@ describe('resolveLicense — what a re-read is allowed to conclude', () => {
     })
 
     it('falls to Free once grace has elapsed', () => {
-      const outcome = resolveLicense({ content: key }, SECRET, new Date(at('2026-08-16T00:00:00Z').getTime() + 31 * DAY))
+      const outcome = resolveLicense({ content: key }, new Date(at('2026-08-16T00:00:00Z').getTime() + 31 * DAY), ACCEPTED)
 
       expect(outcome.kind).toBe('resolved')
       if (outcome.kind !== 'resolved') return
@@ -68,7 +79,7 @@ describe('resolveLicense — what a re-read is allowed to conclude', () => {
   })
 
   it('treats an absent file as Free — removing the key IS the revoke path', () => {
-    expect(resolveLicense({ content: null }, SECRET).kind).toBe('absent')
+    expect(resolveLicense({ content: null }, undefined, ACCEPTED).kind).toBe('absent')
   })
 
   // The asymmetry that matters. A push writes the key file, and a poll can land inside that
@@ -76,41 +87,55 @@ describe('resolveLicense — what a re-read is allowed to conclude', () => {
   // race with their own renewal. Present-but-unusable is authoritative about nothing.
   describe('present but unusable never downgrades', () => {
     it('an invalid key is unreadable, not Free', () => {
-      const outcome = resolveLicense({ content: 'WVR-WVS-NOTAREALKEY1-ZZZZ' }, SECRET)
+      const outcome = resolveLicense({ content: 'WVR-WVS-NOTAREALKEY1-ZZZZ' }, undefined, ACCEPTED)
       expect(outcome.kind).toBe('unreadable')
     })
 
     it('a partially-written key is unreadable, not Free', () => {
-      const key = generateLicenseKey(TIERS.SOLO, SECRET, { expiry: at('2027-01-01T00:00:00Z') })
-      const outcome = resolveLicense({ content: key.slice(0, 10) }, SECRET)
+      const key = generateLicenseKey(TIERS.SOLO, AUTHORITY.privateKey, { expiry: at('2027-01-01T00:00:00Z') })
+      const outcome = resolveLicense({ content: key.slice(0, 10) }, undefined, ACCEPTED)
       expect(outcome.kind).toBe('unreadable')
     })
 
     it('an empty file is unreadable, not Free', () => {
-      expect(resolveLicense({ content: '   \n' }, SECRET).kind).toBe('unreadable')
+      expect(resolveLicense({ content: '   \n' }, undefined, ACCEPTED).kind).toBe('unreadable')
     })
 
     it('an I/O error is unreadable, not Free', () => {
-      expect(resolveLicense({ content: null, error: 'EACCES' }, SECRET).kind).toBe('unreadable')
+      expect(resolveLicense({ content: null, error: 'EACCES' }, undefined, ACCEPTED).kind).toBe('unreadable')
     })
 
-    it('refuses to validate when no HMAC secret is configured', () => {
-      const key = generateLicenseKey(TIERS.SOLO, SECRET, { expiry: at('2027-01-01T00:00:00Z') })
-      const outcome = resolveLicense({ content: key }, '', at('2026-08-16T00:00:00Z'))
+    // Replaces 'refuses to validate when no HMAC secret is configured'. That test asserted a guard
+    // whose NECESSITY was the defect: whether a key could be forged turned on a value the operator
+    // supplied, so the watcher had to check the operator had supplied one. There is no such value
+    // now. The residual question is what happens with nothing to verify AGAINST, and the answer
+    // must be "reject", never "accept".
+    it('an unverifiable key is unreadable, not a resolved tier — empty accepted set', () => {
+      const key = generateLicenseKey(TIERS.SOLO, AUTHORITY.privateKey, { expiry: at('2027-01-01T00:00:00Z') })
+      const outcome = resolveLicense({ content: key }, at('2026-08-16T00:00:00Z'), [])
 
-      // Not 'resolved': with no secret the checksum proves nothing, so accepting the key would
-      // accept a forged one. Same guard as start-up resolution.
+      expect(outcome.kind).toBe('unreadable')
+    })
+
+    it('a key from an unrecognised authority is unreadable, not a resolved tier', () => {
+      const other = generateKeyPairSync('ed25519')
+      const key = generateLicenseKey(TIERS.FABRICK, other.privateKey, { expiry: at('2027-01-01T00:00:00Z') })
+      const outcome = resolveLicense({ content: key }, at('2026-08-16T00:00:00Z'), ACCEPTED)
+
+      // 'unreadable' holds the CURRENT tier rather than downgrading, which is right for a
+      // mid-write race — and it also means a forged key cannot force a downgrade. It cannot force
+      // an upgrade either, which is the property that matters here.
       expect(outcome.kind).toBe('unreadable')
     })
   })
 
   it('a renewal key replaces the old one without a restart', () => {
     const now = at('2026-08-16T00:00:00Z')
-    const oldKey = generateLicenseKey(TIERS.SOLO, SECRET, { expiry: at('2026-09-01T00:00:00Z') })
-    const newKey = generateLicenseKey(TIERS.SOLO, SECRET, { expiry: at('2027-09-01T00:00:00Z') })
+    const oldKey = generateLicenseKey(TIERS.SOLO, AUTHORITY.privateKey, { expiry: at('2026-09-01T00:00:00Z') })
+    const newKey = generateLicenseKey(TIERS.SOLO, AUTHORITY.privateKey, { expiry: at('2027-09-01T00:00:00Z') })
 
-    const before = resolveLicense({ content: oldKey }, SECRET, now)
-    const after = resolveLicense({ content: newKey }, SECRET, now)
+    const before = resolveLicense({ content: oldKey }, now, ACCEPTED)
+    const after = resolveLicense({ content: newKey }, now, ACCEPTED)
     if (before.kind !== 'resolved' || after.kind !== 'resolved') throw new Error('expected both to resolve')
 
     expect(snapshotChanged(before.snapshot, after.snapshot)).toBe(true)

@@ -31,11 +31,12 @@ vi.mock('node:fs/promises', () => ({
 
 import { Provisioner, provisioningEvents } from '../../src/services/weaver/provisioner.js'
 import { ImageManager as ImageManagerClass } from '../../src/services/image-manager.js'
+import { makeTestConfig } from '../helpers/config.js'
 
 // Built-in distro check used in routing tests
 const BUILTIN_CLOUD_DISTROS = ImageManagerClass.builtinDistros()
 
-const DEFAULT_CONFIG: DashboardConfig = {
+const DEFAULT_CONFIG: DashboardConfig = makeTestConfig({
   tier: 'free' as const,
   licenseExpiry: null,
   licenseGraceMode: false,
@@ -47,7 +48,7 @@ const DEFAULT_CONFIG: DashboardConfig = {
   bridgeInterface: 'br-microvm',
   qemuBin: '/run/current-system/sw/bin/qemu-system-x86_64',
   qemuImgBin: '/run/current-system/sw/bin/qemu-img',
-}
+})
 
 function makeVm(overrides: Partial<WorkloadDefinition> = {}): WorkloadDefinition {
   return {
@@ -67,6 +68,10 @@ function createMockRegistry(vms: Record<string, WorkloadDefinition> = {}): Workl
     init: async () => {},
     getAll: async () => ({ ...store }),
     get: async (name: string) => store[name] ?? null,
+    // Required by WorkloadRegistry. The provisioner under test does not call it, but a
+    // double that silently omits an interface method is a double that stops matching the
+    // thing it stands for the moment the code starts using it.
+    update: async () => true,
     has: async (name: string) => name in store,
     add: async (vm: WorkloadDefinition) => {
       store[vm.name] = vm

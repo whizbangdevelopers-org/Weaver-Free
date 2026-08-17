@@ -44,11 +44,12 @@ import { healthRoutes } from '../../src/routes/health.js'
 import { setRegistry } from '../../src/services/microvm.js'
 import { JsonWorkloadRegistry } from '../../src/storage/json-registry.js'
 import type { DashboardConfig } from '../../src/config.js'
+import { makeTestConfig } from '../helpers/config.js'
 
 let tmpDir: string
 let registry: JsonWorkloadRegistry
 
-const config: DashboardConfig = {
+const config: DashboardConfig = makeTestConfig({
   tier: 'weaver' as const,
   licenseExpiry: null,
   licenseGraceMode: false,
@@ -63,7 +64,7 @@ const config: DashboardConfig = {
   jwtSecret: 'test-secret',
   sessionStoreType: 'memory',
   notify: { ntfyUrl: null, ntfyTopic: null, ntfyToken: null },
-}
+})
 
 function buildApp() {
   const app = Fastify({ logger: false }).withTypeProvider<ZodTypeProvider>()

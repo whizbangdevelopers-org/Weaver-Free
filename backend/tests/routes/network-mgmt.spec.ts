@@ -15,6 +15,8 @@ import { NetworkStore } from '../../src/storage/network-store.js'
 import { NetworkManager } from '../../src/services/weaver/network-manager.js'
 import type { DashboardConfig } from '../../src/config.js'
 import type { UserRole } from '../../src/models/user.js'
+import type { FastifyRequest } from 'fastify'
+import { makeTestConfig } from '../helpers/config.js'
 
 // Simulate authenticated user role
 let mockUserRole: UserRole = 'admin'
@@ -26,7 +28,7 @@ vi.mock('node:child_process', () => ({
   }),
 }))
 
-const baseConfig: DashboardConfig = {
+const baseConfig: DashboardConfig = makeTestConfig({
   tier: 'weaver' as const,
   licenseExpiry: null,
   licenseGraceMode: false,
@@ -36,12 +38,11 @@ const baseConfig: DashboardConfig = {
   microvmsDir: '/var/lib/microvms',
   bridgeGateway: '10.10.0.1',
   bridgeInterface: 'br-microvm',
-  microvmBin: '/run/current-system/sw/bin/microvm',
   qemuBin: '/run/current-system/sw/bin/qemu-system-x86_64',
   qemuImgBin: '/run/current-system/sw/bin/qemu-img',
   ipBin: '/run/current-system/sw/bin/ip',
   distroCatalogUrl: null,
-}
+})
 
 describe('Network Management Routes', () => {
   let tempDir: string
@@ -74,7 +75,7 @@ describe('Network Management Routes', () => {
       fastify.setSerializerCompiler(serializerCompiler)
 
       // Simulate auth middleware
-      fastify.addHook('onRequest', async (request) => {
+      fastify.addHook('onRequest', async (request: FastifyRequest) => {
         request.userRole = mockUserRole
         request.userId = 'test-user-id'
         request.username = 'test-user'
@@ -199,7 +200,7 @@ describe('Network Management Routes', () => {
       fastify.setSerializerCompiler(serializerCompiler)
 
       // Simulate auth middleware
-      fastify.addHook('onRequest', async (request) => {
+      fastify.addHook('onRequest', async (request: FastifyRequest) => {
         request.userRole = mockUserRole
         request.userId = 'test-user-id'
         request.username = 'test-user'

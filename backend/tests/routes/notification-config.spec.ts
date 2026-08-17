@@ -16,10 +16,12 @@ import { NotificationStore } from '../../src/storage/notification-store.js'
 import { NotificationService } from '../../src/services/notification.js'
 import type { DashboardConfig } from '../../src/config.js'
 import type { UserRole } from '../../src/models/user.js'
+import type { FastifyRequest } from 'fastify'
+import { makeTestConfig } from '../helpers/config.js'
 
 let mockUserRole: UserRole = 'admin'
 
-const baseConfig: DashboardConfig = {
+const baseConfig: DashboardConfig = makeTestConfig({
   tier: 'weaver' as const,
   licenseExpiry: null,
   licenseGraceMode: false,
@@ -32,7 +34,6 @@ const baseConfig: DashboardConfig = {
   sudoBin: '/run/current-system/sw/bin/sudo',
   systemctlBin: '/run/current-system/sw/bin/systemctl',
   iptablesBin: '/run/current-system/sw/bin/iptables',
-  microvmBin: '/run/current-system/sw/bin/microvm',
   qemuBin: '/run/current-system/sw/bin/qemu-system-x86_64',
   qemuImgBin: '/run/current-system/sw/bin/qemu-img',
   ipBin: '/run/current-system/sw/bin/ip',
@@ -40,7 +41,7 @@ const baseConfig: DashboardConfig = {
   jwtSecret: 'test-secret',
   sessionStoreType: 'memory',
   notify: { ntfyUrl: null, ntfyTopic: null, ntfyToken: null },
-}
+})
 
 describe('Notification Config Routes', () => {
   let tempDir: string
@@ -76,7 +77,7 @@ describe('Notification Config Routes', () => {
       fastify.setValidatorCompiler(validatorCompiler)
       fastify.setSerializerCompiler(serializerCompiler)
 
-      fastify.addHook('onRequest', async (request) => {
+      fastify.addHook('onRequest', async (request: FastifyRequest) => {
         request.userRole = mockUserRole
         request.userId = 'test-user-id'
         request.username = 'test-user'
@@ -353,7 +354,7 @@ describe('Notification Config Routes', () => {
       fastify.setValidatorCompiler(validatorCompiler)
       fastify.setSerializerCompiler(serializerCompiler)
 
-      fastify.addHook('onRequest', async (request) => {
+      fastify.addHook('onRequest', async (request: FastifyRequest) => {
         request.userRole = mockUserRole
         request.userId = 'test-user-id'
         request.username = 'test-user'

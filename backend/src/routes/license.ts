@@ -9,7 +9,9 @@ import type { DashboardConfig } from '../config.js'
 
 interface LicenseRouteOptions {
   config: DashboardConfig
-  hmacSecret: string
+  // `hmacSecret` is gone. These routes only VERIFY keys, and verification material is
+  // compiled into the build rather than passed in — a caller-supplied verifier is what let any
+  // operator mint their own tier.
   licenseStore: LicenseStore
   /** Map of product shortcodes to Stripe Price IDs */
   priceMap: Record<string, string>
@@ -107,7 +109,7 @@ export const licenseRoutes: FastifyPluginAsync<LicenseRouteOptions> = async (fas
     },
   }, async (request, reply) => {
     try {
-      const result = parseLicenseKey(request.body.key, opts.hmacSecret)
+      const result = parseLicenseKey(request.body.key)
       const record = opts.licenseStore.findByKey(request.body.key)
 
       return {

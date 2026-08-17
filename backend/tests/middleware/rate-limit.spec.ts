@@ -278,7 +278,7 @@ describe('Rate Limiting', () => {
         global: true,
         max: 3,
         timeWindow: '1 minute',
-        keyGenerator: (request) => (request as Record<string, unknown>).userId as string ?? request.ip,
+        keyGenerator: (request) => (request as unknown as Record<string, unknown>).userId as string ?? request.ip,
         addHeaders: {
           'x-ratelimit-limit': true,
           'x-ratelimit-remaining': true,
@@ -294,7 +294,7 @@ describe('Rate Limiting', () => {
       fastify.addHook('onRequest', async (request) => {
         const userId = request.headers['x-test-user-id']
         if (userId && typeof userId === 'string') {
-          ;(request as Record<string, unknown>).userId = userId
+          ;(request as unknown as Record<string, unknown>).userId = userId
         }
       })
 

@@ -346,7 +346,10 @@ describe('httpRangeQuery', () => {
   const okBody = { status: 'success', data: { resultType: 'matrix', result: [] } }
 
   it('sends query/start/end/step as query parameters', async () => {
-    const fetchMock = vi.fn(async () => new Response(JSON.stringify(okBody), { status: 200 }))
+    // Parameters declared so `mock.calls[0][0]` resolves: `vi.fn(async () => …)` types its
+    // calls as a zero-length tuple, and the assertions below read the URL argument.
+    const fetchMock = vi.fn(async (_url: string | URL, _init?: RequestInit) =>
+      new Response(JSON.stringify(okBody), { status: 200 }))
     vi.stubGlobal('fetch', fetchMock)
 
     await httpRangeQuery('http://127.0.0.1:9090')({ query: 'up', startSec: 10, endSec: 40, stepSec: 30 })
@@ -361,7 +364,8 @@ describe('httpRangeQuery', () => {
   })
 
   it('strips a trailing slash from the base URL', async () => {
-    const fetchMock = vi.fn(async () => new Response(JSON.stringify(okBody), { status: 200 }))
+    const fetchMock = vi.fn(async (_url: string | URL, _init?: RequestInit) =>
+      new Response(JSON.stringify(okBody), { status: 200 }))
     vi.stubGlobal('fetch', fetchMock)
     await httpRangeQuery('http://127.0.0.1:9090/')({ query: 'up', startSec: 1, endSec: 2, stepSec: 1 })
     expect(new URL(fetchMock.mock.calls[0]![0] as unknown as string).pathname).toBe('/api/v1/query_range')

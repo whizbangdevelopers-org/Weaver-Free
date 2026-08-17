@@ -11,11 +11,16 @@ import { distroRoutes } from '../../src/routes/distros.js'
 import { ImageManager } from '../../src/services/image-manager.js'
 import type { UserRole } from '../../src/models/user.js'
 
+type MockDistro = { name: string; label: string; url: string; format: string; cloudInit: boolean; guestOs?: string }
+
 function createMockDistroStore() {
-  const store: Record<string, { name: string; label: string; url: string; format: string; cloudInit: boolean; guestOs?: string }> = {}
+  const store: Record<string, MockDistro> = {}
   return {
     getAll: vi.fn(() => ({ ...store })),
-    get: vi.fn((name: string) => store[name] ?? null),
+    // Return type stated: a lookup can miss, and `noUncheckedIndexedAccess` being off
+    // means inference would otherwise claim `get` never returns null — leaving the
+    // not-found tests unable to arrange the case they exist for.
+    get: vi.fn((name: string): MockDistro | null => store[name] ?? null),
     has: vi.fn((name: string) => name in store),
     names: vi.fn(() => Object.keys(store)),
     add: vi.fn(async (distro: { name: string; label: string; url: string; format: string; cloudInit: boolean }) => {

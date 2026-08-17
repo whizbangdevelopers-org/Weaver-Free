@@ -1,6 +1,7 @@
 // Copyright (c) 2026 whizBANG Developers LLC. All rights reserved.
 // Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE.
 import { parseLicenseKey, TIER_ORDER, type Tier } from '../license.js'
+import { ACCEPTED_PUBLIC_KEYS } from '../license-signing.js'
 import { TIERS } from '../constants/vocabularies.js'
 
 /**
@@ -62,8 +63,8 @@ export const FREE_SNAPSHOT: LicenseSnapshot = { tier: TIERS.FREE, expiry: null, 
  */
 export function resolveLicense(
   read: { content: string | null; error?: string },
-  hmacSecret: string,
   now: Date = new Date(),
+  acceptedKeys: readonly string[] = ACCEPTED_PUBLIC_KEYS,
 ): LicenseReadOutcome {
   if (read.error) return { kind: 'unreadable', reason: read.error }
   if (read.content === null) return { kind: 'absent' }
@@ -71,12 +72,15 @@ export function resolveLicense(
   const trimmed = read.content.trim()
   if (trimmed === '') return { kind: 'unreadable', reason: 'key file is empty' }
 
-  // An empty secret cannot validate anything, so parsing would accept a forged key. Same guard
-  // as start-up config resolution, and for the same reason.
-  if (hmacSecret.length === 0) return { kind: 'unreadable', reason: 'no HMAC secret configured' }
+  // The `hmacSecret` parameter and its empty-secret guard are gone. That guard read
+  // "an empty secret cannot validate anything, so parsing would accept a forged key" — which was
+  // true, and is exactly the shape of the underlying defect: whether a key could be forged
+  // depended on a value the OPERATOR supplied. Verification material now comes from the build, so
+  // there is no configured value whose absence needs guarding. An unverifiable key simply fails
+  // verification below, which is the same outcome by a route nobody can influence.
 
   try {
-    const result = parseLicenseKey(trimmed, hmacSecret, now)
+    const result = parseLicenseKey(trimmed, now, acceptedKeys)
     return {
       kind: 'resolved',
       snapshot: { tier: result.tier, expiry: result.expiry, graceMode: result.graceMode },

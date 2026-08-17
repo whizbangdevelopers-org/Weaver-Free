@@ -16,12 +16,13 @@ import type { DashboardConfig } from '../../src/config.js'
 import { mkdir, rm } from 'node:fs/promises'
 import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
+import { makeTestConfig } from '../helpers/config.js'
 
 const TEST_DIR = join('/tmp', `host-config-routes-test-${randomUUID()}`)
 const JWT_SECRET = 'test-secret-for-host-config-testing'
 
 function makeConfig(overrides: Partial<DashboardConfig> = {}): DashboardConfig {
-  return {
+  return makeTestConfig({
     tier: 'demo',
     licenseExpiry: null,
     licenseGraceMode: false,
@@ -49,7 +50,7 @@ function makeConfig(overrides: Partial<DashboardConfig> = {}): DashboardConfig {
     aiApiKey: '',
     nixConfigPath: '/etc/nixos/configuration.nix',
     ...overrides,
-  }
+  })
 }
 
 describe('Host Config Routes', () => {

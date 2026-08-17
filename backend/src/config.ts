@@ -49,8 +49,6 @@ export interface DashboardConfig {
    * key and the host must pick it up without a restart. Nothing to poll when this is null.
    */
   licenseKeyFile: string | null
-  /** Secret the key checksum is verified against; empty string when none is configured. */
-  licenseHmacSecret: string
   storageBackend: 'json' | 'sqlite'
   dataDir: string
   provisioningEnabled: boolean
@@ -221,30 +219,15 @@ export function loadConfig(): DashboardConfig {
   let licenseExpiry: Date | null = null
   let licenseGraceMode = false
 
-  // HMAC secret for license key validation.
-  // LICENSE_HMAC_SECRET_FILE (e.g. NixOS sops-nix) is preferred — it keeps the secret out of the
-  // world-readable Nix store, unlike a literal LICENSE_HMAC_SECRET. See G-security-2026-06-14-01KYSBXCJAD009N6WQ6GP42V93.
-  let hmacSecret = process.env.LICENSE_HMAC_SECRET
-  if (!hmacSecret && process.env.LICENSE_HMAC_SECRET_FILE) {
-    try {
-      hmacSecret = readFileSync(process.env.LICENSE_HMAC_SECRET_FILE, 'utf-8').trim()
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Unknown error'
-      console.error(`[license] Failed to read LICENSE_HMAC_SECRET_FILE: ${message}`)
-    }
-  }
-  if (!hmacSecret) {
-    if (process.env.NODE_ENV !== 'production') {
-      hmacSecret = randomBytes(32).toString('hex')
-      console.warn('[license] LICENSE_HMAC_SECRET not set — generated random secret for development')
-    } else {
-      // Production without HMAC secret: skip license key parsing entirely (fall back to free)
-      hmacSecret = ''
-      if (process.env.LICENSE_KEY || process.env.LICENSE_KEY_FILE) {
-        console.error('[license] LICENSE_HMAC_SECRET is required to validate license keys in production — ignoring LICENSE_KEY')
-      }
-    }
-  }
+  // `LICENSE_HMAC_SECRET` / `LICENSE_HMAC_SECRET_FILE` resolution is GONE, not merely unused.
+  //
+  // Nothing reads the value any more, and leaving the block would be worse than dead code: it
+  // logged "LICENSE_HMAC_SECRET is required to validate license keys in production", which would
+  // now be false and would send an operator to configure a variable that does nothing. It also
+  // generated a random secret in development — a fallback that made a forged key verify locally
+  // and nowhere else, which is precisely the confusion the whole change removes.
+  //
+  // Verification material is compiled into the build. There is no licence secret to configure.
 
   // Resolution order:
   // 1. LICENSE_KEY env var
@@ -254,12 +237,16 @@ export function loadConfig(): DashboardConfig {
   const licenseKey = process.env.LICENSE_KEY
   const licenseKeyFile = process.env.LICENSE_KEY_FILE
 
-  // Skip license parsing if HMAC secret is empty (prevents trivially forged keys)
-  const canValidateLicense = hmacSecret.length > 0
+  // There is no longer a `canValidateLicense` precondition. It read "skip license parsing if the
+  // HMAC secret is empty (prevents trivially forged keys)" — a guard whose necessity was itself the
+  // bug: whether a key could be forged depended on a value the OPERATOR supplied, and supplying it
+  // was equivalent to holding the minting authority. Verification material now comes from
+  // the build, so there is no configured precondition to check; an unverifiable key fails
+  // verification and we fall back to Free, which is what the guard was reaching for anyway.
 
-  if (licenseKey && canValidateLicense) {
+  if (licenseKey) {
     try {
-      const result = parseLicenseKey(licenseKey.trim(), hmacSecret)
+      const result = parseLicenseKey(licenseKey.trim())
       tier = result.tier
       licenseExpiry = result.expiry
       licenseGraceMode = result.graceMode
@@ -267,10 +254,10 @@ export function loadConfig(): DashboardConfig {
       const message = err instanceof Error ? err.message : 'Unknown error'
       console.error(`[license] Invalid LICENSE_KEY: ${message} — falling back to free tier`)
     }
-  } else if (licenseKeyFile && canValidateLicense) {
+  } else if (licenseKeyFile) {
     try {
       const keyFromFile = readFileSync(licenseKeyFile, 'utf-8').trim()
-      const result = parseLicenseKey(keyFromFile, hmacSecret)
+      const result = parseLicenseKey(keyFromFile)
       tier = result.tier
       licenseExpiry = result.expiry
       licenseGraceMode = result.graceMode
@@ -297,7 +284,6 @@ export function loadConfig(): DashboardConfig {
     licenseExpiry,
     licenseGraceMode,
     licenseKeyFile: licenseKeyFile ?? null,
-    licenseHmacSecret: hmacSecret,
     storageBackend: (process.env.VM_STORAGE_BACKEND ?? 'json') as 'json' | 'sqlite',
     dataDir: process.env.VM_DATA_DIR ?? './data',
     provisioningEnabled: toBool(process.env.PROVISIONING_ENABLED),

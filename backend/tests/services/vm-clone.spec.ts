@@ -12,6 +12,7 @@
 // Everything here is a PURE function over plain values, so the suite is deterministic and needs no
 // hypervisor, no registry and no filesystem.
 import { describe, it, expect } from 'vitest'
+import type { WorkloadDefinition } from '../../src/storage/workload-registry.js'
 import { cloneRejectionReason, deriveClonedDefinition } from '../../src/services/microvm.js'
 
 const source = {
@@ -126,8 +127,14 @@ describe('deriveClonedDefinition — what the copy inherits, and what it must no
   //
   // A denylist also inherits, silently, every field added to WorkloadDefinition after this is
   // written. So the contract is the complete key set, not a sample of it.
+  //
+  // `full` is TYPED, not inferred, and that is load-bearing rather than tidiness. In a bare
+  // literal `guestOs: 'linux'` widens to `string`, which is not a `GuestOs` — so this fixture
+  // described an object that could not exist at runtime, and the test asserted over it anyway.
+  // The annotation also does the job the comment above asks for: adding a field to
+  // WorkloadDefinition now surfaces here, instead of being inherited in silence.
   it('carries ONLY the allowlisted fields — nothing inherited by accident', () => {
-    const full = {
+    const full: WorkloadDefinition = {
       ...source,
       diskSize: 20,
       distro: 'nixos',

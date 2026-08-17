@@ -30,6 +30,7 @@ vi.mock('../../src/services/microvm.js', async (importOriginal) => ({
 import Fastify from 'fastify'
 import { serializerCompiler, validatorCompiler, ZodTypeProvider } from 'fastify-type-provider-zod'
 import { workloadsRoutes } from '../../src/routes/workloads.js'
+import type { Provisioner } from '../../src/services/provisioner-types.js'
 import { getWorkloadDefinitions, getVm, createVm } from '../../src/services/microvm.js'
 
 const mockGetDefs = getWorkloadDefinitions as ReturnType<typeof vi.fn>
@@ -59,7 +60,11 @@ function makeNetworkManager() {
   const calls = { reserved: [] as string[], released: [] as string[] }
   return {
     calls,
-    reserveIp: vi.fn(async (_bridge: string) => {
+    // Return type stated explicitly to match the real `NetworkManager.reserveIp`, which is
+    // `Promise<string | null>` — null meaning the pool is exhausted. Inference alone narrowed this
+    // double to `Promise<string>`, so it could not express the very case the exhausted-pool test
+    // below arranges. A double narrower than its contract cannot test the contract's edges.
+    reserveIp: vi.fn(async (_bridge: string): Promise<string | null> => {
       const ip = '10.10.0.99'
       calls.reserved.push(ip)
       return ip
@@ -100,15 +105,20 @@ async function buildApp(opts: {
     prefix: '/api/workload',
     config: makeConfig(opts.tier ?? 'weaver'),
     networkManager: opts.networkManager === undefined ? makeNetworkManager() : opts.networkManager,
-    provisioner: opts.provisioner ?? null,
+    // A deliberate partial double. `Provisioner` has many methods; the clone route calls
+    // `provision` and `getLog`, and stubbing the rest with vi.fn()s that no test arranges or
+    // asserts would add noise, not coverage. The cast says so rather than pretending completeness.
+    provisioner: (opts.provisioner ?? null) as unknown as Provisioner | null,
     auditService: opts.auditService as never,
   })
   await fastify.ready()
   return fastify
 }
 
-const clone = (app: Awaited<ReturnType<typeof buildApp>>, body: unknown, source = 'web-nginx') =>
-  app.inject({ method: 'POST', url: `/api/workload/${source}/clone`, payload: body })
+const clone = async (app: Awaited<ReturnType<typeof buildApp>>, body: Record<string, unknown>, source = 'web-nginx') =>
+  // `await` matters for more than style: un-awaited, inject() types as its chainable union
+  // (`void & Promise<Response> & Chain`) and every `res.statusCode` below fails to resolve.
+  await app.inject({ method: 'POST', url: `/api/workload/${source}/clone`, payload: body })
 
 describe('POST /api/workload/:name/clone', () => {
   beforeEach(() => {
