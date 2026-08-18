@@ -1,0 +1,4 @@
+Standard Quasar scaffold directory. tsconfig.json declares the `assets/*` path alias and
+quasar.config.js derives a Vite alias from it, so this directory is part of the contract those
+two make — audit:vite-aliases fails when a declared alias points at a directory that does not
+exist, because a stale or typo'd alias target is otherwise completely silent.

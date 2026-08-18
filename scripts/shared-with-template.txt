@@ -99,6 +99,23 @@ code/scripts/verify-rule-contracts.ts
 # trees now self-tests BOTH.
 code/scripts/verify-hooks.ts
 
+# The dev-server alias derivation and its guard. app-vite 3 dropped the built-in `src`/`layouts`/
+# `stores`/… aliases, and every project scaffolded from this template imports through them — so the
+# breakage, and therefore the fix, is portfolio-wide by construction. The derivation reads JSONC,
+# because a tsconfig may legitimately carry comments; a comment scanner replicated by hand into four
+# quasar.config.js files is four chances to mishandle a string boundary, in a file whose failure mode
+# is a dev server that silently resolves nothing while typecheck and the production build stay green.
+# Pinned as a pair: the checker is the contract the module is held to, and neither half is
+# project-specific.
+#
+# It sits at the app root rather than under scripts/lib/ because quasar.config.js imports it at
+# BUILD time and scripts/lib/ is excluded wholesale from the public mirror — a module there would
+# leave the published config importing a file that is not in the tree. audit:excluded-imports
+# caught that on the first run.
+code/quasar.aliases.js
+code/quasar.aliases.d.ts
+code/scripts/verify-vite-aliases.ts
+
 # The port-block checker (FORGE-43). Portfolio-wide by definition: it enforces that a repo names
 # only ports inside its OWN block, and the whole point of a block scheme is that every product
 # obeys it. Product-agnostic by construction — it reads productName from package.json and parses
@@ -110,3 +127,20 @@ code/scripts/verify-hooks.ts
 # silent pass. That distinction was found BY putting it in the template — in weaver the table is
 # populated, so the vacuous path never ran.
 code/scripts/verify-port-allocation.ts
+
+# The working-tree ownership guard and its provisioning half. The E2E harness bind-mounts the repo,
+# so a container running as root writes root-owned files into the developer's tree and the next
+# `quasar dev` dies with EACCES — measured in the template (28 paths, dev server would not start)
+# and in weaver (173, under dist/). Portfolio-wide by construction: it RECOVERS the uid variable
+# from each repo's own docker-compose.yml rather than assuming a name, which is what let it hold
+# weaver to the same invariant while weaver still called it E2E_UID. All four now use HOST_UID —
+# the recovery stays because assuming a name is what makes a shared checker un-shareable. A forked
+# copy would let one repo's containers keep writing as root while reporting green.
+code/scripts/provision-ownership.js
+
+# The host-user helper every E2E runner sources. Same argument as the ownership guard above, and
+# the two are a pair: the guard enforces that every compose-driving script puts the uid in the
+# environment, and this is the thing they all source to do it. It forked three ways before being
+# pinned — weaver had it under a different variable name, gantry inlined two of its four lines in
+# three scripts and nothing in four others, and the template had none at all.
+code/testing/e2e-docker/scripts/lib/host-user.sh
