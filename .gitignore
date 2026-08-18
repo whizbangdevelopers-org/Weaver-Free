@@ -33,6 +33,19 @@ quasar.config.*.temporary.compiled.*.cjs
 # Electron
 /src-electron/dist
 
+# PWA — scaffold output, not source
+#
+# `quasar build -m pwa` re-runs the PWA mode installation whenever these are absent, copying
+# @quasar/app-vite/templates/pwa/common verbatim. Verified 2026-08-17 by removing both and
+# rebuilding: the build succeeded and recreated them byte-identical to the template.
+#
+# So deleting them is futile and tracking them is wrong — they carry nothing project-specific,
+# they duplicate deps this package.json already declares at newer ranges, and they would drift
+# against the template on every Quasar upgrade. The real PWA sources next to them
+# (manifest.json, register-sw.ts, sw/) stay tracked.
+/src-pwa/package.json
+/src-pwa/package-lock.json
+
 # IDE
 .idea/
 .vscode/

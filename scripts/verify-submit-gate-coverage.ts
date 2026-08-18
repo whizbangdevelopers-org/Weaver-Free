@@ -70,6 +70,12 @@ interface TestidInfo {
   testid: string
   interactive: boolean
   dynamic: boolean  // true if testid is a template literal — covered by prefix selectors
+  /**
+   * The element's static `label="..."`, when it has one. This is the element's accessible name
+   * at runtime, so a spec may cover it with `getByRole(…, { name: '<label>' })` instead of a
+   * testid — see `specCoversTestid`.
+   */
+  label?: string
 }
 
 interface PageInfo {
@@ -91,6 +97,21 @@ function resolveElementTag(content: string, offset: number): string {
   // Walk back to find the most recent '<' that starts a tag (not '</')
   const tagMatch = prefix.match(/<([\w-]+)[^<]*$/)
   return tagMatch ? tagMatch[1]!.toLowerCase() : ''
+}
+
+/**
+ * The static `label="..."` on the element that owns a testid, or undefined.
+ *
+ * Only a literal `label="…"` counts — a bound `:label="expr"` is not resolvable here and must
+ * fall back to testid coverage, which is the safe direction: it can under-credit coverage and
+ * ask for a spec, never over-credit and stay silent.
+ */
+function resolveElementLabel(content: string, offset: number): string | undefined {
+  const start = content.lastIndexOf('<', offset)
+  if (start === -1) return undefined
+  const end = content.indexOf('>', offset)
+  const block = content.slice(start, end === -1 ? offset : end)
+  return /(?:^|\s)label="([^"]+)"/.exec(block)?.[1]
 }
 
 function isInteractiveTestid(testid: string, tag: string): boolean {
@@ -117,7 +138,8 @@ function extractTestids(pageContent: string): TestidInfo[] {
     const dynamic = raw.startsWith('`') || raw.includes('${')
     const testid = dynamic ? raw : raw
     const tag = resolveElementTag(pageContent, m.index)
-    results.push({ testid, interactive: isInteractiveTestid(testid, tag), dynamic })
+    const label = resolveElementLabel(pageContent, m.index)
+    results.push({ testid, interactive: isInteractiveTestid(testid, tag), dynamic, label })
   }
   return results
 }
@@ -141,16 +163,38 @@ function loadSpecs(): SpecFile[] {
   }))
 }
 
-function specCoversTestid(specs: SpecFile[], testid: string): boolean {
-  return specs.some(s =>
+/**
+ * Coverage is "a spec exercises this element", NOT "a spec mentions this testid".
+ *
+ * The two came apart on 2026-08-17. Quasar 2.25 renders a q-select's `data-testid` on BOTH the
+ * `.q-field__native` wrapper and the `.q-select__focus-target` input, so `getByTestId` became a
+ * strict-mode violation and three specs had to move to `getByRole(…, { name })`. That is the
+ * standing convention for Quasar form controls anyway: they set `inheritAttrs: false` and place
+ * attributes on an inner node, so a testid-anchored locator is unreliable and a role locator is
+ * not. Those elements were still covered, and this auditor reported them uncovered, because it
+ * modelled the locator rather than the coverage.
+ *
+ * So accessible-name coverage counts too. Accepting it is not a loosening: `getByRole` asserts
+ * the control is reachable by the name a screen reader announces, which is a stronger claim than
+ * a test-only attribute.
+ */
+function specCoversTestid(specs: SpecFile[], testid: string, label?: string): boolean {
+  const byTestid = specs.some(s =>
     s.content.includes(`getByTestId('${testid}')`) ||
     s.content.includes(`getByTestId("${testid}")`) ||
     s.content.includes(`data-testid="${testid}"`)
   )
+  if (byTestid || label === undefined) return byTestid
+
+  // `getByRole('combobox', { name: 'Allowed VMs' })` — quote style varies, the name does not.
+  return specs.some(s =>
+    s.content.includes(`name: '${label}'`) ||
+    s.content.includes(`name: "${label}"`)
+  )
 }
 
 function pageHasAnyCoverage(specs: SpecFile[], page: PageInfo): boolean {
-  return page.testids.some(({ testid }) => specCoversTestid(specs, testid))
+  return page.testids.some(({ testid, label }) => specCoversTestid(specs, testid, label))
 }
 
 function setupModeSpecsForTestid(specs: SpecFile[], testid: string): string[] {
@@ -189,9 +233,9 @@ function run(): void {
     totalPages++
     let pageHeader = false
 
-    for (const { testid } of interactive) {
+    for (const { testid, label } of interactive) {
       totalInteractive++
-      if (specCoversTestid(specs, testid)) continue
+      if (specCoversTestid(specs, testid, label)) continue
 
       const key = `${page.relPath}::${testid}`
       if (knownMissing.has(key)) {

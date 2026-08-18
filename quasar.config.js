@@ -17,6 +17,41 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 // Read package.json version
 const packageJson = JSON.parse(readFileSync(join(__dirname, 'package.json'), 'utf-8'))
 
+// ── Vite aliases, DERIVED from tsconfig paths ───────────────────────────────────────────────
+//
+// @quasar/app-vite 2 shipped `src`, `app`, `components`, `layouts`, `pages`, `assets`, `boot`
+// and `stores` as built-in aliases. **v3 ships only `@` and `#q-app`** (see its
+// `quasar-config-file.js` → `defaultAliases`). This codebase imports through `src/...` 498
+// times, so after the v3 upgrade the dev server could not resolve a single store or component
+// and the app failed to mount — every one of the 373 E2E specs timed out at ~16s.
+//
+// It was invisible everywhere else, and the reason is the whole point of deriving this:
+// tsconfig.json carries its OWN copy of the same map, so `vue-tsc` stayed green, and the
+// production build resolved fine too. Only the dev server — which nothing ran — disagreed.
+// Two hand-maintained copies of one map, and the upgrade updated neither.
+//
+// So this is not a second copy: tsconfig.json is the single source and Vite's aliases are
+// generated from it. `#q-app` is excluded because app-vite owns that one itself.
+const tsconfigPaths =
+  JSON.parse(readFileSync(join(__dirname, 'tsconfig.json'), 'utf-8')).compilerOptions?.paths ?? {}
+
+const BUILD_ALIAS = Object.fromEntries(
+  Object.entries(tsconfigPaths)
+    .filter(([alias]) => !alias.startsWith('#q-app') && alias.endsWith('/*'))
+    .map(([alias, [target]]) => [alias.slice(0, -2), join(__dirname, target.slice(0, -2))])
+)
+
+// Refuse, don't degrade. An empty map is precisely the state that shipped: silent, and
+// indistinguishable from working until something actually loads a module through an alias.
+if (Object.keys(BUILD_ALIAS).length === 0) {
+  throw new Error(
+    'quasar.config.js: derived no Vite aliases from tsconfig.json compilerOptions.paths. ' +
+      'app-vite 3 provides only `@` and `#q-app`, so `src/...` imports would fail to resolve ' +
+      'in the dev server while typecheck stayed green. Check that tsconfig paths still uses ' +
+      'the "<alias>/*": ["./<dir>/*"] form.'
+  )
+}
+
 // ── Browser targets, derived from Baseline "Widely available" ───────────────────────────────
 //
 // Baseline "Widely available" = supported across Chrome/Edge/Firefox/Safari for 30 months. It is
@@ -106,6 +141,10 @@ export default function (/* ctx */) {
       vueRouterMode: 'hash',
 
       publicPath: '/',
+
+      // Generated above from tsconfig paths — app-vite 3 dropped the built-in `src`/`stores`/…
+      // aliases and provides only `@` and `#q-app`.
+      alias: BUILD_ALIAS,
 
       extendViteConf(viteConf) {
         viteConf.define = viteConf.define || {}
