@@ -10,6 +10,8 @@ import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { getCompatibleVersions } from 'baseline-browser-mapping'
 
+import { deriveViteAliases } from './quasar.aliases.js'
+
 // ESM has no __dirname; app-vite 3 only loads quasar.config.js (ESM) or .ts — the .cjs form
 // it replaced is not recognised at all, which presents as "not a Quasar project folder".
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -31,26 +33,16 @@ const packageJson = JSON.parse(readFileSync(join(__dirname, 'package.json'), 'ut
 // Two hand-maintained copies of one map, and the upgrade updated neither.
 //
 // So this is not a second copy: tsconfig.json is the single source and Vite's aliases are
-// generated from it. `#q-app` is excluded because app-vite owns that one itself.
-const tsconfigPaths =
-  JSON.parse(readFileSync(join(__dirname, 'tsconfig.json'), 'utf-8')).compilerOptions?.paths ?? {}
-
-const BUILD_ALIAS = Object.fromEntries(
-  Object.entries(tsconfigPaths)
-    .filter(([alias]) => !alias.startsWith('#q-app') && alias.endsWith('/*'))
-    .map(([alias, [target]]) => [alias.slice(0, -2), join(__dirname, target.slice(0, -2))])
-)
-
-// Refuse, don't degrade. An empty map is precisely the state that shipped: silent, and
-// indistinguishable from working until something actually loads a module through an alias.
-if (Object.keys(BUILD_ALIAS).length === 0) {
-  throw new Error(
-    'quasar.config.js: derived no Vite aliases from tsconfig.json compilerOptions.paths. ' +
-      'app-vite 3 provides only `@` and `#q-app`, so `src/...` imports would fail to resolve ' +
-      'in the dev server while typecheck stayed green. Check that tsconfig paths still uses ' +
-      'the "<alias>/*": ["./<dir>/*"] form.'
-  )
-}
+// generated from it. The derivation itself moved to scripts/lib/tsconfig-aliases.js on
+// 2026-08-18 so the three sibling repos — which took the identical app-vite 3 upgrade and
+// carried the identical break — share ONE implementation rather than four hand-copied ones.
+// It reads JSONC, because a tsconfig may legitimately carry comments (Gantry's does, and a
+// plain JSON.parse is what broke the first attempted port of this fix).
+//
+// audit:vite-aliases is the guard: it loads THIS file, invokes it, and checks the alias map it
+// actually hands Quasar — the consumer-side question, which a check on the derivation alone
+// cannot answer.
+const BUILD_ALIAS = deriveViteAliases(__dirname)
 
 // ── Browser targets, derived from Baseline "Widely available" ───────────────────────────────
 //

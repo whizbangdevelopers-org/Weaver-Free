@@ -9,7 +9,12 @@ import { register } from 'register-service-worker'
 import { Notify } from 'quasar'
 
 // Register service worker in production
-register(process.env.SERVICE_WORKER_FILE as string, {
+// `import.meta.env.QUASAR_SERVICE_WORKER_FILE`, not `import.meta.env.QUASAR_SERVICE_WORKER_FILE`. The
+// latter is the app-vite 2 form: undefined in a v3 build (so the service worker registers against
+// an empty path) and fatal in the v3 dev server, where `process` does not exist at all. Verified
+// against the installed package — quasar-config-file.js defines this key and templates/pwa/ts
+// registers with it.
+register(import.meta.env.QUASAR_SERVICE_WORKER_FILE, {
   ready(/* registration */) {
     console.log('Service worker is active.')
   },
