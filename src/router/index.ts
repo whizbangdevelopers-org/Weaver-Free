@@ -13,16 +13,27 @@ import { useAppStore } from 'src/stores/app'
 import { isDemoMode, isPublicDemo } from 'src/config/demo-mode'
 
 export default defineRouter(function (/* { store, ssrContext } */) {
-  const createHistory = process.env.SERVER
+  // `import.meta.env.QUASAR_*`, not `process.env.*`. app-vite 2 exposed these as `process.env`;
+  // v3 renamed them AND moved them onto import.meta.env (see its quasar-config-file.js →
+  // `import.meta.env.QUASAR_VUE_ROUTER_MODE` / `_BASE` / `QUASAR_SERVER`).
+  //
+  // The v2 form did not fail loudly, which is why it survived the upgrade. In the BUILD, Vite
+  // statically replaces `process.env.X` with undefined, so the ternaries fell through to
+  // `createWebHashHistory(undefined)` — which happens to equal the configured `vueRouterMode:
+  // 'hash'` and `publicPath: '/'`. Production was therefore correct by coincidence, not by
+  // instruction. In the DEV server nothing defines `process` at all, so this module threw
+  // `ReferenceError: process is not defined` at import time, the app never mounted, and every
+  // UI E2E spec timed out against a blank page while the API specs passed.
+  const createHistory = import.meta.env.QUASAR_SERVER
     ? createMemoryHistory
-    : process.env.VUE_ROUTER_MODE === 'history'
+    : import.meta.env.QUASAR_VUE_ROUTER_MODE === 'history'
       ? createWebHistory
       : createWebHashHistory
 
   const Router = createRouter({
     scrollBehavior: () => ({ left: 0, top: 0 }),
     routes,
-    history: createHistory(process.env.VUE_ROUTER_BASE)
+    history: createHistory(import.meta.env.QUASAR_VUE_ROUTER_BASE)
   })
 
   Router.beforeEach(async (to) => {

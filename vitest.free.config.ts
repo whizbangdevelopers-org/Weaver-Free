@@ -69,13 +69,13 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      src: resolve(__dirname, './src'),
-      app: resolve(__dirname, './'),
-      components: resolve(__dirname, './src/components'),
-      layouts: resolve(__dirname, './src/layouts'),
-      pages: resolve(__dirname, './src/pages'),
-      stores: resolve(__dirname, './src/stores'),
-      services: resolve(__dirname, './src/services'),
+      src: resolve(import.meta.dirname, './src'),
+      app: resolve(import.meta.dirname, './'),
+      components: resolve(import.meta.dirname, './src/components'),
+      layouts: resolve(import.meta.dirname, './src/layouts'),
+      pages: resolve(import.meta.dirname, './src/pages'),
+      stores: resolve(import.meta.dirname, './src/stores'),
+      services: resolve(import.meta.dirname, './src/services'),
     },
   },
 })
