@@ -85,7 +85,7 @@ describe('Agent Tier Enforcement', () => {
 
       expect(response.statusCode).toBe(403)
       const body = response.json()
-      expect(body.error).toContain('weaver')
+      expect(body.error).toContain('solo')
       expect(body.error).toContain('BYOK')
     })
 
@@ -112,7 +112,7 @@ describe('Agent Tier Enforcement', () => {
       fastify.setSerializerCompiler(serializerCompiler)
       await fastify.register(websocket)
 
-      const config = makeConfig({ tier: 'weaver', aiApiKey: 'sk-ant-test-server-key' })
+      const config = makeConfig({ tier: 'solo', aiApiKey: 'sk-ant-test-server-key' })
       await fastify.register(agentRoutes, { prefix: '/api/workload', config })
       await fastify.ready()
     })
@@ -248,7 +248,7 @@ describe('Agent Tier Enforcement', () => {
 
       expect(response.statusCode).toBe(403)
       const body = response.json()
-      expect(body.error).toContain('weaver')
+      expect(body.error).toContain('solo')
     })
 
     it('should allow demo user WITH BYOK key', async () => {

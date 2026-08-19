@@ -96,6 +96,17 @@ export const PHASES: Phase[] = [
       'audit:bundle',
       'audit:license',
       'audit:license-headers',
+      // The two entitlement controls. They existed as package.json scripts and ran from NOTHING —
+      // not this file, not test:compliance's tail, not a workflow, not a git hook — so every
+      // "enforced by audit:…" comment in the licence code was false, including the one generated
+      // into the authority module claiming enforcement rather than assertion.
+      //
+      // authority-binding is the one that matters: it is the only mechanical check that
+      // verification material reaches the build from the generated module and not from operator
+      // configuration. entitlement-vendor keeps the vendored copy honest, and SKIPS cleanly in a
+      // Weaver-Free clone where the upstream checkout does not exist, so it is safe here.
+      'audit:entitlement-vendor',
+      'audit:authority-binding',
       'audit:lockfile',
       'audit:sast',
       'audit:hooks',

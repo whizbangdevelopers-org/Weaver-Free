@@ -136,15 +136,33 @@ export async function generateLicenseFromSubscription(
 
   const customerId = typeof sub.customer === 'string' ? sub.customer : sub.customer.id
 
-  // Expiry = current_period_end (Stripe epoch seconds → JS Date)
-  const expiresAt = new Date((sub as unknown as { current_period_end: number }).current_period_end * 1000)
+  // Expiry = the ITEM's current_period_end (Stripe epoch seconds → JS Date).
+  //
+  // It is on the item, not the subscription: Stripe moved it when subscriptions gained items that
+  // can bill on separate cycles. Reading `sub.current_period_end` — where it used to live, and
+  // where a cast let it keep typechecking — yields `undefined`, so `new Date(undefined * 1000)` is
+  // an Invalid Date. That did not throw here; it flowed into the key, where `encodeDate` rendered
+  // it as the four characters '0NAN' and produced a correctly-signed licence expiring in 2102.
+  // `encodeDate` now rejects a non-finite date, so this reads the typed field and the compiler
+  // enforces its existence.
+  const periodEnd = item.current_period_end
+  if (typeof periodEnd !== 'number') {
+    throw new Error(`Stripe subscription ${subscriptionId} item has no current_period_end`)
+  }
+  const expiresAt = new Date(periodEnd * 1000)
 
   // Truncate Stripe customer ID to 4 chars for license payload
   const shortCustId = customerId.replace('cus_', '').slice(0, 4).toUpperCase()
 
+  // Quantity comes from what was PURCHASED — Stripe cannot count nodes in an airgapped install,
+  // so the signature over this field is what makes a per-node term enforceable at all (ENT-5).
+  // Absent quantity means 1, never unlimited: a forgotten value must under-grant, not over-grant.
+  const quantity = typeof item.quantity === 'number' ? item.quantity : 1
+
   const key = generateLicenseKey(tier, signingKey, {
     expiry: expiresAt,
     customerId: shortCustId,
+    quantity,
   })
 
   return { key, tier, customerId, subscriptionId, expiresAt }

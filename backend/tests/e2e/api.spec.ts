@@ -50,7 +50,7 @@ let tmpDir: string
 let registry: JsonWorkloadRegistry
 
 const config: DashboardConfig = makeTestConfig({
-  tier: 'weaver' as const,
+  tier: 'solo' as const,
   licenseExpiry: null,
   licenseGraceMode: false,
   storageBackend: 'json',
@@ -116,7 +116,7 @@ describe('E2E: API Integration', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    config.tier = 'weaver'
+    config.tier = 'solo'
   })
 
   // --- Health ---

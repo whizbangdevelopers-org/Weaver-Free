@@ -663,7 +663,7 @@ For backup scripts, automated backup with cron/systemd timers, and restore proce
   "status": "healthy",
   "timestamp": "2026-02-12T12:00:00.000Z",
   "service": "weaver",
-  "tier": "weaver",
+  "tier": "solo",
   "tierExpiry": "2027-01-15T00:00:00.000Z",
   "tierGraceMode": false
 }

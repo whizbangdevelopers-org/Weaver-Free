@@ -330,7 +330,7 @@ describe('GET /:name/logs — Apptainer tier gate', () => {
   // the distinguishing evidence is the error body, which is the lookup's message and not the
   // gate's. Without this case, a gate that rejected every tier would look identical.
   it('lets Solo through the gate to the instance lookup', async () => {
-    const f = await appWithTier('weaver')
+    const f = await appWithTier('solo')
     const res = await f.inject({ method: 'GET', url: '/api/workload/sif-hpc/logs' })
     expect(res.statusCode).toBe(404)
     expect(res.body).not.toBe(JSON.stringify({ error: "No logs found for workload 'sif-hpc'" }))

@@ -97,7 +97,7 @@ export const useAppStore = defineStore('app', {
     isReady: state => state.initialized && !state.loading,
     isDemo(): boolean { return this.effectiveTier === TIERS.DEMO },
     isFree(): boolean { return this.effectiveTier === TIERS.FREE },
-    isSolo(): boolean { return TIER_ORDER[this.effectiveTier] >= TIER_ORDER.weaver },
+    isSolo(): boolean { return TIER_ORDER[this.effectiveTier] >= TIER_ORDER.solo },
     isFabrick(): boolean { return this.effectiveTier === TIERS.FABRICK },
     isLicensed(): boolean { return this.effectiveTier !== TIERS.DEMO },
     /** Organization display name — returns org name if set, otherwise 'Weaver' */
@@ -105,7 +105,7 @@ export const useAppStore = defineStore('app', {
       return state.organization?.name || 'Weaver'
     },
     /** True when server has an AI key AND current tier is weaver+ (allowed to use it) */
-    serverKeyAllowed(): boolean { return this.hasServerKey && TIER_ORDER[this.effectiveTier] >= TIER_ORDER.weaver },
+    serverKeyAllowed(): boolean { return this.hasServerKey && TIER_ORDER[this.effectiveTier] >= TIER_ORDER.solo },
     /** Demo mode only: returns true when the current demo version >= target version.
      *  Usage: appStore.isDemoVersionAtLeast('1.1') */
     isDemoVersionAtLeast(): (target: string) => boolean {

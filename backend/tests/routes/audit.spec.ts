@@ -23,7 +23,7 @@ const TEST_DIR = join('/tmp', `audit-routes-test-${randomUUID()}`)
 const JWT_SECRET = 'test-secret-for-audit-testing'
 
 /** Minimal config stub — only `tier` matters for audit route gating */
-function makeConfig(tier: 'fabrick' | 'weaver' = 'fabrick'): DashboardConfig {
+function makeConfig(tier: 'fabrick' | 'solo' = 'fabrick'): DashboardConfig {
   return { tier } as DashboardConfig
 }
 
@@ -240,7 +240,7 @@ describe('Audit Routes — Tier Gating', () => {
     const auditService = new AuditService(auditStore)
 
     premiumFastify.addHook('onRequest', createAuthMiddleware(authService))
-    await premiumFastify.register(auditRoutes, { prefix: '/api/audit', auditService, config: makeConfig('weaver') })
+    await premiumFastify.register(auditRoutes, { prefix: '/api/audit', auditService, config: makeConfig('solo') })
     await premiumFastify.ready()
 
     const result = await authService.register('admin', 'T3stP@ssw0rd!X', 'admin')

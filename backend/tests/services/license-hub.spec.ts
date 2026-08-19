@@ -11,6 +11,8 @@
 // (2) is the load-bearing one. It is the reason an unauthenticated minting service is safe to run
 // on a laptop, and it is a claim about `ACCEPTED_PUBLIC_KEYS` rather than about this file, so it
 // gets asserted rather than assumed.
+import { createVerifier } from '../../src/entitlement/verify/verifier.js'
+import { WEAVER_PROFILE } from '../../src/license-profile.js'
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -50,7 +52,7 @@ describe('substitute licence hub — issuance', () => {
     const { status, body } = await post('/checkout', { tier: 'fabrick', expiresAt: '2027-06-15T00:00:00Z' })
     expect(status).toBe(200)
 
-    const parsed = parseLicenseKey(body.key, new Date('2026-08-17T00:00:00Z'), [hub.publicKey])
+    const parsed = createVerifier(WEAVER_PROFILE, [hub.publicKey]).parseLicenseKey(body.key, new Date('2026-08-17T00:00:00Z'))
     expect(parsed.tier).toBe(TIERS.FABRICK)
     expect(parsed.expiry?.toISOString().slice(0, 10)).toBe('2027-06-15')
   })
@@ -58,7 +60,7 @@ describe('substitute licence hub — issuance', () => {
   it('mints every issuable tier', async () => {
     for (const [name, tier] of [['solo', TIERS.SOLO], ['team', TIERS.TEAM], ['fabrick', TIERS.FABRICK]] as const) {
       const { body } = await post('/checkout', { tier: name, expiresAt: '2027-06-15T00:00:00Z' })
-      expect(parseLicenseKey(body.key, new Date('2026-08-17T00:00:00Z'), [hub.publicKey]).tier).toBe(tier)
+      expect(createVerifier(WEAVER_PROFILE, [hub.publicKey]).parseLicenseKey(body.key, new Date('2026-08-17T00:00:00Z')).tier).toBe(tier)
     }
   })
 
@@ -83,8 +85,8 @@ describe('substitute licence hub — renewal (shape)', () => {
     const now = new Date('2026-08-17T00:00:00Z')
     // The OLD key stays cryptographically valid — renewal supersedes by expiry, not by
     // invalidation. Anything else would need a revocation channel the product does not have.
-    expect(parseLicenseKey(first.body.key, now, [hub.publicKey]).expiry?.getUTCFullYear()).toBe(2026)
-    expect(parseLicenseKey(renewed.body.key, now, [hub.publicKey]).expiry?.getUTCFullYear()).toBe(2027)
+    expect(createVerifier(WEAVER_PROFILE, [hub.publicKey]).parseLicenseKey(first.body.key, now).expiry?.getUTCFullYear()).toBe(2026)
+    expect(createVerifier(WEAVER_PROFILE, [hub.publicKey]).parseLicenseKey(renewed.body.key, now).expiry?.getUTCFullYear()).toBe(2027)
   })
 
   it('refuses to renew an unknown subscription', async () => {
@@ -110,7 +112,7 @@ describe('substitute licence hub — cancellation is hub-side only', () => {
     // written to a row the host never reads, so a cancelled customer's key still resolves to its
     // paid tier until the key's own expiry. A test hub that pretended otherwise would model a
     // capability the product does not have and hide the exposure.
-    const parsed = parseLicenseKey(issued.body.key, new Date('2026-08-17T00:00:00Z'), [hub.publicKey])
+    const parsed = createVerifier(WEAVER_PROFILE, [hub.publicKey]).parseLicenseKey(issued.body.key, new Date('2026-08-17T00:00:00Z'))
     expect(parsed.tier).toBe(TIERS.FABRICK)
   })
 })

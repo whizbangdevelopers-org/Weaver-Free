@@ -77,7 +77,7 @@ async function buildApp(opts: { tier?: string; aclStore?: unknown } = {}) {
   })
   await fastify.register(workloadsRoutes, {
     prefix: '/api/workload',
-    config: { tier: opts.tier ?? 'weaver', bridgeGateway: '10.10.0.1' } as unknown as DashboardConfig,
+    config: { tier: opts.tier ?? 'solo', bridgeGateway: '10.10.0.1' } as unknown as DashboardConfig,
     aclStore: opts.aclStore as never,
   })
   await fastify.ready()

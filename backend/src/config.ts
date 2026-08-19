@@ -232,7 +232,8 @@ export function loadConfig(): DashboardConfig {
   // Resolution order:
   // 1. LICENSE_KEY env var
   // 2. LICENSE_KEY_FILE env var (read from file)
-  // 3. PREMIUM_ENABLED=true (backward compat, logs deprecation)
+  // 3. PREMIUM_ENABLED=true — backward compat, logs deprecation, and **ignored in production**
+  //    (see the branch itself: an operator-set variable cannot be evidence of entitlement)
   // 4. Default: free (real install with no license key)
   const licenseKey = process.env.LICENSE_KEY
   const licenseKeyFile = process.env.LICENSE_KEY_FILE
@@ -273,10 +274,41 @@ export function loadConfig(): DashboardConfig {
       }
     }
   } else if (toBool(process.env.PREMIUM_ENABLED)) {
-    console.warn('[license] PREMIUM_ENABLED is deprecated — use LICENSE_KEY instead. Mapping to weaver tier.')
-    tier = TIERS.SOLO
-    licenseExpiry = null
-    licenseGraceMode = false
+    // NON-PRODUCTION ONLY, and that restriction is the whole point of this branch now.
+    //
+    // This grants a paid tier on the strength of an environment variable — no key, no signature,
+    // nothing verified. That is precisely the capability the Ed25519 work exists to remove: the
+    // party a licence restricts is the OPERATOR, so anything the operator sets cannot be
+    // evidence of entitlement. Left ungated, it is a complete bypass of the entire scheme, and a
+    // far cheaper one than forging a key.
+    //
+    // It is not simply deleted because it is load-bearing off the production path: every E2E
+    // compose service runs on it (`NODE_ENV=test`), as do `dev:backend` and `dev:provision`.
+    // Deleting it would take a paid tier out of reach of development entirely while
+    // ACCEPTED_PUBLIC_KEYS is still empty. Gating on NODE_ENV keeps those working and closes the
+    // deployed path, because the NixOS module sets NODE_ENV=production.
+    //
+    // The sanctioned way for a real deployment to run a paid tier without a production key is a
+    // build that trusts a test authority — regenerate the authority module with `--channel dev`,
+    // which is visible in the artifact and in the diff. That is a build-time seam, not an
+    // operator-supplied one, and the difference is the design.
+    if (process.env.NODE_ENV === 'production') {
+      console.error(
+        '[license] PREMIUM_ENABLED is set but IGNORED in production — it grants a tier with ' +
+          'nothing verified, which the licence system exists to prevent. Install a signed ' +
+          'LICENSE_KEY / LICENSE_KEY_FILE, or build with `--channel dev` to trust a test ' +
+          'authority. Staying on the free tier.',
+      )
+    } else {
+      console.warn(
+        `[license] PREMIUM_ENABLED is deprecated — use LICENSE_KEY instead. Mapping to ` +
+          `${TIERS.SOLO} tier. Honoured only because NODE_ENV is ` +
+          `'${process.env.NODE_ENV ?? 'unset'}'; it is ignored in production.`,
+      )
+      tier = TIERS.SOLO
+      licenseExpiry = null
+      licenseGraceMode = false
+    }
   }
 
   return {

@@ -89,7 +89,7 @@ export const distroRoutes: FastifyPluginAsync<DistroRouteOptions> = async (fasti
   const requireWeaverTier: import('fastify').preHandlerHookHandler = (_req, reply, done) => {
     if (config) {
       try { requireTier(config, TIERS.SOLO) } catch {
-        void reply.status(403).send({ error: 'Distro management requires weaver tier' })
+        void reply.status(403).send({ error: 'Distro management requires solo tier' })
         return
       }
     }

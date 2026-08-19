@@ -63,7 +63,7 @@ describe('EmailService', () => {
     const baseLicenseOpts = {
       to: 'customer@example.com',
       licenseKey: 'WVR-WVS-ABCD1234EFGH-X1Y2',
-      tier: 'weaver',
+      tier: 'solo',
       expiresAt: '2027-04-08T00:00:00.000Z',
       foundingMember: false,
       siteUrl: 'https://whizbangdevelopers.com',

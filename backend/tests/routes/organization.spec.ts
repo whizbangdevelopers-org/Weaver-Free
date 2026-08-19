@@ -19,7 +19,7 @@ import type { FastifyRequest } from 'fastify'
 
 const TEST_DIR = join('/tmp', `org-routes-test-${randomUUID()}`)
 
-function makeConfig(tier: 'demo' | 'free' | 'weaver' | 'fabrick'): DashboardConfig {
+function makeConfig(tier: 'demo' | 'free' | 'solo' | 'fabrick'): DashboardConfig {
   return makeTestConfig({
     tier,
     licenseExpiry: null,
@@ -70,7 +70,7 @@ describe('Organization Routes', () => {
     await fastify.register(organizationRoutes, {
       prefix: '/api/organization',
       organizationStore,
-      config: makeConfig('weaver'),
+      config: makeConfig('solo'),
     })
 
     await fastify.ready()
@@ -201,7 +201,7 @@ describe('Organization Routes', () => {
         payload: { name: 'Free User Corp' },
       })
       expect(res.statusCode).toBe(403)
-      expect(res.json().error).toContain('Weaver tier')
+      expect(res.json().error).toContain('solo tier')
     })
   })
 })

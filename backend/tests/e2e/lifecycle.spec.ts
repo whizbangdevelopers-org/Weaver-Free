@@ -121,7 +121,7 @@ import { makeTestConfig } from '../helpers/config.js'
 let tmpDir: string
 
 const config: DashboardConfig = makeTestConfig({
-  tier: 'weaver' as const,
+  tier: 'solo' as const,
   licenseExpiry: null,
   licenseGraceMode: false,
   storageBackend: 'json',

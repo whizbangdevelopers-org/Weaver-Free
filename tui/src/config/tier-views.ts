@@ -47,8 +47,8 @@ export const TIER_VIEWS: Record<string, TierViewConfig> = {
     loader: async () => { try { return await import('../components/weaver/HostDetailView.js') } catch (err) { const code = (err as NodeJS.ErrnoException)?.code; if (code !== 'ERR_MODULE_NOT_FOUND' && code !== 'MODULE_NOT_FOUND') console.error('[tier-views] weaver view present but failed to load:', err); return { default: () => null } } },
     exportName: 'HostDetailView',
     featureName: 'Host Information',
-    featureDescription: 'Basic host info at all tiers. CPU topology, disk, and live metrics require weaver.',
-    features: ['Basic host info', 'CPU topology (weaver)', 'Disk usage (weaver)', 'Live metrics (weaver)'],
+    featureDescription: 'Basic host info at all tiers. CPU topology, disk, and live metrics require Weaver Solo.',
+    features: ['Basic host info', 'CPU topology (Solo)', 'Disk usage (Solo)', 'Live metrics (Solo)'],
   },
   notifications: {
     minimumTier: TIERS.FREE,

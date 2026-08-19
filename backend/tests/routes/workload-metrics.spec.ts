@@ -53,7 +53,7 @@ async function buildApp(opts: { tier?: string; promqlSource?: PromqlMetricsSourc
   })
   await fastify.register(workloadsRoutes, {
     prefix: '/api/workload',
-    config: { tier: opts.tier ?? 'weaver' } as unknown as DashboardConfig,
+    config: { tier: opts.tier ?? 'solo' } as unknown as DashboardConfig,
     promqlSource: opts.promqlSource ?? null,
   })
   await fastify.ready()
@@ -146,7 +146,7 @@ describe('GET /api/workload/:name/metrics', () => {
 
   describe('tier windows', () => {
     it('defaults a paid tier to 24 hours', async () => {
-      const app = await buildApp({ tier: 'weaver' })
+      const app = await buildApp({ tier: 'solo' })
       expect((await get(app, '/api/workload/web-nginx/metrics')).json().windowMs).toBe(86_400_000)
       await app.close()
     })
@@ -168,13 +168,13 @@ describe('GET /api/workload/:name/metrics', () => {
     })
 
     it('honours a narrower request from a paid tier', async () => {
-      const app = await buildApp({ tier: 'weaver' })
+      const app = await buildApp({ tier: 'solo' })
       expect((await get(app, '/api/workload/web-nginx/metrics?window=30m')).json().windowMs).toBe(1_800_000)
       await app.close()
     })
 
     it('falls back to the tier maximum on a malformed window', async () => {
-      const app = await buildApp({ tier: 'weaver' })
+      const app = await buildApp({ tier: 'solo' })
       expect((await get(app, '/api/workload/web-nginx/metrics?window=bogus')).json().windowMs).toBe(86_400_000)
       await app.close()
     })

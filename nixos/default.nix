@@ -59,7 +59,7 @@ in
       default = null;
       description = ''
         License key string (WVR-<tier>-<payload>-<checksum>).
-        Determines feature tier: free, weaver (Solo/Team), or fabrick.
+        Determines feature tier: free, solo, team, or fabrick.
         No key = demo mode.
       '';
     };
@@ -74,13 +74,22 @@ in
       '';
     };
 
+    # Both HMAC options are INERT. Licence verification is asymmetric now: the product holds
+    # public keys compiled into the build and can verify but not mint, so there is no shared
+    # secret to configure. The backend stopped reading these entirely — the env vars they used
+    # to set are no longer injected, because a variable nothing reads is a setting that silently
+    # does nothing, which is worse than one that loudly refuses.
+    #
+    # Kept rather than removed so an existing configuration.nix keeps evaluating.
     licenseHmacSecret = mkOption {
       type = types.nullOr types.str;
       default = null;
       description = ''
-        HMAC secret for license key validation, as a literal string.
-        WARNING: this lands in the world-readable Nix store. Prefer
-        licenseHmacSecretFile (sops-nix) for any real deployment.
+        INERT — no longer read. Licence keys are verified with an Ed25519 public key built into
+        the package, so no HMAC secret exists to configure. Setting this has no effect.
+
+        Use licenseKey / licenseKeyFile instead. Retained only so an existing configuration.nix
+        keeps evaluating.
       '';
     };
 
@@ -88,10 +97,7 @@ in
       type = types.nullOr types.str;
       default = null;
       description = ''
-        Path to a file containing the HMAC secret for license validation.
-        Use this with secret management (sops-nix) so the secret never enters
-        the Nix store. Read at runtime via LICENSE_HMAC_SECRET_FILE; takes
-        precedence over licenseHmacSecret.
+        INERT — no longer read. See licenseHmacSecret. Use licenseKeyFile instead.
       '';
     };
 
@@ -111,11 +117,21 @@ in
       type = types.bool;
       default = false;
       description = ''
-        DEPRECATED: Use licenseKey instead.
+        DEPRECATED AND NO LONGER GRANTS A TIER. Use licenseKey / licenseKeyFile instead.
 
-        When true and no licenseKey is set, the backend runs at Solo tier. This is a
-        legacy bridge for deployments that predate license keys; it grants tier access
-        without a key, so it must not be used on anything you intend to license.
+        This option once made the backend run at Solo tier with no key. That is a grant
+        of a paid tier on the strength of a setting the operator controls — the exact
+        capability licence verification exists to remove — so the backend now IGNORES it
+        whenever NODE_ENV is production, which is always the case for this module. Setting
+        it changes nothing except a logged error at start-up.
+
+        It is retained rather than removed so an existing configuration.nix keeps
+        evaluating, and because the same environment bridge is still how the development
+        and E2E environments select a tier off the production path.
+
+        To run a paid tier on a real host, install a signed key (licenseKey /
+        licenseKeyFile). To run one on a test host with no production key in existence,
+        build with the authority module regenerated for a non-release channel.
 
         Renamed from `premiumEnabled` in v1.1. The old name is still accepted and will
         warn on rebuild.
@@ -347,7 +363,7 @@ in
       default = null;
       description = ''
         API key for server-side AI agent features (any supported vendor).
-        When set, weaver+ tier users can use the server key instead of BYOK.
+        When set, solo+ tier users can use the server key instead of BYOK.
         For production, use aiApiKeyFile instead.
       '';
     };
@@ -688,6 +704,12 @@ in
           # bridge (config.ts resolution order 3, which logs its own deprecation), and renaming it
           # would break every non-Nix deployment that sets it directly. The user-facing option is
           # what got the retired vocabulary out of the interface.
+          #
+          # NOTE: NODE_ENV is "production" above, and config.ts ignores this variable there — an
+          # operator-set value cannot be evidence of entitlement. It is still passed through, and
+          # deliberately so: the backend logs an explicit error when it sees it set-but-ignored,
+          # which is how someone relying on the old behaviour finds out. Dropping it here would
+          # make that silent, and a silently-ignored setting is worse than a loudly-ignored one.
           PREMIUM_ENABLED = if cfg.soloTierEnabled then "true" else "false";
           VM_STORAGE_BACKEND = cfg.storageBackend;
           VM_DATA_DIR = cfg.dataDir;
@@ -698,10 +720,6 @@ in
           LICENSE_KEY = cfg.licenseKey;
         } // optionalAttrs (cfg.licenseKeyFile != null) {
           LICENSE_KEY_FILE = cfg.licenseKeyFile;
-        } // optionalAttrs (cfg.licenseHmacSecret != null) {
-          LICENSE_HMAC_SECRET = cfg.licenseHmacSecret;
-        } // optionalAttrs (cfg.licenseHmacSecretFile != null) {
-          LICENSE_HMAC_SECRET_FILE = cfg.licenseHmacSecretFile;
         } // optionalAttrs (cfg.distroCatalogUrl != null) {
           DISTRO_CATALOG_URL = cfg.distroCatalogUrl;
         } // optionalAttrs (cfg.jwtSecret != null) {

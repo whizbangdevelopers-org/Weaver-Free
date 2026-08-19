@@ -40,7 +40,7 @@ async function buildApp(opts: { tier?: string; zone?: ReturnType<typeof buildZon
   })
   await fastify.register(dnsRoutes, {
     prefix: '/api/dns',
-    config: { tier: opts.tier ?? 'weaver', dnsDomain: 'vm.internal' } as unknown as DashboardConfig,
+    config: { tier: opts.tier ?? 'solo', dnsDomain: 'vm.internal' } as unknown as DashboardConfig,
     getZone: () => (opts.zone === undefined ? ZONE : opts.zone),
   })
   await fastify.ready()
@@ -54,7 +54,7 @@ describe('GET /api/dns/zone', () => {
   beforeEach(() => { mockUserRole = 'admin' })
 
   it('serves the zone at Solo', async () => {
-    const app = await buildApp({ tier: 'weaver' })
+    const app = await buildApp({ tier: 'solo' })
     const body = (await get(app, '/api/dns/zone')).json()
 
     expect(body.available).toBe(true)
@@ -78,7 +78,7 @@ describe('GET /api/dns/zone', () => {
     })
 
     it('at Solo with no writer: unavailable, with a different reason', async () => {
-      const app = await buildApp({ tier: 'weaver', zone: null })
+      const app = await buildApp({ tier: 'solo', zone: null })
       const body = (await get(app, '/api/dns/zone')).json()
 
       expect(body.available).toBe(false)
@@ -90,7 +90,7 @@ describe('GET /api/dns/zone', () => {
     })
 
     it('at Solo with an empty zone: AVAILABLE and empty', async () => {
-      const app = await buildApp({ tier: 'weaver', zone: buildZone([], { serial: 1 }) })
+      const app = await buildApp({ tier: 'solo', zone: buildZone([], { serial: 1 }) })
       const body = (await get(app, '/api/dns/zone')).json()
 
       // The state a client must not confuse with either of the two above: DNS Core is working

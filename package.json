@@ -208,7 +208,11 @@
     "audit:rule-contracts:global": "npx tsx scripts/verify-rule-contracts.ts --repo /home/mark/.claude --manifest /home/mark/.claude/rule-contracts.json",
     "audit:vite-aliases": "npx tsx scripts/verify-vite-aliases.ts",
     "provision:ownership": "node scripts/provision-ownership.js",
-    "audit:ownership": "node scripts/provision-ownership.js --check"
+    "audit:ownership": "node scripts/provision-ownership.js --check",
+    "vendor:entitlement": "tsx scripts/vendor-entitlement.ts",
+    "generate:license-authority": "tsx scripts/generate-license-authority.ts",
+    "audit:entitlement-vendor": "tsx scripts/verify-entitlement-vendor.ts",
+    "audit:authority-binding": "tsx scripts/verify-authority-binding.ts --root backend/src --expect-binding"
   },
   "dependencies": {
     "@quasar/extras": "^1.16.9",

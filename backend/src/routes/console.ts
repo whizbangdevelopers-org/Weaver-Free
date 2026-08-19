@@ -50,12 +50,12 @@ export const consoleRoutes: FastifyPluginAsync<ConsoleRouteOptions> = async (fas
       }
     }
 
-    // Tier gate: real serial console requires weaver tier
+    // Tier gate: real serial console requires solo tier
     if (config) {
       try {
         requireTier(config, TIERS.SOLO)
       } catch {
-        socket.send(JSON.stringify({ error: 'Serial console requires weaver tier' }))
+        socket.send(JSON.stringify({ error: 'Serial console requires solo tier' }))
         socket.close(4403, 'Insufficient permissions')
         return
       }

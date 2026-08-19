@@ -29,7 +29,7 @@ vi.mock('node:child_process', () => ({
 }))
 
 const baseConfig: DashboardConfig = makeTestConfig({
-  tier: 'weaver' as const,
+  tier: 'solo' as const,
   licenseExpiry: null,
   licenseGraceMode: false,
   storageBackend: 'json',
@@ -83,7 +83,7 @@ describe('Network Management Routes', () => {
 
       await fastify.register(networkMgmtRoutes, {
         prefix: '/api/network',
-        config: { ...baseConfig, tier: 'weaver' as const },
+        config: { ...baseConfig, tier: 'solo' as const },
         networkManager,
       })
       await fastify.ready()
@@ -221,7 +221,7 @@ describe('Network Management Routes', () => {
     it('GET /bridges should return 403', async () => {
       const response = await fastify.inject({ method: 'GET', url: '/api/network/bridges' })
       expect(response.statusCode).toBe(403)
-      expect(response.json().error).toContain('weaver')
+      expect(response.json().error).toContain('solo')
     })
 
     it('POST /bridges should return 403', async () => {

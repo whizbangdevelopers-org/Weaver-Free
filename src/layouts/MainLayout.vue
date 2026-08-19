@@ -486,7 +486,7 @@ import AccessInspectorDialog from 'src/components/AccessInspectorDialog.vue'
 import KeyboardShortcutsOverlay from 'src/components/KeyboardShortcutsOverlay.vue'
 import { isWsConnected, onWsConnect, onWsDisconnect, onSessionKicked } from 'src/services/ws'
 import { DEMO_HOSTS } from 'src/config/demo'
-import { ROLES, TIER_LABELS, type TierName } from 'src/constants/vocabularies'
+import { ROLES, TIER_LABELS, TIER_ORDER, type TierName } from 'src/constants/vocabularies'
 
 declare const __APP_VERSION__: string
 
@@ -648,12 +648,15 @@ const fabrickDrillHostname = computed(() => {
 
 const version = __APP_VERSION__
 
-const PLUGIN_TIER_LEVEL: Record<string, number> = { demo: 0, free: 1, weaver: 2, fabrick: 3 }
+// Ranking comes from TIER_ORDER, never a local copy. The copy this replaced was keyed
+// { demo, free, weaver, fabrick } — it went stale when the Solo tier's value was renamed AND had
+// never carried `team`, so a Team user's tier resolved to `?? 0` and they saw demo plugins only.
+const tierLevel = (tier: string): number => TIER_ORDER[tier as TierName] ?? 0
 const pluginCount = computed(() => {
-  const level = PLUGIN_TIER_LEVEL[appStore.effectiveTier] ?? 0
+  const level = tierLevel(appStore.effectiveTier)
   return appStore.availablePlugins.filter(p =>
-    (PLUGIN_TIER_LEVEL[p.minimumTier] ?? 0) <= level &&
-    !(p.replacedByFabrick && level >= PLUGIN_TIER_LEVEL.fabrick)
+    tierLevel(p.minimumTier) <= level &&
+    !(p.replacedByFabrick && level >= TIER_ORDER.fabrick)
   ).length
 })
 

@@ -24,7 +24,7 @@ const JWT_SECRET = 'test-secret-for-host-testing'
 
 function makeConfig(overrides: Partial<DashboardConfig> = {}): DashboardConfig {
   return makeTestConfig({
-    tier: 'weaver',
+    tier: 'solo',
     licenseExpiry: null,
     licenseGraceMode: false,
     storageBackend: 'json',
@@ -74,7 +74,7 @@ describe('Host Routes', () => {
         isDemo: true, // Use demo mode to avoid shell commands in tests
       })
 
-      const config = makeConfig({ tier: 'weaver' })
+      const config = makeConfig({ tier: 'solo' })
 
       fastify.addHook('onRequest', createAuthMiddleware(authService))
       await fastify.register(hostRoutes, { prefix: '/api/host', config, hostInfoService })

@@ -1,0 +1,9 @@
+{
+  "_comment": "Weaver's trusted-authority manifest. PUBLIC keys only — this file is plaintext in git deliberately, so a change to what a build trusts appears in a pull-request diff. See wbd-entitlement/docs/ROTATION.md before editing: acceptance of a new key must SHIP before minting switches to it, and the channel list is ordered newest-first.",
+  "product": "weaver",
+  "keys": {},
+  "channels": {
+    "release": [],
+    "dev": []
+  }
+}

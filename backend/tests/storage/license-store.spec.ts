@@ -22,7 +22,7 @@ describe('LicenseStore', () => {
 
   const makeRecord = (overrides: Partial<Parameters<typeof store.save>[0]> = {}) => ({
     key: 'WVR-WVS-ABCD1234EFGH-A1B2',
-    tier: 'weaver',
+    tier: 'solo',
     stripeCustomerId: 'cus_test123',
     stripeSubscriptionId: 'sub_test456',
     expiresAt: '2027-01-01T00:00:00.000Z',
@@ -36,7 +36,7 @@ describe('LicenseStore', () => {
     await store.save(makeRecord())
     const found = store.findByKey('WVR-WVS-ABCD1234EFGH-A1B2')
     expect(found).not.toBeNull()
-    expect(found!.tier).toBe('weaver')
+    expect(found!.tier).toBe('solo')
     expect(found!.email).toBe('test@example.com')
   })
 
