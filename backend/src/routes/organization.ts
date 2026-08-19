@@ -32,7 +32,7 @@ export const organizationRoutes: FastifyPluginAsync<OrganizationRouteOptions> = 
     try {
       requireTier(config, TIERS.SOLO)
     } catch {
-      return reply.status(403).send({ error: 'Organization identity requires Weaver tier or higher' })
+      return reply.status(403).send({ error: 'Organization identity requires solo tier or higher' })
     }
 
     await organizationStore.setIdentity(request.body)

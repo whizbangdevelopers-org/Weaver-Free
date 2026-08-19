@@ -29,7 +29,7 @@ const mockGetVmDefinitions = getWorkloadDefinitions as ReturnType<typeof vi.fn>
 const TEST_DIR = join('/tmp', `quota-routes-test-${randomUUID()}`)
 
 // Minimal DashboardConfig for testing
-function makeConfig(tier: 'demo' | 'free' | 'weaver' | 'fabrick'): DashboardConfig {
+function makeConfig(tier: 'demo' | 'free' | 'solo' | 'fabrick'): DashboardConfig {
   return makeTestConfig({
     tier,
     licenseExpiry: null,
@@ -282,7 +282,7 @@ describe('Quota Routes — Tier Gating', () => {
     testUserId = testUser.id
 
     // Register with weaver tier (NOT fabrick) — quotas should be blocked
-    const config = makeConfig('weaver')
+    const config = makeConfig('solo')
 
     await fastify.register(quotaRoutes, {
       prefix: '/api/users',

@@ -42,7 +42,7 @@ function makeProvisioner(): Provisioner {
 function makeConfig(): DashboardConfig {
   return {
     bridgeInterface: 'br-test',
-    tier: 'weaver',
+    tier: 'solo',
     licenseExpiry: null,
     licenseGraceMode: false,
     dataDir: '/tmp/test',

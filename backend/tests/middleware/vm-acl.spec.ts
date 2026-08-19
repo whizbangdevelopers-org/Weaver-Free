@@ -12,7 +12,7 @@ import { makeTestConfig } from '../helpers/config.js'
 
 const TEST_DIR = join('/tmp', `vm-acl-mw-test-${randomUUID()}`)
 
-function makeConfig(tier: 'demo' | 'free' | 'weaver' | 'fabrick'): DashboardConfig {
+function makeConfig(tier: 'demo' | 'free' | 'solo' | 'fabrick'): DashboardConfig {
   return makeTestConfig({
     tier,
     licenseExpiry: null,
@@ -69,7 +69,7 @@ describe('createVmAclCheck middleware', () => {
   })
 
   it('should pass through on non-fabrick tier', async () => {
-    const check = createVmAclCheck(aclStore, makeConfig('weaver'))
+    const check = createVmAclCheck(aclStore, makeConfig('solo'))
     const reply = makeReply()
     await check(makeRequest(), reply)
     expect(reply.status).not.toHaveBeenCalled()

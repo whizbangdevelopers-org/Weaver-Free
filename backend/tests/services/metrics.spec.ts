@@ -282,7 +282,7 @@ describe('tier windows', () => {
   // now stated in milliseconds because that is the unit it is enforced in.
   it('gives Free one hour and every paid tier 24', () => {
     expect(maxWindowMsForTier('free')).toBe(3_600_000)
-    expect(maxWindowMsForTier('weaver')).toBe(86_400_000)
+    expect(maxWindowMsForTier('solo')).toBe(86_400_000)
     expect(maxWindowMsForTier('team')).toBe(86_400_000)
     expect(maxWindowMsForTier('fabrick')).toBe(86_400_000)
   })
@@ -309,8 +309,8 @@ describe('tier windows', () => {
 
 describe('resolveWindowMs', () => {
   it('parses hours and minutes', () => {
-    expect(resolveWindowMs('24h', 'weaver')).toBe(86_400_000)
-    expect(resolveWindowMs('30m', 'weaver')).toBe(1_800_000)
+    expect(resolveWindowMs('24h', 'solo')).toBe(86_400_000)
+    expect(resolveWindowMs('30m', 'solo')).toBe(1_800_000)
   })
 
   it('clamps a Free request to its entitlement rather than erroring', () => {
@@ -321,14 +321,14 @@ describe('resolveWindowMs', () => {
 
   it('defaults to the tier maximum when unspecified', () => {
     expect(resolveWindowMs(undefined, 'free')).toBe(3_600_000)
-    expect(resolveWindowMs(undefined, 'weaver')).toBe(86_400_000)
+    expect(resolveWindowMs(undefined, 'solo')).toBe(86_400_000)
   })
 
   it('falls back to the maximum on unparseable input rather than 0', () => {
     // A 0-length window returns an empty series, which renders as an empty graph — visually
     // identical to "this workload has no data", for what is actually a malformed query string.
-    expect(resolveWindowMs('bogus', 'weaver')).toBe(86_400_000)
-    expect(resolveWindowMs('0h', 'weaver')).toBe(86_400_000)
-    expect(resolveWindowMs('-5m', 'weaver')).toBe(86_400_000)
+    expect(resolveWindowMs('bogus', 'solo')).toBe(86_400_000)
+    expect(resolveWindowMs('0h', 'solo')).toBe(86_400_000)
+    expect(resolveWindowMs('-5m', 'solo')).toBe(86_400_000)
   })
 })

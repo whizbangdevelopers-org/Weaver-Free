@@ -22,7 +22,7 @@ import type { FastifyRequest } from 'fastify'
 
 const TEST_DIR = join('/tmp', `vm-acl-routes-test-${randomUUID()}`)
 
-function makeConfig(tier: 'demo' | 'free' | 'weaver' | 'fabrick'): DashboardConfig {
+function makeConfig(tier: 'demo' | 'free' | 'solo' | 'fabrick'): DashboardConfig {
   return makeTestConfig({
     tier,
     licenseExpiry: null,
@@ -264,7 +264,7 @@ describe('VM ACL Routes — Tier Gating', () => {
     await fastify.register(vmAclRoutes, {
       prefix: '/api/users',
       aclStore,
-      config: makeConfig('weaver'),
+      config: makeConfig('solo'),
       userStore,
       auditService,
     })

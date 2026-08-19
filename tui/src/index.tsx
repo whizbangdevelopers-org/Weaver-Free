@@ -35,7 +35,7 @@ Usage: microvm-tui [options]
 Options:
   --host <url>      Backend URL (default: http://localhost:3100)
   --demo            Demo mode — no backend needed
-  --tier <name>     Demo tier: demo|free|weaver|fabrick (default: weaver)
+  --tier <name>     Demo tier: demo|free|solo|team|fabrick (default: solo)
   --version <v>     Demo version: 1.0–3.3 (default: 1.0). Use ←/→ to step.
   --username <u>    Skip login prompt (for scripting)
   --password <p>    Skip login prompt (for scripting)

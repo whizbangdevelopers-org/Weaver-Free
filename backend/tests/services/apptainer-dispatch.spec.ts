@@ -105,7 +105,7 @@ function makeRegistry(initial: Record<string, WorkloadDefinition>): WorkloadRegi
 
 function makeConfig(overrides: Partial<DashboardConfig> = {}): DashboardConfig {
   return {
-    tier: 'weaver', // TIERS.SOLO — the tier at which Apptainer is visible
+    tier: 'solo', // TIERS.SOLO — the tier at which Apptainer is visible
     apptainerBin: '/nix/store/abc-apptainer/bin/apptainer',
     dockerBin: 'docker',
     podmanBin: 'podman',

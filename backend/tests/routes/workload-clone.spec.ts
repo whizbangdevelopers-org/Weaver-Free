@@ -103,7 +103,7 @@ async function buildApp(opts: {
   })
   await fastify.register(workloadsRoutes, {
     prefix: '/api/workload',
-    config: makeConfig(opts.tier ?? 'weaver'),
+    config: makeConfig(opts.tier ?? 'solo'),
     networkManager: opts.networkManager === undefined ? makeNetworkManager() : opts.networkManager,
     // A deliberate partial double. `Provisioner` has many methods; the clone route calls
     // `provision` and `getLog`, and stubbing the rest with vi.fn()s that no test arranges or
@@ -348,7 +348,7 @@ describe('POST /api/workload/:name/clone', () => {
       })
       await fastify.register(workloadsRoutes, {
         prefix: '/api/workload',
-        config: { ...makeConfig('weaver'), provisioningEnabled: true } as DashboardConfig,
+        config: { ...makeConfig('solo'), provisioningEnabled: true } as DashboardConfig,
         networkManager: makeNetworkManager(),
         provisioner: provisioner as never,
       })

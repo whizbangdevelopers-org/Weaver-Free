@@ -94,7 +94,8 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useAppStore, type Tier } from 'src/stores/app'
+import { useAppStore } from 'src/stores/app'
+import { TIERS, TIER_LABELS, TIER_ORDER, type TierName } from 'src/constants/vocabularies'
 import { isDemoMode, isPublicDemo } from 'src/config/demo-mode'
 import type { PluginManifest, PluginCategory } from 'src/types/plugin'
 
@@ -111,10 +112,11 @@ const categories: { id: PluginCategory; label: string; icon: string; color: stri
   { id: 'backup', label: 'Backup & Recovery', icon: 'mdi-backup-restore', color: 'green' },
 ]
 
-const TIER_SORT: Record<string, number> = { demo: 0, free: 1, weaver: 2, fabrick: 3 }
+// See MainLayout.vue — ranking comes from TIER_ORDER, not a hand-typed copy.
+const tierRank = (tier: string): number => TIER_ORDER[tier as TierName] ?? 0
 
 const pluginsByCategory = computed(() => {
-  const tierLevel = TIER_SORT[appStore.effectiveTier] ?? 0
+  const tierLevel = tierRank(appStore.effectiveTier)
   const map = new Map<string, PluginManifest[]>()
   for (const cat of categories) {
     map.set(
@@ -122,37 +124,35 @@ const pluginsByCategory = computed(() => {
       appStore.availablePlugins
         .filter(p =>
           p.category === cat.id &&
-          (TIER_SORT[p.minimumTier] ?? 0) <= tierLevel &&
-          !(p.replacedByFabrick && tierLevel >= TIER_SORT.fabrick)
+          tierRank(p.minimumTier) <= tierLevel &&
+          !(p.replacedByFabrick && tierLevel >= TIER_ORDER.fabrick)
         )
-        .sort((a, b) => (TIER_SORT[a.minimumTier] ?? 0) - (TIER_SORT[b.minimumTier] ?? 0))
+        .sort((a, b) => tierRank(a.minimumTier) - tierRank(b.minimumTier))
     )
   }
   return map
 })
 
-const currentTierBadgeColor = computed(() => {
-  const colors: Record<Tier, string> = {
-    demo: 'grey',
-    free: 'positive',
-    weaver: 'amber-8',
-    team: 'amber-9',
-    fabrick: 'purple',
-  }
-  return colors[appStore.effectiveTier] ?? 'grey'
-})
-
-function tierBadgeColor(tier: string): string {
-  switch (tier) {
-    case 'free': return 'positive'
-    case 'weaver': return 'amber-8'
-    case 'fabrick': return 'purple'
-    default: return 'grey'
-  }
+// Keyed by the TIERS constants, never by their values written out — a literal key is a copy that
+// goes stale the next time a value moves, which is exactly how the last tier rename reached the UI.
+const TIER_COLORS: Record<string, string> = {
+  [TIERS.DEMO]: 'grey',
+  [TIERS.FREE]: 'positive',
+  [TIERS.SOLO]: 'amber-8',
+  [TIERS.TEAM]: 'amber-9',
+  [TIERS.FABRICK]: 'purple',
 }
 
+const currentTierBadgeColor = computed(() => TIER_COLORS[appStore.effectiveTier] ?? 'grey')
+
+function tierBadgeColor(tier: string): string {
+  return TIER_COLORS[tier] ?? 'grey'
+}
+
+// TIER_LABELS, not a capitalised value: it carries the brand mark ("FabricK", "Weaver Solo"),
+// which `tier.charAt(0).toUpperCase()` could never produce.
 function tierBadgeLabel(tier: string): string {
-  return tier.charAt(0).toUpperCase() + tier.slice(1)
+  return TIER_LABELS[tier as TierName] ?? tier
 }
 
 function statusColor(status: PluginManifest['status']): string {

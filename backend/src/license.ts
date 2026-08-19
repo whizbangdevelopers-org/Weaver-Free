@@ -1,196 +1,153 @@
 // Copyright (c) 2026 whizBANG Developers LLC. All rights reserved.
 // Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE.
-import { type KeyObject } from 'node:crypto'
-import {
-  ACCEPTED_PUBLIC_KEYS,
-  SIGNATURE_B32_LENGTH,
-  signLicensePrefix,
-  verifyLicenseSignature,
-} from './license-signing.js'
+
+/**
+ * Weaver's licence binding.
+ *
+ * The key mechanism — format, signing, verification, rotation — is vendored from
+ * `wbd-entitlement` into `entitlement/` (ENT-1). What stays here is the part that is genuinely
+ * Weaver's: the tier ordering, `requireTier`, and the single site that binds Weaver's profile to
+ * the build's accepted keys.
+ *
+ * **There is one `createVerifier` call in this codebase and it is below.** That is deliberate:
+ * "who decides what this build trusts" should be answerable by finding one line, and
+ * `audit:authority-binding` fails if verification material reaches it from anywhere but the
+ * generated authority module.
+ *
+ * The import path and the exported surface are unchanged, so the ~20 modules importing
+ * `requireTier` / `parseLicenseKey` / `TIER_ORDER` needed no edits.
+ */
+
+import type { KeyObject } from 'node:crypto'
+import { createVerifier, type LicenseResult } from './entitlement/verify/verifier.js'
+import { createIssuer, type IssueOptions } from './entitlement/issue/issuer.js'
+import { encodeDate, decodeDate } from './entitlement/format/payload.js'
+import { ACCEPTED_PUBLIC_KEYS, CHANNEL, IS_RELEASE } from './generated/license-authority.js'
+import { WEAVER_PROFILE } from './license-profile.js'
 import { TIERS, TIER_ORDER, type TierName } from './constants/vocabularies.js'
 
 export type Tier = TierName
 export { TIER_ORDER }
-
-const TIER_CODE_MAP: Record<string, Tier> = {
-  FRE: TIERS.FREE,
-  WVS: TIERS.SOLO,  // Weaver Solo
-  WVT: TIERS.TEAM,  // Weaver Team (distinct tier — Solo/Team code split pulled forward from v2.2)
-  FAB: TIERS.FABRICK, // Fabrick
-  // Legacy codes — still accepted for backward compatibility
-  PRE: TIERS.SOLO,
-  ENT: TIERS.FABRICK,
-}
+export type { LicenseResult }
 
 /**
- * `WVR-<tier>-<12 base36>-<103 base32 signature>`.
+ * THE binding site. Profile + build-time accepted keys, bound once at module scope.
  *
- * The trailing group was `[A-Z0-9]{4}` — a 4-character HMAC checksum, 16 bits, brute-forceable
- * locally with no rate limit even by someone who did not already hold the secret. It is
- * now a raw Ed25519 signature in unpadded RFC 4648 base32, which keeps the whole key uppercase and
- * transcription-safe exactly as before; only the length changes, so every transport the key travels
- * through (`LICENSE_KEY`, `LICENSE_KEY_FILE`, the NixOS module option, the Docker entrypoints, the
- * harness) is unaffected.
+ * `ACCEPTED_PUBLIC_KEYS` is a generated build-time constant, never config. An operator running a
+ * shipped binary cannot change what it trusts; a build can be made to trust a test authority, which
+ * is what makes the substitute hub usable on a deployed node. Those are different seams and the
+ * difference is the design.
  */
-const KEY_REGEX = new RegExp(
-  `^WVR-(FRE|WVS|WVT|FAB|PRE|ENT)-[A-Z0-9]{12}-[A-Z2-7]{${SIGNATURE_B32_LENGTH}}$`,
-)
-
-/** Number of days after expiry during which the license remains active in grace mode */
-const GRACE_PERIOD_DAYS = 30
-
-export interface LicenseResult {
-  tier: Tier
-  expiry: Date | null
-  graceMode: boolean
-  customerId: string | null
-}
+export const verifier = createVerifier(WEAVER_PROFILE, ACCEPTED_PUBLIC_KEYS)
 
 /**
- * Encode a date as a 4-char base36 string representing days since epoch (2020-01-01).
- * Returns 'ZZZZ' for "no expiry" sentinel.
+ * A production process must not be running a non-release authority.
+ *
+ * `IS_RELEASE` and `CHANNEL` were generated, exported, re-exported — and read by nothing outside
+ * the tests. The channel invariant was therefore enforced at GENERATION time and asserted on the
+ * committed artifact, but never on the running process, so the one case it exists to catch had no
+ * check at the only moment it matters: a build regenerated with `--channel dev` (which trusts a
+ * test authority, whose private half is disposable and may sit in CI or on a laptop) shipped and
+ * started as production.
+ *
+ * A warning rather than a refusal, deliberately. Refusing would take a host that is serving
+ * workloads offline over a licensing concern, which is a worse failure than the one being
+ * reported — and the tier is not what the operator loses. `IS_RELEASE` is derived from the
+ * manifest by the generator, so this cannot be silenced by configuration; the only way to clear
+ * it is to ship a release-channel build.
  */
-const EPOCH = new Date('2020-01-01T00:00:00Z').getTime()
-
-export function encodeDateToBase36(date: Date): string {
-  const days = Math.floor((date.getTime() - EPOCH) / (24 * 60 * 60 * 1000))
-  return days.toString(36).toUpperCase().padStart(4, '0')
-}
-
-export function decodeDateFromBase36(encoded: string): Date | null {
-  if (encoded === 'ZZZZ') return null
-  const days = parseInt(encoded, 36)
-  if (isNaN(days)) return null
-  return new Date(EPOCH + days * 24 * 60 * 60 * 1000)
+if (process.env.NODE_ENV === 'production' && !IS_RELEASE) {
+  console.error(
+    `[license] SECURITY: this is a production process running a '${CHANNEL}' authority. ` +
+      'A non-release channel may trust a TEST signing key, whose private half is not held under ' +
+      'custody — anyone holding it can mint any tier for this build. Rebuild with ' +
+      '`generate:license-authority --channel release` before deploying.',
+  )
 }
 
 /**
- * Parse and validate a license key.
+ * The verifier type, so collaborators can accept one by injection.
  *
- * Key format: WVR-<tier>-<payload>-<signature>
- * - tier: FRE | WVS | WVT | FAB (new codes) or PRE | ENT (legacy, still accepted)
- * - payload: 12 chars base36 — issueDate(4) + expiry(4) + customerId(4)
- * - signature: Ed25519 over `WVR-<tier>-<payload>`, unpadded base32 (103 chars)
+ * Injecting a VERIFIER is not the seam that was just removed. That one took raw `acceptedKeys` —
+ * a credential — straight into the production parse path. This takes an already-bound collaborator,
+ * and building one still requires a `createVerifier` call, which `audit:authority-binding` flags
+ * wherever it appears outside this module. The chokepoint is unchanged; only testability improved.
+ */
+export type LicenseVerifier = typeof verifier
+
+/** How many keys this build trusts. Zero is the correct pre-ceremony state. */
+export const acceptedKeyCount = verifier.acceptedKeyCount
+
+/**
+ * Parse and validate a licence key.
  *
- * **There is no secret parameter, and that absence is the fix.** This function used to take the
- * HMAC secret the caller had resolved from `LICENSE_HMAC_SECRET` / the NixOS module option — i.e.
- * from the operator, who is the party the licence restricts. Because HMAC is symmetric, holding
- * that value was the ability to mint, so any operator could issue themselves any tier. Verification
- * now uses public keys compiled into the build (`ACCEPTED_PUBLIC_KEYS`), which a caller cannot
- * supply and an operator cannot substitute without rebuilding from source.
+ * Key format: `WVR-<tier>-<payload>-<signature>` where payload is 24 base36 characters —
+ * `version(1) issued(4) expiry(4) customerId(4) serial(8) quantity(3)` — and the signature is
+ * Ed25519 over `WVR-<tier>-<payload>`, unpadded base32.
  *
- * The signed message is the prefix, which contains both the tier and the payload — so altering
- * either invalidates the signature, and a signature lifted from one key does not transfer to
- * another.
+ * **There is no secret parameter, and that absence is the fix.** This used to take the HMAC secret
+ * resolved from `LICENSE_HMAC_SECRET` / the NixOS module option — i.e. from the operator, the party
+ * the licence restricts. Because HMAC is symmetric, holding that value was the ability to mint.
  *
- * Returns the parsed tier and expiry. Handles grace period logic:
- * - If expired within 30 days: tier stays, graceMode = true
- * - If expired beyond 30 days: tier = free, graceMode = false
- *
- * (That last line read `tier = demo` until 2026-08-16, against code that has always returned
- * FREE — and the inline comment at the return says why FREE is deliberate: a lapsed customer
- * keeps real access to their own workloads, they do not get moved onto demo data.)
+ * Grace handling: expired within the profile's grace window keeps the tier with `graceMode` set;
+ * beyond it the tier becomes **Free**, deliberately — a lapsed customer keeps real access to their
+ * own workloads rather than being moved onto demo data.
  *
  * `now` is injectable because expiry and grace are the whole point of this function and both are
  * time-dependent. Resolution happens on every re-read of the key file, not only at start-up, so
- * "the same key parsed later gives a different tier" is a behaviour with its own tests rather
- * than an implementation detail.
+ * "the same key parsed later gives a different tier" is a behaviour with its own tests.
+ *
+ * **There is deliberately no `acceptedKeys` parameter.** One used to exist "so tests can verify
+ * with an ephemeral keypair", defended by the observation that the runtime path never passed it.
+ * That is a convention, not a control: nothing stopped a future route from threading operator input
+ * into it, and `audit:authority-binding` flagged it the first time it ran. A test that wants a
+ * different trust set now says so by building its own verifier — `createVerifier(WEAVER_PROFILE,
+ * keys)` — which states the intent at the call site instead of widening the production API.
  */
-export function parseLicenseKey(
-  key: string,
-  now: Date = new Date(),
-  acceptedKeys: readonly string[] = ACCEPTED_PUBLIC_KEYS,
-): LicenseResult {
-  if (!KEY_REGEX.test(key)) {
-    throw new Error(`Invalid license key format: key must match ${KEY_REGEX.source}`)
-  }
-
-  const parts = key.split('-')
-  // parts: ['WVR', tierCode, payload, signature]
-  const tierCode = parts[1]
-  const payload = parts[2]
-  const signature = parts[3]
-
-  // Verify the signature BEFORE reading anything out of the payload. The payload is attacker-
-  // supplied until this passes, and an unverified tier is exactly the value an attacker wants read.
-  const prefix = `WVR-${tierCode}-${payload}`
-  if (!verifyLicenseSignature(prefix, signature, acceptedKeys)) {
-    throw new Error('Invalid license key: signature verification failed')
-  }
-
-  // Extract tier
-  const tier = TIER_CODE_MAP[tierCode]
-  if (!tier) {
-    throw new Error(`Invalid license key: unknown tier code '${tierCode}'`)
-  }
-
-  // Decode payload: issueDate(4) + expiry(4) + customerId(4)
-  const issueDateEncoded = payload.slice(0, 4)
-  const expiryEncoded = payload.slice(4, 8)
-  const customerIdEncoded = payload.slice(8, 12)
-
-  // Decode expiry
-  const expiry = decodeDateFromBase36(expiryEncoded)
-
-  // Decode issue date (for validation, not currently returned)
-  const issueDate = decodeDateFromBase36(issueDateEncoded)
-  if (issueDateEncoded !== 'ZZZZ' && !issueDate) {
-    throw new Error('Invalid license key: corrupted issue date')
-  }
-
-  // Customer ID
-  const customerId = customerIdEncoded
-
-  // Check expiry and grace period
-  if (expiry) {
-    if (now > expiry) {
-      const graceCutoff = new Date(expiry.getTime() + GRACE_PERIOD_DAYS * 24 * 60 * 60 * 1000)
-      if (now <= graceCutoff) {
-        // Within grace period — keep tier but flag grace mode
-        return { tier, expiry, graceMode: true, customerId }
-      }
-      // Beyond grace period — downgrade to free (keeps real VM access, not demo data)
-      return { tier: TIERS.FREE, expiry, graceMode: false, customerId }
-    }
-  }
-
-  return { tier, expiry, graceMode: false, customerId }
+export function parseLicenseKey(key: string, now: Date = new Date()): LicenseResult<TierName> {
+  return verifier.parseLicenseKey(key, now)
 }
 
 /**
  * Mint a licence key. **Issuer-side only** — requires the private signing key, which a shipped
- * build does not have. Called by the Stripe webhook path and by `scripts/generate-license.ts`;
- * never reimplement the payload or the signature elsewhere, or a test key stops being
- * byte-identical to a real one and every harness result becomes suspect.
+ * build does not have.
  *
- * `expiry` is optional and its absence encodes the `ZZZZ` sentinel, which `parseLicenseKey` reads
- * as "never expires" — skipping the expiry and grace branch entirely. So the SHORTEST call mints
- * the most permissive possible credential, and nothing in the signature distinguishes "deliberately
- * perpetual" from "forgot the expiry". Pass an expiry unless you positively mean unbounded.
- * (G-licensing-2026-08-17: an optional argument whose absence widens a grant is backwards.)
+ * Called by the Stripe path and by `scripts/generate-license.ts`; never reimplement the payload or
+ * the signature elsewhere, or a test key stops being byte-identical to a real one and every harness
+ * result becomes unfalsifiable.
+ *
+ * `options.expiry` is optional and its absence mints a key that NEVER expires, so the shortest call
+ * produces the most permissive credential. That hazard is documented upstream and survives only
+ * because perpetual keys are a real product case — `options.quantity` deliberately does not repeat
+ * it and defaults to 1.
  */
 export function generateLicenseKey(
-  tier: typeof TIERS.FREE | typeof TIERS.SOLO | typeof TIERS.TEAM | typeof TIERS.FABRICK,
+  tier: TierName,
   privateKey: KeyObject,
-  options?: { expiry?: Date; customerId?: string }
+  options?: IssueOptions,
 ): string {
-  const tierCode = { [TIERS.FREE]: 'FRE', [TIERS.SOLO]: 'WVS', [TIERS.TEAM]: 'WVT', [TIERS.FABRICK]: 'FAB' }[tier]
-  const issueDate = encodeDateToBase36(new Date())
-  const expiryEncoded = options?.expiry ? encodeDateToBase36(options.expiry) : 'ZZZZ'
-  const customerId = (options?.customerId ?? '0000').padStart(4, '0').slice(0, 4).toUpperCase()
-  const payload = `${issueDate}${expiryEncoded}${customerId}`
-  const prefix = `WVR-${tierCode}-${payload}`
-  return `${prefix}-${signLicensePrefix(prefix, privateKey)}`
+  return createIssuer(WEAVER_PROFILE, privateKey).generateLicenseKey(tier, options)
 }
+
+/** Encode a date as base36 days since 2020-01-01. Re-exported for tooling and tests. */
+export const encodeDateToBase36 = encodeDate
+
+/** Decode a base36 day count. `ZZZZ` means "no expiry". */
+export const decodeDateFromBase36 = decodeDate
 
 /**
  * Guard that throws a 403-style error if the current tier is below the minimum.
+ *
+ * Stays here rather than moving upstream: tier→feature gating is product policy, and
+ * `wbd-entitlement` deliberately does not know what a Weaver tier permits (ENT-4).
  */
 export function requireTier(config: { tier: Tier }, minimum: Tier): void {
   if (TIER_ORDER[config.tier] < TIER_ORDER[minimum]) {
     throw Object.assign(
       new Error(`This feature requires ${minimum} tier or higher (current: ${config.tier})`),
-      { statusCode: 403 }
+      { statusCode: 403 },
     )
   }
 }
+
+export { TIERS }

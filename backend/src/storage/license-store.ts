@@ -23,12 +23,42 @@ export class LicenseStore {
     this.filePath = filePath
   }
 
+  /**
+   * Tier values written before the tier vocabulary was normalised so that every constant's value
+   * is its own name, mapped to their current spelling.
+   *
+   * This is a read-time normalisation with a one-off rewrite, not a schema migration, because the
+   * field it repairs is **not** an entitlement. The authority is the KEY — `parseLicenseKey`
+   * resolves the tier from a signed payload and never consults this row — so a stale `'weaver'`
+   * here does not grant or withhold anything. What it does do is reach the audit log and the
+   * renewal email, which is why leaving it would be a lie in the record rather than a harmless
+   * legacy value.
+   */
+  private static readonly LEGACY_TIER_VALUES: Readonly<Record<string, string>> = { weaver: 'solo' }
+
   async init(): Promise<void> {
     try {
       const raw = await readFile(this.filePath, 'utf-8')
       this.records = JSON.parse(raw) as LicenseRecord[]
     } catch {
       // File doesn't exist yet — start empty
+      return
+    }
+
+    // Rewrite once, and only when something actually changed, so a store with no legacy rows is
+    // never touched — an unconditional write on every start-up would make the file's mtime
+    // meaningless as evidence of when a licence last moved.
+    let migrated = 0
+    for (const record of this.records) {
+      const current = LicenseStore.LEGACY_TIER_VALUES[record.tier]
+      if (current) {
+        record.tier = current
+        migrated++
+      }
+    }
+    if (migrated > 0) {
+      console.info(`[license-store] normalised ${migrated} legacy tier value(s) to current vocabulary`)
+      await this.persist()
     }
   }
 

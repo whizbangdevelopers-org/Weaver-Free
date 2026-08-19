@@ -32,7 +32,7 @@ const empty = (): ScanResult => ({ discovered: [], added: [], existing: [] })
 const found = (name: string): ScanResult => ({ discovered: [name], added: [name], existing: [] })
 
 function makeConfig(runtimes: string[] | undefined): DashboardConfig {
-  return { tier: 'weaver', containerRuntimes: runtimes } as unknown as DashboardConfig
+  return { tier: 'solo', containerRuntimes: runtimes } as unknown as DashboardConfig
 }
 
 let mockUserRole: UserRole = 'admin'

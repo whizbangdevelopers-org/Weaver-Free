@@ -39,7 +39,7 @@ function createMockProvisioner(): Provisioner {
 }
 
 const baseConfig: DashboardConfig = makeTestConfig({
-  tier: 'weaver',
+  tier: 'solo',
   licenseExpiry: null,
   licenseGraceMode: false,
   storageBackend: 'json',

@@ -114,7 +114,7 @@ beforeEach(async () => {
   await licenseStore.init()
   mockGenerateLicense.mockResolvedValue({
     key: 'WVR-WVS-TESTKEY12345-' + 'A'.repeat(103),
-    tier: 'weaver',
+    tier: 'solo',
     customerId: 'cus_sig',
     subscriptionId: 'sub_sig_1',
     expiresAt: new Date('2027-06-15T00:00:00Z'),
@@ -200,7 +200,7 @@ describe('webhook delivery is at-least-once — issuance must be idempotent', ()
     const payload = checkoutEvent('sub_replay')
     mockGenerateLicense.mockResolvedValue({
       key: 'WVR-WVS-REPLAYKEY123-' + 'A'.repeat(103),
-      tier: 'weaver',
+      tier: 'solo',
       customerId: 'cus_replay',
       subscriptionId: 'sub_replay',
       expiresAt: new Date('2027-06-15T00:00:00Z'),
@@ -228,7 +228,7 @@ describe('webhook delivery is at-least-once — issuance must be idempotent', ()
     for (const sub of ['sub_one', 'sub_two']) {
       mockGenerateLicense.mockResolvedValueOnce({
         key: `WVR-WVS-${sub.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 12).padEnd(12, 'X')}-${'A'.repeat(103)}`,
-        tier: 'weaver',
+        tier: 'solo',
         customerId: `cus_${sub}`,
         subscriptionId: sub,
         expiresAt: new Date('2027-06-15T00:00:00Z'),

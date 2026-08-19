@@ -25,7 +25,7 @@ import type { DashboardConfig } from '../../src/config.js'
 const BRIDGE = 'br-microvm'
 
 const baseConfig = {
-  tier: 'weaver', licenseExpiry: null, licenseGraceMode: false, storageBackend: 'json',
+  tier: 'solo', licenseExpiry: null, licenseGraceMode: false, storageBackend: 'json',
   dataDir: './data', provisioningEnabled: false, microvmsDir: '/var/lib/microvms',
   bridgeGateway: '10.10.0.1', bridgeInterface: BRIDGE,
   microvmBin: '/bin/microvm', qemuBin: '/bin/qemu', qemuImgBin: '/bin/qemu-img',

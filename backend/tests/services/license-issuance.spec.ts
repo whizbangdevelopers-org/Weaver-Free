@@ -14,6 +14,8 @@
 // `generateLicenseFromSubscription` → `generateLicenseKey` path, the exact code a live checkout
 // runs, and verified by the real `parseLicenseKey`. Nothing in between is faked.
 import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { createVerifier } from '../../src/entitlement/verify/verifier.js'
+import { WEAVER_PROFILE } from '../../src/license-profile.js'
 import { generateKeyPairSync } from 'node:crypto'
 
 const { mockRetrieve } = vi.hoisted(() => ({ mockRetrieve: vi.fn() }))
@@ -37,6 +39,9 @@ import { TIERS } from '../../src/constants/vocabularies.js'
 const AUTHORITY = generateKeyPairSync('ed25519')
 const ACCEPTED = [(AUTHORITY.publicKey.export({ format: 'jwk' }) as { x: string }).x]
 
+/** Verifier bound to the test authority — the product's real set stays untouched. */
+const TEST_VERIFIER = createVerifier(WEAVER_PROFILE, ACCEPTED)
+
 const PRODUCTS = {
   soloProductId: 'prod_solo',
   teamProductId: 'prod_team',
@@ -48,12 +53,30 @@ function epoch(iso: string): number {
   return Math.floor(new Date(iso).getTime() / 1000)
 }
 
-function stubSubscription(productId: string, periodEndIso: string, customer = 'cus_ABCD1234') {
+/**
+ * A subscription shaped as the PINNED SDK actually returns one.
+ *
+ * `current_period_end` sits on the ITEM. It used to be stubbed at the subscription top level —
+ * where Stripe removed it — so this suite passed against an API shape the SDK no longer speaks,
+ * and could not have caught the live bug where that read produced an Invalid Date and a licence
+ * expiring in 2102. A stub that encodes the assumption under test proves only that the code
+ * agrees with itself.
+ *
+ * `quantity` is stubbed for the same reason: leaving it out meant the quantity line was only ever
+ * exercised through its `?? 1` fallback, so a real purchased count was never tested end to end.
+ */
+function stubSubscription(
+  productId: string,
+  periodEndIso: string,
+  customer = 'cus_ABCD1234',
+  quantity = 1,
+) {
   mockRetrieve.mockResolvedValue({
     id: 'sub_test',
     customer,
-    current_period_end: epoch(periodEndIso),
-    items: { data: [{ price: { product: productId } }] },
+    items: {
+      data: [{ price: { product: productId }, quantity, current_period_end: epoch(periodEndIso) }],
+    },
   })
 }
 
@@ -74,7 +97,7 @@ describe('issuance round-trip — a minted key verifies', () => {
 
     // ...and the product's independent reading of the artifact. These must agree; the issuer
     // saying "solo" while the key decodes to something else is the failure this catches.
-    const parsed = parseLicenseKey(license.key, new Date('2026-08-17T00:00:00Z'), ACCEPTED)
+    const parsed = TEST_VERIFIER.parseLicenseKey(license.key, new Date('2026-08-17T00:00:00Z'))
     expect(parsed.tier).toBe(TIERS.SOLO)
     expect(parsed.expiry?.toISOString().slice(0, 10)).toBe('2027-06-15')
     expect(parsed.graceMode).toBe(false)
@@ -89,7 +112,7 @@ describe('issuance round-trip — a minted key verifies', () => {
     for (const [productId, tier] of cases) {
       stubSubscription(productId, '2027-06-15T00:00:00Z')
       const license = await generateLicenseFromSubscription('sub_test', AUTHORITY.privateKey)
-      expect(parseLicenseKey(license.key, new Date('2026-08-17T00:00:00Z'), ACCEPTED).tier).toBe(tier)
+      expect(TEST_VERIFIER.parseLicenseKey(license.key, new Date('2026-08-17T00:00:00Z')).tier).toBe(tier)
     }
   })
 
@@ -97,7 +120,7 @@ describe('issuance round-trip — a minted key verifies', () => {
     stubSubscription(PRODUCTS.soloProductId, '2027-06-15T00:00:00Z', 'cus_WXYZ9999')
 
     const license = await generateLicenseFromSubscription('sub_test', AUTHORITY.privateKey)
-    const parsed = parseLicenseKey(license.key, new Date('2026-08-17T00:00:00Z'), ACCEPTED)
+    const parsed = TEST_VERIFIER.parseLicenseKey(license.key, new Date('2026-08-17T00:00:00Z'))
 
     // 4 chars of the Stripe id, uppercased — the traceability handle on a support ticket.
     expect(parsed.customerId).toBe('WXYZ')
@@ -107,7 +130,7 @@ describe('issuance round-trip — a minted key verifies', () => {
     stubSubscription(PRODUCTS.soloProductId, '2027-06-15T00:00:00Z')
     const license = await generateLicenseFromSubscription('sub_test', AUTHORITY.privateKey)
 
-    expect(license.key).toMatch(/^WVR-(FRE|WVS|WVT|FAB)-[A-Z0-9]{12}-[A-Z2-7]{103}$/)
+    expect(license.key).toMatch(/^WVR-(FRE|WVS|WVT|FAB)-[A-Z0-9]{24}-[A-Z2-7]{103}$/)
   })
 
   // The half that makes the assertions above mean something. Without it they would also pass
@@ -123,7 +146,7 @@ describe('issuance round-trip — a minted key verifies', () => {
     // privilege, and this is what stops it becoming one.
     expect(license.tier).toBe(TIERS.FABRICK)
     expect(() =>
-      parseLicenseKey(license.key, new Date('2026-08-17T00:00:00Z'), ACCEPTED),
+      TEST_VERIFIER.parseLicenseKey(license.key, new Date('2026-08-17T00:00:00Z')),
     ).toThrow('signature verification failed')
   })
 
@@ -133,11 +156,11 @@ describe('issuance round-trip — a minted key verifies', () => {
     stubSubscription(PRODUCTS.soloProductId, '2026-08-01T00:00:00Z')
     const license = await generateLicenseFromSubscription('sub_test', AUTHORITY.privateKey)
 
-    const inGrace = parseLicenseKey(license.key, new Date('2026-08-15T00:00:00Z'), ACCEPTED)
+    const inGrace = TEST_VERIFIER.parseLicenseKey(license.key, new Date('2026-08-15T00:00:00Z'))
     expect(inGrace.tier).toBe(TIERS.SOLO)
     expect(inGrace.graceMode).toBe(true)
 
-    const lapsed = parseLicenseKey(license.key, new Date('2026-10-01T00:00:00Z'), ACCEPTED)
+    const lapsed = TEST_VERIFIER.parseLicenseKey(license.key, new Date('2026-10-01T00:00:00Z'))
     expect(lapsed.tier).toBe(TIERS.FREE)
     expect(lapsed.graceMode).toBe(false)
   })
@@ -147,5 +170,58 @@ describe('issuance round-trip — a minted key verifies', () => {
 
     await expect(generateLicenseFromSubscription('sub_test', AUTHORITY.privateKey))
       .rejects.toThrow('Unknown product ID')
+  })
+
+  it('signs the PURCHASED quantity, not the conservative default', async () => {
+    // The signature over this field is what makes a per-node term enforceable at all — Stripe
+    // cannot count nodes in an airgapped install. Until the stub carried a quantity, this line
+    // was only ever exercised through its `?? 1` fallback, so an under-granting bug would have
+    // looked exactly like a passing suite.
+    stubSubscription(PRODUCTS.fabrickProductId, '2027-06-15T00:00:00Z', 'cus_ABCD1234', 40)
+
+    const license = await generateLicenseFromSubscription('sub_test', AUTHORITY.privateKey)
+    const parsed = TEST_VERIFIER.parseLicenseKey(license.key, new Date('2026-08-19T00:00:00Z'))
+
+    expect(parsed.tier).toBe(TIERS.FABRICK)
+    expect(parsed.quantity).toBe(40)
+  })
+
+  it('under-grants rather than over-grants when the provider omits quantity', async () => {
+    // The IGNORE half of the same rule: an absent quantity must mean 1, never unlimited. A
+    // forgotten value has to cost the customer nothing they paid for and grant nothing they
+    // did not.
+    mockRetrieve.mockResolvedValue({
+      id: 'sub_test',
+      customer: 'cus_ABCD1234',
+      items: {
+        data: [
+          {
+            price: { product: PRODUCTS.soloProductId },
+            current_period_end: Math.floor(new Date('2027-06-15T00:00:00Z').getTime() / 1000),
+          },
+        ],
+      },
+    })
+
+    const license = await generateLicenseFromSubscription('sub_test', AUTHORITY.privateKey)
+    const parsed = TEST_VERIFIER.parseLicenseKey(license.key, new Date('2026-08-19T00:00:00Z'))
+
+    expect(parsed.quantity).toBe(1)
+    expect(parsed.quantity).not.toBeNull() // null would mean UNLIMITED
+  })
+
+  it('refuses to mint when the provider gives no period end', async () => {
+    // The defect that made every real checkout mint a licence expiring in 2102: the read returned
+    // undefined, `new Date(undefined * 1000)` was an Invalid Date, and it encoded to '0NAN'
+    // without complaint. Failing loudly here is the whole fix — a mint that cannot determine an
+    // expiry must not produce a key.
+    mockRetrieve.mockResolvedValue({
+      id: 'sub_test',
+      customer: 'cus_ABCD1234',
+      items: { data: [{ price: { product: PRODUCTS.soloProductId }, quantity: 1 }] },
+    })
+
+    await expect(generateLicenseFromSubscription('sub_test', AUTHORITY.privateKey))
+      .rejects.toThrow('current_period_end')
   })
 })

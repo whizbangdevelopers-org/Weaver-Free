@@ -1,5 +1,7 @@
 // Copyright (c) 2026 whizBANG Developers LLC. All rights reserved.
 // Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE.
+import { createVerifier } from '../src/entitlement/verify/verifier.js'
+import { WEAVER_PROFILE } from '../src/license-profile.js'
 import { describe, it, expect } from 'vitest'
 import { generateKeyPairSync, type KeyObject } from 'node:crypto'
 import {
@@ -32,11 +34,19 @@ const OTHER_AUTHORITY = makeKeypair()
 /** The accepted set for the assertions below — the product's real set stays untouched. */
 const ACCEPTED = [AUTHORITY.publicB64]
 
+/**
+ * Payload layout, post-ENT-5/6: version(1) issued(4) expiry(4) customerId(4) serial(8) quantity(3).
+ * The serial and quantity are fixed here rather than random so a minted test key is reproducible;
+ * production keys get a random serial from the issuer.
+ */
+const TEST_SERIAL = 'AAAAAAAA'
+const TEST_QUANTITY = '001'
+
 /** Helper: mint a valid key for testing, signed by AUTHORITY. */
 function generateKey(tierCode: string, issueDate: Date, expiryDate: Date | null, customerId: string): string {
   const issueDateEncoded = encodeDateToBase36(issueDate)
   const expiryEncoded = expiryDate ? encodeDateToBase36(expiryDate) : 'ZZZZ'
-  const payload = issueDateEncoded + expiryEncoded + customerId
+  const payload = '1' + issueDateEncoded + expiryEncoded + customerId + TEST_SERIAL + TEST_QUANTITY
   const prefix = `WVR-${tierCode}-${payload}`
   return `${prefix}-${signLicensePrefix(prefix, AUTHORITY.privateKey)}`
 }
@@ -106,7 +116,7 @@ describe('License Key System', () => {
   describe('parseLicenseKey — valid keys', () => {
     it('should parse a valid free key', () => {
       const key = generateKey('FRE', new Date(), new Date('2027-12-31'), 'TST1')
-      const result = parseLicenseKey(key, undefined, ACCEPTED)
+      const result = createVerifier(WEAVER_PROFILE, ACCEPTED).parseLicenseKey(key, undefined)
       expect(result.tier).toBe('free')
       expect(result.expiry).not.toBeNull()
       expect(result.graceMode).toBe(false)
@@ -114,46 +124,46 @@ describe('License Key System', () => {
 
     it('should parse a valid weaver key (WVS)', () => {
       const key = generateKey('WVS', new Date(), new Date('2027-12-31'), 'TST2')
-      const result = parseLicenseKey(key, undefined, ACCEPTED)
-      expect(result.tier).toBe('weaver')
+      const result = createVerifier(WEAVER_PROFILE, ACCEPTED).parseLicenseKey(key, undefined)
+      expect(result.tier).toBe('solo')
       expect(result.graceMode).toBe(false)
     })
 
     it('should parse a valid team key (WVT → team, distinct tier)', () => {
       const key = generateKey('WVT', new Date(), new Date('2027-12-31'), 'TST2')
-      const result = parseLicenseKey(key, undefined, ACCEPTED)
+      const result = createVerifier(WEAVER_PROFILE, ACCEPTED).parseLicenseKey(key, undefined)
       expect(result.tier).toBe('team')
     })
 
     it('should parse a valid fabrick key (FAB)', () => {
       const key = generateKey('FAB', new Date(), new Date('2027-12-31'), 'TST3')
-      const result = parseLicenseKey(key, undefined, ACCEPTED)
+      const result = createVerifier(WEAVER_PROFILE, ACCEPTED).parseLicenseKey(key, undefined)
       expect(result.tier).toBe('fabrick')
     })
 
     it('should accept legacy PRE code and map to weaver', () => {
       const key = generateKey('PRE', new Date(), new Date('2027-12-31'), 'TST2')
-      const result = parseLicenseKey(key, undefined, ACCEPTED)
-      expect(result.tier).toBe('weaver')
+      const result = createVerifier(WEAVER_PROFILE, ACCEPTED).parseLicenseKey(key, undefined)
+      expect(result.tier).toBe('solo')
     })
 
     it('should accept legacy ENT code and map to fabrick', () => {
       const key = generateKey('ENT', new Date(), new Date('2027-12-31'), 'TST3')
-      const result = parseLicenseKey(key, undefined, ACCEPTED)
+      const result = createVerifier(WEAVER_PROFILE, ACCEPTED).parseLicenseKey(key, undefined)
       expect(result.tier).toBe('fabrick')
     })
 
     it('should parse a key with no expiry (ZZZZ)', () => {
       const key = generateKey('WVS', new Date(), null, 'NOEX')
-      const result = parseLicenseKey(key, undefined, ACCEPTED)
-      expect(result.tier).toBe('weaver')
+      const result = createVerifier(WEAVER_PROFILE, ACCEPTED).parseLicenseKey(key, undefined)
+      expect(result.tier).toBe('solo')
       expect(result.expiry).toBeNull()
       expect(result.graceMode).toBe(false)
     })
 
     it('should extract customer ID', () => {
       const key = generateKey('WVS', new Date(), null, 'AB12')
-      const result = parseLicenseKey(key, undefined, ACCEPTED)
+      const result = createVerifier(WEAVER_PROFILE, ACCEPTED).parseLicenseKey(key, undefined)
       expect(result.customerId).toBe('AB12')
     })
   })
@@ -162,102 +172,102 @@ describe('License Key System', () => {
     const SIG = 'A'.repeat(103)
 
     it('should reject empty string', () => {
-      expect(() => parseLicenseKey('', undefined, ACCEPTED)).toThrow('Invalid license key format')
+      expect(() => createVerifier(WEAVER_PROFILE, ACCEPTED).parseLicenseKey('', undefined)).toThrow('Invalid license key format')
     })
 
     it('should reject key with wrong prefix', () => {
-      expect(() => parseLicenseKey(`XYZ-WVS-AAAAAAAAAAAA-${SIG}`, undefined, ACCEPTED)).toThrow('Invalid license key format')
+      expect(() => createVerifier(WEAVER_PROFILE, ACCEPTED).parseLicenseKey(`XYZ-WVS-AAAAAAAAAAAA-${SIG}`, undefined)).toThrow('Invalid license key format')
     })
 
     it('should reject key with invalid tier code', () => {
-      expect(() => parseLicenseKey(`WVR-XXX-AAAAAAAAAAAA-${SIG}`, undefined, ACCEPTED)).toThrow('Invalid license key format')
+      expect(() => createVerifier(WEAVER_PROFILE, ACCEPTED).parseLicenseKey(`WVR-XXX-AAAAAAAAAAAA-${SIG}`, undefined)).toThrow('Invalid license key format')
     })
 
     it('should reject key with wrong payload length', () => {
-      expect(() => parseLicenseKey(`WVR-WVS-AAAA-${SIG}`, undefined, ACCEPTED)).toThrow('Invalid license key format')
+      expect(() => createVerifier(WEAVER_PROFILE, ACCEPTED).parseLicenseKey(`WVR-WVS-AAAA-${SIG}`, undefined)).toThrow('Invalid license key format')
     })
 
     it('should reject key with lowercase payload', () => {
-      expect(() => parseLicenseKey(`WVR-WVS-aaaaaaaaaaaa-${SIG}`, undefined, ACCEPTED)).toThrow('Invalid license key format')
+      expect(() => createVerifier(WEAVER_PROFILE, ACCEPTED).parseLicenseKey(`WVR-WVS-aaaaaaaaaaaa-${SIG}`, undefined)).toThrow('Invalid license key format')
     })
 
     it('should reject an old-format HMAC key (4-char checksum)', () => {
       // The previous shape. There is no dual-accept window by design — no key was ever issued,
       // so accepting the old format would add exposure to buy compatibility nobody needs.
-      expect(() => parseLicenseKey('WVR-WVS-AAAAAAAAAAAA-1234', undefined, ACCEPTED)).toThrow('Invalid license key format')
+      expect(() => createVerifier(WEAVER_PROFILE, ACCEPTED).parseLicenseKey('WVR-WVS-AAAAAAAAAAAA-1234', undefined)).toThrow('Invalid license key format')
     })
   })
 
   // ---- CATCH: every one of these must be REJECTED ---------------------------------------------
   describe('parseLicenseKey — signature forgery (CATCH)', () => {
     it('rejects a key signed by a different private key', () => {
-      const prefix = 'WVR-FAB-AAAAAAAAAAAA'
+      const prefix = `WVR-FAB-1${'A'.repeat(23)}`
       const forged = `${prefix}-${signLicensePrefix(prefix, OTHER_AUTHORITY.privateKey)}`
-      expect(() => parseLicenseKey(forged, undefined, ACCEPTED)).toThrow('signature verification failed')
+      expect(() => createVerifier(WEAVER_PROFILE, ACCEPTED).parseLicenseKey(forged, undefined)).toThrow('signature verification failed')
     })
 
     it('rejects a valid signature with the TIER altered', () => {
       // The signed message is the prefix, which contains the tier — so a Solo key cannot be
       // promoted to Fabrick by editing four characters. This is the escalation that matters.
       const solo = generateKey('WVS', new Date(), new Date('2027-12-31'), 'TST1')
-      expect(() => parseLicenseKey(retier(solo, 'FAB'), undefined, ACCEPTED)).toThrow('signature verification failed')
+      expect(() => createVerifier(WEAVER_PROFILE, ACCEPTED).parseLicenseKey(retier(solo, 'FAB'), undefined)).toThrow('signature verification failed')
     })
 
     it('rejects a valid signature with the EXPIRY altered', () => {
       const key = generateKey('WVS', new Date(), new Date('2026-01-01'), 'TST1')
       const [, tier, payload, sig] = key.split('-')
       const extended = `WVR-${tier}-${payload.slice(0, 4)}ZZZZ${payload.slice(8)}-${sig}`
-      expect(() => parseLicenseKey(extended, undefined, ACCEPTED)).toThrow('signature verification failed')
+      expect(() => createVerifier(WEAVER_PROFILE, ACCEPTED).parseLicenseKey(extended, undefined)).toThrow('signature verification failed')
     })
 
     it('rejects a SPLICED signature — genuine, but from another key', () => {
       const a = generateKey('WVS', new Date(), new Date('2027-12-31'), 'AAAA')
       const b = generateKey('WVS', new Date(), new Date('2027-12-31'), 'BBBB')
       const spliced = `${b.split('-').slice(0, 3).join('-')}-${a.split('-')[3]}`
-      expect(() => parseLicenseKey(spliced, undefined, ACCEPTED)).toThrow('signature verification failed')
+      expect(() => createVerifier(WEAVER_PROFILE, ACCEPTED).parseLicenseKey(spliced, undefined)).toThrow('signature verification failed')
     })
 
     it('rejects a signature of the wrong length (format gate)', () => {
       const key = generateKey('WVS', new Date(), new Date('2027-12-31'), 'TST1')
-      expect(() => parseLicenseKey(key.slice(0, -1), undefined, ACCEPTED)).toThrow('Invalid license key format')
+      expect(() => createVerifier(WEAVER_PROFILE, ACCEPTED).parseLicenseKey(key.slice(0, -1), undefined)).toThrow('Invalid license key format')
     })
 
     it('rejects EVERYTHING when the accepted key set is empty — never fails open', () => {
       // The shipped `ACCEPTED_PUBLIC_KEYS` is empty until phase 7 places the production private key
       // under sops. Empty must mean "verify nothing", not "verify anything": asserted, not assumed.
       const key = generateKey('FAB', new Date(), new Date('2027-12-31'), 'TST1')
-      expect(() => parseLicenseKey(key, undefined, [])).toThrow('signature verification failed')
+      expect(() => createVerifier(WEAVER_PROFILE, []).parseLicenseKey(key, undefined)).toThrow('signature verification failed')
       expect(() => parseLicenseKey(key)).toThrow('signature verification failed')
     })
 
     it('rejects a malformed entry in the accepted set rather than treating it as a match', () => {
       const key = generateKey('WVS', new Date(), new Date('2027-12-31'), 'TST1')
-      expect(() => parseLicenseKey(key, undefined, ['not-a-key'])).toThrow('signature verification failed')
+      expect(() => createVerifier(WEAVER_PROFILE, ['not-a-key']).parseLicenseKey(key, undefined)).toThrow('signature verification failed')
     })
   })
 
   // ---- IGNORE: every one of these must be ACCEPTED ---------------------------------------------
   describe('parseLicenseKey — legitimate keys (IGNORE)', () => {
     it('accepts a freshly minted key for each tier', () => {
-      const cases: Array<[string, string]> = [['FRE', 'free'], ['WVS', 'weaver'], ['WVT', 'team'], ['FAB', 'fabrick']]
+      const cases: Array<[string, string]> = [['FRE', 'free'], ['WVS', 'solo'], ['WVT', 'team'], ['FAB', 'fabrick']]
       for (const [code, tier] of cases) {
         const key = generateKey(code, new Date(), new Date('2027-12-31'), 'TST1')
-        expect(parseLicenseKey(key, undefined, ACCEPTED).tier).toBe(tier)
+        expect(createVerifier(WEAVER_PROFILE, ACCEPTED).parseLicenseKey(key, undefined).tier).toBe(tier)
       }
     })
 
     it('accepts a key signed by an OLDER key still in the rotation set', () => {
       // Rotation adds the new public key and ships before signing switches, so both must verify.
       const older = makeKeypair()
-      const prefix = 'WVR-WVS-AAAAAAAAAAAA'
+      const prefix = `WVR-WVS-1${'A'.repeat(23)}`
       const key = `${prefix}-${signLicensePrefix(prefix, older.privateKey)}`
       const rotationSet = [AUTHORITY.publicB64, older.publicB64]
-      expect(parseLicenseKey(key, undefined, rotationSet).tier).toBe('weaver')
+      expect(createVerifier(WEAVER_PROFILE, rotationSet).parseLicenseKey(key, undefined).tier).toBe('solo')
     })
 
     it('accepts the ZZZZ no-expiry sentinel exactly as before', () => {
       const key = generateKey('WVS', new Date(), null, 'TST1')
-      const result = parseLicenseKey(key, undefined, ACCEPTED)
+      const result = createVerifier(WEAVER_PROFILE, ACCEPTED).parseLicenseKey(key, undefined)
       expect(result.expiry).toBeNull()
       expect(result.graceMode).toBe(false)
     })
@@ -268,8 +278,8 @@ describe('License Key System', () => {
       const futureDate = new Date()
       futureDate.setFullYear(futureDate.getFullYear() + 1)
       const key = generateKey('WVS', new Date(), futureDate, 'TST1')
-      const result = parseLicenseKey(key, undefined, ACCEPTED)
-      expect(result.tier).toBe('weaver')
+      const result = createVerifier(WEAVER_PROFILE, ACCEPTED).parseLicenseKey(key, undefined)
+      expect(result.tier).toBe('solo')
       expect(result.graceMode).toBe(false)
     })
 
@@ -277,8 +287,8 @@ describe('License Key System', () => {
       const expiredDate = new Date()
       expiredDate.setDate(expiredDate.getDate() - 15) // Expired 15 days ago
       const key = generateKey('WVS', new Date('2024-01-01'), expiredDate, 'TST1')
-      const result = parseLicenseKey(key, undefined, ACCEPTED)
-      expect(result.tier).toBe('weaver')
+      const result = createVerifier(WEAVER_PROFILE, ACCEPTED).parseLicenseKey(key, undefined)
+      expect(result.tier).toBe('solo')
       expect(result.graceMode).toBe(true)
     })
 
@@ -286,7 +296,7 @@ describe('License Key System', () => {
       const expiredDate = new Date()
       expiredDate.setDate(expiredDate.getDate() - 45) // Expired 45 days ago
       const key = generateKey('WVS', new Date('2024-01-01'), expiredDate, 'TST1')
-      const result = parseLicenseKey(key, undefined, ACCEPTED)
+      const result = createVerifier(WEAVER_PROFILE, ACCEPTED).parseLicenseKey(key, undefined)
       expect(result.tier).toBe('free')
       expect(result.graceMode).toBe(false)
     })
@@ -295,7 +305,7 @@ describe('License Key System', () => {
       const expiredDate = new Date()
       expiredDate.setDate(expiredDate.getDate() - 60) // Well beyond grace
       const key = generateKey('FAB', new Date('2024-01-01'), expiredDate, 'TST1')
-      const result = parseLicenseKey(key, undefined, ACCEPTED)
+      const result = createVerifier(WEAVER_PROFILE, ACCEPTED).parseLicenseKey(key, undefined)
       expect(result.tier).toBe('free')
       expect(result.graceMode).toBe(false)
     })
@@ -304,26 +314,26 @@ describe('License Key System', () => {
       const expiredDate = new Date()
       expiredDate.setDate(expiredDate.getDate() - 60)
       const key = generateKey('WVS', new Date('2024-01-01'), expiredDate, 'TST1')
-      const result = parseLicenseKey(key, undefined, ACCEPTED)
+      const result = createVerifier(WEAVER_PROFILE, ACCEPTED).parseLicenseKey(key, undefined)
       expect(result.expiry).not.toBeNull()
     })
   })
 
   describe('requireTier', () => {
     it('should not throw when tier meets minimum', () => {
-      expect(() => requireTier({ tier: 'weaver' }, 'weaver')).not.toThrow()
+      expect(() => requireTier({ tier: 'solo' }, 'solo')).not.toThrow()
     })
 
     it('should not throw when tier exceeds minimum', () => {
-      expect(() => requireTier({ tier: 'fabrick' }, 'weaver')).not.toThrow()
+      expect(() => requireTier({ tier: 'fabrick' }, 'solo')).not.toThrow()
     })
 
     it('should throw when tier is below minimum', () => {
-      expect(() => requireTier({ tier: 'demo' }, 'weaver')).toThrow('requires weaver tier or higher')
+      expect(() => requireTier({ tier: 'demo' }, 'solo')).toThrow('requires solo tier or higher')
     })
 
     it('should throw when free tries to access weaver', () => {
-      expect(() => requireTier({ tier: 'free' }, 'weaver')).toThrow('requires weaver tier or higher')
+      expect(() => requireTier({ tier: 'free' }, 'solo')).toThrow('requires solo tier or higher')
     })
 
     it('should allow free to access free', () => {
@@ -332,7 +342,7 @@ describe('License Key System', () => {
 
     it('should throw with statusCode 403', () => {
       try {
-        requireTier({ tier: 'demo' }, 'weaver')
+        requireTier({ tier: 'demo' }, 'solo')
       } catch (err) {
         expect((err as { statusCode: number }).statusCode).toBe(403)
       }
@@ -342,47 +352,47 @@ describe('License Key System', () => {
   describe('generateLicenseKey', () => {
     it('should generate a valid free key that round-trips through parse', () => {
       const key = generateLicenseKey('free', AUTHORITY.privateKey)
-      const result = parseLicenseKey(key, undefined, ACCEPTED)
+      const result = createVerifier(WEAVER_PROFILE, ACCEPTED).parseLicenseKey(key, undefined)
       expect(result.tier).toBe('free')
       expect(result.expiry).toBeNull()
       expect(result.graceMode).toBe(false)
     })
 
     it('should generate a valid weaver key', () => {
-      const key = generateLicenseKey('weaver', AUTHORITY.privateKey)
-      const result = parseLicenseKey(key, undefined, ACCEPTED)
-      expect(result.tier).toBe('weaver')
+      const key = generateLicenseKey('solo', AUTHORITY.privateKey)
+      const result = createVerifier(WEAVER_PROFILE, ACCEPTED).parseLicenseKey(key, undefined)
+      expect(result.tier).toBe('solo')
     })
 
     it('should generate a valid fabrick key', () => {
       const key = generateLicenseKey('fabrick', AUTHORITY.privateKey)
-      const result = parseLicenseKey(key, undefined, ACCEPTED)
+      const result = createVerifier(WEAVER_PROFILE, ACCEPTED).parseLicenseKey(key, undefined)
       expect(result.tier).toBe('fabrick')
     })
 
     it('should support custom expiry', () => {
       const expiry = new Date('2027-06-15T00:00:00Z')
-      const key = generateLicenseKey('weaver', AUTHORITY.privateKey, { expiry })
-      const result = parseLicenseKey(key, undefined, ACCEPTED)
+      const key = generateLicenseKey('solo', AUTHORITY.privateKey, { expiry })
+      const result = createVerifier(WEAVER_PROFILE, ACCEPTED).parseLicenseKey(key, undefined)
       expect(result.expiry).not.toBeNull()
       expect(result.expiry!.toISOString().slice(0, 10)).toBe('2027-06-15')
     })
 
     it('should support custom customer ID', () => {
-      const key = generateLicenseKey('weaver', AUTHORITY.privateKey, { customerId: 'AB12' })
-      const result = parseLicenseKey(key, undefined, ACCEPTED)
+      const key = generateLicenseKey('solo', AUTHORITY.privateKey, { customerId: 'AB12' })
+      const result = createVerifier(WEAVER_PROFILE, ACCEPTED).parseLicenseKey(key, undefined)
       expect(result.customerId).toBe('AB12')
     })
 
     it('should default customer ID to 0000', () => {
       const key = generateLicenseKey('free', AUTHORITY.privateKey)
-      const result = parseLicenseKey(key, undefined, ACCEPTED)
+      const result = createVerifier(WEAVER_PROFILE, ACCEPTED).parseLicenseKey(key, undefined)
       expect(result.customerId).toBe('0000')
     })
 
     it('should match KEY_REGEX format', () => {
-      const key = generateLicenseKey('weaver', AUTHORITY.privateKey)
-      expect(key).toMatch(/^WVR-(FRE|WVS|WVT|FAB|PRE|ENT)-[A-Z0-9]{12}-[A-Z2-7]{103}$/)
+      const key = generateLicenseKey('solo', AUTHORITY.privateKey)
+      expect(key).toMatch(/^WVR-(FRE|WVS|WVT|FAB|PRE|ENT)-[A-Z0-9]{24}-[A-Z2-7]{103}$/)
     })
 
     it('mints a key that is uppercase and transcription-safe end to end', () => {
@@ -390,15 +400,17 @@ describe('License Key System', () => {
       // class that survives a copy badly (mixed case, +/ from base64, or URL-unsafe punctuation).
       const key = generateLicenseKey('fabrick', AUTHORITY.privateKey, { expiry: new Date('2027-06-15T00:00:00Z') })
       expect(key).toMatch(/^[A-Z0-9-]+$/)
-      expect(key).toHaveLength(124)
+      // 4 (WVR-) + 4 (tier-) + 24 (payload) + 1 (-) + 103 (sig). Was 124 before ENT-5/6
+      // widened the payload from 12 to 24.
+      expect(key).toHaveLength(136)
     })
   })
 
   describe('TIER_ORDER', () => {
     it('should have correct ordering', () => {
       expect(TIER_ORDER.demo).toBeLessThan(TIER_ORDER.free)
-      expect(TIER_ORDER.free).toBeLessThan(TIER_ORDER.weaver)
-      expect(TIER_ORDER.weaver).toBeLessThan(TIER_ORDER.fabrick)
+      expect(TIER_ORDER.free).toBeLessThan(TIER_ORDER.solo)
+      expect(TIER_ORDER.solo).toBeLessThan(TIER_ORDER.fabrick)
     })
   })
 })

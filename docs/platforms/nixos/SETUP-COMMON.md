@@ -131,7 +131,7 @@ These VMs use QEMU only (not microvm.nix hypervisors).
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `PREMIUM_ENABLED` | `false` | Enable VM registration CRUD |
+| `PREMIUM_ENABLED` | `false` | Deprecated tier flag. **Ignored in production** — install a license key instead |
 | `PROVISIONING_ENABLED` | `true` | Enable actual VM provisioning |
 | `MICROVMS_DIR` | `/var/lib/microvms` | VM data directory |
 | `BRIDGE_GATEWAY` | `10.10.0.1` | Bridge IP (VM default gateway) |

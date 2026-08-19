@@ -378,12 +378,12 @@ export const workloadsRoutes: FastifyPluginAsync<VmsRouteOptions> = async (fasti
       config: { rateLimit: createRateLimit(30) },
     },
     async (request, reply) => {
-      // Tier gate: VM creation/provisioning requires weaver tier
+      // Tier gate: VM creation/provisioning requires solo tier
       if (config) {
         try {
           requireTier(config, TIERS.SOLO)
         } catch {
-          return reply.status(403).send({ error: 'VM creation requires weaver tier' })
+          return reply.status(403).send({ error: 'VM creation requires solo tier' })
         }
       }
 
@@ -682,7 +682,7 @@ export const workloadsRoutes: FastifyPluginAsync<VmsRouteOptions> = async (fasti
         try {
           requireTier(config, TIERS.SOLO)
         } catch {
-          return reply.status(403).send({ error: 'VM cloning requires weaver tier' })
+          return reply.status(403).send({ error: 'VM cloning requires solo tier' })
         }
       }
 
@@ -791,12 +791,12 @@ export const workloadsRoutes: FastifyPluginAsync<VmsRouteOptions> = async (fasti
       config: { rateLimit: createRateLimit(30) },
     },
     async (request, reply) => {
-      // Tier gate: VM deletion requires weaver tier
+      // Tier gate: VM deletion requires solo tier
       if (config) {
         try {
           requireTier(config, TIERS.SOLO)
         } catch {
-          return reply.status(403).send({ error: 'VM deletion requires weaver tier' })
+          return reply.status(403).send({ error: 'VM deletion requires solo tier' })
         }
       }
 
@@ -912,7 +912,7 @@ export const workloadsRoutes: FastifyPluginAsync<VmsRouteOptions> = async (fasti
           // Apptainer requires Solo, and below Solo it is HIDDEN rather than nagged: a Free
           // user must never see an Apptainer workload or an upgrade prompt for one. So this is a
           // 404 — the same answer an unknown workload gets — and deliberately NOT requireTier(),
-          // whose 403 ("requires weaver tier or higher") would advertise the feature it is meant
+          // whose 403 ("requires solo tier or higher") would advertise the feature it is meant
           // to conceal. The primary exclusion is at scan time; this is the second half,
           // because a workload that reaches the registry by another path would otherwise serve
           // its logs to a tier that cannot see the workload itself.

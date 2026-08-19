@@ -59,7 +59,7 @@ export const agentRoutes: FastifyPluginAsync<AgentRouteOptions> = async (fastify
           requireTier({ tier: config.tier }, TIERS.SOLO)
         } catch (_err) {
           return reply.status(403).send({
-            error: 'Server-provided AI key requires weaver tier or higher. Please provide your own API key (BYOK).',
+            error: 'Server-provided AI key requires solo tier or higher. Please provide your own API key (BYOK).',
           })
         }
       }

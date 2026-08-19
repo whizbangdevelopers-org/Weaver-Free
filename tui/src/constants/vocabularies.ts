@@ -22,7 +22,7 @@
 export const TIERS = {
   DEMO: 'demo',
   FREE: 'free',
-  SOLO: 'weaver',
+  SOLO: 'solo',
   TEAM: 'team',
   FABRICK: 'fabrick',
 } as const

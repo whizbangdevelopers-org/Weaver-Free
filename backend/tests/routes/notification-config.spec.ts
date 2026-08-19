@@ -22,7 +22,7 @@ import { makeTestConfig } from '../helpers/config.js'
 let mockUserRole: UserRole = 'admin'
 
 const baseConfig: DashboardConfig = makeTestConfig({
-  tier: 'weaver' as const,
+  tier: 'solo' as const,
   licenseExpiry: null,
   licenseGraceMode: false,
   storageBackend: 'json',
@@ -87,7 +87,7 @@ describe('Notification Config Routes', () => {
         prefix: '/api/notifications/config',
         configStore,
         notificationService,
-        config: { ...baseConfig, tier: 'weaver' as const },
+        config: { ...baseConfig, tier: 'solo' as const },
       })
       await fastify.ready()
     })
@@ -391,7 +391,7 @@ describe('Notification Config Routes', () => {
         },
       })
       expect(response.statusCode).toBe(403)
-      expect(response.json().error).toContain('weaver')
+      expect(response.json().error).toContain('solo')
     })
 
     it('DELETE /channels/:channelId should return 403', async () => {

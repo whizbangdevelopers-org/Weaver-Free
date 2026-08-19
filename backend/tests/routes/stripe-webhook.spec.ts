@@ -80,7 +80,7 @@ const TEST_SIGNING_KEY = generateKeyPairSync('ed25519').privateKey
 
 const TEST_LICENSE = {
   key: 'WVR-WVS-TESTKEY12345-A1B2',
-  tier: 'weaver' as const,
+  tier: 'solo' as const,
   customerId: 'cus_test_abc',
   subscriptionId: 'sub_test_123',
   expiresAt: new Date('2027-04-08T00:00:00Z'),
@@ -196,7 +196,7 @@ describe('Stripe Webhook Route', () => {
       // License should be in the store
       const stored = licenseStore.findByKey('WVR-WVS-TESTKEY12345-A1B2')
       expect(stored).not.toBeNull()
-      expect(stored!.tier).toBe('weaver')
+      expect(stored!.tier).toBe('solo')
       expect(stored!.email).toBe('buyer@example.com')
       expect(stored!.stripeCustomerId).toBe('cus_test_abc')
       expect(stored!.stripeSubscriptionId).toBe('sub_test_123')
@@ -240,7 +240,7 @@ describe('Stripe Webhook Route', () => {
       expect(mockEmailService.sendLicenseKey).toHaveBeenCalledWith({
         to: 'buyer@example.com',
         licenseKey: 'WVR-WVS-TESTKEY12345-A1B2',
-        tier: 'weaver',
+        tier: 'solo',
         expiresAt: '2027-04-08T00:00:00.000Z',
         foundingMember: false,
         siteUrl: 'https://whizbangdevelopers.com',
@@ -409,7 +409,7 @@ describe('Stripe Webhook Route', () => {
   describe('customer.subscription.updated', () => {
     const RENEWED = {
       key: 'WVR-WVS-RENEWED123456-B2C3',
-      tier: 'weaver' as const,
+      tier: 'solo' as const,
       customerId: 'cus_existing',
       subscriptionId: 'sub_renew_123',
       expiresAt: new Date('2028-01-01T00:00:00Z'),
@@ -418,7 +418,7 @@ describe('Stripe Webhook Route', () => {
     async function seedLicense(over: Record<string, unknown> = {}) {
       await licenseStore.save({
         key: 'WVR-WVS-EXISTING00000-XXXX',
-        tier: 'weaver',
+        tier: 'solo',
         stripeCustomerId: 'cus_existing',
         stripeSubscriptionId: 'sub_renew_123',
         expiresAt: '2027-01-01T00:00:00Z',
@@ -560,7 +560,7 @@ describe('Stripe Webhook Route', () => {
     it('revokes license on cancellation', async () => {
       await licenseStore.save({
         key: 'WVR-WVS-TOREVOKE00000-XXXX',
-        tier: 'weaver',
+        tier: 'solo',
         stripeCustomerId: 'cus_cancel',
         stripeSubscriptionId: 'sub_cancel_123',
         expiresAt: '2027-06-01T00:00:00Z',

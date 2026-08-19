@@ -36,7 +36,11 @@ const OPERATOR = generateKeyPairSync('ed25519')
 function operatorMintedKey(tierCode: string, expiryDate?: Date): string {
   const issueDate = encodeDateToBase36(new Date())
   const expiryEncoded = expiryDate ? encodeDateToBase36(expiryDate) : 'ZZZZ'
-  const payload = issueDate + expiryEncoded + 'TEST'
+  // version(1) + issued(4) + expiry(4) + customerId(4) + serial(8) + quantity(3) = 24 (ENT-5/6).
+  // This has to stay byte-correct: the assertion below checks the key fails on the SIGNATURE, so a
+  // malformed payload would make the test pass for the wrong reason and keep passing if signature
+  // verification were removed entirely.
+  const payload = '1' + issueDate + expiryEncoded + 'TEST' + 'AAAAAAAA' + '001'
   const prefix = `WVR-${tierCode}-${payload}`
   return `${prefix}-${signLicensePrefix(prefix, OPERATOR.privateKey)}`
 }
@@ -75,7 +79,7 @@ describe('Config Tier Resolution', () => {
     expect(config.licenseGraceMode).toBe(false)
   })
 
-  it('should map PREMIUM_ENABLED=true to weaver tier with deprecation warning', async () => {
+  it('should map PREMIUM_ENABLED=true to solo tier with deprecation warning (non-production)', async () => {
     process.env.PREMIUM_ENABLED = 'true'
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
 
@@ -83,13 +87,53 @@ describe('Config Tier Resolution', () => {
     const { loadConfig } = await import('../src/config.js')
     const config = loadConfig()
 
-    expect(config.tier).toBe('weaver')
+    expect(config.tier).toBe('solo')
     expect(config.licenseExpiry).toBeNull()
     expect(config.licenseGraceMode).toBe(false)
     expect(warnSpy).toHaveBeenCalledWith(
       expect.stringContaining('PREMIUM_ENABLED is deprecated')
     )
 
+    warnSpy.mockRestore()
+  })
+
+  /**
+   * The production half of the same variable, and the reason the branch above still exists.
+   *
+   * PREMIUM_ENABLED grants a paid tier with nothing verified — no key, no signature. That is the
+   * capability the whole Ed25519 change exists to take away from the operator, and leaving it
+   * ungated made it the cheapest possible bypass of the entire scheme: far easier than forging a
+   * key, and it was never covered by a test because the deprecation was read as harmless.
+   *
+   * The NixOS module sets NODE_ENV=production, so this case is the one every real deployment
+   * takes. The pair matters more than either half: the test above proves dev and E2E still work
+   * (a gate that broke them would be reverted), this one proves a deployed host cannot be talked
+   * into a paid tier by its own configuration.
+   */
+  it('IGNORES PREMIUM_ENABLED in production — an operator cannot grant themselves a tier', async () => {
+    process.env.NODE_ENV = 'production'
+    process.env.PREMIUM_ENABLED = 'true'
+    // Production refuses to start without one. A throwaway value for a throwaway config object —
+    // this test is about tier resolution, and the secret is only here to reach that code.
+    process.env.JWT_SECRET = 'test-only-not-a-secret-'.padEnd(64, 'x')
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+
+    const { loadConfig } = await import('../src/config.js')
+    const config = loadConfig()
+
+    expect(config.tier).toBe('free')
+    expect(config.licenseExpiry).toBeNull()
+    expect(config.licenseGraceMode).toBe(false)
+
+    // Loudly, not silently. A setting that stops working without saying so is how someone keeps
+    // believing their host is licensed.
+    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('IGNORED in production'))
+    expect(warnSpy).not.toHaveBeenCalledWith(
+      expect.stringContaining('PREMIUM_ENABLED is deprecated')
+    )
+
+    errorSpy.mockRestore()
     warnSpy.mockRestore()
   })
 

@@ -40,7 +40,7 @@ import type { HostInfoService } from '../../src/services/host-info.js'
 
 function makeConfig(overrides: Partial<DashboardConfig> = {}): DashboardConfig {
   return {
-    tier: 'weaver',
+    tier: 'solo',
     licenseExpiry: null,
     licenseGraceMode: false,
     dataDir: '/tmp/test-doctor',

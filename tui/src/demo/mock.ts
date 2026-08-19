@@ -19,7 +19,7 @@ let currentDemoVersion = '1.0'
 
 /**
  * Tier cycle for Tab key in demo mode.
- * 'weaver-team' is a display-only step — internally it sets tier='weaver' + subTier='team'.
+ * 'weaver-team' is a display-only step — internally it sets tier='solo' + subTier='team'.
  * Team is a product SKU from day one, always in the cycle.
  */
 export const DEMO_TIER_CYCLE = [TIERS.FREE, TIERS.SOLO, 'weaver-team', TIERS.FABRICK, TIERS.DEMO] as const

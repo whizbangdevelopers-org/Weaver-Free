@@ -137,8 +137,9 @@ services.weaver = {
   # --- Licensing ---
   licenseKey = null;                  # License key string (WVR-<tier>-<payload>-<checksum>)
   licenseKeyFile = null;              # Path to file containing license key
-  licenseHmacSecret = null;           # HMAC secret for license key validation
-  soloTierEnabled = false;            # DEPRECATED: use licenseKey instead
+  soloTierEnabled = false;            # DEPRECATED — inert in production; install a license key
+  licenseHmacSecret = null;           # INERT — verification uses a built-in public key, no secret
+  licenseHmacSecretFile = null;       # INERT — see licenseHmacSecret
 
   # --- Service Identity ---
   serviceUser = "weaver";  # System user for the service (default: dedicated user)

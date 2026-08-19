@@ -76,7 +76,7 @@ export function DistrosView({ api, tier, onBack }: DistrosViewProps) {
   })
 
   if (blocked) {
-    return <TierGateMessage feature="Distro catalog" requiredTier="weaver" currentTier={tier} onBack={onBack} />
+    return <TierGateMessage feature="Distro catalog" requiredTier="solo" currentTier={tier} onBack={onBack} />
   }
 
   if (unavailable) {
