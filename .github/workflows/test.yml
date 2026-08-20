@@ -86,7 +86,28 @@ jobs:
             exit 1
           fi
 
-      - name: Run tests with coverage
+      # BLOCKING. The backend carries the auth, authz, licensing and command-execution code, it
+      # sits at ~74% statements / ~64% branch, and `scripts/baselines/backend-coverage.json` holds
+      # a floor two points below that which only ever goes up. A drop fails the build here.
+      #
+      # This step is new because the number was UNMEASURABLE until 2026-08-19, not merely
+      # unmeasured: `vitest run --coverage` in backend/ died on a bcrypt-cost-13 timeout, a failing
+      # run prints no summary table, and backend/package.json had no coverage script at all. The
+      # "~10% project coverage" figure everyone quoted came from the step below, whose scope is the
+      # frontend workspace and never included the backend at all.
+      - name: Backend coverage (blocking — ratchet floor)
+        run: npm run test:coverage:backend
+
+      # NOT blocking, and that is a known-unmet target rather than an oversight. Three of the four
+      # thresholds in vitest.config.ts fail today (statements 9.96 vs 10, functions 6.61 vs 8,
+      # branches 6.12 vs 8) because frontend coverage is genuinely low — the gap is Vue SFC
+      # rendering, not the backend.
+      #
+      # Deliberately NOT resolved by lowering the thresholds to match: adjusting a threshold to
+      # make currently-bad numbers pass is gaming the gate. The honest options are to write the
+      # tests or to accept the gap knowingly, and this line records that it is the second, so
+      # nobody reads the green check as "coverage is fine."
+      - name: Frontend coverage (advisory — thresholds are a target, not yet met)
         run: npm run test:coverage
         continue-on-error: true
 
