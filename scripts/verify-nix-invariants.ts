@@ -65,9 +65,23 @@ const RULES: Rule[] = [
  * and `/* … *\/` blocks.
  */
 export function stripNixComments(src: string): string {
+  return stripNixCommentsChecked(src).text
+}
+
+/**
+ * The stripper, plus the one thing the stripper cannot be trusted about: whether it ran off the
+ * end of the file. An unterminated `/*` blanks every line below it, so the scan that follows sees
+ * an empty file and reports clean — the fail-OPEN direction, and the invisible one. A stripper
+ * that strips too little produces false positives somebody reports on day one; one that strips too
+ * much produces silence. So the caller is told, and turns it into a finding rather than a tick.
+ */
+export function stripNixCommentsChecked(src: string): { text: string; unterminated: number } {
   const out: string[] = []
   let inBlock = false
+  let openedAt = 0
+  let lineNo = 0
   for (const line of src.split('\n')) {
+    lineNo++
     let l = line
     if (inBlock) {
       const close = l.indexOf('*/')
@@ -86,7 +100,7 @@ export function stripNixComments(src: string): string {
       if (open === -1) break
       const at = l.indexOf('/*', open)
       const close = l.indexOf('*/', at + 2)
-      if (close === -1) { l = l.slice(0, at); inBlock = true; break }
+      if (close === -1) { l = l.slice(0, at); inBlock = true; openedAt = lineNo; break }
       l = l.slice(0, at) + ' ' + l.slice(close + 2)
     }
     // A `#` comment — but `#!` is a shebang, which is the thing under test, and `${...#...}` is
@@ -96,15 +110,26 @@ export function stripNixComments(src: string): string {
     if (c !== -1) l = l.slice(0, c)
     out.push(l)
   }
-  return out.join('\n')
+  return { text: out.join('\n'), unterminated: inBlock ? openedAt : 0 }
 }
 
 export interface Finding { file: string; line: number; rule: string; why: string; fix: string; text: string }
 
 export function scanNix(relPath: string, source: string): Finding[] {
-  const code = stripNixComments(source).split('\n')
+  const stripped = stripNixCommentsChecked(source)
+  const code = stripped.text.split('\n')
   const raw = source.split('\n')
   const out: Finding[] = []
+  if (stripped.unterminated > 0) {
+    out.push({
+      file: relPath,
+      line: stripped.unterminated,
+      rule: 'unterminated-block-comment',
+      why: 'a `/*` that never closes blanks every line below it, so the rules below this point scanned an empty file and could not have fired',
+      fix: 'close the block comment (an unterminated one is also a Nix parse error, so this file cannot build either)',
+      text: (raw[stripped.unterminated - 1] ?? '').trim(),
+    })
+  }
   for (const rule of RULES) {
     code.forEach((line, i) => {
       if (rule.pattern.test(line)) {
@@ -137,6 +162,7 @@ const CATCH_CASES: [string, string][] = [
   ['a quoted path: input', `weaver.url = "path:./nixos";`],
   ['a shebang AFTER a shell glob', `installPhase = ''\n  cp -r dist/* $out/lib/\n  cat > $out/bin/x <<EOF\n  #!/usr/bin/env bash\n  EOF\n'';`],
   ['an unquoted path: input', `inputs.weaver.url = path:./nixos;`],
+  ['an unterminated block comment, which blanks every rule below it', `/* note: this never closes\n  cat > $out/bin/x <<EOF\n  #!/usr/bin/env bash\n  EOF`],
 ]
 
 const IGNORE_CASES: [string, string][] = [
@@ -152,6 +178,7 @@ const IGNORE_CASES: [string, string][] = [
   ['an unrelated url attribute', `src.url = "https://example.com/x.tar.gz";`],
   ['a shell glob, which is not a block comment', `cp -r backend/dist/* $out/lib/weaver/backend/`],
   ['a glob in a docs copy', `cp docs/security/compliance/*.md $out/lib/weaver/docs/`],
+  ['a block comment that spans lines and closes', `/*\n  #!/usr/bin/env bash is banned here\n  and url = "path:./x" is too\n*/\nbuildInputs = [ ];`],
 ]
 
 function selfTest(): boolean {
