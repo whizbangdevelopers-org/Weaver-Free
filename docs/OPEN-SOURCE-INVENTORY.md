@@ -141,7 +141,7 @@ with the source (`plans/cross-version/NIX-ECOSYSTEM-INTEGRATION-PLAN.md`,
 - **Backend**: Fastify + SQLite + JWT — no ORM, direct SQL via better-sqlite3
 - **TUI**: React + Ink for composable terminal UI (mirrors web UI feature set)
 - **Validation**: Zod on all API boundaries (backend request/response + TUI)
-- **Testing**: 3-tier pyramid — lint/unit (Vitest) → compliance (<!-- auditor-count:begin -->96<!-- auditor-count:end --> static auditors) → E2E (Playwright in Docker)
+- **Testing**: 3-tier pyramid — lint/unit (Vitest) → compliance (<!-- auditor-count:begin -->99<!-- auditor-count:end --> static auditors) → E2E (Playwright in Docker)
 - **AI**: Claude SDK with BYOK/BYOV pattern — mock mode auto-activates when no API key configured
 
 *This inventory covers runtime and development dependencies. Per-package license compliance status
