@@ -4,7 +4,7 @@
   "_rules": [
     "A NEW field in the signed payload cannot be added without a row here. That is the point — the next `seats` or `features` field must state whether it binds anything before it ships.",
     "`enforced` requires `enforcedBy` naming where. `unenforced` requires a reason and a reviewBy.",
-    "Settle every unenforced field BEFORE the production key ceremony (SEC-022, v1.3). Issued keys encode these values permanently; deciding afterwards means reissuing every key sold before the decision."
+    "Settle every unenforced field BEFORE the production key ceremony (SEC-022, v1.3). Issued keys encode these values permanently; deciding afterwards means reissuing every key sold before the decision. Note the first consumer of `quantity` is v2.2 (Weaver Team peer federation), not v2.4."
   ],
   "_lastReviewed": "2026-08-20",
   "fields": {
@@ -31,9 +31,8 @@
       "reviewBy": "2027-02-20"
     },
     "quantity": {
-      "status": "unenforced",
-      "reason": "SEC-027, open. The per-node term is signed into every key and read by nothing: the Stripe issuer populates it from the purchase, the verifier returns it, and Weaver has no consumer. `createCheckoutSession` also hardcodes `quantity: 1`, so the per-node model can currently be neither sold nor enforced. Nothing is losing money yet — multi-node Fabrick ships at v2.4 — which is exactly why the model should be decided now rather than retrofitted into shipped clustering.",
-      "reviewBy": "2026-11-20"
+      "status": "enforced",
+      "enforcedBy": "requireNodeCapacity() in backend/src/license.ts — the single decision point, counted at ENROLMENT; assertLicensedNodeCapacity() called at start-up in index.ts; surfaced on GET /api/license/status as `nodes`; and passed through createCheckoutSession so a multi-node licence can be bought at all. The fleet enrolment call site arrives with v2.2 Weaver Team peer federation — multi-node starts at Team, NOT at Fabrick clustering (v2.4). Open tension recorded in license.ts: v2.2's roadmap states the peer limit as a tier property while this reads the signed purchase; only one may decide."
     },
     "version": {
       "status": "unenforced",

@@ -141,6 +141,81 @@ export const decodeDateFromBase36 = decodeDate
  * Stays here rather than moving upstream: tier→feature gating is product policy, and
  * `wbd-entitlement` deliberately does not know what a Weaver tier permits (ENT-4).
  */
+/**
+ * Guard that throws a 403-style error when enrolling a node would exceed the licensed count.
+ *
+ * **SEC-027.** `quantity` was signed into every key, populated from the purchase, returned by the
+ * verifier — and read by nothing. The upstream library states the consequence on the field itself:
+ * *"A product that ignores this field has an unenforced licence term, and that is the product's
+ * bug."* This is the consumer that makes it not one.
+ *
+ * **The decision this encodes: a node is counted at ENROLMENT, not at start and not continuously.**
+ * The alternatives and why they lose:
+ *
+ *   - *At start* — a node that is powered off still occupies a seat. Counting at start would let a
+ *     fleet of thirty rotate through a three-node licence, and would also fail a legitimate
+ *     simultaneous restart. Wrong on both sides.
+ *   - *Continuously* — needs every node reachable to answer "how many are there", so a network
+ *     partition becomes a licensing failure. A licence check that fails closed on a partition takes
+ *     the fleet down for a billing reason, which is worse than the thing it is preventing.
+ *   - *At enrolment* — the count changes only when an operator deliberately adds a node, which is
+ *     exactly when a licence limit should be felt. It is also the only moment a human is present to
+ *     read the error.
+ *
+ * The local host always counts as one and is never refused: a Weaver install must keep managing its
+ * own workloads whatever the licence says. Enrolment is what this gates, not operation.
+ *
+ * `null` is unbounded — a perpetual or unmetered grant — and is deliberately distinct from a
+ * missing value, which `config.ts` floors at 1 so a forgotten entitlement under-grants.
+ *
+ * **The first call site is v2.2 Weaver Team peer federation, not Fabrick clustering.** Multi-node
+ * starts at Team — v2.2 ships full management of remote Weaver hosts — so this binds a release
+ * earlier than the Fabrick work at v2.4, and the deadline in SEC-027 is correspondingly tighter.
+ *
+ * A tension to settle when that lands, flagged here because it is easy to build both by accident:
+ * v2.2's roadmap describes a peer limit as a TIER property ("up to 2 remote hosts, upgrade prompt
+ * on peer limit"), while this reads a PURCHASED property off the signed key. Two mechanisms for one
+ * number will disagree the first time someone buys three. Whichever wins, only one of them should
+ * decide — and the signed one is the only one an airgapped install cannot edit.
+ *
+ * Until then the only enrolment is the local host, which `assertLicensedNodeCapacity` checks at
+ * start-up, so the field is consumed today rather than returned and dropped.
+ */
+export function requireNodeCapacity(
+  config: { tier: Tier; licenseNodes: number | null },
+  currentNodes: number,
+): void {
+  if (config.licenseNodes === null) return          // unbounded grant
+  if (currentNodes < config.licenseNodes) return
+  throw Object.assign(
+    new Error(
+      `This licence covers ${config.licenseNodes} node${config.licenseNodes === 1 ? '' : 's'} and ` +
+        `${currentNodes} ${currentNodes === 1 ? 'is' : 'are'} already enrolled. ` +
+        'Add capacity to the licence to enrol another.',
+    ),
+    { statusCode: 403 },
+  )
+}
+
+/**
+ * Start-up sanity check on the licensed node count.
+ *
+ * Warns rather than throws, deliberately and for the same reason the non-release-authority check
+ * above warns: refusing to start would take a host that is serving workloads offline over a
+ * licensing concern, which is a worse failure than the one being reported. The local host is one
+ * node and is never refused — this exists so a nonsensical entitlement (zero nodes) is visible
+ * rather than silently treated as unbounded.
+ */
+export function assertLicensedNodeCapacity(config: { tier: Tier; licenseNodes: number | null }): void {
+  if (config.licenseNodes === null) return
+  if (config.licenseNodes >= 1) return
+  console.error(
+    `[license] this licence reports ${config.licenseNodes} nodes, which cannot be right — a licence ` +
+      'covers at least the host it is installed on. Treating the local host as licensed and ' +
+      'continuing; enrolling further nodes will be refused.',
+  )
+}
+
 export function requireTier(config: { tier: Tier }, minimum: Tier): void {
   if (TIER_ORDER[config.tier] < TIER_ORDER[minimum]) {
     throw Object.assign(

@@ -53,6 +53,15 @@ export interface CreateCheckoutParams {
   successUrl: string
   cancelUrl: string
   customerEmail?: string
+  /**
+   * Nodes being purchased. Defaults to 1.
+   *
+   * This used to be hardcoded at the line item, which meant the per-node model could be neither
+   * sold nor enforced (SEC-027): the webhook faithfully signed whatever Stripe reported, and
+   * Stripe always reported one. Passing it through is the half of the fix that makes a multi-node
+   * licence purchasable at all.
+   */
+  quantity?: number
   /** Stripe metadata attached to the session — survives into the webhook payload. */
   metadata?: Record<string, string>
 }
@@ -61,7 +70,7 @@ export async function createCheckoutSession(params: CreateCheckoutParams): Promi
   const s = getStripe()
   const session = await s.checkout.sessions.create({
     mode: 'subscription',
-    line_items: [{ price: params.priceId, quantity: 1 }],
+    line_items: [{ price: params.priceId, quantity: params.quantity ?? 1 }],
     success_url: params.successUrl,
     cancel_url: params.cancelUrl,
     customer_email: params.customerEmail,

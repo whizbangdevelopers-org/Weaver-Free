@@ -30,6 +30,9 @@ export function makeTestConfig(overrides: Partial<DashboardConfig> = {}): Dashbo
     tier: 'free',
     licenseExpiry: null,
     licenseGraceMode: false,
+    // One node, matching the keyless default in config.ts — a missing entitlement under-grants
+    // rather than opening up. A spec exercising multi-node overrides it explicitly.
+    licenseNodes: 1,
     licenseKeyFile: null,
 
     storageBackend: 'json',

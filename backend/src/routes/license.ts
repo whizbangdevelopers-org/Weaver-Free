@@ -49,6 +49,8 @@ const statusResponseSchema = z.object({
   expiresAt: z.string().nullable(),
   graceMode: z.boolean(),
   foundingMember: z.boolean(),
+  /** Nodes this licence covers; null = unbounded. Surfaced so an operator can see what they bought. */
+  nodes: z.number().nullable(),
 })
 
 interface StatusResponse {
@@ -56,16 +58,25 @@ interface StatusResponse {
   expiresAt: string | null
   graceMode: boolean
   foundingMember: boolean
+  nodes: number | null
 }
 
 const checkoutBodySchema = z.object({
   product: z.enum(['weaver-solo', 'weaver-team', 'fabrick', 'fm-solo', 'fm-team', 'fm-fabrick']),
   email: z.string().email().optional(),
+  /**
+   * Nodes to purchase. Bounded at both ends deliberately: a floor of 1 because a zero-node licence
+   * is not a thing anyone can mean, and a ceiling because this is an UNAUTHENTICATED-shaped public
+   * checkout — an unbounded integer here is a quantity nobody typed reaching a payment provider.
+   * Above the ceiling is a conversation, not a self-serve checkout.
+   */
+  nodes: z.number().int().min(1).max(100).optional(),
 })
 
 interface CheckoutBody {
   product: 'weaver-solo' | 'weaver-team' | 'fabrick' | 'fm-solo' | 'fm-team' | 'fm-fabrick'
   email?: string
+  nodes?: number
 }
 
 const checkoutResponseSchema = z.object({
@@ -142,6 +153,7 @@ export const licenseRoutes: FastifyPluginAsync<LicenseRouteOptions> = async (fas
       expiresAt: opts.config.licenseExpiry?.toISOString() ?? null,
       graceMode: opts.config.licenseGraceMode,
       foundingMember,
+      nodes: opts.config.licenseNodes,
     }
   })
 
@@ -168,6 +180,7 @@ export const licenseRoutes: FastifyPluginAsync<LicenseRouteOptions> = async (fas
         successUrl: `${opts.siteUrl}/account/licenses?checkout=success`,
         cancelUrl: `${opts.siteUrl}/pricing?checkout=cancel`,
         customerEmail: request.body.email,
+        quantity: request.body.nodes,
         metadata: {
           product: request.body.product,
           fm: isFm ? 'true' : 'false',

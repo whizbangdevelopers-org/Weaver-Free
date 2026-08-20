@@ -82,6 +82,7 @@ import { OrganizationStore } from './storage/organization-store.js'
 import { organizationRoutes } from './routes/organization.js'
 import { complianceRoutes } from './routes/compliance.js'
 import { licenseRoutes } from './routes/license.js'
+import { assertLicensedNodeCapacity } from './license.js'
 import { stripeWebhookRoutes } from './routes/stripe-webhook.js'
 import { LicenseStore } from './storage/license-store.js'
 import { initStripe, initProductMap } from './services/stripe.js'
@@ -387,6 +388,9 @@ if (userStore.count() === 0) {
 }
 
 // Register auth middleware (runs before route handlers)
+// SEC-027: the signed node entitlement is read on every boot rather than returned and dropped.
+assertLicensedNodeCapacity(config)
+
 fastify.addHook('onRequest', createAuthMiddleware(authService))
 
 // Wire security event emission from audit log

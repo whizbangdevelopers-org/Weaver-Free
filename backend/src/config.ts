@@ -43,6 +43,15 @@ export interface DashboardConfig {
   licenseExpiry: Date | null
   licenseGraceMode: boolean
   /**
+   * Nodes this licence entitles. `null` = unbounded (a perpetual or unmetered grant).
+   *
+   * Read from the SIGNED payload, which is what makes a per-node term enforceable at all — Stripe
+   * cannot meter an airgapped install, so the signature over this number is the only thing that
+   * binds it. Consumed by `requireNodeCapacity()`; see SEC-027 for why it previously reached the
+   * product and stopped here.
+   */
+  licenseNodes: number | null
+  /**
    * Where the key is read from, or null when the tier came from `LICENSE_KEY` / `PREMIUM_ENABLED`.
    *
    * Exposed because the file is re-read while the process runs: a renewal pushes a new
@@ -218,6 +227,9 @@ export function loadConfig(): DashboardConfig {
   let tier: Tier = TIERS.FREE
   let licenseExpiry: Date | null = null
   let licenseGraceMode = false
+  // Keyless default is ONE node, never unbounded: a missing entitlement must under-grant. The
+  // same reasoning as the issuer's `quantity ?? 1` — a forgotten value cannot become a free fleet.
+  let licenseNodes: number | null = 1
 
   // `LICENSE_HMAC_SECRET` / `LICENSE_HMAC_SECRET_FILE` resolution is GONE, not merely unused.
   //
@@ -251,6 +263,7 @@ export function loadConfig(): DashboardConfig {
       tier = result.tier
       licenseExpiry = result.expiry
       licenseGraceMode = result.graceMode
+      licenseNodes = result.quantity
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error'
       console.error(`[license] Invalid LICENSE_KEY: ${message} — falling back to free tier`)
@@ -262,6 +275,7 @@ export function loadConfig(): DashboardConfig {
       tier = result.tier
       licenseExpiry = result.expiry
       licenseGraceMode = result.graceMode
+      licenseNodes = result.quantity
     } catch (err) {
       // An ABSENT key file is the normal keyless state — a real install is Free until a key is
       // installed (LICENSE_KEY_FILE may point at a path that doesn't exist yet). That is not an
@@ -308,6 +322,7 @@ export function loadConfig(): DashboardConfig {
       tier = TIERS.SOLO
       licenseExpiry = null
       licenseGraceMode = false
+      licenseNodes = 1
     }
   }
 
@@ -315,6 +330,7 @@ export function loadConfig(): DashboardConfig {
     tier,
     licenseExpiry,
     licenseGraceMode,
+    licenseNodes,
     licenseKeyFile: licenseKeyFile ?? null,
     storageBackend: (process.env.VM_STORAGE_BACKEND ?? 'json') as 'json' | 'sqlite',
     dataDir: process.env.VM_DATA_DIR ?? './data',
