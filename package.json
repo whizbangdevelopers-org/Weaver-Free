@@ -224,7 +224,8 @@
     "audit:register-parity": "npx tsx scripts/verify-register-parity.ts",
     "audit:diagram-currency": "npx tsx scripts/verify-diagram-currency.ts",
     "audit:unverified-claims": "npx tsx scripts/verify-unverified-claims.ts",
-    "new:auditor": "npx tsx scripts/new-auditor.ts"
+    "new:auditor": "npx tsx scripts/new-auditor.ts",
+    "report:gate-provenance": "npx tsx scripts/report-gate-provenance.ts"
   },
   "dependencies": {
     "@quasar/extras": "^1.16.9",
