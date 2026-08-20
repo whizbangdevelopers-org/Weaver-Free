@@ -1,0 +1,44 @@
+{
+  "_doc": "Every field of the signed licence payload, and whether Weaver ENFORCES it. Read by scripts/verify-entitlement-enforcement.ts (`npm run audit:entitlement-enforcement`). A field the product ignores is an unenforced licence term — the customer is bound by it, the product is not, and nothing anywhere says so. This file makes that a written decision with an expiry instead of an oversight.",
+  "_why": "The upstream library states the contract in its own docstring, on the field that turned out to be unenforced: 'Units granted, product-defined — nodes for Weaver, devices for Qepton. Returned, never enforced here. Enforcing it means knowing what a unit IS, which is the product's business and not this library's (ENT-4). A product that ignores this field has an unenforced licence term, and that is the product's bug — the signature over it is what makes the term enforceable at all, since a provider like Stripe cannot meter an airgapped install.' Weaver ignored `quantity` entirely: the issuer writes it, the verifier returns it, and no consumer reads it.",
+  "_rules": [
+    "A NEW field in the signed payload cannot be added without a row here. That is the point — the next `seats` or `features` field must state whether it binds anything before it ships.",
+    "`enforced` requires `enforcedBy` naming where. `unenforced` requires a reason and a reviewBy.",
+    "Settle every unenforced field BEFORE the production key ceremony (SEC-022, v1.3). Issued keys encode these values permanently; deciding afterwards means reissuing every key sold before the decision."
+  ],
+  "_lastReviewed": "2026-08-20",
+  "fields": {
+    "tier": {
+      "status": "enforced",
+      "enforcedBy": "requireTier() in backend/src/license.ts, called by every tier-gated route; audit:tier-parity cross-checks the gates against tier-matrix.json"
+    },
+    "expiry": {
+      "status": "enforced",
+      "enforcedBy": "the verifier resolves an expired key to Free (past the grace window) on every re-read of the key file, not only at start-up"
+    },
+    "graceMode": {
+      "status": "enforced",
+      "enforcedBy": "surfaced on GET /api/license/status and GET /api/health; drives the in-product grace banner"
+    },
+    "customerId": {
+      "status": "unenforced",
+      "reason": "Traceability only, by design — four characters of the Stripe customer id, carried so a key found in the wild can be traced to the account it was issued to. It grants nothing, so there is nothing to enforce. Deliberately NOT used as an identity check: the product is airgapped and cannot confirm it.",
+      "reviewBy": "2027-08-20"
+    },
+    "serial": {
+      "status": "unenforced",
+      "reason": "Keys a future revocation list and distinguishes otherwise-identical grants. Nothing consumes it yet because revocation is issuer-side (the Stripe webhook revokes in the licence store) and no in-product revocation check exists — a self-hosted airgapped install has nothing to check against. Revisit if a revocation feed ships.",
+      "reviewBy": "2027-02-20"
+    },
+    "quantity": {
+      "status": "unenforced",
+      "reason": "SEC-027, open. The per-node term is signed into every key and read by nothing: the Stripe issuer populates it from the purchase, the verifier returns it, and Weaver has no consumer. `createCheckoutSession` also hardcodes `quantity: 1`, so the per-node model can currently be neither sold nor enforced. Nothing is losing money yet — multi-node Fabrick ships at v2.4 — which is exactly why the model should be decided now rather than retrofitted into shipped clustering.",
+      "reviewBy": "2026-11-20"
+    },
+    "version": {
+      "status": "unenforced",
+      "reason": "Key-format version, for forward compatibility of the payload layout. It is consumed by the parser inside the vendored entitlement library rather than by Weaver, which is the correct home for it — the format is the library's concern (ENT-1).",
+      "reviewBy": "2027-08-20"
+    }
+  }
+}

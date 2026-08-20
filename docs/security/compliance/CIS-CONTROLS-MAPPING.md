@@ -180,7 +180,7 @@ CIS Controls v8.1 tiers safeguards by Implementation Group — IG1 for basic cyb
 | Safeguard | Requirement | Weaver Implementation | Status | Tier |
 |-----------|------------|----------------------|--------|------|
 | 17.1 | Designate personnel to manage incident handling | Deployer responsibility (organizational control) | Deployer Responsibility | — |
-| 17.2 | Establish and maintain contact information for reporting security incidents | `docs/SECURITY.md` with disclosure contact | Implemented | Free |
+| 17.2 | Establish and maintain contact information for reporting security incidents | `SECURITY.md` (repo root) with disclosure contact | Implemented | Free |
 | 17.3 | Establish and maintain an enterprise process for reporting incidents | Weaver audit log + AI diagnostics provide incident timeline reconstruction. DFARS 72-hour reporting workflow supported in defense-contractor vertical doc | Implemented (tooling) | Free |
 | 17.4 | Establish and maintain an incident response process | **Compromise runbook** (cache-key-compromise-runbook.md — to be written at v2.3 under `docs/operations/`) provides cache-key compromise response procedure. Declarative baselines enable rapid forensic comparison | Partial (v1.0 baseline) · Planned runbook (v2.3.0) | Free (baseline) · Weaver Team+ (cache runbook) |
 | 17.5 | Assign key roles and responsibilities | Deployer responsibility (organizational) | Deployer Responsibility | — |
