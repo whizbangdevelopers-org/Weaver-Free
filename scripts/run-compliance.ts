@@ -31,6 +31,7 @@
  */
 
 import { spawnSync } from 'child_process'
+import { appendFileSync, mkdirSync } from 'fs'
 import { resolve, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import { cpus } from 'os'
@@ -198,6 +199,37 @@ export const PHASES: Phase[] = [
     parallel: false,
     entries: ['audit:generated-artifact-freshness'],
   },
+  // Phase 4 — auditors that used to be chained with `&&` in package.json's test:compliance,
+  // AFTER this runner. Folded in 2026-08-20 so their outcomes are recorded like every other
+  // auditor's: a runner-side failure log covered 87 of 104 and the 17 it missed were exactly
+  // the newest ones, which is the population a provenance report most needs to see.
+  //
+  // Sequential and stop-on-first-failure, which is what `&&` already did — a `parallel: false`
+  // phase breaks out of the loop on a failure unless --continue. Behaviour-preserving by
+  // construction; the marker count is unaffected because chainAuditors() unions PHASES with the
+  // package.json chain and dedupes.
+  {
+    parallel: false,
+    entries: [
+      'audit:workflows',
+      'audit:test-suites',
+      'audit:e2e-docker-only',
+      'audit:workflow-taint',
+      'audit:auditor-contracts',
+      'audit:rule-contracts',
+      'audit:vite-aliases',
+      'audit:ownership',
+      'audit:ci-gates',
+      'audit:outbound-authz',
+      'audit:claim-resolution',
+      'audit:entitlement-enforcement',
+      'audit:nav-order',
+      'audit:nix-invariants',
+      'audit:register-parity',
+      'audit:diagram-currency',
+      'audit:unverified-claims',
+    ],
+  },
 ]
 
 // Flat view for --list and older call sites.
@@ -214,6 +246,38 @@ interface Result {
   name: string
   ok: boolean
   ms: number
+}
+
+/**
+ * Append one line per FAILURE, so `report:gate-provenance` can tell a gate catching drift from a
+ * gate doing a template's job.
+ *
+ * Only 32 of 111 auditors persist a report of their own, and the 79 that do not included every
+ * gate that had prompted asking the question. This closes that by recording at the RUNNER, which
+ * needs no cooperation from the 104 individual scripts.
+ *
+ * Failures only. A pass-line-per-auditor-per-run would add ~104 lines to every push for data
+ * nothing reads, and the interesting population is small by construction.
+ *
+ * Never throws: an analytics side-effect must not be able to fail a compliance run.
+ */
+const FAILURE_LOG = resolve(CODE_ROOT, 'reports/gate-failures.jsonl')
+const PATH_IN_OUTPUT =
+  /\b((?:code\/|business\/|plans\/|scripts\/|src\/|backend\/|testing\/|docs\/|\.github\/)[\w./-]+\.\w{1,5})\b/g
+
+function recordFailure(name: string, output: string): void {
+  try {
+    mkdirSync(dirname(FAILURE_LOG), { recursive: true })
+    // Strip ANSI first: a colourised path would not match, and auditors colourise heavily.
+    const plain = output.replace(/\x1b\[[0-9;]*m/g, '')
+    const paths = [...new Set([...plain.matchAll(PATH_IN_OUTPUT)].map(m => m[1]))].slice(0, 40)
+    appendFileSync(
+      FAILURE_LOG,
+      JSON.stringify({ auditor: name, timestamp: new Date().toISOString(), paths }) + '\n',
+    )
+  } catch {
+    /* analytics must never break the build */
+  }
 }
 
 interface Opts {
@@ -246,11 +310,20 @@ function parseArgs(argv: string[]): Opts {
 function runOne(name: string): Result {
   const start = Date.now()
   // Reuse npm so each auditor gets its own declared environment/args.
+  //
+  // Piped rather than inherited, so a failure's output can be recorded. The output is written
+  // straight back out, so what a reader sees is unchanged — this phase is sequential, so there is
+  // no interleaving to preserve either.
   const r = spawnSync('npm', ['run', name], {
     cwd: CODE_ROOT,
-    stdio: 'inherit',
+    stdio: ['ignore', 'pipe', 'pipe'],
+    encoding: 'utf-8',
   })
-  return { name, ok: r.status === 0, ms: Date.now() - start }
+  const output = (r.stdout ?? '') + (r.stderr ?? '')
+  process.stdout.write(output)
+  const ok = r.status === 0
+  if (!ok) recordFailure(name, output)
+  return { name, ok, ms: Date.now() - start }
 }
 
 // Run a list of auditors in parallel using async spawn. Returns once all
@@ -283,8 +356,11 @@ async function runParallel(names: string[]): Promise<Result[]> {
       child.stdout?.on('data', (d: Buffer) => chunks.push(d))
       child.stderr?.on('data', (d: Buffer) => chunks.push(d))
       child.on('close', (code: number | null) => {
+        const body = Buffer.concat(chunks).toString('utf8')
         const header = `\n\x1b[2m──── ${name} (${Date.now() - start}ms) ────\x1b[0m\n`
-        process.stdout.write(header + Buffer.concat(chunks).toString('utf8'))
+        process.stdout.write(header + body)
+        // Free: this path already buffered its output to keep parallel runs readable.
+        if (code !== 0) recordFailure(name, body)
         resolveTask({ name, ok: code === 0, ms: Date.now() - start })
       })
     })
