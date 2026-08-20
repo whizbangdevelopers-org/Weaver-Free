@@ -36,6 +36,13 @@
  * What it closes is the cheap and common half: a citation that has quietly stopped pointing at
  * anything, which is precisely what a directory rename produces.
  *
+ * **The notation this enforces:** a backticked path is a CLAIM THAT THE FILE EXISTS. That matters
+ * when documenting a rename, which these documents do constantly — name the live destination in
+ * backticks and leave the dead origin in prose. Rewording to satisfy a checker is normally the
+ * thing to refuse, and this is the exception that proves the rule: the backtick is the assertion,
+ * so removing it from a path you are describing as GONE is correcting the claim, not dodging it.
+ * (Learned the hard way — the paragraph in the register announcing this auditor tripped it.)
+ *
  * Usage:
  *   npx tsx scripts/verify-claim-resolution.ts
  *   npx tsx scripts/verify-claim-resolution.ts --self-test
