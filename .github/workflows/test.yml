@@ -98,18 +98,23 @@ jobs:
       - name: Backend coverage (blocking — ratchet floor)
         run: npm run test:coverage:backend
 
-      # NOT blocking, and that is a known-unmet target rather than an oversight. Three of the four
-      # thresholds in vitest.config.ts fail today (statements 9.96 vs 10, functions 6.61 vs 8,
-      # branches 6.12 vs 8) because frontend coverage is genuinely low — the gap is Vue SFC
-      # rendering, not the backend.
+      # BLOCKING as of 2026-08-19. Three of the four thresholds used to fail (statements 9.96 vs
+      # 10, functions 6.61 vs 8, branches 6.12 vs 8) and the step carried continue-on-error, so
+      # the red was invisible. It was closed by WRITING THE TESTS, not by lowering the numbers —
+      # adjusting a threshold to make currently-bad numbers pass is gaming the gate.
       #
-      # Deliberately NOT resolved by lowering the thresholds to match: adjusting a threshold to
-      # make currently-bad numbers pass is gaming the gate. The honest options are to write the
-      # tests or to accept the gap knowingly, and this line records that it is the second, so
-      # nobody reads the green check as "coverage is fine."
-      - name: Frontend coverage (advisory — thresholds are a target, not yet met)
+      # 122 tests across six previously-untested surfaces, chosen for what they protect rather
+      # than for what they scored: the router's auth/admin/Fabrick guards, the app store's
+      # tier→capability mapping and demo guards, the keyboard shortcut handler (Gate 1 is a manual
+      # keyboard-only pass, so the mechanical parts should be mechanical), the auth refresh timer,
+      # network topology derivation, and the ref-counted WebSocket singleton.
+      #
+      # The branch margin is THIN — 8.29% against a floor of 8%. That is deliberate and it is not
+      # a defect: adding a chunk of untested code will trip this, which is the gate doing its job.
+      # When it trips, the fix is tests. Raising the floor as coverage improves is welcome; the
+      # numbers in vitest.config.ts must never go down.
+      - name: Frontend coverage (blocking)
         run: npm run test:coverage
-        continue-on-error: true
 
       - name: Update test badge
         if: github.repository == 'whizbangdevelopers-org/Weaver-Dev' && (github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v'))
