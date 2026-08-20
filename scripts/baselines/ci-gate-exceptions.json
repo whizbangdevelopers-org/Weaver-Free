@@ -1,0 +1,78 @@
+{
+  "_doc": "Registry of every `continue-on-error: true` in .github/workflows/. Read by scripts/verify-ci-gates.ts (`npm run audit:ci-gates`), which FAILS on an unregistered occurrence, a registration missing any field, an expired reviewBy, and a registration whose step no longer soft-fails. A soft-failing step is a gate that cannot fail; this file is what stops one from being added silently or from outliving its reason. Key format: '<workflow file>::<step name>' — the step's `name:`, because line numbers move.",
+  "_why": "The class this exists to prevent, with a real instance: security-scan.yml ran `npm audit --audit-level=high` with continue-on-error for months, and SEC-021's disposition in the security register named that same audit as its mitigating control. The audit reported a HIGH advisory in @fastify/static on every run — an authorization bypass in the module serving the SPA — and nothing failed. A control configured never to fail is not a control, and citing one elsewhere as a mitigation converts a visible finding into an invisible one.",
+  "_rules": [
+    "A step that IS a gate does not belong here. Make it blocking instead — a red weekly cron blocks no development and is the correct signal.",
+    "Every entry needs a reviewBy. 'While we establish a baseline' with no date is how a temporary exception becomes permanent.",
+    "The list only shrinks. Removing continue-on-error from a step means deleting its row here; the auditor fails on a stale row so an exemption cannot outlive its reason."
+  ],
+  "_lastReviewed": "2026-08-19",
+  "_categories": {
+    "cosmetic": "Writes a badge, a summary or an annotation. The failure has no bearing on whether the code is correct, and failing the run would misreport a reporting outage as a code regression.",
+    "tool-quirk": "The tool exits non-zero on a legitimate no-op. Downstream steps already gate on the real condition. Must name the exact quirk.",
+    "reporter-not-gate": "The same check runs BLOCKING somewhere else; here it only routes the finding to a channel. Must name where the blocking copy runs.",
+    "platform-limit": "Blocked by a GitHub plan or repo-visibility limit rather than by the code. Must name the condition that would lift it."
+  },
+  "exceptions": {
+    "test.yml::Update test badge": {
+      "category": "cosmetic",
+      "reason": "schneegans/dynamic-badges-action writes a gist. A gist 404 or a rotated WEAVER_FREE_GIST_TOKEN would fail the whole test job while every test passed.",
+      "addedAt": "2026-08-19",
+      "reviewBy": "2027-08-19"
+    },
+    "test.yml::Update backend test badge": {
+      "category": "cosmetic",
+      "reason": "As above — badge write, not a check.",
+      "addedAt": "2026-08-19",
+      "reviewBy": "2027-08-19"
+    },
+    "test.yml::Update TUI test badge": {
+      "category": "cosmetic",
+      "reason": "As above — badge write, not a check.",
+      "addedAt": "2026-08-19",
+      "reviewBy": "2027-08-19"
+    },
+    "test.yml::Update total-tests badge": {
+      "category": "cosmetic",
+      "reason": "As above — badge write, not a check.",
+      "addedAt": "2026-08-19",
+      "reviewBy": "2027-08-19"
+    },
+    "test.yml::Update compliance-auditors badge": {
+      "category": "cosmetic",
+      "reason": "As above — badge write, not a check.",
+      "addedAt": "2026-08-19",
+      "reviewBy": "2027-08-19"
+    },
+    "dependabot-labeler.yml::Fetch Dependabot metadata": {
+      "category": "tool-quirk",
+      "reason": "dependabot/fetch-metadata v3.x exits non-zero with 'PR does not contain metadata, nothing to do.' on legitimately-opened Dependabot PRs (re-opened, amended commits, metadata not yet attached). Downstream label steps gate on `package-ecosystem` being present, so a genuine absence correctly labels nothing. Failing here would misreport a no-op as a regression.",
+      "addedAt": "2026-08-19",
+      "reviewBy": "2027-02-19"
+    },
+    "codeql-feedback.yml::Run coverage auditor": {
+      "category": "reporter-not-gate",
+      "reason": "audit:codeql-coverage runs BLOCKING in test:compliance, where an untriaged rule stops the push. This workflow's job is to surface new rules into a tracking issue; a daily red cron is read by nobody, so failing here is the wrong channel for the same finding.",
+      "addedAt": "2026-08-19",
+      "reviewBy": "2027-08-19"
+    },
+    "release.yml::Attest build provenance (PWA tarball)": {
+      "category": "platform-limit",
+      "reason": "GitHub attestations require a paid plan or a public repo. Weaver-Dev is private and the org is on the free plan. Attestations do fire on the public Weaver-Free mirror via release-to-free. Lifts when the org moves to Team/Enterprise, or when this workflow runs on the public repo directly.",
+      "addedAt": "2026-08-19",
+      "reviewBy": "2026-11-19"
+    },
+    "release.yml::Attest build provenance (SBOM frontend)": {
+      "category": "platform-limit",
+      "reason": "Same platform limit as the PWA tarball attestation above.",
+      "addedAt": "2026-08-19",
+      "reviewBy": "2026-11-19"
+    },
+    "release.yml::Attest build provenance (SBOM backend)": {
+      "category": "platform-limit",
+      "reason": "Same platform limit as the PWA tarball attestation above.",
+      "addedAt": "2026-08-19",
+      "reviewBy": "2026-11-19"
+    }
+  }
+}
