@@ -172,7 +172,7 @@
     "sync:markers": "npx tsx scripts/sync-markers.ts",
     "test": "vitest run",
     "test:backend": "npm -w backend test",
-    "test:compliance": "npx tsx scripts/run-compliance.ts && npm run audit:workflows && npm run audit:test-suites && npm run audit:e2e-docker-only && npm run audit:workflow-taint && npm run audit:auditor-contracts && npm run audit:rule-contracts && npm run audit:vite-aliases && npm run audit:ownership && npm run audit:ci-gates && npm run audit:outbound-authz && npm run audit:claim-resolution && npm run audit:entitlement-enforcement && npm run audit:nav-order && npm run audit:nix-invariants",
+    "test:compliance": "npx tsx scripts/run-compliance.ts && npm run audit:workflows && npm run audit:test-suites && npm run audit:e2e-docker-only && npm run audit:workflow-taint && npm run audit:auditor-contracts && npm run audit:rule-contracts && npm run audit:vite-aliases && npm run audit:ownership && npm run audit:ci-gates && npm run audit:outbound-authz && npm run audit:claim-resolution && npm run audit:entitlement-enforcement && npm run audit:nav-order && npm run audit:nix-invariants && npm run audit:register-parity && npm run audit:diagram-currency",
     "test:coverage": "vitest run --coverage",
     "test:coverage:backend": "npm -w backend run test:coverage",
     "test:coverage:free": "vitest run --coverage --config vitest.free.config.ts",
@@ -220,7 +220,9 @@
     "vendor:entitlement": "tsx scripts/vendor-entitlement.ts",
     "generate:license-authority": "tsx scripts/generate-license-authority.ts",
     "audit:entitlement-vendor": "tsx scripts/verify-entitlement-vendor.ts",
-    "audit:authority-binding": "tsx scripts/verify-authority-binding.ts --root backend/src --expect-binding"
+    "audit:authority-binding": "tsx scripts/verify-authority-binding.ts --root backend/src --expect-binding",
+    "audit:register-parity": "npx tsx scripts/verify-register-parity.ts",
+    "audit:diagram-currency": "npx tsx scripts/verify-diagram-currency.ts"
   },
   "dependencies": {
     "@quasar/extras": "^1.16.9",
