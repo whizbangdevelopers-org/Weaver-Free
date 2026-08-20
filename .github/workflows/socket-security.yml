@@ -53,10 +53,21 @@ jobs:
         with:
           node-version: '24'
 
+      # BLOCKING as of 2026-08-19. It carried `continue-on-error: true` with the note "non-blocking
+      # while establishing baseline" and no date — which is the shape a temporary exception takes
+      # when it becomes permanent. Socket exits 1 on policy findings, and a supply-chain finding
+      # nobody is told about is the one class where the delay is the whole damage.
+      #
+      # The blast radius is small and that is why this is the right step to enforce first: this is
+      # a WEEKLY CRON on the public mirror, not a push gate. A red run blocks no development and
+      # nothing merges differently — it just becomes visible, which it was not before.
+      #
+      # To acknowledge a specific finding, use Socket's own suppression at socket.dev/dashboard so
+      # the acknowledgement lives with the finding. Do NOT restore continue-on-error: that
+      # suppresses every finding including the ones nobody has seen yet, and
+      # `audit:ci-gates` will now fail on it unless it is registered with a reason and a
+      # review date in scripts/baselines/ci-gate-exceptions.json.
       - name: Run Socket scan
-        # Exit code 1 = policy findings reported; non-blocking while establishing baseline.
-        # Review findings at socket.dev/dashboard, then remove continue-on-error to enforce.
-        continue-on-error: true
         run: |
           npx --yes @socketsecurity/cli scan create \
             --org "${{ secrets.SOCKET_ORG_SLUG }}" \
