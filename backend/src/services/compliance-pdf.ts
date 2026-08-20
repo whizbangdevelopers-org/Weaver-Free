@@ -35,8 +35,21 @@ export function getComplianceSlugs(): string[] {
   return Object.keys(COMPLIANCE_DOCS)
 }
 
+/**
+ * `Object.hasOwn`, never `in`.
+ *
+ * `slug in COMPLIANCE_DOCS` walks the PROTOTYPE CHAIN, so an object-literal allowlist also
+ * accepts `constructor`, `__proto__`, `toString`, `valueOf`, `hasOwnProperty` — every
+ * `Object.prototype` member. That is an allowlist that is not one.
+ *
+ * It was not exploitable as traversal: the accepted value is used to look up `docDef.path`,
+ * which is `undefined` for all of them, and `path.join` throws on a non-string. But the route
+ * turned that into a 500 reading "PDF generation failed. Ensure WeasyPrint is installed." —
+ * pointing the operator at a healthy dependency. The bypass reaching a filesystem call at all
+ * is the defect; the harmless landing was luck, not design.
+ */
 export function isValidComplianceSlug(slug: string): boolean {
-  return slug in COMPLIANCE_DOCS
+  return Object.hasOwn(COMPLIANCE_DOCS, slug)
 }
 
 interface PdfOptions {

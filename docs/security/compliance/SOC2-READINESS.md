@@ -16,7 +16,7 @@
 |-----------|------------|----------------------|--------|------|
 | CC6.1.1 | Identify and authenticate users | JWT authentication; bcrypt (cost 13); unique usernames; first-run admin setup (no defaults) | Implemented | Free |
 | CC6.1.2 | Manage credentials | 14+ char passwords with complexity; multi-factor authentication (MFA); account lockout (5 attempts / 15 min) | Implemented (passwords) / Planned | Free (passwords, lockout), Solo+ (MFA) |
-| CC6.1.3 | Role-based access | Admin/Operator/Viewer roles; `requireRole()` middleware on every route; per-VM ACLs (Fabrick) | Implemented | Free (RBAC), Fabrick (per-VM ACLs) |
+| CC6.1.3 | Role-based access | Admin/Operator/Viewer roles, enforced on every authenticated route (`requireRole()` preHandler, or an equivalent inline check); per-VM ACLs (Fabrick; opt-in per user) | Implemented | Free (RBAC), Fabrick (per-VM ACLs) |
 | CC6.1.4 | Restrict physical access | NixOS host: deployer responsibility; Weaver runs as dedicated service user with minimal filesystem permissions | Deployer Responsibility | Free |
 | CC6.1.5 | Remove access when no longer needed | User deletion API (`DELETE /api/users/:id`); password change invalidates all sessions | Implemented | Free |
 
@@ -79,7 +79,7 @@
 | C1.1 | Identify confidential information | Tier gating separates feature access; Weaver/Fabrick features require `requireTier()` middleware | Implemented | Free |
 | C1.2 | Protect confidential information | RBAC prevents unauthorized access; error sanitization prevents information leakage (no internal paths in responses) | Implemented | Free |
 | C1.3 | Dispose of confidential information | User deletion removes account data; workload deletion removes VM configuration | Implemented | Free |
-| C1.4 | Restrict access to confidential data | Per-VM ACLs (Fabrick); role-based API access; audit log restricted to Admin/Operator | Implemented | Free (RBAC), Fabrick (per-VM ACLs) |
+| C1.4 | Restrict access to confidential data | Per-VM ACLs (Fabrick; opt-in per user — an unassigned user sees all workloads); role-based API access; audit log restricted to Admin/Operator/Auditor | Implemented | Free (RBAC), Fabrick (per-VM ACLs) |
 
 ## Privacy
 

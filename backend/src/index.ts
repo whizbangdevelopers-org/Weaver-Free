@@ -895,20 +895,29 @@ const staticDir = process.env.STATIC_DIR
 if (staticDir) {
   await fastify.register(fastifyStatic, {
     root: resolve(staticDir),
-    // Cache-Control for hashed assets (Vite outputs to assets/ with content hashes)
-    setHeaders(res, filePath) {
+    // Cache-Control for hashed assets (Vite outputs to assets/ with content hashes).
+    //
+    // The first argument is a **FastifyReply** (`.header()`), not a raw `ServerResponse`
+    // (`.setHeader()`). That changed in @fastify/static 10 — the upgrade taken on 2026-08-19 for
+    // GHSA-83w8-p2f5-377r (route guard bypass via path traversal) and GHSA-8pvw-jcv7-9cmj.
+    //
+    // Worth noting how this was caught, because the suite did not: every backend test runs
+    // without STATIC_DIR set, so this whole block is unreachable under test and the 1,449 tests
+    // passed against code that could not compile. `tsc` found it. If static serving ever gains a
+    // behavioural test, cache headers are the thing to assert.
+    setHeaders(reply, filePath) {
       if (/[/\\]assets[/\\]/.test(filePath) && /\.[a-f0-9]{8,}\.\w+$/.test(filePath)) {
         // Immutable hashed files: cache for 1 year
-        res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
+        reply.header('Cache-Control', 'public, max-age=31536000, immutable')
       } else if (filePath.endsWith('.html')) {
         // HTML files (index.html, etc.): always revalidate
-        res.setHeader('Cache-Control', 'no-cache')
+        reply.header('Cache-Control', 'no-cache')
       } else if (/\.(json|webmanifest)$/.test(filePath)) {
         // Manifests and config: short cache with revalidation
-        res.setHeader('Cache-Control', 'public, max-age=600, must-revalidate')
+        reply.header('Cache-Control', 'public, max-age=600, must-revalidate')
       } else {
         // Other static files (icons, fonts): moderate cache
-        res.setHeader('Cache-Control', 'public, max-age=86400')
+        reply.header('Cache-Control', 'public, max-age=86400')
       }
     },
   })

@@ -4,6 +4,8 @@ import { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
 import { parseLicenseKey } from '../license.js'
 import { createCheckoutSession, createPortalSession } from '../services/stripe.js'
+import { requireRole } from '../middleware/rbac.js'
+import { ROLES } from '../constants/vocabularies.js'
 import type { LicenseStore } from '../storage/license-store.js'
 import type { DashboardConfig } from '../config.js'
 
@@ -179,18 +181,41 @@ export const licenseRoutes: FastifyPluginAsync<LicenseRouteOptions> = async (fas
   })
 
   // POST /api/stripe/portal — create a Stripe Customer Portal session
+  //
+  // A Stripe portal session exposes invoices, billing address, card metadata and the ability to
+  // CANCEL the subscription. `customerId` arrives in the request body, so before these two guards
+  // the route would mint a portal for any `cus_` the caller could name: authentication proved who
+  // was asking and nothing tied that to whose billing account was opened.
+  //
+  // Two guards, because neither alone is enough. Admin-only bounds who may ask at all; the
+  // known-customer check bounds what they may ask for, so a mistyped or guessed id cannot reach
+  // Stripe. Residual, stated rather than implied: an admin on the commerce host can still open a
+  // portal for any customer THIS hub issued a licence to. Closing that needs a user→customer link
+  // the licence store does not currently hold (records key on email, not user id) — worth adding
+  // when accounts and licences are properly joined.
   fastify.post<{ Body: PortalBody; Reply: PortalResponse | { error: string } }>('/stripe/portal', {
     schema: {
       body: portalBodySchema,
       response: {
         200: portalResponseSchema,
         400: errorSchema,
+        403: errorSchema,
+        404: errorSchema,
       },
     },
+    preHandler: [requireRole(ROLES.ADMIN)],
   }, async (request, reply) => {
+    const { customerId } = request.body
+
+    // 404, not 403: to a caller already authorised for this route, "we hold no licence for that
+    // customer" is the honest answer and does not confirm the id exists anywhere else.
+    if (opts.licenseStore.findByCustomer(customerId).length === 0) {
+      return reply.status(404).send({ error: 'No licence found for that customer' })
+    }
+
     try {
       const url = await createPortalSession(
-        request.body.customerId,
+        customerId,
         `${opts.siteUrl}/account`
       )
       return { url }

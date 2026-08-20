@@ -13,8 +13,8 @@
 | 800-171 ID | Control | Weaver Implementation | Status | Tier |
 |-------------|---------|----------------------|--------|------|
 | 3.1.1 | Limit system access to authorized users | JWT authentication required for all API routes; first-run admin setup (no default credentials) | Implemented | Free |
-| 3.1.2 | Limit system access to authorized functions | RBAC: Admin/Operator/Viewer roles enforced via `requireRole()` middleware on every route | Implemented | Free |
-| 3.1.3 | Control CUI flow per authorizations | Tier gating: `requireTier()` middleware restricts features by tier (Free+); per-VM ACLs for workload-level access control (Fabrick) | Implemented | Free (basic), Fabrick (per-VM ACLs) |
+| 3.1.2 | Limit system access to authorized functions | RBAC: Admin/Operator/Viewer roles. Every authenticated route is role-checked — most via the `requireRole()` preHandler, a few (audit, console, agent) by an equivalent inline check in the handler | Implemented | Free |
+| 3.1.3 | Control CUI flow per authorizations | Tier gating: `requireTier()` middleware restricts features by tier (Free+); per-VM ACLs for workload-level access control (Fabrick; **opt-in per user — a user with no ACL assigned has access to all workloads**) | Implemented | Free (basic), Fabrick (per-VM ACLs) |
 | 3.1.5 | Least privilege | Viewer role is read-only; Operator cannot manage users; Admin-only routes for user/role management | Implemented | Free |
 | 3.1.7 | Prevent non-privileged users from executing privileged functions | Role checks enforced server-side; frontend guards are UX-only, backend is authoritative | Implemented | Free |
 | 3.1.8 | Limit unsuccessful login attempts | Account lockout after 5 failed attempts within 15 minutes; progressive delay at 3+ attempts | Implemented | Free |
