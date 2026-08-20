@@ -1,0 +1,32 @@
+{
+  "_comment": "Backend coverage ratchet floor. Read by backend/vitest.config.ts — the thresholds live here rather than in code so a change to what the project guarantees is reviewable as data, in a diff, with a reason. THE NUMBERS ONLY GO UP. Lowering one to make a run pass is gaming the gate (~/.claude/rules/never-game-auditors.md); if coverage drops, restore the coverage. Refresh after genuine improvement: npm run baseline:backend-coverage:refresh, which writes current-minus-buffer and requires a human commit stating what was added.",
+  "_why": "This file exists because the backend number was UNMEASURABLE until 2026-08-19, not merely unmeasured. `vitest run --coverage` failed on a bcrypt-cost-13 timeout, a failing run prints no summary, and so the ~10% figure everyone quoted was the ROOT suite (src/** + codebase-mcp/**), which never touches backend/. An unmeasured good number decays; this is the thing that stops it.",
+  "_lastRefreshed": "2026-08-19",
+  "_currentMeasurements": {
+    "statements": 73.4,
+    "branches": 63.96,
+    "functions": 77.45,
+    "lines": 73.7,
+    "measuredAt": "2026-08-19",
+    "testFiles": 91,
+    "tests": 1449,
+    "byLayer": {
+      "storage": 87.71,
+      "middleware": 85.22,
+      "services": 79.07,
+      "routes": 67.56
+    }
+  },
+  "_buffer": "2 points below measured — absorbs the small run-to-run variance v8 coverage shows on async paths without absorbing a real regression.",
+  "thresholds": {
+    "statements": 71,
+    "branches": 61,
+    "functions": 75,
+    "lines": 71
+  },
+  "_ciiSilver": {
+    "statements": 80,
+    "branches": 50,
+    "_note": "Backend ALREADY clears the CII Silver branch bar (63.96 > 50) and sits ~6.6 points off statements. The coverage blocker for Silver is the frontend, not this. Do not cite a single blended project-coverage figure — say which surface."
+  }
+}
