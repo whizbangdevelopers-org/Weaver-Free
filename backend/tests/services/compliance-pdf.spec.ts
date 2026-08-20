@@ -58,6 +58,19 @@ describe('isValidComplianceSlug()', () => {
     expect(isValidComplianceSlug('security_baselines')).toBe(false)
     expect(isValidComplianceSlug('nist800171')).toBe(false)
   })
+
+  // Regression: the check was `slug in COMPLIANCE_DOCS`, which walks the prototype chain, so
+  // every Object.prototype member passed the allowlist and reached the route's filesystem path.
+  // These are the exact probes that got through. `Object.hasOwn` is what closes it.
+  //
+  // This is the IGNORE half's mirror: the cases above prove the allowlist still ADMITS the six
+  // real slugs, and these prove it no longer admits things nobody put in it. A rule needs both.
+  it.each(['constructor', '__proto__', 'toString', 'valueOf', 'hasOwnProperty', 'isPrototypeOf'])(
+    'returns false for inherited Object.prototype member %j',
+    (inherited) => {
+      expect(isValidComplianceSlug(inherited)).toBe(false)
+    },
+  )
 })
 
 describe('generateCompliancePdf()', () => {

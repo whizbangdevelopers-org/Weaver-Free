@@ -8,6 +8,7 @@ import type { AuthService } from '../services/auth.js'
 import { sessionEvents } from '../services/auth.js'
 import type { NotificationService } from '../services/notification.js'
 import type { NotificationEvent } from '../models/notification.js'
+import { agentEvents, type AgentBroadcast } from '../services/agent.js'
 import { verifyWsToken } from '../middleware/auth.js'
 import type { VmAclStore } from '../storage/vm-acl-store.js'
 import type { DashboardConfig } from '../config.js'
@@ -34,27 +35,64 @@ export const wsRoutes: FastifyPluginAsync<WsRouteOptions> = async (fastify, opts
   const clients = new Map<WebSocket, WsClientInfo>()
   let broadcastTimer: ReturnType<typeof setInterval> | null = null
 
-  // Broadcast notification events to all connected clients
+  // Fabrick ACL: should this client's view be filtered?
+  const isFabrickAcl = config?.tier === TIERS.FABRICK && aclStore
+
+  /**
+   * THE decision: may this client receive a message about `vmName`?
+   *
+   * Every outbound workload-scoped message goes through here. That is the whole point — the ACL
+   * was enforced on request paths and on nothing that left, so four separate fan-outs each made
+   * their own (absent) decision: the notification broadcast below, the provisioning relay, the
+   * agent stream, and the VM-list loop. Only the last one was right.
+   *
+   * `undefined` vmName means the message is not about a workload (a session-revoked notice, a
+   * licence event) and is not ACL-scoped.
+   */
+  function maySee(info: WsClientInfo, vmName?: string): boolean {
+    if (!isFabrickAcl) return true          // ACLs are a Fabrick feature
+    if (!vmName) return true                // not workload-scoped
+    if (!info.userId) return true           // auth disabled — nothing to scope to
+    if (info.role === ROLES.ADMIN) return true
+    return aclStore!.isAllowed(info.userId, vmName)
+  }
+
+  // Broadcast notification events, ACL-scoped per client.
+  //
+  // This used to iterate `clients.keys()`, discarding the WsClientInfo the same Map carries and
+  // that the VM-list loop below uses correctly. NotificationEvent carries `vmName` plus the whole
+  // `security` category — auth-failure, unauthorized-access, permission-denied — so every
+  // connected client received other users' security telemetry and the names of workloads they
+  // are not permitted to see.
   function broadcastNotification(event: NotificationEvent) {
     const payload = JSON.stringify({
       type: 'notification',
       event,
       timestamp: new Date().toISOString(),
     })
-    for (const client of clients.keys()) {
-      if (client.readyState === 1) {
-        client.send(payload)
-      }
+    for (const [client, info] of clients) {
+      if (client.readyState !== 1) continue
+      if (!maySee(info, event.vmName)) continue
+      client.send(payload)
     }
   }
+
+  // Agent output, ACL-scoped per client. `routes/agent.ts` emits rather than broadcasting so this
+  // is the only place agent messages reach a socket — see AgentBroadcast for why.
+  function broadcastAgent({ vmName, message }: AgentBroadcast) {
+    const payload = JSON.stringify(message)
+    for (const [client, info] of clients) {
+      if (client.readyState !== 1) continue
+      if (!maySee(info, vmName)) continue
+      client.send(payload)
+    }
+  }
+  agentEvents.on('agent-message', broadcastAgent)
 
   // Register notification listener
   if (notificationService) {
     notificationService.onNotification(broadcastNotification)
   }
-
-  // Fabrick ACL: should this client's VM list be filtered?
-  const isFabrickAcl = config?.tier === TIERS.FABRICK && aclStore
 
   function startBroadcastLoop() {
     if (broadcastTimer) return // already running
@@ -120,8 +158,9 @@ export const wsRoutes: FastifyPluginAsync<WsRouteOptions> = async (fastify, opts
   }
   sessionEvents.on('session-revoked', onSessionRevoked)
 
-  // Clean up listener when plugin is torn down
+  // Clean up listeners when plugin is torn down
   fastify.addHook('onClose', () => {
+    agentEvents.off('agent-message', broadcastAgent)
     sessionEvents.off('session-revoked', onSessionRevoked)
   })
 
@@ -148,15 +187,18 @@ export const wsRoutes: FastifyPluginAsync<WsRouteOptions> = async (fastify, opts
     clients.set(socket, clientInfo)
     startBroadcastLoop()
 
-    // Relay provisioning events to this client
+    // Relay provisioning events to this client, ACL-scoped.
+    //
+    // ProvisioningEvent carries `name` (the workload), plus state, progress and error text, and
+    // this relayed all of it to every socket. Same class as the notification and agent fan-outs.
     const onProvisioning = (event: ProvisioningEvent) => {
-      if (socket.readyState === 1) {
-        socket.send(JSON.stringify({
-          type: 'vm-provisioning',
-          data: event,
-          timestamp: new Date().toISOString(),
-        }))
-      }
+      if (socket.readyState !== 1) return
+      if (!maySee(clientInfo, event.name)) return
+      socket.send(JSON.stringify({
+        type: 'vm-provisioning',
+        data: event,
+        timestamp: new Date().toISOString(),
+      }))
     }
     provisioningEvents.on('state-change', onProvisioning)
 

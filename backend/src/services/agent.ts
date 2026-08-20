@@ -3,6 +3,7 @@
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import { randomUUID } from 'node:crypto'
+import { EventEmitter } from 'node:events'
 import { getVmStatus, getWorkloadDefinitions, getConfig } from './microvm.js'
 import { runMockAgent } from './mock-agent.js'
 import { resolveProvider, getDefaultModel, type LlmVendor } from './llm-provider.js'
@@ -13,6 +14,26 @@ const execFileAsync = promisify(execFile)
 // --- Types ---
 
 type AgentAction = 'diagnose' | 'explain' | 'suggest'
+
+/**
+ * A workload-scoped agent message, on its way to whoever is allowed to see that workload.
+ *
+ * The `vmName` is not part of the wire protocol — `AgentWsMessage` is what reaches the client, and
+ * it deliberately still carries only the operation id. This envelope exists so the WebSocket layer
+ * has the one fact it needs to make an ACL decision, because the route used to make no decision at
+ * all: it iterated `fastify.websocketServer.clients` — the raw `ws` set, which holds no auth info —
+ * and sent the model's analysis of one workload's journal logs to every connected socket.
+ *
+ * See `routes/ws.ts` `maySee()`. Emitting rather than broadcasting is what forces every outbound
+ * workload message through that single decision.
+ */
+export interface AgentBroadcast {
+  vmName: string
+  message: AgentWsMessage
+}
+
+/** Agent output, fanned out by the WebSocket layer under ACL. Mirrors `provisioningEvents`. */
+export const agentEvents = new EventEmitter()
 
 export interface AgentWsMessage {
   type: 'agent-token' | 'agent-complete' | 'agent-error'

@@ -53,10 +53,22 @@ jobs:
         working-directory: ${{ github.repository == 'whizbangdevelopers-org/Weaver-Dev' && 'code' || '.' }}
         run: npm ci
 
+      # BLOCKING as of 2026-08-19. It carried `continue-on-error: true`, and while it did,
+      # @fastify/static sat at 9.3.0 against two advisories — one an authorization bypass via
+      # non-canonical URL paths, the other a route guard bypass via path traversal — in a module
+      # registered at the root serving the SPA, on a request path the auth middleware explicitly
+      # skips (`if (!path.startsWith('/api/')) return`). The audit reported it on every run.
+      #
+      # What made that costly rather than merely untidy: our own security review had already
+      # accepted a related risk on the stated grounds that "npm audit in CI catches known
+      # vulnerabilities". A control configured never to fail is not a control, and recording one
+      # as a mitigation converts a visible finding into an invisible one.
+      #
+      # If a finding here is genuinely acceptable, record it in the audit report step's summary
+      # and add an explicit, dated exception — never restore continue-on-error.
       - name: Run npm audit
         working-directory: ${{ github.repository == 'whizbangdevelopers-org/Weaver-Dev' && 'code' || '.' }}
         run: npm audit --audit-level=high
-        continue-on-error: true
 
       - name: Generate audit report
         working-directory: ${{ github.repository == 'whizbangdevelopers-org/Weaver-Dev' && 'code' || '.' }}

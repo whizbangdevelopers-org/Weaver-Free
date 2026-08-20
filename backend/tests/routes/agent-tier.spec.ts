@@ -2,13 +2,17 @@
 // Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE.
 import { describe, it, expect, vi, beforeAll, afterAll, beforeEach } from 'vitest'
 
-vi.mock('../../src/services/agent.js', () => ({
-  runAgent: vi.fn(),
-  getOperation: vi.fn(),
-  hasActiveOperation: vi.fn(),
-}))
+vi.mock('../../src/services/agent.js', async () => {
+  const { EventEmitter } = await import('node:events')
+  return {
+    runAgent: vi.fn(),
+    getOperation: vi.fn(),
+    hasActiveOperation: vi.fn(),
+    agentEvents: new EventEmitter(),
+  }
+})
 
-import Fastify from 'fastify'
+import Fastify, { type FastifyRequest } from 'fastify'
 import websocket from '@fastify/websocket'
 import {
   serializerCompiler,
@@ -61,6 +65,19 @@ describe('Agent Tier Enforcement', () => {
       fastify.setSerializerCompiler(serializerCompiler)
       await fastify.register(websocket)
 
+      // These cases are about TIER gating, so the role is held at operator throughout — the
+      // least-privileged role permitted to start an operation. Role enforcement itself is
+      // asserted in agent.spec.ts; without this the tier assertions would all read 403 and
+      // stop testing tiers at all.
+      fastify.decorateRequest('userId', undefined)
+      fastify.decorateRequest('userRole', undefined)
+      fastify.decorateRequest('username', undefined)
+      fastify.addHook('onRequest', async (request: FastifyRequest) => {
+        request.userRole = 'operator'
+        request.userId = 'test-user-id'
+        request.username = 'test-user'
+      })
+
       // Free tier WITH server key configured
       const config = makeConfig({ tier: 'free', aiApiKey: 'sk-ant-test-server-key' })
       await fastify.register(agentRoutes, { prefix: '/api/workload', config })
@@ -112,6 +129,19 @@ describe('Agent Tier Enforcement', () => {
       fastify.setSerializerCompiler(serializerCompiler)
       await fastify.register(websocket)
 
+      // These cases are about TIER gating, so the role is held at operator throughout — the
+      // least-privileged role permitted to start an operation. Role enforcement itself is
+      // asserted in agent.spec.ts; without this the tier assertions would all read 403 and
+      // stop testing tiers at all.
+      fastify.decorateRequest('userId', undefined)
+      fastify.decorateRequest('userRole', undefined)
+      fastify.decorateRequest('username', undefined)
+      fastify.addHook('onRequest', async (request: FastifyRequest) => {
+        request.userRole = 'operator'
+        request.userId = 'test-user-id'
+        request.username = 'test-user'
+      })
+
       const config = makeConfig({ tier: 'solo', aiApiKey: 'sk-ant-test-server-key' })
       await fastify.register(agentRoutes, { prefix: '/api/workload', config })
       await fastify.ready()
@@ -149,6 +179,19 @@ describe('Agent Tier Enforcement', () => {
       fastify.setSerializerCompiler(serializerCompiler)
       await fastify.register(websocket)
 
+      // These cases are about TIER gating, so the role is held at operator throughout — the
+      // least-privileged role permitted to start an operation. Role enforcement itself is
+      // asserted in agent.spec.ts; without this the tier assertions would all read 403 and
+      // stop testing tiers at all.
+      fastify.decorateRequest('userId', undefined)
+      fastify.decorateRequest('userRole', undefined)
+      fastify.decorateRequest('username', undefined)
+      fastify.addHook('onRequest', async (request: FastifyRequest) => {
+        request.userRole = 'operator'
+        request.userId = 'test-user-id'
+        request.username = 'test-user'
+      })
+
       const config = makeConfig({ tier: 'fabrick', aiApiKey: 'sk-ant-test-server-key' })
       await fastify.register(agentRoutes, { prefix: '/api/workload', config })
       await fastify.ready()
@@ -185,6 +228,19 @@ describe('Agent Tier Enforcement', () => {
       fastify.setValidatorCompiler(validatorCompiler)
       fastify.setSerializerCompiler(serializerCompiler)
       await fastify.register(websocket)
+
+      // These cases are about TIER gating, so the role is held at operator throughout — the
+      // least-privileged role permitted to start an operation. Role enforcement itself is
+      // asserted in agent.spec.ts; without this the tier assertions would all read 403 and
+      // stop testing tiers at all.
+      fastify.decorateRequest('userId', undefined)
+      fastify.decorateRequest('userRole', undefined)
+      fastify.decorateRequest('username', undefined)
+      fastify.addHook('onRequest', async (request: FastifyRequest) => {
+        request.userRole = 'operator'
+        request.userId = 'test-user-id'
+        request.username = 'test-user'
+      })
 
       // Free tier WITHOUT server key — falls through to mock mode
       const config = makeConfig({ tier: 'free', aiApiKey: '' })
@@ -224,6 +280,19 @@ describe('Agent Tier Enforcement', () => {
       fastify.setValidatorCompiler(validatorCompiler)
       fastify.setSerializerCompiler(serializerCompiler)
       await fastify.register(websocket)
+
+      // These cases are about TIER gating, so the role is held at operator throughout — the
+      // least-privileged role permitted to start an operation. Role enforcement itself is
+      // asserted in agent.spec.ts; without this the tier assertions would all read 403 and
+      // stop testing tiers at all.
+      fastify.decorateRequest('userId', undefined)
+      fastify.decorateRequest('userRole', undefined)
+      fastify.decorateRequest('username', undefined)
+      fastify.addHook('onRequest', async (request: FastifyRequest) => {
+        request.userRole = 'operator'
+        request.userId = 'test-user-id'
+        request.username = 'test-user'
+      })
 
       const config = makeConfig({ tier: 'demo', aiApiKey: 'sk-ant-test-server-key' })
       await fastify.register(agentRoutes, { prefix: '/api/workload', config })

@@ -42,7 +42,7 @@ CIS Controls v8.1 tiers safeguards by Implementation Group — IG1 for basic cyb
 | Safeguard | Requirement | Weaver Implementation | Status | Tier |
 |-----------|------------|----------------------|--------|------|
 | 3.1 | Establish and maintain data management process | Weaver manages workload infrastructure, not application data directly. Declarative config documents where data lives (per-VM disk paths, bind mounts, storage pool references) | Partial (infrastructure layer) | Free |
-| 3.3 | Configure data access control lists | Per-VM RBAC; tier-gated access; audit log for all data-access infrastructure events | Implemented | Fabrick (per-VM ACLs) |
+| 3.3 | Configure data access control lists | Per-VM RBAC (opt-in per user); tier-gated access; audit log for all data-access infrastructure events | Implemented | Fabrick (per-VM ACLs) |
 | 3.6 | Encrypt data on end-user devices | NixOS LUKS full-disk encryption (deployer responsibility). Weaver does not manage endpoint devices | Deployer Responsibility | Free |
 | 3.11 | Encrypt sensitive data at rest | sops-nix for application secrets; NixOS LUKS for disk encryption (deployer) | Planned (sops-nix) / Deployer (disk) | Solo+ |
 
@@ -66,7 +66,7 @@ CIS Controls v8.1 tiers safeguards by Implementation Group — IG1 for basic cyb
 | 5.1 | Establish and maintain an inventory of accounts | User list API (`GET /api/users`); RBAC roles; audit log tracks all account lifecycle events | Implemented | Free |
 | 5.2 | Use unique passwords | 14+ character complex passwords required (NIST 800-63B); bcrypt cost 13; password reuse prevention | Implemented | Free |
 | 5.3 | Disable dormant accounts | User deletion API; role change audit trail; deployer responsibility for inactive-user review cadence | Implemented (tooling) / Deployer Responsibility (cadence) | Free |
-| 5.4 | Restrict administrator privileges to dedicated administrator accounts | Admin/Operator/Viewer role separation; per-VM ACLs at Fabrick | Implemented | Free (roles), Fabrick (per-VM) |
+| 5.4 | Restrict administrator privileges to dedicated administrator accounts | Admin/Operator/Viewer role separation; per-VM ACLs at Fabrick (opt-in per user) | Implemented | Free (roles), Fabrick (per-VM) |
 | 5.5 | Establish and maintain an inventory of service accounts | Dedicated `weaver` service user; sops-nix credential management (Solo+) | Implemented | Free (basic), Solo+ (sops-nix) |
 | 5.6 | Centralize account management | SSO/SAML/LDAP integration via auth plugin | Planned | Solo+ (v1.2), Fabrick (SAML/LDAP) |
 
@@ -79,7 +79,7 @@ CIS Controls v8.1 tiers safeguards by Implementation Group — IG1 for basic cyb
 | 6.3 | Require MFA for externally exposed applications | MFA (TOTP/FIDO2) via auth plugin | Planned | Solo+ |
 | 6.5 | Require MFA for administrative access | MFA required for Admin role at Solo+ | Planned | Solo+ |
 | 6.7 | Centralize access control | SSO/SAML/LDAP integration | Planned | Solo+ / Fabrick |
-| 6.8 | Define and maintain role-based access control | Admin/Operator/Viewer roles implemented; per-VM ACLs at Fabrick | Implemented | Free (roles), Fabrick (per-VM) |
+| 6.8 | Define and maintain role-based access control | Admin/Operator/Viewer roles implemented; per-VM ACLs at Fabrick (opt-in per user) | Implemented | Free (roles), Fabrick (per-VM) |
 
 ## Control 7 — Continuous Vulnerability Management
 

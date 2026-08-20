@@ -50,8 +50,16 @@
 | PCI DSS ID | Requirement | Weaver Implementation | Status | Tier |
 |------------|------------|----------------------|--------|------|
 | 7.2.1 | Access control model defined | Three roles: Admin (full), Operator (workload management), Viewer (read-only); documented in DEVELOPER-GUIDE | Implemented | Free |
-| 7.2.2 | Access assigned based on job function | `requireRole()` middleware enforces role on every route; per-VM ACLs for fine-grained access (Fabrick) | Implemented | Free (RBAC), Fabrick (per-VM ACLs) |
+| 7.2.2 | Access assigned based on job function | Role enforced on every authenticated route (`requireRole()` preHandler, or an equivalent inline check); per-VM ACLs for fine-grained access (Fabrick; opt-in per user — see §7.3.3 note below) | Implemented | Free (RBAC), Fabrick (per-VM ACLs) |
 | 7.2.5 | Access rights reviewed periodically | User management UI (`GET /api/users`); Admin can view/modify all user roles | Implemented (tooling provided; review schedule is deployer responsibility) | Free |
+| 7.3.3 | Access control system set to "deny all" by default | **Partial — read this before relying on per-VM ACLs for a CDE boundary.** Role-based access is deny-by-default: an unauthenticated request is rejected, and a role that lacks a permission is refused. Per-VM ACLs are **not**: they are opt-in per user, and a user with no ACL assigned can reach every workload. Assigning an explicit ACL to every non-admin user is therefore a deployer responsibility, not something the product enforces for you. | Partial (roles: implemented · per-VM ACLs: deployer-configured) | Free (roles), Fabrick (per-VM ACLs) |
+
+> **§7.3.3 note — per-VM ACL default.** `VmAclStore.isAllowed()` returns `true` when a user has no
+> ACL entries, so ACLs restrict only the users you explicitly scope. This is a deliberate product
+> choice (it keeps small deployments usable without per-user configuration) and it is stated here
+> rather than in the implementation column because a QSA assessing a CDE boundary needs it up
+> front. If you are using per-VM ACLs as a cardholder-data segmentation control, assign an ACL to
+> every non-admin account and verify it — an unassigned account is unrestricted.
 
 ## Requirement 8 — Identify Users and Authenticate Access
 
