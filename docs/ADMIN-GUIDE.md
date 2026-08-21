@@ -590,10 +590,19 @@ The backend enforces rate limits automatically with no configuration needed:
 |----------|-------|--------|
 | Auth routes (login, register, refresh) | 10 requests | 1 minute |
 | VM mutations (start, stop, restart, create, delete) | 30 requests | 1 minute |
+| WebSocket `/ws/status` (connection attempts) | 30 requests | 1 minute |
 | AI agent | 5/10/30 per tier | 1 minute |
 | All other endpoints | 120 requests | 1 minute |
 
 Rate limits are keyed by authenticated user ID or by IP for unauthenticated requests.
+
+**The WebSocket limit counts connection attempts, not messages** — once a connection is
+established it is not re-counted, and the browser client opens a single shared connection. It is
+also the one entry in this table that is normally keyed **by IP rather than by user**: the
+connection authenticates *after* the upgrade, so there is no user identity yet at the moment the
+limit is applied. Several operators behind one NAT therefore share this budget. The client backs
+off exponentially (1s to 30s) when a connection drops, so ordinary reconnection stays well inside
+30/minute; sustained 429s on this endpoint indicate a reconnect loop rather than normal use.
 
 ### Account Lockout
 
