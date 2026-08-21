@@ -218,6 +218,7 @@ export const PHASES: Phase[] = [
       'audit:auditor-contracts',
       'audit:rule-contracts',
       'audit:vite-aliases',
+      'audit:mcp-base-neutral',
       'audit:ownership',
       'audit:ci-gates',
       'audit:outbound-authz',
