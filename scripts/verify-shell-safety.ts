@@ -83,6 +83,36 @@ export function findHeredocSubstitutions(content: string, path = ''): Finding[] 
   return out
 }
 
+/**
+ * Rule G — a GATE whose exit status is discarded.
+ *
+ * `npm run audit:x || true` converts a refusal into an invisible success: the command still
+ * prints its finding, the script still exits 0, and CI still goes green. That is the same act as
+ * `--no-verify`, one layer in — see ~/.claude/rules/bypass-permissions-is-not-bypass-the-system.md,
+ * whose PreToolUse hook blocks it at the moment of typing. This is that hook's ARTIFACT backstop:
+ * the hook protects one agent in one tool on one machine, and a committed script outlives all
+ * three.
+ *
+ * `|| true` is legitimate on CLEANUP and on PROBES, where a non-zero exit carries no verdict —
+ * `rm -f`, `pkill`, an existence test. It is never legitimate on something whose whole purpose is
+ * to fail. So the rule keys on the COMMAND being swallowed, not on `|| true` itself.
+ */
+const GATE = /(?:npm(?:[ \t]+--prefix[ \t]+\S+)?[ \t]+run[ \t]+(?:audit|test|check|verify|lint|typecheck)[:a-z0-9-]*|(?:\.\/|bash[ \t]+|npx[ \t]+tsx[ \t]+|python3[ \t]+)?[\w./-]*(?:audit|verify|check)[\w./-]*\.(?:sh|ts|py|mjs))[^\n|&]*\|\|[ \t]*(?:true|:)(?=[ \t;&|#]|$)/
+/** A deliberate, reasoned exemption. Checked over the WHOLE line — the comment trails the `||`. */
+const GATE_OK = /#[^\n]*gate-ok:\s*\S/
+
+/** Pure: which lines discard a gate's exit status? */
+export function findSwallowedGates(content: string, path = ''): Finding[] {
+  const out: Finding[] = []
+  content.split('\n').forEach((raw, i) => {
+    const line = raw.trim()
+    if (!line || line.startsWith('#')) return
+    if (SUPPRESS.test(raw) || GATE_OK.test(raw)) return
+    if (GATE.test(raw)) out.push({ file: path, line: i + 1, text: line })
+  })
+  return out
+}
+
 const MUST_CATCH: [string, string][] = [
   ['the 2026-08-07 entry mangle', 'cat >> f.md <<ENTRY\nbucketing by `created_at` was in place\nENTRY\n'],
   ['dollar-paren in an unquoted body', 'cat <<EOF\nbuilt at $(date)\nEOF\n'],
@@ -99,10 +129,37 @@ const MUST_IGNORE: [string, string][] = [
   ['suppressed with a reason', 'cat <<EOF # shell-safety-ok: generator, the body is meant to expand\nbuilt $(date)\nEOF\n'],
 ]
 
+const GATE_CATCH: [string, string][] = [
+  ['npm audit script swallowed', 'npm --prefix /a/b run audit:vocabulary || true\n'],
+  ['bare npm run test swallowed', 'npm run test:compliance || true\n'],
+  ['a verify script swallowed', './scripts/verify-shell-safety.ts || true\n'],
+  ['swallowed with : instead of true', 'npm run audit:sast || :\n'],
+  ['tsx-invoked auditor swallowed', 'npx tsx scripts/audit-code-scanning.ts || true\n'],
+]
+const GATE_IGNORE: [string, string][] = [
+  // The reason `|| true` exists at all — a non-zero exit here carries no verdict.
+  ['cleanup', 'rm -f /tmp/scratch || true\n'],
+  ['a probe whose failure is expected', 'pgrep -f thing >/dev/null || true\n'],
+  ['unmount that may not be mounted', 'umount /mnt/x || true\n'],
+  // The gate is RUN, not swallowed.
+  ['gate run normally', 'npm --prefix /a/b run audit:vocabulary\n'],
+  ['gate whose status IS checked', 'npm run audit:sast || exit 1\n'],
+  ['a comment about the pattern', '# never write: npm run audit:x || true\n'],
+  ['deliberate, with a stated reason', 'npm run audit:optional || true  # gate-ok: advisory, no verdict\n'],
+  ['shell-safety-ok suppression honoured', 'npm run audit:x || true  # shell-safety-ok: fixture\n'],
+]
+
 function selfTest(): string[] {
   const fails: string[] = []
   for (const [name, src] of MUST_CATCH) {
     if (findHeredocSubstitutions(src, 'x.sh').length === 0) fails.push(`MUST CATCH but did not: ${name}`)
+  }
+  for (const [name, src] of GATE_CATCH) {
+    if (findSwallowedGates(src, 'x.sh').length === 0) fails.push(`GATE MUST CATCH but did not: ${name}`)
+  }
+  for (const [name, src] of GATE_IGNORE) {
+    const g = findSwallowedGates(src, 'x.sh')
+    if (g.length) fails.push(`GATE MUST IGNORE but flagged: ${name} -> ${JSON.stringify(g)}`)
   }
   for (const [name, src] of MUST_IGNORE) {
     const got = findHeredocSubstitutions(src, 'x.sh')
@@ -126,13 +183,16 @@ function main(): number {
     for (const f of fails) console.error(`    ${f}`)
     return 1
   }
-  console.log(`  \x1b[32m✓\x1b[0m self-test: ${MUST_CATCH.length} catch + ${MUST_IGNORE.length} ignore cases\n`)
+  console.log(`  \x1b[32m✓\x1b[0m self-test: ${MUST_CATCH.length + GATE_CATCH.length} catch + ` +
+    `${MUST_IGNORE.length + GATE_IGNORE.length} ignore cases (heredoc + swallowed-gate)\n`)
 
   // audit:auditor-contracts reads this line to see BOTH halves rather than trust they exist.
-  console.log(`  auditor-contract: catch=${MUST_CATCH.length} ignore=${MUST_IGNORE.length}`)
+  console.log(`  auditor-contract: catch=${MUST_CATCH.length + GATE_CATCH.length} ` +
+    `ignore=${MUST_IGNORE.length + GATE_IGNORE.length}`)
   const tracked = execFileSync('git', ['-C', REPO, 'ls-files'], { encoding: 'utf-8' })
     .split('\n').filter(Boolean)
   const found: Finding[] = []
+  const gates: Finding[] = []
   let scanned = 0
   for (const rel of tracked) {
     let body: string
@@ -140,6 +200,16 @@ function main(): number {
     if (!isShell(rel, body)) continue
     scanned++
     found.push(...findHeredocSubstitutions(body, rel))
+    gates.push(...findSwallowedGates(body, rel))
+  }
+
+  if (gates.length) {
+    for (const g of gates) console.log(`\x1b[31m  ✗ ${g.file}:${g.line}\x1b[0m  ${g.text.slice(0, 96)}`)
+    console.log(`\n\x1b[31m\x1b[1mRESULT: FAIL\x1b[0m — ${gates.length} gate(s) with a discarded exit status.`)
+    console.log('  `|| true` on something whose purpose is to FAIL converts a refusal into an')
+    console.log('  invisible success — the same act as --no-verify, one layer in.')
+    console.log('  Fine on cleanup and probes. If genuinely advisory, say so:  # gate-ok: <reason>')
+    return 1
   }
 
   if (found.length) {
@@ -150,7 +220,7 @@ function main(): number {
     console.log('  Genuinely a generator? add:  # shell-safety-ok: <reason>')
     return 1
   }
-  console.log(`\x1b[32m\x1b[1mRESULT: PASS\x1b[0m — ${scanned} shell file(s), no self-executing heredocs`)
+  console.log(`\x1b[32m\x1b[1mRESULT: PASS\x1b[0m — ${scanned} shell file(s), no self-executing heredocs, no swallowed gates`)
   return 0
 }
 
