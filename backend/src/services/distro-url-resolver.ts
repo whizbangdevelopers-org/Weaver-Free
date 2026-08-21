@@ -181,11 +181,37 @@ export async function resolveDistroUrl(
   return { resolved: null, strategy: null, tried }
 }
 
+/**
+ * True when the URL's HOST is `domain` or a subdomain of it.
+ *
+ * Deliberately not `url.includes(domain)`, which is what this dispatched on until 2026-08-21.
+ * A substring test matches the domain anywhere in the URL — in the path, in a query parameter,
+ * or as the left-hand label of a lookalike — so `https://evil.example/?ref=fedoraproject.org`
+ * and `https://fedoraproject.org.evil.example/` both reached the Fedora generator.
+ *
+ * CodeQL flags that as js/incomplete-url-substring-sanitization, and the security framing
+ * undersells it: nothing here grants trust on the strength of this test, so it was never a
+ * sanitizer. It is a DISPATCHER, and it was dispatching on the wrong thing — a plain
+ * correctness bug that a security rule happened to notice first.
+ *
+ * Returns false rather than throwing when the value does not parse as a URL: a catalog entry
+ * can hold anything an admin typed, and an unparseable one matches no generator.
+ */
+export function isHost(url: string, domain: string): boolean {
+  let host: string
+  try {
+    host = new URL(url).hostname.toLowerCase()
+  } catch {
+    return false
+  }
+  return host === domain || host.endsWith(`.${domain}`)
+}
+
 /** Build the candidate list for an entry from whatever generators apply to it. */
 export function candidatesFor(url: string, fedoraIndex?: unknown): UrlCandidate[] {
   const out: UrlCandidate[] = []
-  if (url.includes('channels.nixos.org')) out.push(...nixosCandidates(url))
-  if (url.includes('fedoraproject.org') && fedoraIndex !== undefined) out.push(...fedoraCandidates(fedoraIndex))
+  if (isHost(url, 'channels.nixos.org')) out.push(...nixosCandidates(url))
+  if (isHost(url, 'fedoraproject.org') && fedoraIndex !== undefined) out.push(...fedoraCandidates(fedoraIndex))
   out.push(...versionBumpCandidates(url))
   return out
 }

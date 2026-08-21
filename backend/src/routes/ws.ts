@@ -10,6 +10,7 @@ import type { NotificationService } from '../services/notification.js'
 import type { NotificationEvent } from '../models/notification.js'
 import { agentEvents, type AgentBroadcast } from '../services/agent.js'
 import { verifyWsToken } from '../middleware/auth.js'
+import { createRateLimit } from '../middleware/rate-limit.js'
 import type { VmAclStore } from '../storage/vm-acl-store.js'
 import type { DashboardConfig } from '../config.js'
 import { TIERS, ROLES } from '../constants/vocabularies.js'
@@ -164,7 +165,25 @@ export const wsRoutes: FastifyPluginAsync<WsRouteOptions> = async (fastify, opts
     sessionEvents.off('session-revoked', onSessionRevoked)
   })
 
-  fastify.get('/ws/status', { websocket: true }, async (socket, request) => {
+  // Rate-limited at the ROUTE, not left to the global 120/min default. The handler performs
+  // authorization (verifyWsToken below), which is what CodeQL's js/missing-rate-limiting flags —
+  // and the rule cannot see a globally-registered plugin, only a route-level config.
+  //
+  // The global limit does in fact cover this route: @fastify/rate-limit's hook was verified to
+  // fire on a websocket UPGRADE, not merely on plain requests. So this is a tightening, not a
+  // repair — and it is preferred over dismissing the alert because a route-level limit keeps the
+  // control local. A dismissal would go on outliving a refactor that drops the global one.
+  //
+  // 30/min rather than the 10 the auth routes use: the limiter keys on `userId ?? ip`, and the
+  // upgrade authenticates INSIDE the handler, so there is no userId yet and every client behind
+  // one NAT shares a budget. The frontend backs off 1s→30s capped (src/services/ws.ts), which is
+  // ~6 attempts in a worst-case minute, so 30 leaves headroom for several colleagues reconnecting
+  // together while staying 4× tighter than the default. createRateLimit() already neutralises
+  // itself under test mode, so this needs no separate test-mode branch.
+  fastify.get('/ws/status', {
+    websocket: true,
+    config: { rateLimit: createRateLimit(30) },
+  }, async (socket, request) => {
     // Verify WebSocket auth token from query parameter or httpOnly cookie.
     // Browser clients use cookies (httpOnly means JS can't read them to put in query).
     // Non-browser clients (curl, tests) can use the ?token= query parameter.
