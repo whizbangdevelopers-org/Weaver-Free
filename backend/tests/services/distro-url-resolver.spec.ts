@@ -9,6 +9,7 @@ import {
   fedoraCandidates,
   versionBumpCandidates,
   candidatesFor,
+  isHost,
   resolveDistroUrl,
   type HeadProbe,
 } from '../../src/services/distro-url-resolver.js'
@@ -176,5 +177,53 @@ describe('candidatesFor', () => {
       { version: '44', variant: 'Cloud', arch: 'x86_64', link: LIVE_FEDORA },
     ])
     expect(withIndex.some((c) => c.strategy === 'fedora-index')).toBe(true)
+  })
+
+  // Dispatch keys on the HOST, never on a substring of the whole URL. A URL that merely
+  // CONTAINS 'fedoraproject.org' — in its path, its query, or a lookalike domain — must not
+  // reach the Fedora generator. `url.includes(...)` accepted all three of these until
+  // 2026-08-21; CodeQL flagged it as js/incomplete-url-substring-sanitization, and the
+  // security framing undersold it — it was a plain dispatch bug as well.
+  it('does not route a lookalike or path-embedded host to a generator', () => {
+    for (const hostile of [
+      'https://evil.example/?ref=fedoraproject.org',
+      'https://fedoraproject.org.evil.example/x.qcow2',
+      'https://evil.example/fedoraproject.org/x.qcow2',
+    ]) {
+      const out = candidatesFor(hostile, [
+        { version: '44', variant: 'Cloud', arch: 'x86_64', link: LIVE_FEDORA },
+      ])
+      expect(out.some((c) => c.strategy === 'fedora-index')).toBe(false)
+    }
+    expect(
+      candidatesFor('https://notchannels.nixos.org.evil/x.iso').some(
+        (c) => c.strategy === 'nixos-variant-rename'
+      )
+    ).toBe(false)
+  })
+})
+
+describe('isHost', () => {
+  it('matches the domain itself and its subdomains', () => {
+    expect(isHost('https://fedoraproject.org/releases.json', 'fedoraproject.org')).toBe(true)
+    expect(isHost('https://download.fedoraproject.org/pub/x.qcow2', 'fedoraproject.org')).toBe(true)
+    expect(isHost('https://dl.fedoraproject.org/pub/archive/x.qcow2', 'fedoraproject.org')).toBe(true)
+    expect(isHost(DEAD_NIXOS, 'channels.nixos.org')).toBe(true)
+  })
+
+  it('rejects the substring matches that the old check accepted', () => {
+    expect(isHost('https://evil.example/?ref=fedoraproject.org', 'fedoraproject.org')).toBe(false)
+    expect(isHost('https://fedoraproject.org.evil.example/x', 'fedoraproject.org')).toBe(false)
+    expect(isHost('https://evil.example/fedoraproject.org/x', 'fedoraproject.org')).toBe(false)
+    expect(isHost('https://notchannels.nixos.org.evil/x', 'channels.nixos.org')).toBe(false)
+  })
+
+  it('returns false rather than throwing on a value that is not a URL', () => {
+    expect(isHost('not a url at all', 'fedoraproject.org')).toBe(false)
+    expect(isHost('', 'fedoraproject.org')).toBe(false)
+  })
+
+  it('does not match an unrelated host', () => {
+    expect(isHost('https://cloud-images.ubuntu.com/noble/current/x.img', 'fedoraproject.org')).toBe(false)
   })
 })

@@ -14,7 +14,7 @@ import { TIERS, ROLES, STATUSES } from '../constants/vocabularies.js'
 import type { DashboardConfig } from '../config.js'
 import type { AuditService } from '../services/audit.js'
 import type { DistroTester } from '../services/distro-tester.js'
-import { candidatesFor, resolveDistroUrl, type HeadProbe } from '../services/distro-url-resolver.js'
+import { candidatesFor, isHost, resolveDistroUrl, type HeadProbe } from '../services/distro-url-resolver.js'
 
 /** Response shape for a single distro entry */
 interface DistroEntry {
@@ -350,7 +350,11 @@ export const distroRoutes: FastifyPluginAsync<DistroRouteOptions> = async (fasti
       // that said nothing.
       let fedoraIndex: unknown
       let indexError: string | undefined
-      if (recordedUrl.includes('fedoraproject.org')) {
+      // isHost, not `.includes` — the same dispatch bug the resolver carried. The fetch target
+      // below is a hardcoded literal so nothing user-supplied ever reaches it, but a URL that
+      // merely mentions fedoraproject.org in its path or query should not spend an outbound
+      // request either.
+      if (isHost(recordedUrl, 'fedoraproject.org')) {
         try {
           const res = await fetch('https://fedoraproject.org/releases.json', {
             signal: AbortSignal.timeout(15_000),
