@@ -4,6 +4,22 @@
 # CREATED IN: Weaver-Dev (synced to Weaver-Free)
 # USED BY: Security posture — classifies CodeQL alerts into production failures vs. warnings
 # TRIGGERS: After CodeQL Analysis completes on main, release tags, manual dispatch
+#
+# READING A FAILURE — the two cases need opposite responses, and the job says which:
+#   AUDIT_EXIT=1  production security findings. Fix them, or add a CONFIRMED false positive to
+#                 scripts/baselines/code-scanning-dismiss.json with a reason. An accepted RISK is
+#                 not a false positive and does not belong in that file.
+#   AUDIT_EXIT=2  the audit could not run at all — an auth or fetch failure, NOT a security
+#                 finding. Usually an expired credential.
+# Both print an ::error:: naming which case it was. Check that before assuming a finding.
+#
+# A failure also raises an alert. That watchdog lives on Weaver-Dev only and is deliberately not
+# synced here: this workflow runs on the public repo, so an alert shipped alongside it would
+# publish "the security gate is failing" to anyone watching. The audit on Dev reads the same
+# alerts cross-repo, so the Dev-side run carries the same verdict and the issue stays private.
+#
+# This ran red for six consecutive days in August 2026 before that watchdog existed. Nothing
+# reported it; it was found by accident.
 
 name: Code Scanning Audit
 
