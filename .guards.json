@@ -1,27 +1,27 @@
 {
   "version": 1,
   "repo": "weaver",
-  "_what": "This repo's proof-tested guards. Read by Forge/guards/run-guards.py. The `discover` command enumerates every `audit:*` npm script, so --coverage reports the TRUE gap rather than the size of this hand-written list — which is the whole point, and the defect the registry exists to prevent.",
+  "_what": "This repo's proof-tested guards. Read by Forge/guards/run-guards.py. The `discover` command enumerates every `audit:*` npm script, so --coverage reports the TRUE gap rather than the size of this hand-written list \u2014 which is the whole point, and the defect the registry exists to prevent.",
   "discover": "node -e \"const p=require('./package.json');Object.keys(p.scripts).filter(k=>k.startsWith('audit:')).forEach(k=>console.log(k))\"",
   "guards": [
     {
       "id": "audit:sast",
       "what": "static secret + injection scan across src, backend, scripts, config, tests, public and root config",
-      "why": "the reference implementation for control corpora. The PREVIOUS hardcoded-secret rule sat green in test:compliance while blind to every real credential — it demanded 20+ chars (the leaked password was 14), excluded punctuation, never read .php or .xml, and skipped any line containing 'test'. It now self-tests against scripts/fixtures/sast-secret-corpus.txt and REFUSES to scan if the corpus fails.",
+      "why": "the reference implementation for control corpora. The PREVIOUS hardcoded-secret rule sat green in test:compliance while blind to every real credential \u2014 it demanded 20+ chars (the leaked password was 14), excluded punctuation, never read .php or .xml, and skipped any line containing 'test'. It now self-tests against scripts/fixtures/sast-secret-corpus.txt and REFUSES to scan if the corpus fails.",
       "run": "npm --prefix /home/mark/Projects/active/fabrick-weaver-project/code run audit:sast",
       "proof": "npm --prefix /home/mark/Projects/active/fabrick-weaver-project/code run audit:sast",
       "interval_days": 7,
       "timeout": 600,
-      "proof_note": "the corpus check is IN the run — a corpus failure aborts the scan, so running it is proving it. Split into a distinct --self-test if that coupling ever loosens."
+      "proof_note": "the corpus check is IN the run \u2014 a corpus failure aborts the scan, so running it is proving it. Split into a distinct --self-test if that coupling ever loosens."
     },
     {
       "id": "audit:vocabulary-current",
       "what": "vocabulary sync between the canonical term list and its consumers",
-      "why": "verify-vocabulary-sync.ts carries fixture-based cases; registered so the fixtures are exercised on a schedule.",
+      "why": "Flags a RETIRED tier/vocabulary term used as if it were current, in prose. Every rule fires on an ordinary English word -- premium, enterprise, plugin -- so the IGNORE half carries as much weight as the CATCH half: a rule that flags legitimate usage gets switched off, after which it catches nothing at all.",
       "run": "npm --prefix /home/mark/Projects/active/fabrick-weaver-project/code run audit:vocabulary-current",
-      "proof": null,
-      "unproven_reason": "references fixtures but exposes no --self-test entry point; needs a paired must-catch/must-ignore case before it can be called proven.",
-      "interval_days": 7
+      "proof": "npx tsx /home/mark/Projects/active/fabrick-weaver-project/code/scripts/audit-vocabulary-current.ts --self-test",
+      "interval_days": 7,
+      "negative_test": "2026-08-21, four mutations of the real config, all confirmed to fail the corpus: (a) drop the `premium` rename -> CATCH miss on the tier-name case; (b) drop `tiers-weaver` -> CATCH miss on the retired-constant case; (c) empty `external_tech_qualifiers` -> IGNORE false-positive on 'A Fastify plugin registers its own routes'; (d) widen `enterprise` to a bare word -> IGNORE false-positive on the buyer-segment sentence. The negative test also found TWO of the nine cases proving nothing on first draft: both sat under code/docs/, which is outside scan_paths, and one of those was additionally passing via a different rule matching the word 'tier'. Both were replaced."
     }
   ]
 }
