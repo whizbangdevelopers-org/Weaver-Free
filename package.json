@@ -214,6 +214,7 @@
     "audit:rule-contracts": "npx tsx scripts/verify-rule-contracts.ts",
     "audit:rule-contracts:global": "npx tsx scripts/verify-rule-contracts.ts --repo /home/mark/.claude --manifest /home/mark/.claude/rule-contracts.json",
     "audit:vite-aliases": "npx tsx scripts/verify-vite-aliases.ts",
+    "audit:mcp-base-neutral": "npx tsx scripts/verify-mcp-base-neutral.ts",
     "provision:ownership": "node scripts/provision-ownership.js",
     "audit:outbound-authz": "npx tsx scripts/verify-outbound-authz.ts",
     "audit:ownership": "node scripts/provision-ownership.js --check",

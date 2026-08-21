@@ -144,3 +144,31 @@ code/scripts/provision-ownership.js
 # pinned — weaver had it under a different variable name, gantry inlined two of its four lines in
 # three scripts and nothing in four others, and the template had none at all.
 code/testing/e2e-docker/scripts/lib/host-user.sh
+
+# The shared MCP base, and the guard that keeps it shared-able.
+#
+# The portfolio ran seven independent copies of codebase-mcp. A byte-comparison said 9 of 30 tool
+# files were "identical everywhere" — which reads as a core waiting to be extracted, and was not.
+# They were identical because Gantry had inherited WEAVER'S DATA verbatim: service-architecture.ts
+# hardcoded an initializationOrder naming vmRegistry / ImageManager / Provisioner, compliance-scripts.ts
+# hardcoded Weaver's audit catalogue, and websocket-conventions.ts hardcoded /ws/status and
+# verifyWsToken(). Pinning those three byte-identical would have ENFORCED one product's data on every
+# other product, permanently. Sameness produced by unexamined copying is indistinguishable from
+# sameness produced by good design, and only the second kind belongs on this list.
+#
+# So only the genuinely product-NEUTRAL half is pinned: five tools that derive everything they return
+# from the repo they are pointed at, plus the one shared utility. audit:mcp-base-neutral is what keeps
+# it that way — it fails if a base file names a product, if a product re-forks the file reader, or if a
+# product shadows a base tool with a local copy. All three legs are negative-tested.
+#
+# The utility is on this list for a measured reason, not a theoretical one: Gantry's private copy was
+# missing listFilesRecursive entirely, so its getProjectRules read .claude/rules with a FLAT reader and
+# returned 0 of 15 nested rule files — the always-loaded core/ set, absent with no error. The template
+# and Weaver both had the fix. Nothing compared the three copies. Now something does.
+code/scripts/verify-mcp-base-neutral.ts
+code/codebase-mcp-base/utils/file-reader.ts
+code/codebase-mcp-base/tools/component-tree.ts
+code/codebase-mcp-base/tools/form-validation-rules.ts
+code/codebase-mcp-base/tools/global-vocabulary.ts
+code/codebase-mcp-base/tools/store-signatures.ts
+code/codebase-mcp-base/tools/type-definitions.ts
