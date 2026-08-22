@@ -166,6 +166,11 @@ code/testing/e2e-docker/scripts/lib/host-user.sh
 # returned 0 of 15 nested rule files — the always-loaded core/ set, absent with no error. The template
 # and Weaver both had the fix. Nothing compared the three copies. Now something does.
 code/scripts/verify-mcp-base-neutral.ts
+
+# The knowledge-entry length gate. The SCAN is portfolio-wide — it resolves each repo's store
+# from its own .engram.yaml and skips inherited template projections, so nothing in it is
+# repo-specific. The BASELINE beside it is per-repo data and is deliberately NOT pinned.
+code/scripts/verify-knowledge-entry-length.ts
 code/codebase-mcp-base/utils/file-reader.ts
 code/codebase-mcp-base/tools/component-tree.ts
 code/codebase-mcp-base/tools/form-validation-rules.ts
