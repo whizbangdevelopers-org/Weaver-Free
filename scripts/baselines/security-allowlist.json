@@ -39,12 +39,6 @@
       "addedAt": "2026-06-17",
       "reviewBy": "2026-08-15"
     },
-    "eslint": {
-      "category": "framework-pinned",
-      "reason": "NOT blocked by Quasar \u2014 @quasar/app-vite does not declare eslint at all. The eslint 9\u219210 upgrade is simply unevaluated; js-yaml arrives via @eslint/eslintrc. Re-evaluate on its own merits.",
-      "addedAt": "2026-06-17",
-      "reviewBy": "2026-08-15"
-    },
     "fastify": {
       "category": "framework-pinned",
       "reason": "blocked-by-fastify (v5 breaking API, deferred post-v1.0)",
@@ -64,12 +58,6 @@
       "reviewBy": "2026-09-15"
     },
     "@fastify/static": {
-      "category": "framework-pinned",
-      "reason": "blocked-by-fastify",
-      "addedAt": "2026-06-17",
-      "reviewBy": "2026-09-15"
-    },
-    "@fastify/rate-limit": {
       "category": "framework-pinned",
       "reason": "blocked-by-fastify",
       "addedAt": "2026-06-17",
