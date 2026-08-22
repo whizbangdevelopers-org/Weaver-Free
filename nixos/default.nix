@@ -21,10 +21,39 @@ in
   # else is either
   # the internal PREMIUM_ENABLED env bridge the backend documents as backward compat, or docs
   # describing that bridge.
+  #
+  # The two HMAC options are REMOVED, not renamed and not kept inert. Licence verification is
+  # asymmetric: the product holds public keys compiled into the build and can verify but not
+  # mint, so there is no shared secret to configure and nothing to forward a value to.
+  #
+  # They were retained as inert `mkOption`s so an existing configuration.nix would keep
+  # evaluating. That is the wrong trade, and this is why: an inert option ACCEPTS a value and
+  # does nothing with it, so an operator who sets `licenseHmacSecret` gets a clean rebuild and
+  # believes they have configured licence verification. A removal is a breaking change exactly
+  # once, at rebuild time, with a message naming the replacement. Silent wrong beats loud
+  # correct only if nobody is relying on it — and the whole reason to set this option is that
+  # you believe it does something.
+  #
+  # mkRemovedOptionModule fires ONLY when the option is actually set; a configuration that
+  # never mentioned it is unaffected.
   imports = [
     (lib.mkRenamedOptionModule
       [ "services" "weaver" "premiumEnabled" ]
       [ "services" "weaver" "soloTierEnabled" ])
+    (lib.mkRemovedOptionModule
+      [ "services" "weaver" "licenseHmacSecret" ]
+      ''
+        Licence keys are verified with an Ed25519 public key built into the package, so there is
+        no HMAC secret to configure and this option has had no effect since the asymmetric
+        verifier shipped. Remove it and use services.weaver.licenseKey instead.
+      '')
+    (lib.mkRemovedOptionModule
+      [ "services" "weaver" "licenseHmacSecretFile" ]
+      ''
+        Licence keys are verified with an Ed25519 public key built into the package, so there is
+        no HMAC secret to configure and this option has had no effect since the asymmetric
+        verifier shipped. Remove it and use services.weaver.licenseKeyFile instead.
+      '')
   ];
 
   options.services.weaver = {
@@ -71,33 +100,6 @@ in
         Path to a file containing the license key.
         Useful for secret management with sops-nix.
         Takes precedence over licenseKey if both are set.
-      '';
-    };
-
-    # Both HMAC options are INERT. Licence verification is asymmetric now: the product holds
-    # public keys compiled into the build and can verify but not mint, so there is no shared
-    # secret to configure. The backend stopped reading these entirely — the env vars they used
-    # to set are no longer injected, because a variable nothing reads is a setting that silently
-    # does nothing, which is worse than one that loudly refuses.
-    #
-    # Kept rather than removed so an existing configuration.nix keeps evaluating.
-    licenseHmacSecret = mkOption {
-      type = types.nullOr types.str;
-      default = null;
-      description = ''
-        INERT — no longer read. Licence keys are verified with an Ed25519 public key built into
-        the package, so no HMAC secret exists to configure. Setting this has no effect.
-
-        Use licenseKey / licenseKeyFile instead. Retained only so an existing configuration.nix
-        keeps evaluating.
-      '';
-    };
-
-    licenseHmacSecretFile = mkOption {
-      type = types.nullOr types.str;
-      default = null;
-      description = ''
-        INERT — no longer read. See licenseHmacSecret. Use licenseKeyFile instead.
       '';
     };
 
