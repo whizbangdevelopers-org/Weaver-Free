@@ -226,7 +226,8 @@
     "audit:diagram-currency": "npx tsx scripts/verify-diagram-currency.ts",
     "audit:unverified-claims": "npx tsx scripts/verify-unverified-claims.ts",
     "new:auditor": "npx tsx scripts/new-auditor.ts",
-    "report:gate-provenance": "npx tsx scripts/report-gate-provenance.ts"
+    "report:gate-provenance": "npx tsx scripts/report-gate-provenance.ts",
+    "audit:knowledge-entry-length": "npx tsx scripts/verify-knowledge-entry-length.ts"
   },
   "dependencies": {
     "@quasar/extras": "^1.16.9",
