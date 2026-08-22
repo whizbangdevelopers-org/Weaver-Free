@@ -186,6 +186,7 @@ export const PHASES: Phase[] = [
       'audit:release-workflow-dry-run',
       'audit:version-parity',
       'audit:knowledge-schema',
+      'audit:knowledge-entry-length',
       'audit:engram-vocab-fresh',
       'audit:vocab-copies',
       'audit:knowledge-universal-neutral',
