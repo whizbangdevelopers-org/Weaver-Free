@@ -122,3 +122,46 @@ IGNORE Engram is the knowledge substrate; it is a NixOS service, not a sidecar.
 IGNORE See `docs/api/containers-guide.md` for the container walkthrough.
 IGNORE The `cogneeful` identifier is unrelated and must not match.
 IGNORE Premium support contracts are sold separately from tiers.
+
+# --- CATCH: the retired licence OPERATOR SECRET, WVR-226 -----------------------------------
+# Added 2026-08-23, closing §6.5 of LICENSE-ENFORCEMENT-PLAN — "the gate ships with the fix".
+# It did not ship with it. The options were deleted from nixos/default.nix via
+# mkRemovedOptionModule, and for six days nothing stopped a spec prescribing them again. On its
+# first run this rule found exactly that: plans/v1.3.0/EXECUTION-ROADMAP.md carried a live
+# High-priority task row telling Forge to provision `licenseHmacSecret` as a sops secret — an
+# instruction that now fails NixOS evaluation on the operator's host rather than in review.
+CATCH Provision keys as sops secrets (`licenseKeyFile` + `licenseHmacSecret`), fleet-secrets standard
+CATCH Set `services.weaver.licenseHmacSecretFile` to the sops-decrypted path.
+CATCH Export `LICENSE_HMAC_SECRET` in the entrypoint so the backend can validate the key.
+CATCH The harness passes `LICENSE_HMAC_SECRET_FILE` to each licensed tier node.
+
+# --- IGNORE: that retirement being recorded ------------------------------------------------
+IGNORE `licenseHmacSecret` was removed by WVR-226; the host reads `licenseKeyFile`.
+IGNORE Never reintroduce `LICENSE_HMAC_SECRET` — verification material is compiled into the build.
+IGNORE Previously every host set `LICENSE_HMAC_SECRET`; that option no longer exists.
+IGNORE | WVR-226 | Operator secret removed | `licenseHmacSecret` is replaced by an Ed25519 signature. |
+
+# --- IGNORE: near-misses that must NOT trip the licence patterns ---------------------------
+# The live option is a different token, and the trailing-underscore trap is why the pattern
+# spells `(?:_FILE)?` explicitly instead of ending at a word boundary.
+IGNORE Set `services.weaver.licenseKeyFile` to the sops-decrypted path.
+IGNORE `LICENSE_HMAC_SECRET_ROTATION_NOTES` is an unrelated identifier and must not match.
+IGNORE Mint the lab keys with `generateLicenseKey` and install them as `licenseKeyFile`.
+
+# --- CATCH: the retired a-la-carte EXTENSION ENTITLEMENTS, WVR-96 --------------------------
+# Added 2026-08-23. WVR-96 retired this on 2026-03-25 and it has needed a mechanism ever since:
+# WVR-216 and WVR-218 each re-targeted work that ORIGINALLY carried the entitlements design, and
+# each had to warn in prose that re-targeting must not resurrect it. Three prose warnings and no
+# checker is how a dead design comes back inside a live re-scoping.
+CATCH Add an entitlements parser in `license.ts` reading `PLUGIN_ENTITLEMENTS`.
+CATCH The Stripe webhook writes a signed entitlements file to `PLUGIN_ENTITLEMENTS_FILE`.
+CATCH | Env var | `PLUGIN_ENTITLEMENTS` | Signed JSON, HMAC over the plugin list |
+
+# --- IGNORE: the retirement being recorded, and the gate that SURVIVED it -------------------
+# requirePlugin() is deliberately absent from the patterns. WVR-96 kept it and repointed it at the
+# tier key, so flagging it would flag live architecture — the failure mode that gets an auditor
+# switched off, after which it catches nothing at all.
+IGNORE Do not resurrect the entitlements model — `PLUGIN_ENTITLEMENTS` is retired by WVR-96.
+IGNORE `PLUGIN_ENTITLEMENTS_FILE` no longer exists; extensions derive from the tier key.
+IGNORE The signed entitlements JSON was replaced by tier gating (WVR-96).
+IGNORE Gate the extension with `requirePlugin('dns-core')` — it reads the tier key.

@@ -421,6 +421,12 @@ Live Provisioning lets you create and manage MicroVMs directly from the browser 
 
 Built-in distributions include Arch Linux, Fedora, Ubuntu, Debian, Alpine, and CirrOS. Custom distributions can be added in Settings.
 
+**Built-in images are integrity-checked; custom ones are not.** Each built-in entry is verified
+against the distro's published checksum before the image is used, and a mismatch deletes the
+download and fails the provision rather than booting it. A **custom** distro is a URL you supply,
+with no digest to check it against — so it is trusted exactly as far as you trust that URL and its
+transport. Prefer `https`, and prefer a source that publishes checksums you can compare by hand.
+
 - **Cloud distros** — QEMU with cloud images and cloud-init (Ubuntu, Fedora, etc.)
 - **ISO distros** — boot from a downloaded ISO for manual installation (Windows, non-cloud Linux)
 - **NixOS guests** — flake generator with microvm.nix

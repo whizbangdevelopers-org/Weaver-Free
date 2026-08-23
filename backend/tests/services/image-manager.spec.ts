@@ -40,13 +40,45 @@ vi.mock('node:stream/promises', () => ({
   pipeline: vi.fn(async () => {}),
 }))
 
+// The https mock records every URL it is asked for, because SEC-031 made the download a TWO
+// request flow — the checksum file first, then the image — and the ORDER is a guarantee worth
+// asserting: resolving the expected digest must happen before several hundred MB are spent, and
+// must never degrade into "download anyway, unverified".
+export const httpsRequests: string[] = []
+
 vi.mock('node:https', () => ({
-  get: vi.fn((_url: string, cb: (res: { statusCode: number; headers: Record<string, string>; on: () => void; pipe: () => void }) => void) => {
-    const mockStream = { statusCode: 200, headers: {}, on: vi.fn(), pipe: vi.fn() }
-    cb(mockStream)
+  get: vi.fn((url: string, cb: (res: unknown) => void) => {
+    httpsRequests.push(url)
+    // A Readable so it behaves like a real IncomingMessage under `for await` — the previous mock
+    // was a bare object with on()/pipe(), which is only enough for a consumer that pipes.
+    const { Readable } = require('node:stream') as typeof import('node:stream')
+    const isChecksum = /SHA256SUMS|SHA512SUMS|\.SHA256$|CHECKSUM|\.sha512$/.test(url)
+    // A BARE digest of the right width. The first attempt emitted `<hex>  ignored` and the parser
+    // refused it — correctly, since the filename disagreed. That refusal is the behaviour
+    // image-digest.spec.ts pins, so the mock is what had to change.
+    const wide = /SHA512SUMS|\.sha512$/.test(url)
+    const body = isChecksum ? `${'a'.repeat(wide ? 128 : 64)}\n` : ''
+    const stream = Readable.from([Buffer.from(body)]) as unknown as Record<string, unknown>
+    stream.statusCode = 200
+    stream.headers = {}
+    stream.pipe = vi.fn()
+    cb(stream)
     return { on: vi.fn() }
   }),
 }))
+
+// Integrity itself is covered by image-digest.spec.ts (22 cases, both halves) and was proven end
+// to end against the live CirrOS image. Here it is stubbed so these tests keep testing what they
+// are about — directory creation and path resolution — instead of hashing a file the fs mock
+// never wrote.
+vi.mock('../../src/services/image-digest.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../src/services/image-digest.js')>()
+  return {
+    ...actual,
+    // Returns whatever the mocked checksum body declared, so the comparison passes.
+    hashFile: vi.fn(async (_p: string, algo: string) => 'a'.repeat(algo === 'sha512' ? 128 : 64)),
+  }
+})
 
 vi.mock('node:http', () => ({
   get: vi.fn(),
@@ -223,6 +255,37 @@ describe('ImageManager', () => {
 
       const path = await mgr.ensureImage('ubuntu')
       expect(path).toBe('/tmp/test-data/images/ubuntu-base.qcow2')
+    })
+
+    it('fetches the CHECKSUM FILE BEFORE the image (SEC-031 ordering)', async () => {
+      // Not a style point. If the expected digest is resolved after the transfer, an unreachable
+      // or unparseable checksum file is discovered having already spent several hundred MB — and
+      // the tempting repair at that moment is to keep the bytes and skip the check, which is
+      // exactly how a verification step becomes decorative.
+      httpsRequests.length = 0
+      ;(access as unknown as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('ENOENT'))
+
+      await mgr.ensureImage('ubuntu')
+
+      const checksumAt = httpsRequests.findIndex((u) => u.includes('SHA256SUMS'))
+      const imageAt = httpsRequests.findIndex((u) => u.endsWith('noble-server-cloudimg-amd64.img'))
+      expect(checksumAt).toBeGreaterThanOrEqual(0)
+      expect(imageAt).toBeGreaterThanOrEqual(0)
+      expect(checksumAt).toBeLessThan(imageAt)
+    })
+
+    it('every downloadable catalog entry declares a digest', () => {
+      // The invariant that makes the rest of SEC-031 meaningful. An entry without a digest would
+      // download unverified while every sibling reported a successful verification, and nothing
+      // in the output would tell the two apart — so the gap is asserted here rather than trusted
+      // to review. `flake` distros never download: microvm.nix builds them.
+      const sources = (mgr as unknown as {
+        getAllSources(): Record<string, { format: string; digest?: unknown }>
+      }).getAllSources()
+      const missing = Object.entries(sources)
+        .filter(([, v]) => v.format !== 'flake' && !v.digest)
+        .map(([k]) => k)
+      expect(missing).toEqual([])
     })
 
     it('should copy local file for file:// URL instead of HTTP download', async () => {

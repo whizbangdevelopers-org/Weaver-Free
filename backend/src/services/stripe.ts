@@ -35,7 +35,16 @@ export function tierForProduct(productId: string): typeof TIERS.SOLO | typeof TI
 let stripe: Stripe | null = null
 
 export function initStripe(secretKey: string): Stripe {
-  stripe = new Stripe(secretKey, { apiVersion: '2026-03-25.dahlia' })
+  // The literal must match the API version the installed SDK pins, and TypeScript enforces that:
+  // `apiVersion` is a single-literal type, so an SDK bump that moves it fails the build.
+  //
+  // That failure is the FEATURE, not friction. Bumped 2026-08-23 from '2026-03-25.dahlia' when
+  // stripe 22.0.1 -> 22.5.0 changed the pin; without the type error the API version would have
+  // moved silently underneath the checkout and webhook code. Read the Stripe changelog between
+  // the two versions before assuming a bump is inert — response shapes change across API
+  // versions, and this codebase's Stripe path is not yet exercised against a live account, so
+  // nothing else would catch a shape change.
+  stripe = new Stripe(secretKey, { apiVersion: '2026-07-29.dahlia' })
   return stripe
 }
 
