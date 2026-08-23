@@ -3,7 +3,7 @@
 import { execFile } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
 import { promisify } from 'node:util'
-import { mkdir, writeFile, access, stat } from 'node:fs/promises'
+import { mkdir, writeFile, access, stat, rm } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { createWriteStream } from 'node:fs'
 import { createReadStream } from 'node:fs'
@@ -14,6 +14,14 @@ import type { IncomingMessage } from 'node:http'
 import type { WorkloadDefinition } from '../storage/workload-registry.js'
 import type { DashboardConfig } from '../config.js'
 import { validateExternalUrl } from '../validate-url.js'
+import {
+  assertChecksumUrl,
+  hashFile,
+  normaliseExpected,
+  parseChecksumFile,
+  resolveRedirect,
+  type DigestSpec,
+} from './image-digest.js'
 import { resolveGuestDevices, machineFlags, pflashArgs, tpmArgs, type FirmwarePlan, type TpmPaths } from './firmware.js'
 
 const execFileAsync = promisify(execFile)
@@ -23,39 +31,110 @@ export interface DistroImageSource {
   format: 'qcow2' | 'raw' | 'iso' | 'flake'
   cloudInit: boolean
   guestOs?: 'linux' | 'windows'
+  /**
+   * How this image's integrity is established (SEC-031).
+   *
+   * **Required, deliberately** — there is no optional-digest branch, because an entry that omits
+   * it would download unverified while every sibling reported a successful verification, and
+   * nothing in the output would distinguish the two. `flake` distros are the only exception and
+   * they never reach this code: microvm.nix builds them, nothing is downloaded.
+   */
+  digest?: DigestSpec
 }
 
+/**
+ * The distro catalog.
+ *
+ * Every downloadable entry carries a `digest`. Five read the checksum file the distro publishes
+ * beside the image — it moves when the image is rebuilt, so it stays valid against the three URLs
+ * that point at a moving target (`latest` / `current`). CirrOS is pinned instead, because its URL
+ * names an immutable release and because CirrOS publishes only MD5SUMS, which is not an integrity
+ * control against a chosen-prefix attacker. See services/image-digest.ts for the trust model and
+ * for why pinning everything was rejected.
+ *
+ * All six URLs were confirmed reachable on 2026-08-23, which is how the Fedora entry was found to
+ * be dead — see its note.
+ */
 const DISTRO_IMAGES: Record<string, DistroImageSource> = {
   // CirrOS is listed first — it's the default smoke test distro (~20 MB, no cloud-init)
   cirros: {
-    url: 'http://download.cirros-cloud.net/0.6.2/cirros-0.6.2-x86_64-disk.img',
+    // Was `http://` until 2026-08-23. It is the only catalog entry that had no transport
+    // protection at all, which is half of why "TLS covers the images" was not true.
+    url: 'https://download.cirros-cloud.net/0.6.2/cirros-0.6.2-x86_64-disk.img',
     format: 'qcow2',
     cloudInit: false,
+    digest: {
+      kind: 'pinned',
+      algorithm: 'sha256',
+      value: '07e44a73e54c94d988028515403c1ed762055e01b83a767edf3c2b387f78ce00',
+      reason:
+        'The URL names an immutable release directory (0.6.2/), so a pinned digest cannot go ' +
+        'stale. CirrOS publishes only MD5SUMS — MD5 is not an integrity control against a ' +
+        'chosen-prefix attacker — so this value was computed locally from the downloaded image ' +
+        'on 2026-08-23 rather than taken from upstream — then cross-checked: our MD5 of those ' +
+        'bytes matches upstream MD5SUMS (c8fc8077…1906), so the file that was hashed is the ' +
+        'one CirrOS published.',
+    },
   },
   arch: {
     url: 'https://geo.mirror.pkgbuild.com/images/latest/Arch-Linux-x86_64-cloudimg.qcow2',
     format: 'qcow2',
     cloudInit: true,
+    digest: {
+      kind: 'published',
+      algorithm: 'sha256',
+      url: 'https://geo.mirror.pkgbuild.com/images/latest/Arch-Linux-x86_64-cloudimg.qcow2.SHA256',
+      filename: 'Arch-Linux-x86_64-cloudimg.qcow2',
+    },
   },
   fedora: {
-    url: 'https://download.fedoraproject.org/pub/fedora/linux/releases/42/Cloud/x86_64/images/Fedora-Cloud-Base-Generic-42-1.1.x86_64.qcow2',
+    // Was Fedora 42, which 404s: 42 is EOL and its Cloud images have left the primary mirrors.
+    // Measured 2026-08-23 while implementing SEC-031 — a user choosing Fedora got a failed
+    // provision, and nothing in the catalog could have told anyone. 44-1.7 is current.
+    url: 'https://download.fedoraproject.org/pub/fedora/linux/releases/44/Cloud/x86_64/images/Fedora-Cloud-Base-Generic-44-1.7.x86_64.qcow2',
     format: 'qcow2',
     cloudInit: true,
+    digest: {
+      kind: 'published',
+      // PGP-clearsigned, in BSD `SHA256 (name) = hex` form. The signature is not checked yet;
+      // verifying it is the natural upgrade from here (image-digest.ts documents the boundary).
+      algorithm: 'sha256',
+      url: 'https://download.fedoraproject.org/pub/fedora/linux/releases/44/Cloud/x86_64/images/Fedora-Cloud-44-1.7-x86_64-CHECKSUM',
+      filename: 'Fedora-Cloud-Base-Generic-44-1.7.x86_64.qcow2',
+    },
   },
   ubuntu: {
     url: 'https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img',
     format: 'qcow2',
     cloudInit: true,
+    digest: {
+      kind: 'published',
+      algorithm: 'sha256',
+      url: 'https://cloud-images.ubuntu.com/noble/current/SHA256SUMS',
+      filename: 'noble-server-cloudimg-amd64.img',
+    },
   },
   debian: {
     url: 'https://cloud.debian.org/images/cloud/bookworm/latest/debian-12-generic-amd64.qcow2',
     format: 'qcow2',
     cloudInit: true,
+    digest: {
+      kind: 'published',
+      algorithm: 'sha512',
+      url: 'https://cloud.debian.org/images/cloud/bookworm/latest/SHA512SUMS',
+      filename: 'debian-12-generic-amd64.qcow2',
+    },
   },
   alpine: {
     url: 'https://dl-cdn.alpinelinux.org/alpine/v3.22/releases/cloud/generic_alpine-3.22.3-x86_64-bios-cloudinit-r0.qcow2',
     format: 'qcow2',
     cloudInit: true,
+    digest: {
+      kind: 'published',
+      algorithm: 'sha512',
+      url: 'https://dl-cdn.alpinelinux.org/alpine/v3.22/releases/cloud/generic_alpine-3.22.3-x86_64-bios-cloudinit-r0.qcow2.sha512',
+      filename: 'generic_alpine-3.22.3-x86_64-bios-cloudinit-r0.qcow2',
+    },
   },
 }
 
@@ -165,7 +244,7 @@ export class ImageManager {
       // File doesn't exist, download it
     }
 
-    await this.downloadImage(source.url, imagePath)
+    await this.downloadImage(source.url, imagePath, source.digest)
     return imagePath
   }
 
@@ -370,36 +449,107 @@ chpasswd:
   }
 
   /** Download a file from URL to disk, or copy from local file:// path */
-  private async downloadImage(url: string, dest: string): Promise<void> {
+  private async downloadImage(url: string, dest: string, digest?: DigestSpec): Promise<void> {
     if (url.startsWith('file://')) {
       const localPath = url.slice(7) // strip file://
       await access(localPath)
       const readStream = createReadStream(localPath)
       const writeStream = createWriteStream(dest)
       await pipeline(readStream, writeStream)
+      if (digest) await this.verifyDigest(dest, digest, url)
       return
     }
+
+    // Resolve the EXPECTED digest before spending the download. A published checksum file that
+    // is unreachable or unparseable must stop the run here, not after several hundred MB — and
+    // must never degrade into "download it anyway, unverified", which is how a verification step
+    // becomes decorative.
+    const expected = digest ? await this.resolveExpected(digest) : null
+
     const response = await this.followRedirects(url, 5)
     const fileStream = createWriteStream(dest)
     await pipeline(response, fileStream)
+
+    if (digest && expected) {
+      const actual = await hashFile(dest, digest.algorithm)
+      if (actual !== expected) {
+        // DELETE the file, and that is the load-bearing half of this branch.
+        //
+        // ensureImage() short-circuits on `access(imagePath)` + size > 0, so a rejected image
+        // left on disk is not merely useless: the NEXT call finds it, skips the download, skips
+        // this check with it, and boots a guest off bytes that already failed verification once.
+        // A refusal that leaves its evidence behind is a refusal that only works once.
+        await rm(dest, { force: true })
+        throw new Error(
+          `image integrity check FAILED for ${url} — expected ${digest.algorithm} ${expected}, ` +
+            `got ${actual}. The downloaded file has been deleted.`,
+        )
+      }
+    }
   }
 
-  private followRedirects(url: string, maxRedirects: number): Promise<IncomingMessage> {
+  /** Resolve a DigestSpec to the expected lowercase hex digest. Throws rather than degrading. */
+  private async resolveExpected(digest: DigestSpec): Promise<string> {
+    if (digest.kind === 'pinned') return normaliseExpected(digest.value, digest.algorithm)
+
+    assertChecksumUrl(digest.url)
+    const res = await this.followRedirects(digest.url, 5)
+    const chunks: Buffer[] = []
+    for await (const chunk of res) chunks.push(chunk as Buffer)
+    const text = Buffer.concat(chunks).toString('utf-8')
+
+    const found = parseChecksumFile(text, digest.algorithm, digest.filename)
+    if (!found) {
+      throw new Error(
+        `checksum file ${digest.url} contains no ${digest.algorithm} entry for ` +
+          `"${digest.filename}" — refusing to download unverified`,
+      )
+    }
+    return normaliseExpected(found, digest.algorithm)
+  }
+
+  /** Verify an already-present file (the file:// path, where nothing was streamed from network). */
+  private async verifyDigest(dest: string, digest: DigestSpec, url: string): Promise<void> {
+    const expected = await this.resolveExpected(digest)
+    const actual = await hashFile(dest, digest.algorithm)
+    if (actual !== expected) {
+      await rm(dest, { force: true })
+      throw new Error(
+        `image integrity check FAILED for ${url} — expected ${digest.algorithm} ${expected}, ` +
+          `got ${actual}. The copied file has been deleted.`,
+      )
+    }
+  }
+
+  private followRedirects(url: string, maxRedirects: number, previous?: URL): Promise<IncomingMessage> {
     return new Promise((resolve, reject) => {
-      const get = url.startsWith('https') ? httpsGet : httpGet
-      get(url, (res) => {
+      // Policy lives in resolveRedirect (services/image-digest.ts) so it can be unit-tested
+      // without a live server — see its docblock for the two refusals and how each used to fail.
+      let target: URL
+      try {
+        target = previous
+          ? resolveRedirect(url, previous, validateExternalUrl)
+          : validateExternalUrl(url)
+      } catch (err) {
+        reject(err instanceof Error ? err : new Error(String(err)))
+        return
+      }
+
+      const get = target.protocol === 'https:' ? httpsGet : httpGet
+      get(target.href, (res) => {
         if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
           if (maxRedirects <= 0) {
             reject(new Error('Too many redirects'))
             return
           }
-          this.followRedirects(res.headers.location, maxRedirects - 1)
+          res.resume() // drain, or the socket is held open by an unread body
+          this.followRedirects(res.headers.location, maxRedirects - 1, target)
             .then(resolve)
             .catch(reject)
           return
         }
         if (res.statusCode && res.statusCode >= 400) {
-          reject(new Error(`HTTP ${res.statusCode} downloading ${url}`))
+          reject(new Error(`HTTP ${res.statusCode} downloading ${target.href}`))
           return
         }
         resolve(res)

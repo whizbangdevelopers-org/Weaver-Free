@@ -1,83 +1,94 @@
 {
-  "_doc": "Dynamic security-advisory whitelist (Decision: dynamic whitelist, 2026-06-17). SINGLE SOURCE read by scripts/audit-security.ts AND .github/workflows/dependabot-labeler.yml \u2014 do not duplicate the list anywhere else. Each entry is a PACKAGE whose high/critical advisories are ACKNOWLEDGED (not auto-failed) with a documented, dated reason. The auditor AUTO-DERIVES transitives: a vulnerable package whose every dependency path to root passes through an acknowledged package is acknowledged automatically (no entry needed) \u2014 so esbuild/ajv/minimatch/etc. need no explicit row. Auto-derivation is FAIL-CLOSED: if the auditor cannot prove every path runs through an acknowledged package, the advisory FAILS. A package that is independently fixable within its semver constraint must be FIXED, never whitelisted (fixing > acknowledging). Refresh/review with: npm run refresh:security-allowlist.",
-  "_lastReviewed": "2026-07-22",
+  "_doc": "Dynamic security-advisory whitelist (Decision: dynamic whitelist, 2026-06-17). SINGLE SOURCE read by scripts/audit-security.ts AND .github/workflows/dependabot-labeler.yml — do not duplicate the list anywhere else. Each entry is a PACKAGE whose high/critical advisories are ACKNOWLEDGED (not auto-failed) with a documented, dated reason. The auditor AUTO-DERIVES transitives: a vulnerable package whose every dependency path to root passes through an acknowledged package is acknowledged automatically (no entry needed) — so esbuild/ajv/minimatch/etc. need no explicit row. Auto-derivation is FAIL-CLOSED: if the auditor cannot prove every path runs through an acknowledged package, the advisory FAILS. A package that is independently fixable within its semver constraint must be FIXED, never whitelisted (fixing > acknowledging). Refresh/review with: npm run refresh:security-allowlist.",
+  "_lastReviewed": "2026-08-23",
   "_categories": {
-    "framework-pinned": "Major upgrade deferred because a framework (Quasar / Fastify) pins the version. Unblock when the framework supports the next major.",
-    "dev-test-only": "Pulled only by a dev/test dependency \u2014 never present in the production runtime artifact.",
-    "build-time-only": "Pulled only by the build toolchain (PWA/workbox/bundler) \u2014 runs at build time, not shipped in the bundle.",
-    "awaiting-upstream": "Direct or near-direct dependency already at its latest published version; the fixed release is not yet available upstream. Re-check at reviewBy.",
-    "context-safe": "The advisory's exploit precondition is not met by how the package is used here (e.g., a ReDoS that requires attacker-controlled input, where every call site receives only developer-controlled input). Must document the specific precondition per package."
+    "dev-test-only": "Pulled only by a dev/test dependency — never present in the production runtime artifact.",
+    "build-time-only": "Pulled only by the build toolchain (PWA/workbox/bundler) — runs at build time, not shipped in the bundle.",
+    "awaiting-upstream": "Direct or near-direct dependency ALREADY at its latest published version; there is nothing to move to. Covers both “the advisory's fix is not published yet” and “no newer major exists” — the same state from the consumer's side. Re-check at reviewBy with `npm run refresh:security-allowlist`, and re-measure rather than re-reading the reason.",
+    "context-safe": "The advisory's exploit precondition is not met by how the package is used here (e.g., a ReDoS that requires attacker-controlled input, where every call site receives only developer-controlled input). Must document the specific precondition per package.",
+    "peer-blocked": "A newer major exists but an INSTALLED peer constraint rejects it — and the blocker is named, because “a framework pins it” was assumed here for 11 entries and was true for none. `npm run check:peer-constraints -- --package <p> --candidate <v> --check-upstream` names every blocker and reports STILL BLOCKS / WOULD ADMIT / UNKNOWN against the registry; UNKNOWN never folds into “still blocked”. Clear the entry when the trigger fires."
   },
   "acknowledged": {
     "vue": {
-      "category": "framework-pinned",
-      "reason": "NOT blocked by Quasar \u2014 @quasar/app-vite peers `^3.2.29`; there is no Vue 4. Nothing is held back here.",
+      "category": "awaiting-upstream",
+      "reason": "Already on the newest published major (3.5.41 = latest); there is no Vue 4 to move to. Re-measured 2026-08-23 against the registry. Previously filed as framework-pinned, which was never true — its own reason said “NOT blocked by Quasar”.",
       "addedAt": "2026-06-17",
-      "reviewBy": "2026-08-15"
+      "reviewBy": "2026-11-21",
+      "reviewedAt": "2026-08-23"
     },
     "vue-router": {
-      "category": "framework-pinned",
-      "reason": "NOT blocked by Quasar \u2014 @quasar/app-vite peers `^4.0.12 || ^5.0.0`, so v5 has been admitted all along. Unevaluated, not gated.",
+      "category": "awaiting-upstream",
+      "reason": "Already on the newest published major (5.2.0 = latest). @quasar/app-vite peers `^4.0.12 || ^5.0.0`, so v5 was admitted all along; nothing is held back. Re-measured 2026-08-23.",
       "addedAt": "2026-06-17",
-      "reviewBy": "2026-08-15"
+      "reviewBy": "2026-11-21",
+      "reviewedAt": "2026-08-23"
     },
     "pinia": {
-      "category": "framework-pinned",
-      "reason": "PARTIALLY blocked \u2014 @quasar/app-vite@2 peers `^2.0.0 || ^3.0.0`, so pinia 3 is available today without touching Quasar; only pinia 4 needs @quasar/app-vite@3 (which peers ^4.0.0). No advisory attaches to pinia \u2014 this is migration scope wearing a security label.",
+      "category": "awaiting-upstream",
+      "reason": "Already on the newest published major (4.0.3 = latest). Re-measured 2026-08-23; the earlier reason described a pinia-3-vs-4 gate that no longer exists, and noted no advisory attaches to pinia at all.",
       "addedAt": "2026-06-17",
-      "reviewBy": "2026-08-15"
+      "reviewBy": "2026-11-21",
+      "reviewedAt": "2026-08-23"
     },
     "@vitejs/plugin-vue": {
-      "category": "framework-pinned",
-      "reason": "NOT blocked by Quasar \u2014 same major as the copy Quasar depends on (^6). Ours is a real direct dep: vitest.config.ts imports it, and vitest sits outside Quasar's build chain.",
+      "category": "awaiting-upstream",
+      "reason": "Already on the newest published major (6.0.8 = latest). A real direct dep — vitest.config.ts imports it, and vitest sits outside Quasar's build chain. Re-measured 2026-08-23.",
       "addedAt": "2026-06-17",
-      "reviewBy": "2026-08-15"
+      "reviewBy": "2026-11-21",
+      "reviewedAt": "2026-08-23"
     },
     "typescript": {
-      "category": "framework-pinned",
-      "reason": "NOT blocked by Quasar \u2014 @quasar/app-vite peers `typescript: >= 5.4`, which the current major already satisfies. TS 7 is a native rewrite and needs its own evaluation, but Quasar is not the gate.",
+      "category": "peer-blocked",
+      "reason": "Genuinely blocked, and NOT by a framework: typescript@7.0.2 is rejected by 8 of 15 installed peer constraints, every one of them `@typescript-eslint/*` capping at `<6.1.0`. Quasar peers `>= 5.4` and accepts 7 — asking Quasar alone is what produced the original false UNBLOCKED. Verify with: `npm run check:peer-constraints -- --package typescript --candidate 7.0.2 --check-upstream`. Re-measured 2026-08-23.",
       "addedAt": "2026-06-17",
-      "reviewBy": "2026-08-15"
+      "reviewBy": "2026-11-21",
+      "reviewedAt": "2026-08-23"
     },
     "fastify": {
-      "category": "framework-pinned",
-      "reason": "blocked-by-fastify (v5 breaking API, deferred post-v1.0)",
+      "category": "awaiting-upstream",
+      "reason": "Already on the newest published major (5.12.1 = latest). The previous reason read “v5 breaking API, deferred post-v1.0” — stale by a whole major: the v5 migration has happened. Re-measured 2026-08-23.",
       "addedAt": "2026-06-17",
-      "reviewBy": "2026-09-15"
+      "reviewBy": "2026-09-15",
+      "reviewedAt": "2026-08-23"
     },
     "@fastify/websocket": {
-      "category": "framework-pinned",
-      "reason": "blocked-by-fastify",
+      "category": "awaiting-upstream",
+      "reason": "Already on the newest published major (11.x = latest); fastify itself is on 5.x, so the “blocked-by-fastify” reason this entry carried was stale by a major. Re-measured 2026-08-23.",
       "addedAt": "2026-06-17",
-      "reviewBy": "2026-09-15"
+      "reviewBy": "2026-09-15",
+      "reviewedAt": "2026-08-23"
     },
     "@fastify/cors": {
-      "category": "framework-pinned",
-      "reason": "blocked-by-fastify",
+      "category": "awaiting-upstream",
+      "reason": "Already on the newest published major (11.3.0 = latest); the “blocked-by-fastify” reason was stale by a major. Re-measured 2026-08-23.",
       "addedAt": "2026-06-17",
-      "reviewBy": "2026-09-15"
+      "reviewBy": "2026-09-15",
+      "reviewedAt": "2026-08-23"
     },
     "@fastify/static": {
-      "category": "framework-pinned",
-      "reason": "blocked-by-fastify",
+      "category": "awaiting-upstream",
+      "reason": "Already on the newest published major (10.1.3 = latest); the “blocked-by-fastify” reason was stale by a major. Re-measured 2026-08-23.",
       "addedAt": "2026-06-17",
-      "reviewBy": "2026-09-15"
+      "reviewBy": "2026-09-15",
+      "reviewedAt": "2026-08-23"
     },
     "@fastify/helmet": {
-      "category": "framework-pinned",
-      "reason": "blocked-by-fastify",
+      "category": "awaiting-upstream",
+      "reason": "Already on the newest published major (13.1.1 = latest); the “blocked-by-fastify” reason was stale by a major. Re-measured 2026-08-23.",
       "addedAt": "2026-06-17",
-      "reviewBy": "2026-09-15"
+      "reviewBy": "2026-09-15",
+      "reviewedAt": "2026-08-23"
     },
     "@quasar/app-vite": {
-      "category": "framework-pinned",
-      "reason": "Quasar build framework \u2014 pins the vite/esbuild/workbox/babel build chain; unblock at the next Quasar major",
+      "category": "awaiting-upstream",
+      "reason": "Already on the newest published major (3.x = latest; 3.8.0 available, 3.6.1 installed — a minor, not a gate). It pins the vite/esbuild/workbox/babel build chain, which is why its transitives auto-derive through it. Re-measured 2026-08-23.",
       "addedAt": "2026-06-17",
-      "reviewBy": "2026-09-15"
+      "reviewBy": "2026-09-15",
+      "reviewedAt": "2026-08-23"
     },
     "@vue/test-utils": {
       "category": "dev-test-only",
-      "reason": "unit-test harness only (pulls js-beautify \u2192 js-cookie); never in the production runtime",
+      "reason": "unit-test harness only (pulls js-beautify → js-cookie); never in the production runtime",
       "addedAt": "2026-06-17",
       "reviewBy": "2026-12-17"
     },
@@ -99,15 +110,9 @@
       "addedAt": "2026-06-17",
       "reviewBy": "2026-12-17"
     },
-    "cmake-js": {
-      "category": "build-time-only",
-      "reason": "native-module compiler for kuzu \u2014 pulls tar to extract prebuilds; install/build time only, not shipped in the bundle",
-      "addedAt": "2026-06-17",
-      "reviewBy": "2026-12-17"
-    },
     "workbox-build": {
       "category": "build-time-only",
-      "reason": "Quasar PWA service-worker build (pulls @babel/preset-env \u2192 transform plugins); runs at build time, not shipped in the bundle",
+      "reason": "Quasar PWA service-worker build (pulls @babel/preset-env → transform plugins); runs at build time, not shipped in the bundle",
       "addedAt": "2026-06-17",
       "reviewBy": "2026-12-17"
     },
@@ -119,7 +124,7 @@
     },
     "minimatch": {
       "category": "context-safe",
-      "reason": "ReDoS requires attacker-controlled glob patterns. Every call site here is build/lint/test tooling (glob/eslint/@stryker/archiver) or @fastify/static route globs \u2014 all developer-controlled, never production user input. Not cleanly fixable within-constraint (glob@7\u2192minimatch@3 vs glob@10\u2192minimatch@9 across the tree).",
+      "reason": "ReDoS requires attacker-controlled glob patterns. Every call site here is build/lint/test tooling (glob/eslint/@stryker/archiver) or @fastify/static route globs — all developer-controlled, never production user input. Not cleanly fixable within-constraint (glob@7→minimatch@3 vs glob@10→minimatch@9 across the tree).",
       "addedAt": "2026-06-17",
       "reviewBy": "2026-09-15"
     }
