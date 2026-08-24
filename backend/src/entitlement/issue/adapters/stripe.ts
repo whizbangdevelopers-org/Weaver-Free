@@ -1,7 +1,7 @@
 // Copyright (c) 2026 whizBANG Developers LLC. All rights reserved.
 // Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE.
 //
-// VENDORED from wbd-entitlement@bd8b407 — do not edit here.
+// VENDORED from wbd-entitlement@0de98b8 — do not edit here.
 // Edit upstream, re-run scripts/vendor-entitlement.ts. audit:entitlement-vendor fails on drift.
 
 import Stripe from 'stripe'
@@ -15,7 +15,7 @@ import type {
 /**
  * Stripe implementation of the entitlement port.
  *
- * The only adapter, deliberately (ENT-4). A second one written speculatively would encode guesses
+ * The only adapter, deliberately. A second one written speculatively would encode guesses
  * about semantics nobody has observed, and it is cheap to add later precisely because the port
  * exists.
  *

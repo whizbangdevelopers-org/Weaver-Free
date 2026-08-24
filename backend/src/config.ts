@@ -47,7 +47,7 @@ export interface DashboardConfig {
    *
    * Read from the SIGNED payload, which is what makes a per-node term enforceable at all — Stripe
    * cannot meter an airgapped install, so the signature over this number is the only thing that
-   * binds it. Consumed by `requireNodeCapacity()`; see SEC-027 for why it previously reached the
+   * binds it. Consumed by `requireNodeCapacity()`; see the per-node capacity note in license.ts for why it previously reached the
    * product and stopped here.
    */
   licenseNodes: number | null

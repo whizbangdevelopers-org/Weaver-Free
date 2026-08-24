@@ -4,7 +4,7 @@
 /**
  * `backend/src/entitlement/` must be a faithful copy of `wbd-entitlement`.
  *
- * The licence mechanism is shared across products (ENT-1) and vendored rather than depended on,
+ * The licence mechanism is shared across products and vendored rather than depended on,
  * because `backend/src/` ships to Weaver-Free and a public clone must build with no private
  * registry. Vendoring buys that at the cost of a copy that can drift — so this is the check that
  * makes the copy honest, in the same shape as `audit:engram-vocab-fresh`.

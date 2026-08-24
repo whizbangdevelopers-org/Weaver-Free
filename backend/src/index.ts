@@ -388,7 +388,7 @@ if (userStore.count() === 0) {
 }
 
 // Register auth middleware (runs before route handlers)
-// SEC-027: the signed node entitlement is read on every boot rather than returned and dropped.
+// The signed node entitlement is read on every boot rather than returned and dropped.
 assertLicensedNodeCapacity(config)
 
 fastify.addHook('onRequest', createAuthMiddleware(authService))

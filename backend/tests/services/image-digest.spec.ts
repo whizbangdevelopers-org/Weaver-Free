@@ -1,7 +1,7 @@
 // Copyright (c) 2026 whizBANG Developers LLC. All rights reserved.
 // Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE.
 /**
- * SEC-031 — integrity verification for downloaded distro images.
+ * Integrity verification for downloaded distro images.
  *
  * The CATCH half is easy to write and proves little on its own: a parser that returns a digest
  * for a well-formed file is the base case. The half that matters is the refusals — the shapes
@@ -157,7 +157,7 @@ describe('hashFile', () => {
   })
 })
 
-describe('resolveRedirect — the two refusals SEC-031 closed', () => {
+describe('resolveRedirect — the two refusals image integrity closed', () => {
   // The real guard, so these assert against production behaviour rather than a stand-in.
   const validate = validateExternalUrl
 
@@ -172,7 +172,7 @@ describe('resolveRedirect — the two refusals SEC-031 closed', () => {
   })
 
   it('REFUSES an https -> http downgrade', () => {
-    // Before SEC-031 the client was picked per-URL, so this was automatic and silent — the reason
+    // Before integrity verification the client was picked per-URL, so this was automatic and silent — the reason
     // "the images come over TLS" was false even for entries whose catalog URL is https.
     const from = new URL('https://mirror.test/thing.qcow2')
     expect(() => resolveRedirect('http://mirror.test/thing.qcow2', from, validate)).toThrow(

@@ -40,7 +40,7 @@ vi.mock('node:stream/promises', () => ({
   pipeline: vi.fn(async () => {}),
 }))
 
-// The https mock records every URL it is asked for, because SEC-031 made the download a TWO
+// The https mock records every URL it is asked for, because image integrity made the download a TWO
 // request flow — the checksum file first, then the image — and the ORDER is a guarantee worth
 // asserting: resolving the expected digest must happen before several hundred MB are spent, and
 // must never degrade into "download anyway, unverified".
@@ -257,7 +257,7 @@ describe('ImageManager', () => {
       expect(path).toBe('/tmp/test-data/images/ubuntu-base.qcow2')
     })
 
-    it('fetches the CHECKSUM FILE BEFORE the image (SEC-031 ordering)', async () => {
+    it('fetches the CHECKSUM FILE BEFORE the image (integrity ordering)', async () => {
       // Not a style point. If the expected digest is resolved after the transfer, an unreachable
       // or unparseable checksum file is discovered having already spent several hundred MB — and
       // the tempting repair at that moment is to keep the bytes and skip the check, which is
@@ -275,7 +275,7 @@ describe('ImageManager', () => {
     })
 
     it('every downloadable catalog entry declares a digest', () => {
-      // The invariant that makes the rest of SEC-031 meaningful. An entry without a digest would
+      // The invariant that makes the rest of the integrity work meaningful. An entry without a digest would
       // download unverified while every sibling reported a successful verification, and nothing
       // in the output would tell the two apart — so the gap is asserted here rather than trusted
       // to review. `flake` distros never download: microvm.nix builds them.

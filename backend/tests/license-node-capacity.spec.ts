@@ -1,7 +1,7 @@
 // Copyright (c) 2026 whizBANG Developers LLC. All rights reserved.
 // Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE.
 //
-// SEC-027 — the per-node licence term, which was signed into every key and read by nothing.
+// The per-node licence term, which was signed into every key and read by nothing.
 //
 // These tests pin the DECISION as much as the code: a node is counted at ENROLMENT, the local host
 // always counts as one and is never refused, `null` means unbounded, and an absent entitlement
@@ -58,7 +58,7 @@ describe('requireNodeCapacity', () => {
 
   it('decides on the signed entitlement, not the tier', () => {
     // The entitlement is what was PURCHASED; the tier is what was purchased INTO. Reading the tier
-    // here would reintroduce the thing SEC-027 is about — a limit the signature does not bind.
+    // here would reintroduce the defect this file exists for — a limit the signature does not bind.
     for (const tier of [TIERS.SOLO, TIERS.TEAM, TIERS.FABRICK]) {
       expect(() => requireNodeCapacity(cfg(2, tier), 1)).not.toThrow()
       expect(() => requireNodeCapacity(cfg(2, tier), 2)).toThrow()

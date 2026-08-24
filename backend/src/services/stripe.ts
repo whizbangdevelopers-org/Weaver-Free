@@ -66,7 +66,7 @@ export interface CreateCheckoutParams {
    * Nodes being purchased. Defaults to 1.
    *
    * This used to be hardcoded at the line item, which meant the per-node model could be neither
-   * sold nor enforced (SEC-027): the webhook faithfully signed whatever Stripe reported, and
+   * sold nor enforced: the webhook faithfully signed whatever Stripe reported, and
    * Stripe always reported one. Passing it through is the half of the fix that makes a multi-node
    * licence purchasable at all.
    */
@@ -173,7 +173,7 @@ export async function generateLicenseFromSubscription(
   const shortCustId = customerId.replace('cus_', '').slice(0, 4).toUpperCase()
 
   // Quantity comes from what was PURCHASED — Stripe cannot count nodes in an airgapped install,
-  // so the signature over this field is what makes a per-node term enforceable at all (ENT-5).
+  // so the signature over this field is what makes a per-node term enforceable at all.
   // Absent quantity means 1, never unlimited: a forgotten value must under-grant, not over-grant.
   const quantity = typeof item.quantity === 'number' ? item.quantity : 1
 
