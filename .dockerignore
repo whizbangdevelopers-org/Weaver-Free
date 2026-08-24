@@ -1,0 +1,55 @@
+# Copyright (c) 2026 whizBANG Developers LLC. All rights reserved.
+# Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE.
+#
+# Build context for every E2E image. `context: ../..` from testing/e2e-docker/ resolves HERE, so
+# this file governs config/Dockerfile, Dockerfile.foundry and Dockerfile.foundry-base alike.
+#
+# THERE WAS NO .dockerignore AT ALL UNTIL 2026-08-24. The context was 1.8 GB, of which ~1.7 GB was
+# generated output the image can never use: 984 MB of `reports/` (auditor runs, 2 tracked files out
+# of thousands), and 722 MB of node_modules across the root, src-pwa/ and codebase-mcp/. Every
+# build shipped all of it to the daemon, and `test:prerelease` now has four E2E legs.
+#
+# EXCLUDING node_modules IS A CORRECTNESS FIX, NOT ONLY A SPEED ONE.
+#
+# Both Dockerfiles do `COPY package*.json` -> `RUN npm ci` -> `COPY . .`. That last COPY was
+# overwriting the container's freshly installed modules with the HOST's, discarding the npm ci
+# layer the Dockerfile goes to the trouble of caching. It is worse on the foundry path, whose whole
+# point is that `npm ci` resolves through the Verdaccio mirror on the airgapped Dev segment: built
+# from a working tree on king, the host's npmjs-sourced modules landed on top of the mirror-sourced
+# ones, silently defeating the supply-chain guarantee that runner exists to provide.
+#
+# Nothing at runtime loses node_modules by this: 14 of the 15 compose services bind-mount
+# `../..:/app`, so the host tree — including its node_modules — shadows the image anyway. The 15th
+# (playwright-browser) has no `build:` at all. The foundry runner is the one that genuinely relies
+# on the image, and it installs its own from Verdaccio, which is exactly what this protects.
+#
+# Mirrors code/.gitignore deliberately, including its reports/ exception. Anything generated there
+# is generated here.
+
+# --- dependency trees: every consumer installs or mounts its own ---
+**/node_modules
+
+# --- auditor and test output (the 984 MB) ---
+reports/*
+!reports/llgd-coverage-baseline.json
+!reports/llgd-coverage-baseline.md
+coverage/
+coverage-free/
+testing/e2e-docker/output/
+testing/e2e-engram-docker/output/
+testing/live-e2e-output/
+
+# --- build artifacts: rebuilt in-image or supplied by the mount ---
+dist/
+.quasar/
+src-pwa/dist/
+codebase-mcp/dist/
+
+# --- local runtime state; E2E uses VM_DATA_DIR=/tmp/e2e-data, never this ---
+data/
+
+# --- VCS and editor noise ---
+.git/
+.gitignore
+*.swp
+.DS_Store
