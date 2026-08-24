@@ -257,6 +257,14 @@
                 <q-item-section side><q-item-label class="text-weight-medium text-mono">{{ vm.tapInterface }}</q-item-label></q-item-section>
               </q-item>
             </q-list>
+
+            <ServiceHealthSection
+              class="q-mt-md"
+              :vm-name="vm.name"
+              :vm-ip="vm.ip"
+              :probes="vm.serviceProbes"
+              @saved="onProbesSaved"
+            />
           </q-tab-panel>
 
           <!-- Logs -->
@@ -322,6 +330,7 @@
 
     <!-- Agent Dialog -->
     <AgentDialog v-model="agentDialogOpen" :resource-id="vmName" :action="currentAgentAction" />
+
   </div>
 </template>
 
@@ -334,6 +343,7 @@ import TagEditor from 'src/components/TagEditor.vue'
 import HelpTooltip from 'src/components/HelpTooltip.vue'
 import VersionNag from 'src/components/demo/VersionNag.vue'
 import WorkloadMetricsChart from 'src/components/WorkloadMetricsChart.vue'
+import ServiceHealthSection from 'src/components/ServiceHealthSection.vue'
 import { useWorkloadApi } from 'src/composables/useVmApi'
 import { useWorkloadStatus } from 'src/composables/useVmStatus'
 import { useAgent } from 'src/composables/useAgent'
@@ -348,7 +358,7 @@ import { vmTypeIcon, vmTypeColor } from 'src/utils/vm'
 import { extractErrorMessage } from 'src/utils/error'
 import { downloadText, dateStamp } from 'src/utils/download'
 import { isDemoMode } from 'src/config/demo-mode'
-import type { WorkloadInfo, WorkloadAction } from 'src/types/workload'
+import type { WorkloadInfo, WorkloadAction, ServiceProbeSpec } from 'src/types/workload'
 import type { AgentAction } from 'src/types/agent'
 import { STATUSES, PROVISIONING } from 'src/constants/vocabularies'
 
@@ -372,6 +382,26 @@ const { runAgent, loading: agentLoading } = useAgent()
 useAgentStream()
 
 const vm = ref<WorkloadInfo | null>(null)
+
+/**
+ * Reflect a save immediately, at `unknown` health.
+ *
+ * The next broadcast (<=2s) replaces this with real health. Showing the saved probes at `unknown`
+ * in the meantime is the honest intermediate state: they exist and have not been evaluated yet.
+ * Carrying the OLD health across a save would be worse — it would attach a stale verdict to a
+ * probe the user just changed.
+ *
+ * Declared AFTER `vm` on purpose. Hoisting would make it work either way, but this file already
+ * carries a note about a getter placed above its dependency and the
+ * `Cannot access '...' before initialization` it produced; keeping the order honest costs nothing.
+ */
+function onProbesSaved(specs: ServiceProbeSpec[]): void {
+  if (!vm.value) return
+  vm.value = {
+    ...vm.value,
+    serviceProbes: specs.length > 0 ? specs.map(s => ({ ...s, health: 'unknown' as const })) : undefined,
+  }
+}
 const activeTab = ref('config')
 const actionLoading = ref(false)
 const agentDialogOpen = ref(false)

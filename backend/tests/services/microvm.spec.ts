@@ -195,6 +195,92 @@ describe('MicroVM Service', () => {
       const vm = await getVm('nonexistent-vm')
       expect(vm).toBeNull()
     })
+
+    // Probing is OPT-IN. Two of getVm's three callers want one field off the definition — the
+    // clone guard reads `status`, the logs route reads `runtime` — and probing would spend up to
+    // 2s of network timeouts to answer a question neither asked.
+    describe('service probes', () => {
+      const PROBED_VM: WorkloadDefinition = {
+        name: 'probed', ip: '10.10.0.99', mem: 256, vcpu: 1, hypervisor: 'qemu',
+        // Port 1 on a private address that does not exist: a real probe attempt resolves to
+        // `unhealthy` (connection refused / timeout), never to `unknown`. That is what makes the
+        // two branches below distinguishable rather than coincidentally equal.
+        serviceProbes: [{ port: 1, type: 'tcp', label: 'Nothing' }],
+      }
+
+      beforeEach(() => { setRegistry(makeRegistry({ probed: PROBED_VM })) })
+
+      it('reports configured probes as `unknown` when NOT asked to probe', async () => {
+        mockExecFile('active\n')
+        const vm = await getVm('probed')
+        // `unknown` is this type's word for "not checked" — omitting the probes entirely would
+        // tell an API client the workload has none configured, a different and false claim.
+        expect(vm!.serviceProbes).toEqual([{ port: 1, type: 'tcp', label: 'Nothing', health: 'unknown' }])
+      })
+
+      it('actually evaluates them when asked', async () => {
+        mockExecFile('active\n')
+        const vm = await getVm('probed', { probe: true })
+        expect(vm!.serviceProbes?.[0]?.health).toBe('unhealthy')
+      })
+
+      it('never emits a probe without a `health` field', async () => {
+        // The response schema requires `health`, so a raw SPEC reaching this path would make
+        // Fastify reject its own payload — a 500 on a detail fetch for any workload with a probe.
+        mockExecFile('active\n')
+        for (const vm of [await getVm('probed'), await getVm('probed', { probe: true })]) {
+          for (const probe of vm!.serviceProbes ?? []) {
+            expect(probe).toHaveProperty('health')
+          }
+        }
+      })
+
+      it('omits the field entirely for a workload with no probes', async () => {
+        setRegistry(createMockRegistry())
+        mockExecFile('active\n')
+        expect((await getVm('web-nginx'))!.serviceProbes).toBeUndefined()
+      })
+    })
+  })
+
+  describe('listVms — service probes', () => {
+    // The contract every consumer depends on: what comes out of listVms is a RESULT, never the
+    // stored spec. The response schema requires `health`, so a spec on this path makes Fastify
+    // reject its own payload; and if the schema ever relaxed, the UI would render probe rows with
+    // no health at all. `...def` now carries specs, so the field must be overwritten
+    // unconditionally rather than only when a probe happened to run.
+    it('attaches health to every emitted probe', async () => {
+      setRegistry(makeRegistry({
+        probed: {
+          name: 'probed', ip: '10.10.0.99', mem: 256, vcpu: 1, hypervisor: 'qemu',
+          serviceProbes: [{ port: 1, type: 'tcp', label: 'Nothing' }],
+        },
+      }))
+      mockExecFile('inactive\n')
+      const probes = (await listVms())[0]!.serviceProbes
+      expect(probes).toHaveLength(1)
+      expect(probes![0]).toHaveProperty('health')
+    })
+
+    it('emits `undefined`, not `[]`, for a stored empty list', async () => {
+      // `[]` and `undefined` are not the same claim downstream: one says "probes configured, none
+      // healthy", the other says "none configured". Letting `...def` spread the stored `[]`
+      // through is how the first gets said when the second is true.
+      setRegistry(makeRegistry({
+        empty: {
+          name: 'empty', ip: '10.10.0.98', mem: 256, vcpu: 1, hypervisor: 'qemu',
+          serviceProbes: [],
+        },
+      }))
+      mockExecFile('inactive\n')
+      expect((await listVms())[0]!.serviceProbes).toBeUndefined()
+    })
+
+    it('omits the field for a workload that never had probes', async () => {
+      setRegistry(createMockRegistry())
+      mockExecFile('inactive\n')
+      expect((await listVms()).every(v => v.serviceProbes === undefined)).toBe(true)
+    })
   })
 
   describe('listVms', () => {

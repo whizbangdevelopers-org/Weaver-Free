@@ -4,6 +4,7 @@ import { execFile } from 'node:child_process'
 import { readFile } from 'node:fs/promises'
 import { promisify } from 'node:util'
 import type { WorkloadRegistry, WorkloadDefinition, ProvisioningState } from '../storage/workload-registry.js'
+import { parseMicrovmDeclarations } from './nix-config-parser.js'
 import type { Provisioner } from './provisioner-types.js'
 import type { DashboardConfig } from '../config.js'
 import { STATUSES, PROVISIONING, TIERS, TIER_ORDER, type WorkloadStatus } from '../constants/vocabularies.js'
@@ -708,19 +709,24 @@ export async function listVms(): Promise<WorkloadInfo[]> {
   // concurrently, and the 1.5s TCP / 2s HTTP budgets are per-probe, not cumulative.
   const probed = await Promise.all(
     entries.map(([, def], i) => {
-      const probes = (def as WorkloadDefinition & { serviceProbes?: WorkloadServiceProbe[] })
-        .serviceProbes
+      const probes = def.serviceProbes
       if (!probes || probes.length === 0) return Promise.resolve(undefined)
       return runProbes(def.ip, statuses[i]!, probes)
     }),
   )
 
+  // `...def` now carries `serviceProbes` as SPECS (no `health`), so the field must be overwritten
+  // unconditionally rather than only when a probe ran. Spreading the spec into a WorkloadInfo would
+  // ship configuration shaped like a result: the response schema requires `health`, so Fastify
+  // would reject its own payload — and if the schema ever relaxed, the UI would render probe rows
+  // with no health at all. TypeScript caught this the moment the field became typed; it was
+  // invisible while `serviceProbes` was reached through a cast.
   return entries.map(([, def], i) => ({
     ...def,
     status: statuses[i],
     uptime: uptimes[i],
     networkDivergent: networkDivergence(def),
-    ...(probed[i] ? { serviceProbes: probed[i] } : {}),
+    serviceProbes: probed[i],
   }))
 }
 
@@ -735,7 +741,22 @@ function networkDivergence(def: WorkloadDefinition): boolean | undefined {
   return isDivergentNetwork(def.bridge, config.bridgeInterface)
 }
 
-export async function getVm(name: string): Promise<WorkloadInfo | null> {
+/**
+ * One workload, by name.
+ *
+ * `probe` is OPT-IN and defaults to false because two of the three callers want only a field off
+ * the definition — the clone guard reads `status`, the logs route reads `runtime` — and probing
+ * would spend up to 2s of network timeouts to answer a question neither asked. The detail route
+ * opts in; it is the one place a caller is actually looking at service health.
+ *
+ * With `probe` false, configured probes are still reported, with `health: 'unknown'` — which is
+ * this type's existing word for *not checked*, not for *no probes*. Dropping them instead would
+ * tell an API client the workload has no probes configured, which is a different and false claim.
+ */
+export async function getVm(
+  name: string,
+  opts: { probe?: boolean } = {},
+): Promise<WorkloadInfo | null> {
   const def = await registry.get(name)
   if (!def) return null
   // Below Solo an Apptainer workload is indistinguishable from one that does not exist — the
@@ -744,7 +765,16 @@ export async function getVm(name: string): Promise<WorkloadInfo | null> {
   if (def.runtime === 'apptainer' && !apptainerVisible()) return null
   const status = await getVmStatus(name)
   const uptime = status === STATUSES.RUNNING ? await getVmUptime(name) : null
-  return { ...def, status, uptime, networkDivergent: networkDivergence(def) }
+
+  const specs = def.serviceProbes
+  let serviceProbes: WorkloadServiceProbe[] | undefined
+  if (specs && specs.length > 0) {
+    serviceProbes = opts.probe
+      ? await runProbes(def.ip, status, specs)
+      : specs.map(s => ({ ...s, health: 'unknown' as const }))
+  }
+
+  return { ...def, status, uptime, networkDivergent: networkDivergence(def), serviceProbes }
 }
 
 function isProvisionedOrLegacy(def: WorkloadDefinition): boolean {
@@ -1109,6 +1139,67 @@ export async function scanMicrovms(): Promise<ScanResult> {
   }
 
   return { discovered, added, existing, refreshed }
+}
+
+/**
+ * Adopt guests DECLARED in the host's configuration.nix that Weaver does not know about yet.
+ *
+ * The gap this closes: `scanMicrovms()` enumerates `microvm@*.service`, so it can only see a guest
+ * that has already been BUILT and activated. A guest declared this morning and not yet rebuilt is
+ * invisible to it — and that is precisely the state the provisioner's own error message leaves the
+ * user in ("declare the guest in your host's configuration.nix using microvm.nix, rebuild, then
+ * run a workload scan to adopt it"). Between the declaration and the rebuild, Weaver had nothing
+ * to say.
+ *
+ * DELIBERATELY ADDITIVE, NEVER AUTHORITATIVE. Three rules, and each has a reason:
+ *
+ *   1. **Never overwrite an existing row.** A built guest's specs come from its generated run
+ *      script, which is what is actually running; the declaration is what someone intends to run.
+ *      When they disagree the running value wins, so an already-known name is reported `existing`
+ *      and left alone. `scanMicrovms()` owns refresh, and only from the run script.
+ *   2. **No `provisioningState`.** Matching `scanMicrovms()` exactly — an adopted guest is not
+ *      something Weaver provisioned, and marking it `registered` would make
+ *      `isProvisionedOrLegacy()` false and quietly change how existing code treats it.
+ *   3. **Absent specs stay absent**, via UNKNOWN_SPECS, rather than being invented. A declaration
+ *      that sets memory in an imported module is unreadable to a line-based parser, and a
+ *      confidently wrong 512 is worse than a visible gap.
+ *
+ * A missing or unreadable configuration.nix is not an error — plenty of hosts do not have one at
+ * the configured path — so it returns an empty result, the same way a missing container binary
+ * does.
+ */
+export async function scanNixDeclarations(): Promise<ScanResult> {
+  const discovered: string[] = []
+  const added: string[] = []
+  const existing: string[] = []
+
+  const path = config?.nixConfigPath
+  if (!path) return { discovered, added, existing }
+
+  let raw: string
+  try {
+    raw = await readFile(path, 'utf-8')
+  } catch {
+    return { discovered, added, existing } // absent or unreadable — not an error
+  }
+
+  for (const decl of parseMicrovmDeclarations(raw)) {
+    discovered.push(decl.name)
+    if (await registry.has(decl.name)) {
+      existing.push(decl.name)
+      continue
+    }
+    await registry.add({
+      name: decl.name,
+      ip: decl.ip ?? '',
+      mem: decl.mem ?? UNKNOWN_SPECS.mem,
+      vcpu: decl.vcpu ?? UNKNOWN_SPECS.vcpu,
+      hypervisor: decl.hypervisor ?? UNKNOWN_SPECS.hypervisor,
+    })
+    added.push(decl.name)
+  }
+
+  return { discovered, added, existing }
 }
 
 /**

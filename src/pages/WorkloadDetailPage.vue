@@ -480,6 +480,17 @@
                 </q-item-section>
               </q-item>
             </q-list>
+
+            <!-- Same component the drawer panel renders, so the two surfaces cannot disagree about
+                 what a colour means or when the Open button appears. -->
+            <ServiceHealthSection
+              class="q-mt-lg"
+              heading-class="text-h6"
+              :vm-name="vm.name"
+              :vm-ip="vm.ip"
+              :probes="vm.serviceProbes"
+              @saved="onProbesSaved"
+            />
           </q-tab-panel>
 
           <!-- Provisioning Logs Tab -->
@@ -642,7 +653,7 @@ import { useAgentStream } from 'src/composables/useAgentStream'
 import { useWorkloadStore } from 'src/stores/workload-store'
 import { useAgentStore } from 'src/stores/agent-store'
 import { formatUptime } from 'src/utils/format'
-import type { WorkloadInfo, WorkloadAction } from 'src/types/workload'
+import type { WorkloadInfo, WorkloadAction, ServiceProbeSpec } from 'src/types/workload'
 import type { AgentAction } from 'src/types/agent'
 import { useAuthStore } from 'src/stores/auth-store'
 import { useAppStore } from 'src/stores/app'
@@ -651,6 +662,7 @@ import { extractErrorMessage } from 'src/utils/error'
 import { downloadText, dateStamp } from 'src/utils/download'
 import { isDemoMode } from 'src/config/demo-mode'
 import WorkloadMetricsChart from 'src/components/WorkloadMetricsChart.vue'
+import ServiceHealthSection from 'src/components/ServiceHealthSection.vue'
 import DemoVersionFeatures from 'src/components/demo/DemoVersionFeatures.vue'
 import VersionNag from 'src/components/demo/VersionNag.vue'
 import { STATUSES, PROVISIONING } from 'src/constants/vocabularies'
@@ -672,6 +684,21 @@ const { runAgent, loading: agentLoading } = useAgent()
 useAgentStream()
 
 const vm = ref<WorkloadInfo | null>(null)
+
+/**
+ * Reflect a probe save immediately, at `unknown` health.
+ *
+ * The next broadcast (<=2s) replaces this with real health. `unknown` is the honest intermediate
+ * state — the probes exist and have not been evaluated yet. Carrying the OLD health across a save
+ * would attach a stale verdict to a probe the user just changed.
+ */
+function onProbesSaved(specs: ServiceProbeSpec[]): void {
+  if (!vm.value) return
+  vm.value = {
+    ...vm.value,
+    serviceProbes: specs.length > 0 ? specs.map(s => ({ ...s, health: 'unknown' as const })) : undefined,
+  }
+}
 const activeTab = ref('config')
 const actionLoading = ref(false)
 const agentDialogOpen = ref(false)

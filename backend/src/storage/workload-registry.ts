@@ -1,5 +1,7 @@
 // Copyright (c) 2026 whizBANG Developers LLC. All rights reserved.
 // Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE.
+import type { ServiceProbeSpec } from '../services/health-probe.js'
+
 export type ProvisioningState =
   | 'registered'
   | 'provisioning'
@@ -42,6 +44,18 @@ export type WorkloadDefinition = {
   containerId?: string // docker/podman container ID
   image?: string // container image (analogous to distro for VMs)
   ports?: string[] // port mappings e.g. ["0.0.0.0:8080->80/tcp"]
+  /**
+   * Service health probes to run against this workload on every broadcast cycle.
+   *
+   * Stored WITHOUT `health` — that is computed per cycle by `runProbes` and never persisted. A
+   * persisted health field would be a stale answer served with the authority of a live one, which
+   * is worse than no answer: the dashboard would show green for a service that died while the
+   * daemon was down.
+   *
+   * Configuring these is Solo and above (a mutation, so it follows the provisioning gate); SEEING
+   * the resulting health is Free.
+   */
+  serviceProbes?: ServiceProbeSpec[]
 }
 
 export interface WorkloadRegistry {

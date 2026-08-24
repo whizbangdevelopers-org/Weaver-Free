@@ -96,6 +96,75 @@ export function extractMicrovmBlocks(lines: string[]): ParsedBlock[] {
   return extractBlocks(lines, 'microvm.vms')
 }
 
+/**
+ * A `microvm.vms.<name>` guest as DECLARED, for adoption into the registry.
+ *
+ * Every field but `name` is optional and that is the contract, not laziness: a declaration is
+ * hand-written Nix and may set none of them, or set them through a `let` binding, an import, or a
+ * module this line-based reader cannot follow. `undefined` means "not stated here", which the
+ * caller must be able to tell apart from `0` — a guest with `mem = 0` does not exist, but one
+ * whose memory is defined in an imported module very much does.
+ */
+export interface DeclaredMicrovm {
+  name: string
+  mem?: number
+  vcpu?: number
+  hypervisor?: string
+  ip?: string
+}
+
+/** Hypervisors microvm.nix can run. A declaration naming anything else is left `undefined`. */
+const KNOWN_HYPERVISORS = ['qemu', 'cloud-hypervisor', 'crosvm', 'kvmtool', 'firecracker', 'stratovirt', 'alioth']
+
+/**
+ * Parse the guests DECLARED in a NixOS configuration, for adoption.
+ *
+ * This reads the DECLARATION; `readMicrovmSpecs()` in microvm.ts reads the GENERATED RUN SCRIPT of
+ * a guest that has already been built. They answer different questions and neither replaces the
+ * other: the run script is authoritative for what is actually running, and exists only after a
+ * rebuild — so a guest declared this morning is invisible to it. That gap is what this closes, and
+ * it is the gap the provisioner's own error message walks the user around by hand ("declare the
+ * guest in your host's configuration.nix using microvm.nix, rebuild, then run a workload scan").
+ *
+ * Line-based, like the rest of this file, and for the same stated reason — we are a viewer, not a
+ * validator. The consequence is worth being explicit about: a value that is not a literal on the
+ * same line is NOT read, and comes back `undefined` rather than guessed at. A wrong 512 is worse
+ * than an absent one, because the absent one is visibly absent.
+ */
+export function parseMicrovmDeclarations(rawContent: string): DeclaredMicrovm[] {
+  const lines = rawContent.split('\n')
+  return extractMicrovmBlocks(lines).map(block => {
+    const body = block.rawNix
+    const out: DeclaredMicrovm = { name: block.name }
+
+    const num = (re: RegExp): number | undefined => {
+      const m = re.exec(body)
+      if (!m) return undefined
+      const n = Number(m[1])
+      // A declared 0 is meaningless for both fields and is far more likely to be a parse artefact
+      // than an operator's intent, so it is dropped rather than stored as a real value.
+      return Number.isInteger(n) && n > 0 ? n : undefined
+    }
+
+    // `(?:^|\s)` rather than `^\s*`: extractBlocks treats `prefix.name = { ... };` written on ONE
+    // line as a one-line block, and a line-start anchor cannot see anything inside it. The
+    // whitespace boundary still refuses `config.microvm.mem`, which a bare substring would match.
+    out.mem = num(/(?:^|\s)microvm\.mem\s*=\s*(\d+)\s*;/m)
+    out.vcpu = num(/(?:^|\s)microvm\.vcpu\s*=\s*(\d+)\s*;/m)
+
+    const hv = /(?:^|\s)microvm\.hypervisor\s*=\s*"([^"]+)"\s*;/m.exec(body)
+    if (hv && KNOWN_HYPERVISORS.includes(hv[1]!)) out.hypervisor = hv[1]!
+
+    // networking.interfaces.<if>.ipv4.addresses = [ { address = "10.0.0.5"; prefixLength = 24; } ];
+    // Only the FIRST address is taken: the registry holds one `ip`, and silently picking among
+    // several would make which one arbitrary.
+    const ip = /address\s*=\s*"(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})"/.exec(body)
+    if (ip) out.ip = ip[1]!
+
+    return out
+  })
+}
+
 export function extractOciContainerBlocks(lines: string[]): ParsedBlock[] {
   return extractBlocks(lines, 'virtualisation.oci-containers.containers')
 }

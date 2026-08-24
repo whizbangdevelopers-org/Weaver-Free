@@ -27,6 +27,15 @@ export interface WorkloadServiceProbe {
   health: ProbeHealth
 }
 
+/**
+ * What a client SENDS when configuring probes — the same shape minus `health`.
+ *
+ * Derived with `Omit` rather than written out again, so the two can never disagree about a field.
+ * `health` is computed on the host every broadcast cycle and is never accepted from a client: a
+ * caller able to post it could paint the dashboard green for a service that is down.
+ */
+export type ServiceProbeSpec = Omit<WorkloadServiceProbe, 'health'>
+
 export interface WorkloadInfo {
   name: string
   status: WorkloadStatus

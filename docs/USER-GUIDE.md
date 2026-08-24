@@ -137,6 +137,7 @@ Each card shows:
 - **Hypervisor** — the virtualization backend (QEMU, Cloud Hypervisor, etc.)
 - **Tags** — assigned labels (up to 3 visible, with overflow count)
 - **Description** — optional text description
+- **Services** — service health, when probes are configured (see [Service Health](#service-health))
 
 Click any card to open its [Workload Detail Page](#workload-detail-page).
 
@@ -148,7 +149,18 @@ Running workloads show **Stop** and **Restart** buttons. Stopped workloads show 
 
 If no workloads are registered, an empty state appears with two options:
 
-- **Scan for Workloads** — discovers NixOS-declared MicroVMs (`microvm@*` systemd services) and containers on your host, then adds them to Weaver automatically
+- **Scan for Workloads** — discovers workloads already on your host and adds them to Weaver automatically. Three sources: MicroVMs that are **built and running** (`microvm@*` systemd services), MicroVMs **declared in your NixOS configuration but not yet rebuilt**, and containers under the runtimes you have enabled
+
+  Scanning is safe to repeat. It only ever **adds** workloads it does not already know about — it
+  never overwrites one you already have. Where a guest is both declared and built, the values
+  Weaver keeps are the ones read from what is actually running, because a declaration says what you
+  intend to run and the running guest says what you have.
+
+  A guest picked up from the configuration alone may show `0 MB` / `0 vCPU` / `unknown` hypervisor.
+  That is deliberate rather than a failure: Weaver reads the values stated literally in the
+  declaration, and a setting written through a variable or pulled in from another module is not
+  something it will guess at. Run a scan again after `nixos-rebuild` and the real figures are read
+  from the built guest.
 - **Create VM** — navigate to the Shed page to provision a new MicroVM via Live Provisioning (Weaver Solo+)
 
 > **Note:** Weaver supports two approaches to MicroVMs. On **all tiers**, NixOS-declared MicroVMs (defined in your NixOS configuration) offer lighter hypervisors, shared filesystems, and declarative reproducibility — Weaver monitors and controls them. On **Weaver Solo+**, Live Provisioning lets you create MicroVMs with any guest OS directly from the browser — no rebuild, no terminal. See the Admin Guide for details.
@@ -266,7 +278,63 @@ figures beside the chart: an unknown reading shows as an em dash, never as `0`.
 CPU is shown as a percentage of the workload's **allocated** vCPUs, so 100% means it is using
 everything it was given — a 4-vCPU workload at full load reads 100%, not 400%.
 
-Disk usage is not charted yet.
+Disk appears as **throughput** — read and write rates beside the chart — not as usage. That is
+a deliberate choice rather than a partial one: a VM image is a fixed allocation, so its size is a
+setting you already chose, while its I/O rate is the thing that changes and the thing that explains
+a slow workload. Disk **usage** is not charted.
+
+### Service Health
+
+*Available: v1.1+ · display on all tiers · configuration on Weaver Solo and above*
+
+A workload can be **running and serving nothing**. `systemctl` reports the VM is up while the
+service inside it — nginx, PostgreSQL, your API — has crashed. Status alone cannot tell you the
+difference, and that is the gap service health probes close.
+
+Weaver checks each configured port every broadcast cycle and reports whether the service answers.
+The result appears twice: as a `2/3 healthy` badge on the workload card, and as a per-service list
+under **Service Health** on the Networking tab.
+
+**Seeing health is free. Configuring probes requires Weaver Solo**, the same split every other
+change to how a workload runs follows.
+
+To configure: open a workload → **Networking** tab → **Configure** under Service Health. Add up to
+ten probes, one per port:
+
+| Field | Meaning |
+|-------|---------|
+| **Port** | The port to check. One probe per port |
+| **Type** | `TCP` — healthy when the port accepts a connection. `HTTP` — healthy when a GET returns below 400 |
+| **Label** | Optional display name, e.g. "Nginx". Defaults to `Port 5432` |
+| **URL** | HTTP only, optional. Blank probes `http://<workload IP>:<port>` |
+
+#### Four states, and the fourth is the useful one
+
+| State | Meaning |
+|-------|---------|
+| **healthy** | The service answered |
+| **unhealthy** | The service was contacted and did not answer — it is down |
+| **unknown** | Nothing was checked. The workload is not running, so a probe would only rediscover that |
+| **not probed** | Weaver **refused** to contact the target because it is not a private address. This is a configuration fault, not a service fault |
+
+"not probed" exists so that a mistyped probe never masquerades as an outage. Without it you would
+spend an afternoon debugging a service that was never contacted.
+
+#### Why a probe target must be a private IP address
+
+A probe is an outbound request to an address you supply, repeated automatically every couple of
+seconds from inside your host network. Weaver therefore accepts only private targets — `10.x`,
+`172.16`–`172.31.x`, `192.168.x` and loopback — written as **IP addresses, not hostnames**.
+
+Hostnames are refused even when they would resolve privately, because DNS resolves at the moment
+of connection rather than the moment of validation: a name that checks out can point somewhere
+else by the time the request is made.
+
+#### The Open button
+
+A healthy HTTP probe with a URL gets an **Open** button on the card and beside its row in the
+panel. It appears **only while that service is healthy** — offering a link to something the
+dashboard already knows is down just sends you to a browser error page.
 
 ### Tabs
 
@@ -275,7 +343,7 @@ Five tabs provide detailed information:
 | Tab | Content |
 |-----|---------|
 | **Configuration** | VM settings: name, hypervisor, memory, vCPUs, disk, distribution, autostart, cloud-init, bridge |
-| **Networking** | IP address, bridge, MAC address, and connectivity details |
+| **Networking** | IP address, bridge, MAC address, connectivity details, and [Service Health](#service-health) |
 | **Logs** | Provisioning output and system logs |
 | **Console** | Serial terminal for running VMs (see [Serial Console](#serial-console)) |
 | **AI Analysis** | History of past AI diagnostics (see [AI Diagnostics](#ai-diagnostics)) |
