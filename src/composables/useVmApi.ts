@@ -2,7 +2,7 @@
 // Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE.
 import { ref } from 'vue'
 import { vmApiService } from 'src/services/api'
-import type { WorkloadInfo, WorkloadActionResult, VmCreateInput } from 'src/types/workload'
+import type { WorkloadInfo, WorkloadActionResult, VmCreateInput, ServiceProbeSpec } from 'src/types/workload'
 import { extractErrorMessage } from 'src/utils/error'
 import { isDemoMode } from 'src/config/demo-mode'
 import { getDemoVmsForTier, getDemoVmsForHost } from 'src/config/demo'
@@ -106,6 +106,32 @@ export function useWorkloadApi() {
       const message = extractErrorMessage(err, 'Failed to update tags')
       error.value = message
       return { success: false, tags }
+    }
+  }
+
+  /**
+   * Configure service probes (Solo+).
+   *
+   * On failure the ORIGINAL list is returned, not the attempted one — a caller that rendered the
+   * attempted value on a rejected write would show the user a configuration the host does not
+   * have. `previous` is what the workload carried before the attempt.
+   */
+  async function setServiceProbes(
+    name: string,
+    serviceProbes: ServiceProbeSpec[],
+    previous: ServiceProbeSpec[] = [],
+  ): Promise<{ success: boolean; serviceProbes: ServiceProbeSpec[]; message?: string }> {
+    try {
+      if (isDemoMode()) return { success: true, serviceProbes }
+      return await vmApiService.setServiceProbes(name, serviceProbes)
+    } catch (err) {
+      // The host's own sentence, RETURNED rather than only stashed in `error`. The URL rule lives
+      // at the point of egress and is not duplicated in this bundle, so the caller has nothing
+      // better to say than what the host said — swallowing it would leave the dialog showing
+      // "something went wrong" for a message that names the offending field.
+      const message = extractErrorMessage(err, 'Failed to update service probes')
+      error.value = message
+      return { success: false, serviceProbes: previous, message }
     }
   }
 
@@ -249,5 +275,5 @@ export function useWorkloadApi() {
     }
   }
 
-  return { loading, error, fetchVms, fetchVm, vmAction, createVm, deleteVm, cloneVm, exportVm, exportAllVms, fetchLogs, setAutostart, setDescription, setTags, scanVms }
+  return { loading, error, fetchVms, fetchVm, vmAction, createVm, deleteVm, cloneVm, exportVm, exportAllVms, fetchLogs, setAutostart, setDescription, setTags, setServiceProbes, scanVms }
 }

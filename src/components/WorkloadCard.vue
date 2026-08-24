@@ -84,6 +84,37 @@
         <span class="text-caption text-grey-7 text-mono">{{ vm.ip }}</span>
       </div>
 
+      <!-- Service health. Free tier: seeing this costs nothing to serve, so it is not gated.
+           Rendered only when probes exist — an absent row says "none configured", where a grey
+           badge would say "configured and unevaluable", which is a different and wrong claim. -->
+      <div v-if="vm.serviceProbes?.length" class="row items-center no-wrap q-mb-xs">
+        <q-icon
+          :name="probeHealthIcon(aggregateHealth)"
+          :color="probeHealthColor(aggregateHealth)"
+          size="14px"
+          class="q-mr-xs"
+        >
+          <q-tooltip>{{ serviceTooltip }}</q-tooltip>
+        </q-icon>
+        <span class="text-caption text-grey-7 q-mr-xs">Services</span>
+        <q-badge
+          :color="probeHealthColor(aggregateHealth)"
+          rounded
+          style="font-size:9px"
+        >{{ probeHealthSummary(vm.serviceProbes) }}</q-badge>
+        <q-space />
+        <q-btn
+          v-if="openUrl"
+          flat dense no-caps size="sm"
+          color="primary"
+          icon="mdi-open-in-new"
+          label="Open"
+          @click.stop="openService"
+        >
+          <q-tooltip>{{ openUrl }}</q-tooltip>
+        </q-btn>
+      </div>
+
       <!-- Provisioning state banners -->
       <q-banner v-if="isProvisioning" dense rounded class="bg-blue-1 text-primary q-mb-xs">
         <template #avatar>
@@ -160,6 +191,14 @@ import { useResourceDrawerStore } from 'src/stores/resource-drawer-store'
 import { useAppStore } from 'src/stores/app'
 import { isDemoMode } from 'src/config/demo-mode'
 import { vmTypeIcon, vmTypeColor } from 'src/utils/vm'
+import {
+  aggregateProbeHealth,
+  primaryServiceUrl,
+  probeHealthColor,
+  probeHealthIcon,
+  probeHealthLabel,
+  probeHealthSummary,
+} from 'src/utils/probe-health'
 import type { WorkloadInfo } from 'src/types/workload'
 
 function formatHypervisor(hv: string): string {
@@ -217,6 +256,29 @@ const isMigratable = computed(() => {
   return !props.vm.tags?.includes('gpu-pinned')
 })
 const isLiveMigrate = computed(() => appStore.isDemoVersionAtLeast('3.0'))
+
+// Service health — derived from the shared presentation seam so the card and the detail panel
+// cannot drift on what a colour means.
+const aggregateHealth = computed(() => aggregateProbeHealth(props.vm.serviceProbes))
+
+const serviceTooltip = computed(() => {
+  const probes = props.vm.serviceProbes ?? []
+  return probes
+    .map(p => `${p.label ?? `Port ${p.port}`} (${p.type.toUpperCase()} :${p.port}) — ${probeHealthLabel(p.health)}`)
+    .join('\n')
+})
+
+/**
+ * The "Open" link, suppressed in demo mode.
+ *
+ * A demo workload's probe URL points at a private address that does not exist for the visitor, so
+ * the button would open a browser error page — the public demo's one job is to not look broken.
+ */
+const openUrl = computed(() => (isDemoMode() ? undefined : primaryServiceUrl(props.vm.serviceProbes)))
+
+function openService() {
+  if (openUrl.value) window.open(openUrl.value, '_blank', 'noopener,noreferrer')
+}
 
 function navigateToDetail() {
   drawerStore.openVm(props.vm.name)

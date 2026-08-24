@@ -2,7 +2,7 @@
 // Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE.
 import { api } from 'src/boot/axios'
 import type { AxiosRequestConfig } from 'axios'
-import type { WorkloadInfo, WorkloadActionResult, VmCreateInput, ExportDocument } from 'src/types/workload'
+import type { WorkloadInfo, WorkloadActionResult, VmCreateInput, ExportDocument, ServiceProbeSpec } from 'src/types/workload'
 import type { WorkloadMetrics } from 'src/types/metrics'
 import type { NetworkTopology, BridgeInfo, IpPoolConfig, FirewallRule } from 'src/types/network'
 import type { NotificationEvent, NotificationChannelConfigData, ChannelConfig, ResourceAlertConfig } from 'src/types/notification'
@@ -87,6 +87,16 @@ export class VmApiService extends ApiService {
 
   async setTags(name: string, tags: string[]): Promise<{ success: boolean; tags: string[] }> {
     return this.put<{ success: boolean; tags: string[] }>(`/${name}/tags`, { tags })
+  }
+
+  /**
+   * Configure service health probes. Solo+ — the route answers 403 below it.
+   *
+   * The payload carries SPECS, never `health`: health is computed on the host each broadcast
+   * cycle, and a client that could post it could paint the dashboard green for a dead service.
+   */
+  async setServiceProbes(name: string, serviceProbes: ServiceProbeSpec[]): Promise<{ success: boolean; serviceProbes: ServiceProbeSpec[] }> {
+    return this.put<{ success: boolean; serviceProbes: ServiceProbeSpec[] }>(`/${name}/probes`, { serviceProbes })
   }
 
   async scan(): Promise<{ discovered: string[]; added: string[]; existing: string[] }> {

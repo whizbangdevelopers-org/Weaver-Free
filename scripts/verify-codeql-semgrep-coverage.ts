@@ -35,6 +35,8 @@ interface RuleEntry {
 interface CoverageMap {
   _meta: {
     lastRefreshed: string
+    /** Newest entry is the baseline currently in force; its `date` is when it was SET. */
+    baselineHistory?: { date: string; from: number; to: number; why: string }[]
     sourceRepo: string
     coverageBaseline: number
     coverageExcludes: string[]
@@ -101,7 +103,17 @@ function run(): void {
   const baseline = _meta.coverageBaseline
   const coverageStr = pct(coverage)
   const baselineStr = pct(baseline)
-  const coverageLine = `Coverage: ${coverageStr} (baseline ${baselineStr}, refreshed ${_meta.lastRefreshed})`
+  // TWO DATES, and they are not the same fact. `_meta.lastRefreshed` is stamped by
+  // refresh-codeql-coverage-map.ts on EVERY bot run, so it says when the rule list was last
+  // scanned. The baseline's own date is the last baselineHistory entry. Printing lastRefreshed
+  // beside the word "baseline" read as "the baseline was refreshed then" — which on 2026-08-24
+  // claimed a baseline set the previous day had been refreshed that morning, by a job that had
+  // only re-read `lastSeen` fields.
+  const baselineSet = _meta.baselineHistory?.at(-1)?.date
+  const coverageLine =
+    `Coverage: ${coverageStr} (baseline ${baselineStr}` +
+    (baselineSet ? ` set ${baselineSet}` : '') +
+    `, rules scanned ${_meta.lastRefreshed})`
 
   if (unknown.length > 0) {
     console.error(`\x1b[31m✗ ${unknown.length} unknown rule(s) — triage required:\x1b[0m`)

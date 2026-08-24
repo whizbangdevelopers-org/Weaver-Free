@@ -3,7 +3,7 @@
 import { FastifyPluginAsync } from 'fastify'
 import { ZodTypeProvider } from 'fastify-type-provider-zod'
 import { z } from 'zod'
-import { listVms, getVm, startVm, stopVm, restartVm, createVm, deleteVm, getWorkloadDefinitions, updateVmField, scanMicrovms, scanContainers, isContainerLogSource, getContainerLogs, cloneRejectionReason, deriveClonedDefinition, buildExportDocument } from '../services/microvm.js'
+import { listVms, getVm, startVm, stopVm, restartVm, createVm, deleteVm, getWorkloadDefinitions, updateVmField, scanMicrovms, scanNixDeclarations, scanContainers, isContainerLogSource, getContainerLogs, cloneRejectionReason, deriveClonedDefinition, buildExportDocument } from '../services/microvm.js'
 import { requireRole } from '../middleware/rbac.js'
 import { requireTier } from '../license.js'
 import { TIERS, TIER_ORDER, ROLES, STATUSES, PROVISIONING } from '../constants/vocabularies.js'
@@ -20,6 +20,7 @@ import { createRateLimit } from '../middleware/rate-limit.js'
 import { resolveWindowMs, SAMPLE_INTERVAL_MS } from '../services/metrics.js'
 import type { PromqlMetricsSource } from '../services/promql.js'
 import { firmwareRejectionReason } from '../services/firmware.js'
+import { isProbeableUrl } from '../services/health-probe.js'
 
 const vmNameSchema = z.object({
   name: z.string().regex(/^[a-z][a-z0-9-]*$/, 'Invalid VM name format')
@@ -114,6 +115,27 @@ const vmCloneSchema = z.object({
   description: z.string().max(500).optional(),
 })
 
+/**
+ * Service-probe configuration body.
+ *
+ * `url` is validated with `isProbeableUrl` — the SAME predicate the prober enforces at egress —
+ * rather than a second regex written here. Two rules for one invariant disagree eventually, and
+ * the one that matters is the one at egress; this one exists to give the user a 400 with a reason
+ * instead of a silent `unreachable` badge they cannot diagnose.
+ *
+ * There is deliberately no `health` field. Health is computed per broadcast cycle and never
+ * accepted from a client: a caller that could post `health: 'healthy'` could paint the dashboard
+ * green for a service that is down.
+ */
+const serviceProbeSchema = z.object({
+  port: z.number().int().min(1).max(65535),
+  type: z.enum(['http', 'tcp']),
+  url: z.string().refine(isProbeableUrl, {
+    message: 'Probe URL must be http(s) to a private IPv4 literal (RFC1918 or loopback). Hostnames are refused because DNS resolves at request time.',
+  }).optional(),
+  label: z.string().min(1).max(40).optional(),
+})
+
 // Response schemas for fast-json-stringify serialization
 const vmInfoResponseSchema = z.object({
   name: z.string(),
@@ -144,6 +166,14 @@ const vmInfoResponseSchema = z.object({
   containerId: z.string().optional(),
   image: z.string().optional(),
   ports: z.array(z.string()).optional(),
+  // Service health. MUST be listed here for the same reason `networkDivergent` is: Zod strips
+  // unknown keys from the response, so an omitted field is computed by the service, dropped on the
+  // wire, and never seen by the UI — with nothing erroring anywhere.
+  serviceProbes: z.array(
+    serviceProbeSchema.extend({
+      health: z.enum(['healthy', 'unhealthy', 'unknown', 'unreachable']),
+    })
+  ).optional(),
 })
 
 const vmActionResponseSchema = z.object({
@@ -292,7 +322,9 @@ export const workloadsRoutes: FastifyPluginAsync<VmsRouteOptions> = async (fasti
     return vms
   })
 
-  // POST /api/workload/scan — discover microvm@* systemd services (admin only)
+  // POST /api/workload/scan — adopt workloads Weaver does not know about (admin only).
+  // Three sources: built microvm@* systemd units, guests DECLARED in configuration.nix but
+  // not yet rebuilt, and the container runtimes the operator declared.
   app.post(
     '/scan',
     {
@@ -333,8 +365,14 @@ export const workloadsRoutes: FastifyPluginAsync<VmsRouteOptions> = async (fasti
       // because apptainer's registry write failed. Acceptance criterion 4 ("scanning a host where
       // one runtime is missing still returns results from the others") is only actually
       // guaranteed at this level; the per-scan catch is the common case, not the contract.
+      // scanNixDeclarations() joins the same allSettled set rather than running first, and the
+      // ORDER matters where it overlaps: a guest that is both declared and built is added by
+      // whichever scan reaches it first, and both refuse to overwrite an existing row — so the
+      // outcome is the same either way, and neither can clobber the other's specs. What differs is
+      // only which one reports it as `added`.
       const settled = await Promise.allSettled([
         scanMicrovms(),
+        scanNixDeclarations(),
         ...runtimes.map((r) => scanContainers(r)),
       ])
       for (const outcome of settled) {
@@ -862,7 +900,8 @@ export const workloadsRoutes: FastifyPluginAsync<VmsRouteOptions> = async (fasti
     { schema: { params: vmNameSchema, response: { 200: vmInfoResponseSchema, 404: errorResponseSchema } }, preHandler: [...aclPreHandler] },
     async (request, reply) => {
       const { name } = request.params
-      const vm = await getVm(name)
+      // The one caller that wants live probe results — this is the workload someone is looking at.
+      const vm = await getVm(name, { probe: true })
       if (!vm) {
         return reply.status(404).send({ error: `VM '${name}' not found` })
       }
@@ -1121,6 +1160,62 @@ export const workloadsRoutes: FastifyPluginAsync<VmsRouteOptions> = async (fasti
         return reply.status(404).send({ error: result.message })
       }
       return { success: true, tags }
+    }
+  )
+
+  // PUT /api/workload/:name/probes — configure service health probes (operator+, Solo+)
+  //
+  // The tier split for this feature is asymmetric on purpose and both halves are load-bearing:
+  // SEEING health is Free (it rides the existing vm-status broadcast and costs nothing to serve),
+  // CONFIGURING a probe is Solo — a mutation, so it follows the provisioning gate the rest of the
+  // product uses. That means this is the only route in the pair; there is no GET, because the
+  // configured probes already ship on every workload payload a Free user receives.
+  app.put(
+    '/:name/probes',
+    {
+      schema: {
+        params: vmNameSchema,
+        body: z.object({ serviceProbes: z.array(serviceProbeSchema).max(10) }),
+        response: {
+          200: z.object({ success: z.boolean(), serviceProbes: z.array(serviceProbeSchema) }),
+          400: errorResponseSchema,
+          403: errorResponseSchema,
+          404: errorResponseSchema,
+        },
+      },
+      preHandler: [requireRole(ROLES.ADMIN, ROLES.OPERATOR), ...aclPreHandler],
+    },
+    async (request, reply) => {
+      const { name } = request.params
+
+      // Tier gate before the duplicate check, so a Free caller learns it is a tier problem rather
+      // than being told its port list is malformed.
+      if (config) {
+        try {
+          requireTier(config, TIERS.SOLO)
+        } catch {
+          return reply.status(403).send({ error: 'Configuring service health probes requires solo tier' })
+        }
+      }
+
+      const serviceProbes = request.body.serviceProbes
+
+      // One probe per port. Two probes on the same port are either a duplicate or a contradiction
+      // (tcp and http against 8080 answer different questions and would render as two rows for one
+      // service), and silently keeping the last would discard the user's other entry.
+      const ports = serviceProbes.map(p => p.port)
+      const duplicate = ports.find((port, i) => ports.indexOf(port) !== i)
+      if (duplicate !== undefined) {
+        return reply.status(400).send({ error: `Port ${duplicate} has more than one probe. Configure at most one probe per port.` })
+      }
+
+      const result = await updateVmField(name, {
+        serviceProbes: serviceProbes.length > 0 ? serviceProbes : undefined,
+      })
+      if (!result.success) {
+        return reply.status(404).send({ error: result.message })
+      }
+      return { success: true, serviceProbes }
     }
   )
 }

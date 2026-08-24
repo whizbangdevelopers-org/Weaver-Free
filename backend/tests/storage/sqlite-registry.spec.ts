@@ -197,4 +197,81 @@ describe('SqliteWorkloadRegistry', () => {
     const vm = await registry.get('nixos-vm')
     expect(vm!.distro).toBe('nixos')
   })
+
+  describe('serviceProbes — the field that would otherwise vanish on restart', () => {
+    // This backend persists an EXPLICIT column list, and `update()` ends with
+    // `if (sets.length === 0) return true` — so a field it has no column for is written with a
+    // successful-looking 200 and is gone at the next read. That is why `serviceProbes` got a
+    // column in the same change that added it to WorkloadDefinition rather than in a follow-up.
+    const PROBES = [
+      { port: 80, type: 'http' as const, url: 'http://10.0.0.1/', label: 'Nginx' },
+      { port: 5432, type: 'tcp' as const, label: 'PostgreSQL' },
+    ]
+
+    it('round-trips probes through add() and a REOPENED database', async () => {
+      await registry.init()
+      await registry.add(makeVm({ serviceProbes: PROBES }))
+
+      // Reopen: an in-process cache would make a lost column look persisted.
+      const reopened = new SqliteWorkloadRegistry(dbPath)
+      await reopened.init()
+      expect((await reopened.get('test-vm'))?.serviceProbes).toEqual(PROBES)
+    })
+
+    it('round-trips probes through update() and a reopened database', async () => {
+      await registry.init()
+      await registry.add(makeVm())
+      expect(await registry.update('test-vm', { serviceProbes: PROBES })).toBe(true)
+
+      const reopened = new SqliteWorkloadRegistry(dbPath)
+      await reopened.init()
+      expect((await reopened.get('test-vm'))?.serviceProbes).toEqual(PROBES)
+    })
+
+    it('reports NO probes as undefined, never as an empty array', async () => {
+      // `[]` and `undefined` are not equivalent to a consumer that tests for the key's presence:
+      // one says "configured, none healthy", the other says "none configured". The JSON registry
+      // produces `undefined`, so this backend must too or the two disagree about the same VM.
+      await registry.init()
+      await registry.add(makeVm())
+      expect((await registry.get('test-vm'))?.serviceProbes).toBeUndefined()
+
+      await registry.update('test-vm', { serviceProbes: PROBES })
+      await registry.update('test-vm', { serviceProbes: undefined })
+      expect((await registry.get('test-vm'))?.serviceProbes).toBeUndefined()
+    })
+
+    it('reads a malformed column as absent rather than throwing or half-parsing', async () => {
+      await registry.init()
+      await registry.add(makeVm({ serviceProbes: PROBES }))
+      // Simulate corruption in the column, which a JSON.parse in the read path would throw on —
+      // taking out every getAll() for every workload, not just this row.
+      const db = (registry as unknown as { db: { prepare: (s: string) => { run: (...a: unknown[]) => unknown } } }).db
+      db.prepare("UPDATE vms SET service_probes = ? WHERE name = ?").run('{not json', 'test-vm')
+      expect((await registry.get('test-vm'))?.serviceProbes).toBeUndefined()
+      await expect(registry.getAll()).resolves.toBeTruthy()
+    })
+
+    it('migrates a pre-existing database that has no service_probes column', async () => {
+      // The upgrade path: a database created before this field existed must gain the column on
+      // init and keep the rows it already had.
+      await registry.init()
+      await registry.add(makeVm())
+      const db = (registry as unknown as { db: { exec: (s: string) => unknown } }).db
+      db.exec('ALTER TABLE vms DROP COLUMN service_probes')
+
+      const upgraded = new SqliteWorkloadRegistry(dbPath)
+      await upgraded.init()
+      expect(await upgraded.get('test-vm')).toBeTruthy()
+      expect(await upgraded.update('test-vm', { serviceProbes: PROBES })).toBe(true)
+      expect((await upgraded.get('test-vm'))?.serviceProbes).toEqual(PROBES)
+    })
+
+    it('does not leak the raw snake_case column onto the definition', async () => {
+      await registry.init()
+      await registry.add(makeVm({ serviceProbes: PROBES }))
+      expect(await registry.get('test-vm')).not.toHaveProperty('service_probes')
+    })
+  })
+
 })

@@ -517,6 +517,19 @@ const helpSections = computed<HelpSection[]>(() => [
         ],
       },
       {
+        question: 'What are service health probes?',
+        answer:
+          'A workload can be running and serving nothing — systemd reports the VM is up while nginx has crashed inside it. A service health probe closes that gap: Weaver checks a port on the workload every broadcast cycle and reports whether the service actually answers. Seeing health is available on every tier; configuring probes requires Weaver Solo, like every other change that alters how a workload runs.',
+        steps: [
+          'Open a workload, go to the Network tab, and choose Configure under Service Health.',
+          'Add a probe per service: a port, TCP or HTTP, and an optional label such as "Nginx" or "PostgreSQL". One probe per port, up to ten.',
+          'TCP probes report healthy when the port accepts a connection. HTTP probes report healthy when a GET returns below 400. Leave the HTTP URL blank to probe the workload IP on that port.',
+          'A probe target must be a private address — 10.x, 172.16–31.x, 192.168.x or loopback — and must be written as an IP, not a hostname. Weaver refuses anything else so a probe cannot be pointed at the wider network or at a cloud metadata endpoint.',
+          'Four states, and the fourth matters: healthy, unhealthy (the service did not answer), unknown (the workload is not running, so nothing was checked) and "not probed" (the target was refused — fix the probe, the service was never contacted).',
+          'A healthy HTTP probe with a URL gets an Open button on the card and in the panel. It appears only while the service is healthy — a link to something known to be down just sends you to a browser error page.',
+        ],
+      },
+      {
         question: 'What notification events are available?',
         answer:
           'Events are grouped into four categories: Workload events (started, stopped, failed, recovered), Provisioning events (provisioned, provision-failed), Resource alerts (high CPU, high memory), and Security events (auth failure, unauthorized access, permission denied). Session lifecycle events (login kick, logout) do not trigger security notifications. Each channel can subscribe to any combination of events.',
