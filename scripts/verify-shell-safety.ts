@@ -60,27 +60,64 @@ export interface Finding { file: string; line: number; text: string }
 /** Pure: which lines sit inside an UNQUOTED heredoc body and contain command substitution? */
 export function findHeredocSubstitutions(content: string, path = ''): Finding[] {
   const lines = content.split('\n')
-  const out: Finding[] = []
-  const stack: { delim: string; expands: boolean; suppressed: boolean }[] = []
+  const stack: { delim: string; expands: boolean; suppressed: boolean; found: Finding[] }[] = []
+  const closed: Finding[] = []
 
   lines.forEach((raw, i) => {
     if (stack.length) {
-      const top = stack[stack.length - 1]
-      if (raw.trim() === top.delim) { stack.pop(); return }
+      const top = stack[stack.length - 1]!
+      if (raw.trim() === top.delim) {
+        // The heredoc genuinely closed, so its body really was a body. Only now do its findings
+        // count.
+        stack.pop()
+        closed.push(...top.found)
+        return
+      }
       if (top.expands && !top.suppressed && SUBST.test(raw)) {
-        out.push({ file: path, line: i + 1, text: raw.trim() })
+        top.found.push({ file: path, line: i + 1, text: raw.trim() })
       }
       return
     }
     const suppressed = SUPPRESS.test(raw)
-    for (const m of raw.matchAll(OPENER)) {
-      const tok = m[1]
+    // Scan for openers on the line with QUOTED SPANS REMOVED.
+    //
+    // `<<WORD` inside a string is text, not a redirect — `echo '<<NOPE'`, or a test fixture
+    // asserting on heredoc handling. Without this, such a line opens a phantom frame, and the
+    // frame then SHADOWS every real heredoc after it: the loop below is only reached when the
+    // stack is empty, so a genuine `cat <<EOF` two lines later is read as phantom body and its
+    // command substitution is never reported. Discarding unclosed frames at EOF does not save it,
+    // because the finding was attributed to the phantom.
+    //
+    // Removing a quoted delimiter (`<<'EOF'`) also removes that opener — which changes nothing,
+    // since a quoted delimiter disables expansion and was never reportable. Same verdict, and now
+    // by a route that cannot shadow.
+    const scan = raw.replace(/'[^']*'/g, '').replace(/"[^"]*"/g, '')
+    for (const m of scan.matchAll(OPENER)) {
+      const tok = m[1]!
       // Quoting ANY part of the delimiter disables expansion — both ' and " forms.
       const expands = !/["']/.test(tok)
-      stack.push({ delim: tok.replace(/["']/g, ''), expands, suppressed })
+      stack.push({ delim: tok.replace(/["']/g, ''), expands, suppressed, found: [] })
     }
   })
-  return out
+
+  // ── Frames still open at EOF are DISCARDED, deliberately ──────────────────────────────────
+  //
+  // OPENER matches `<<WORD` anywhere on a line, including inside a string. A file that TALKS
+  // about heredocs — a hook that parses them, a test fixture that asserts on them — therefore
+  // opens phantom heredocs that never close, and every line after one was being reported as its
+  // body. Measured 2026-08-24: 9 findings against `.claude/hooks/block-dangerous.sh`, every one a
+  // comment or a normal line of shell, and the auditor blind to the real remainder of the file
+  // from the phantom opener onward.
+  //
+  // The discriminator is exact rather than heuristic: an UNTERMINATED heredoc is a SYNTAX ERROR.
+  // A file containing one does not run at all, so `bash -n` would reject it and there would be
+  // nothing to audit. If a frame is still open when the input ends, that `<<WORD` was not an
+  // opener — it was text. Its "body" was ordinary code, and reporting it is a false positive by
+  // construction.
+  //
+  // This cannot hide a true positive: a real heredoc closes, which is precisely the condition for
+  // keeping its findings. Asserted both ways in the corpus below.
+  return closed
 }
 
 /**
@@ -117,6 +154,10 @@ const MUST_CATCH: [string, string][] = [
   ['the 2026-08-07 entry mangle', 'cat >> f.md <<ENTRY\nbucketing by `created_at` was in place\nENTRY\n'],
   ['dollar-paren in an unquoted body', 'cat <<EOF\nbuilt at $(date)\nEOF\n'],
   ['interpolating id AND a backtick', 'cat <<ENTRY\nid: L-x-$U\nsee `col_name`\nENTRY\n'],
+  // The discard must not become a bypass: a heredoc that DOES close is still judged, including
+  // when more code follows it.
+  ['closed heredoc, code after it', 'cat <<EOF\nbuilt $(date)\nEOF\necho done\n'],
+  ['second heredoc closes, first is phantom', "echo '<<NOPE'\ncat <<EOF\n`whoami`\nEOF\n"],
 ]
 const MUST_IGNORE: [string, string][] = [
   ["single-quoted delimiter", "cat <<'EOF'\nbucketing by `created_at`\nEOF\n"],
@@ -127,6 +168,11 @@ const MUST_IGNORE: [string, string][] = [
   ['substitution outside any heredoc', 'D=$(date)\necho "$D"\n'],
   ['backtick after the terminator', "cat <<'EOF'\nbody\nEOF\necho `date`\n"],
   ['suppressed with a reason', 'cat <<EOF # shell-safety-ok: generator, the body is meant to expand\nbuilt $(date)\nEOF\n'],
+  // A file that TALKS about heredocs. `<<SH` here is inside a string and never terminates, so it
+  // was never an opener — an unterminated heredoc would be a syntax error and the file would not
+  // run. Everything after it is ordinary code, not a body.
+  ['a fixture string that merely contains an opener', "check 0 $'cat > e.sh <<SH\\nbody\\nSH'\nD=$(date)\n"],
+  ['prose naming a delimiter, then real code', '# see the <<ENTRY form below\nX=`date`\n'],
 ]
 
 const GATE_CATCH: [string, string][] = [
