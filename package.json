@@ -195,7 +195,7 @@
     "test:mutation:quick": "npx stryker run --mutate 'src/utils/*.ts'",
     "test:precommit": "npm run lint && npm run typecheck && npm run typecheck:scripts && npm run typecheck:tests && npm -w backend run lint && npm -w backend run typecheck && npm -w tui run typecheck && npm run test:unit:run && npm run test:backend && npm run test:tui",
     "test:prepush": "npm run test:precommit && npm run build:all && npm run test:security && npm run test:compliance",
-    "test:prerelease": "npm run test:prepush && npm run audit:licenses && npm run audit:release-workflow-dry-run && npm run audit:release-builds && npm run e2e && npm run e2e:free && npm run e2e:browsers",
+    "test:prerelease": "npm run test:prepush && npm run audit:licenses && npm run audit:release-workflow-dry-run && npm run audit:release-builds && npm run e2e && npm run e2e:free && npm run e2e:visual && npm run e2e:browsers",
     "test:security": "npx tsx scripts/audit-security.ts",
     "test:tui": "npm -w tui test",
     "test:unit": "vitest",
@@ -228,7 +228,8 @@
     "audit:unverified-claims": "npx tsx scripts/verify-unverified-claims.ts",
     "new:auditor": "npx tsx scripts/new-auditor.ts",
     "report:gate-provenance": "npx tsx scripts/report-gate-provenance.ts",
-    "audit:knowledge-entry-length": "npx tsx scripts/verify-knowledge-entry-length.ts"
+    "audit:knowledge-entry-length": "npx tsx scripts/verify-knowledge-entry-length.ts",
+    "e2e:visual": "testing/e2e-docker/scripts/run-single.sh testing/e2e/visual-regression.spec.ts; testing/e2e-docker/scripts/analyze-results.sh"
   },
   "dependencies": {
     "@quasar/extras": "^1.16.9",
