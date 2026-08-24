@@ -33,7 +33,7 @@
 | 6.2.1 | Secure development lifecycle | Pre-commit lint + typecheck; pre-push security audit; 18 static compliance auditors; E2E test suite | Implemented | Free |
 | 6.2.3 | Review custom code before release | Pre-release security audit checklist: dependency audit, source scan, git history verification, red team review | Implemented | Free |
 | 6.2.4 | Prevent common coding vulnerabilities | Zod input validation on all API endpoints; command injection prevention (`execFileAsync`, no `shell: true`); path traversal defense; error sanitization | Implemented | Free |
-| 6.3.1 | Identify security vulnerabilities | `npm audit` in CI pipeline; Dependabot alerts; SHA-pinned GitHub Actions (44/44); `npm run test:security` in pre-push | Implemented | Free |
+| 6.3.1 | Identify security vulnerabilities | `npm audit` in CI pipeline; Dependabot alerts; SHA-pinned GitHub Actions (44/44); `npm run audit:security` in pre-push | Implemented | Free |
 | 6.3.2 | Maintain inventory of custom software | `package.json` with `engines` field (Node >= 24, npm >= 10); lock files tracked in git; SBOM via npm | Implemented | Free |
 | 6.4.1 | Protect public-facing web applications | CSP (script-src no unsafe-inline/eval); CORS same-origin in production; X-Frame-Options DENY; Helmet security headers; rate limiting | Implemented | Free |
 | 6.4.2 | Detect and prevent web-based attacks | Zod schema validation rejects malformed input; rate limiting on all routes; body size limit 1MB | Implemented | Free |

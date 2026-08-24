@@ -62,7 +62,7 @@
 |-------------|---------|----------------------|--------|------|
 | 3.14.1 | Identify and remediate flaws | `npm audit` in CI; SHA-pinned GitHub Actions (44/44); pre-release security audit checklist | Implemented | Free |
 | 3.14.2 | Provide protection from malicious code | Zod input validation on all API endpoints; command injection prevention (`execFileAsync`, no `shell: true`) | Implemented | Free |
-| 3.14.3 | Monitor security alerts | Dependabot alerts enabled; `npm run test:security` in pre-push hooks | Implemented | Free |
+| 3.14.3 | Monitor security alerts | Dependabot alerts enabled; `npm run audit:security` in pre-push hooks | Implemented | Free |
 | 3.14.6 | Monitor system security | Health endpoint (`GET /api/health`); systemd service management; WebSocket real-time status | Implemented | Free |
 | 3.14.7 | Identify unauthorized use | Audit log captures all auth events; account lockout on repeated failures | Implemented | Free |
 

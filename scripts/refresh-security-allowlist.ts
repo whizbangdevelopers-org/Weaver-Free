@@ -14,7 +14,7 @@
  *                (and isn't an auto-derive parent of one) → safe to remove.
  *   • DUE SOON — reviewBy within 30 days → heads-up.
  *
- * The pass/fail signal (unknown advisories) stays with `npm run test:security`.
+ * The pass/fail signal (unknown advisories) stays with `npm run audit:security`.
  *
  * Usage: npm run refresh:security-allowlist
  */
@@ -97,7 +97,7 @@ if (!expired.length && !stale.length && !dueSoon.length) {
   console.log(`${GREEN}✓ All ${Object.keys(ack).length} allowlist entries are current, in-tree, and not due for review.${RESET}`)
 } else {
   console.log(`${DIM}${Object.keys(ack).length} entries total · ${expired.length} expired · ${stale.length} stale · ${dueSoon.length} due soon.${RESET}`)
-  console.log(`${DIM}Edit scripts/baselines/security-allowlist.json and commit. Run \`npm run test:security\` for the live pass/fail.${RESET}`)
+  console.log(`${DIM}Edit scripts/baselines/security-allowlist.json and commit. Run \`npm run audit:security\` for the live pass/fail.${RESET}`)
 }
 
 // Review tool — informational only, never fails CI.

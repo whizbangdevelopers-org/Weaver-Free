@@ -212,6 +212,16 @@ export const PHASES: Phase[] = [
   {
     parallel: false,
     entries: [
+      // FIRST in the tail, and in this chain at all only since 2026-08-24. It ran as
+      // `test:security` in test:prepush — outside `audit:*`, which is the universe
+      // audit:auditor-contracts enumerates, so the repo's most safety-critical checker was the
+      // one auditor exempt from declaring how it proves it can fail. Gantry hit the identical
+      // shape and renamed it for that reason; `test:security` survives as an alias for the
+      // workflows and docs that name it.
+      //
+      // Sequential rather than in the parallel phase because it spawns `npm audit` per manifest
+      // and `npm ls --all` per advisory, and because a security refusal should stop the run.
+      'audit:security',
       'audit:workflows',
       'audit:test-suites',
       'audit:e2e-docker-only',

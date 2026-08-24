@@ -528,6 +528,23 @@ On Fabrick tier, admins and operators can browse the audit log on the Audit Log 
 
 Audit entries are stored in `audit-log.json` in the data directory. Back up this file as part of your regular backup procedure (see [Backup & Restore](#backup--restore)).
 
+### If a write fails
+
+Audit writes are debounced — a burst of events is coalesced into a single file write rather than
+one write per event. If that write fails (a full disk, a permissions change, the data directory
+becoming unavailable), Weaver logs the failure to the server log and **keeps the pending entries in
+memory**; the next audit event retries the whole set. The service stays up.
+
+Look for this line in the service log — it names the path, so it tells you which volume to check:
+
+```
+[audit-store] deferred persist to <path> failed; entries retained in memory and will be retried on the next write: <reason>
+```
+
+Treat a repeating occurrence as a real alert rather than noise: entries held only in memory do not
+survive a restart, so a persistently failing write is silent audit-trail loss even though nothing
+has crashed. Fix the underlying storage problem and confirm the line stops.
+
 > **Note:** At v3.0+, the audit log transitions to a SQL backend with a full query UI and fleet-wide audit aggregation.
 
 ---

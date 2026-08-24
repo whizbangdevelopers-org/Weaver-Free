@@ -4,7 +4,7 @@
 # CREATED IN: Weaver-Dev
 # USED BY: Scheduled, whitelist-aware advisory watch. Routes through the dynamic
 #          whitelist (code/scripts/baselines/security-allowlist.json via
-#          `npm run test:security`) so only UNKNOWN high/critical advisories alert.
+#          `npm run audit:security`) so only UNKNOWN high/critical advisories alert.
 #          When one is found it opens/updates a single tracking issue so maintainers
 #          triage (fix or acknowledge) and cut a patch release for affected shipped
 #          versions. Complements the manual security-scan.yml (raw npm audit).
@@ -26,7 +26,7 @@ jobs:
   advisory-watch:
     name: Whitelist-aware advisory watch
     runs-on: ubuntu-latest
-    # Dev-only, and it must stay that way. `npm run test:security` resolves to
+    # Dev-only, and it must stay that way. `npm run audit:security` resolves to
     # scripts/audit-security.ts, which is sync-excluded — so on Weaver-Free the
     # script is ABSENT and npm exits non-zero for ERR_MODULE_NOT_FOUND. The step
     # below reads any non-zero as "action-required", so a missing file published a
@@ -55,7 +55,7 @@ jobs:
         id: audit
         working-directory: code
         run: |
-          if npm run test:security; then
+          if npm run audit:security; then
             echo "status=clean" >> "$GITHUB_OUTPUT"
           else
             echo "status=action-required" >> "$GITHUB_OUTPUT"
@@ -68,24 +68,64 @@ jobs:
           script: |
             const fs = require('fs')
             let unknown = []
+            // A run can now be non-zero for a SECOND reason: a workspace manifest that could not
+            // be scanned at all (unreachable registry, missing lockfile). Before 2026-08-24 the
+            // auditor read npm's error envelope as "no advisories" and printed PASS; it now
+            // refuses. If that cause is not read out here, the issue body says "0 advisories"
+            // while the real message is that nothing was scanned — the same false-reassurance
+            // shape that opened Free #340.
+            let scanFailures = []
+            let baselineFailures = []
             try {
               const r = JSON.parse(fs.readFileSync('code/reports/security-audit/latest.json', 'utf8'))
               unknown = (r.data && r.data.unknown) || []
+              scanFailures = (r.data && r.data.scanFailures) || []
+              baselineFailures = (r.data && r.data.baselineFailures) || []
             } catch (e) {
               core.warning('security-audit report unreadable: ' + e.message)
             }
 
             const { owner, repo } = context.repo
             const marker = '<!-- security-advisory-watch -->'
-            const title = '🔒 Unacknowledged high/critical advisories — patch release needed'
-            const lines = unknown.length
-              ? unknown.map(a => `- \`${a.module}\` ${a.severity} — [${a.ghsa}](${a.url}): ${a.title}`)
-              : ['- (auditor reported action-required; see the workflow run logs for detail)']
+            // The auditor is non-zero for three different reasons and they need three different
+            // issues. Reporting all of them as "N unacknowledged advisories" is how a run that
+            // scanned NOTHING came to be filed as "0 advisories" (Free #340) — a body that reads
+            // as reassurance for a result that is anything but. Pick the cause, then say what to
+            // do about THAT cause.
+            const cause = unknown.length
+              ? {
+                  title: '🔒 Unacknowledged high/critical advisories — patch release needed',
+                  summary: `The scheduled advisory watch found **${unknown.length}** high/critical advisory(s) not covered by \`code/scripts/baselines/security-allowlist.json\`.`,
+                  action: '**Action:** for each, either **fix** (bump within constraint) or **acknowledge** (add a justified, dated entry to the allowlist — `npm run refresh:security-allowlist` to review), then cut a patch release for any affected shipped version.',
+                  lines: unknown.map(a => `- \`${a.module}\` ${a.severity} — [${a.ghsa}](${a.url}): ${a.title}`),
+                }
+              : scanFailures.length
+              ? {
+                  title: '🔒 Security audit could not scan — advisory state is UNKNOWN, not clean',
+                  summary: `The scheduled advisory watch could not scan **${scanFailures.length}** workspace manifest(s). This is **not** a clean result — the advisory state of those manifests is unknown.`,
+                  action: '**Action:** restore whatever the audit could not reach (registry, lockfile), then re-run the workflow. Do not read this as "no advisories".',
+                  lines: scanFailures.map(f => `- **${f.manifest}** could not be scanned — ${f.detail}`),
+                }
+              : baselineFailures.length
+              ? {
+                  title: '🔒 Security baseline regression — a source-level control is below its floor',
+                  summary: `The scheduled advisory watch found **${baselineFailures.length}** security baseline failure(s). No dependency advisory is involved.`,
+                  action: '**Action:** restore the control to the floor in `code/docs/security/SECURITY-BASELINES.md`. Never lower the baseline to make this pass.',
+                  lines: baselineFailures.map(f => `- ${f.label}${f.detail ? ` — ${f.detail}` : ''}`),
+                }
+              : {
+                  title: '🔒 Security audit failed for a cause the report does not name',
+                  summary: 'The scheduled advisory watch exited non-zero, and the saved report names no unknown advisory, no scan failure and no baseline failure.',
+                  action: '**Action:** read the workflow run logs. A non-zero exit the report cannot explain is itself the finding — the auditor and its report have diverged.',
+                  lines: ['- (see the workflow run logs)'],
+                }
+            const title = cause.title
+            const lines = cause.lines
             const body = [
               marker,
-              `The scheduled advisory watch found **${unknown.length}** high/critical advisory(s) not covered by \`code/scripts/baselines/security-allowlist.json\`.`,
+              cause.summary,
               '',
-              '**Action:** for each, either **fix** (bump within constraint) or **acknowledge** (add a justified, dated entry to the allowlist — `npm run refresh:security-allowlist` to review), then cut a patch release for any affected shipped version.',
+              cause.action,
               '',
               ...lines,
               '',
