@@ -438,6 +438,15 @@ watch(activeTab, (tab) => { if (tab === 'logs' && !logsContent.value) void loadL
 
 // Reload when the drawer opens a different VM
 watch(() => props.vmName, () => {
+  // `error` is rendered as a FULL-PANEL v-else-if, so a stale one does not merely linger beside
+  // the new workload — it replaces it. The panel then shows one workload's name in the header and
+  // the previous workload's error in the body, which reads as a bug in whichever workload the
+  // user just clicked. A tier-gated 403 is the easiest way to see it: the error outlives the
+  // selection that caused it.
+  //
+  // Cleared FIRST, before the fetch: leaving it until after would keep the stale error on screen
+  // for the duration of the request, which is exactly when the user is looking at it.
+  error.value = null
   vm.value = storeVm.value ?? null
   if (!vm.value) void loadVm()
   logsContent.value = ''
