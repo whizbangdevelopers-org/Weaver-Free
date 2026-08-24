@@ -117,7 +117,7 @@ Regular security audits are documented in `docs/security/`. Run a local audit:
 
 ```bash
 # npm audit for known vulnerabilities
-npm run test:security
+npm run audit:security
 
 # Full audit with report generation
 ./scripts/security-audit.sh

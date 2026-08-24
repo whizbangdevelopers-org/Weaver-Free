@@ -51,7 +51,7 @@
 | TSC Point | Requirement | Weaver Implementation | Status | Tier |
 |-----------|------------|----------------------|--------|------|
 | CC6.8.1 | Assess vulnerabilities | `npm audit` in CI; SHA-pinned GitHub Actions (44/44); pre-release security audit checklist; SAST auditor | Implemented | Free |
-| CC6.8.2 | Remediate vulnerabilities | Dependabot alerts; pre-push `test:security` hook; known vulns tracked with disposition (SECURITY-AUDIT.md) | Implemented | Free |
+| CC6.8.2 | Remediate vulnerabilities | Dependabot alerts; pre-push `audit:security` gate; known vulns tracked with disposition (SECURITY-AUDIT.md) | Implemented | Free |
 | CC6.8.3 | Test security controls | 18 static compliance auditors; E2E test suite; route auth coverage auditor (68 routes) | Implemented | Free |
 | CC6.8.4 | Prevent introduction of unauthorized or malicious software | **Private Nix Cache + Approved Packages (Decision WVR-147).** Attic-based substituter cache with manually-curated allowlist — deny-all-permit-by-exception software execution policy. Every derivation hash must be explicitly approved by an admin before any software can install on approved hosts. Add-only signing-key rotation with tamper-evident approval audit log. Shed Builder (Decision WVR-149) custom software ingestion with two-person rule at Team+ for binary drops prevents single-person introduction of unauthorized software (separation-of-duties). v3.1 automated approval pipeline adds CVE scan + SBOM + license + signature verification. Direct implementation of the canonical CC6.8 text above. | Planned (v2.3.0) | Weaver Team+ |
 
@@ -96,7 +96,7 @@ For a SOC 2 Type II audit, the following evidence artifacts exist:
 | Security baselines and thresholds | `docs/security/SECURITY-BASELINES.md` |
 | Automated compliance auditors (18) | `npm run test:compliance` |
 | Route auth coverage report | `npm run audit:routes` (68 routes) |
-| Dependency vulnerability tracking | `npm run test:security` |
+| Dependency vulnerability tracking | `npm run audit:security` |
 | Pre-release security checklist | `CLAUDE.md` Release Checklist |
 | Audit log implementation | `backend/src/routes/` (auth events) + `GET /api/audit` |
 | Change management trail | Git history with pre-commit hooks (lint + typecheck + tests) |

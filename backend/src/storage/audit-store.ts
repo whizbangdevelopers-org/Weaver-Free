@@ -215,7 +215,31 @@ export class AuditStore {
     if (this.persistTimer) return
     this.persistTimer = setTimeout(async () => {
       this.persistTimer = null
-      await this.persist()
+      // The await MUST be guarded, and this is not defensive tidiness.
+      //
+      // Every other caller of persist() is inside a promise chain someone can catch. This one is
+      // not: it is a timer callback, so a rejection here is an UNHANDLED rejection, and Node has
+      // terminated the process on those since v15. Verified on node v24.16.0 — a rejecting async
+      // setTimeout body kills the process before the next timer runs. So one transient audit-log
+      // write failure (disk full, a permissions change, the directory moving underneath us) took
+      // down the whole backend, and the audit log is exactly the subsystem where a silent process
+      // death is least acceptable.
+      //
+      // Surfaced 2026-08-24 by the test suite, which hit it as a teardown race: afterEach removed
+      // the temp directory while this timer was still pending, ENOENT rejected here, and vitest
+      // reported ten unhandled errors on an otherwise 1605/1605 green run. That is the same defect
+      // wearing test clothes — the test only made the write fail on purpose-by-accident.
+      //
+      // Logged, not swallowed: the entries stay in memory and the next schedulePersist() retries.
+      // Matches the existing guard on the ws.ts broadcast interval, the only other async timer here.
+      try {
+        await this.persist()
+      } catch (err) {
+        console.error(
+          `[audit-store] deferred persist to ${this.filePath} failed; entries retained in memory ` +
+            `and will be retried on the next write: ${err instanceof Error ? err.message : String(err)}`,
+        )
+      }
     }, PERSIST_DEBOUNCE_MS)
   }
 
