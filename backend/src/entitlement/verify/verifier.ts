@@ -1,7 +1,7 @@
 // Copyright (c) 2026 whizBANG Developers LLC. All rights reserved.
 // Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE.
 //
-// VENDORED from wbd-entitlement@bd8b407 — do not edit here.
+// VENDORED from wbd-entitlement@0de98b8 — do not edit here.
 // Edit upstream, re-run scripts/vendor-entitlement.ts. audit:entitlement-vendor fails on drift.
 
 import { createPublicKey, verify as cryptoVerify, type KeyObject } from 'node:crypto'
@@ -44,7 +44,7 @@ export interface LicenseResult<TTier extends string> {
    * Units granted, product-defined — nodes for Weaver, devices for Qepton. `null` = unbounded.
    *
    * **Returned, never enforced here.** Enforcing it means knowing what a unit IS, which is the
-   * product's business and not this library's (ENT-4). A product that ignores this field has an
+   * product's business and not this library's. A product that ignores this field has an
    * unenforced licence term, and that is the product's bug — the signature over it is what makes
    * the term enforceable at all, since a provider like Stripe cannot meter an airgapped install.
    */

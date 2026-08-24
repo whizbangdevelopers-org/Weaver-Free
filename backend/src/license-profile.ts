@@ -10,7 +10,7 @@
  * an earlier draft put it inside and the vendor script's directory wipe destroyed it.
  *
  * `wbd-entitlement` owns the key mechanism. What varies per product is the prefix, the tier codes,
- * the tier vocabulary and the lapse target (ENT-4), and none of that belongs in a shared repo.
+ * the tier vocabulary and the lapse target, and none of that belongs in a shared repo.
  *
  * Note `TIERS.SOLO === 'solo'` while its key code is `WVS` — the internal value and the wire code
  * are still different strings, which is exactly why the profile maps them explicitly rather than

@@ -8,7 +8,7 @@
  * ------------------------------------------------------------------
  * The previous implementation compared `hostname` against literals and prefixes — `=== '127.0.0.1'`,
  * `startsWith('10.')`, `startsWith('fd')`. That is the defect class, not an instance of it, and it
- * failed in two ways at once (SEC-032, 2026-08-24):
+ * failed in two ways at once:
  *
  *   1. `URL.hostname` returns an IPv6 literal WITH ITS BRACKETS — `[fd00::1]`, never `fd00::1`. So
  *      `startsWith('fd')` and `startsWith('fe80')` could never match anything. Both IPv6 lines were

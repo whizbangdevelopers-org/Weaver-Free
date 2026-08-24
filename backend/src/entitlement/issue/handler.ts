@@ -1,7 +1,7 @@
 // Copyright (c) 2026 whizBANG Developers LLC. All rights reserved.
 // Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE.
 //
-// VENDORED from wbd-entitlement@bd8b407 — do not edit here.
+// VENDORED from wbd-entitlement@0de98b8 — do not edit here.
 // Edit upstream, re-run scripts/vendor-entitlement.ts. audit:entitlement-vendor fails on drift.
 
 import { decodePayload, splitKey } from '../format/payload.js'
@@ -217,7 +217,7 @@ export function shortCustomerRef(customerRef: string): string {
  *
  * Goes through `decodePayload` rather than slicing at a remembered offset. A hand-written
  * `payload.slice(13, 21)` is a second copy of the field layout, and the layout has already moved
- * once this week (ENT-5/6 widened it from 12 to 24). The next move would leave this silently
+ * once this week (the payload widened from 12 bytes to 24). The next move would leave this silently
  * returning the wrong eight characters — no error, a plausible value, and a store indexed on
  * garbage.
  */

@@ -24,7 +24,7 @@
  * first is the one that matters most: a NEW field cannot be added to the signed payload without
  * stating whether it binds anything.
  *
- * The `reviewBy` on `quantity` is deliberately before the production key ceremony (SEC-022, v1.3).
+ * The `reviewBy` on `quantity` is deliberately before the production key ceremony at v1.3.
  * Issued keys encode these values permanently, so an unenforced field settled after the first key
  * is minted means reissuing every key sold before the decision.
  *

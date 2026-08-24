@@ -1,7 +1,7 @@
 // Copyright (c) 2026 whizBANG Developers LLC. All rights reserved.
 // Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE.
 /**
- * Integrity verification for downloaded distro images (SEC-031).
+ * Integrity verification for downloaded distro images.
  *
  * A base image becomes the guest's root filesystem. It is the largest untrusted input the product
  * ingests, and until 2026-08-23 it was ingested with no verification at all: `DISTRO_IMAGES`
@@ -151,7 +151,7 @@ export function assertChecksumUrl(url: string): URL {
 /**
  * Resolve one redirect hop and decide whether it is allowed.
  *
- * Extracted as a pure function ON PURPOSE: the policy it encodes is the whole of SEC-031's
+ * Extracted as a pure function ON PURPOSE: the policy it encodes is the whole of this module's
  * redirect half, and inside the http callback it could only be exercised by standing up a server
  * that redirects — which `validateExternalUrl` then refuses, because it is on localhost. A rule
  * that can only be tested by disabling the rule next to it does not get tested.

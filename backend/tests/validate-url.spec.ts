@@ -3,7 +3,7 @@
 //
 // The SSRF guard.
 //
-// THIS FILE DID NOT EXIST UNTIL 2026-08-24, AND THAT IS THE FINDING (SEC-032).
+// THIS FILE DID NOT EXIST UNTIL 2026-08-24, AND THAT IS THE FINDING.
 //
 // `validateExternalUrl` is the single control standing between four callers — the distro image
 // downloader, the webhook adapter, the ntfy adapter and the remote catalog fetcher — and an

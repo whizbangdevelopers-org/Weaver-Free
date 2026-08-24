@@ -4,7 +4,7 @@
 /**
  * Licence signing primitives — now a thin binding over the vendored `wbd-entitlement`.
  *
- * The implementation moved to `entitlement/` (ENT-1) so Weaver, Qepton and later products share one
+ * The implementation moved to `entitlement/` so Weaver, Qepton and later products share one
  * key mechanism instead of three. This file survives as the binding point and to keep the import
  * path stable for existing callers; the reasoning that used to live here now lives upstream, where
  * it applies to every product.

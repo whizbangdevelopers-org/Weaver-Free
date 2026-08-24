@@ -35,7 +35,7 @@ const OTHER_AUTHORITY = makeKeypair()
 const ACCEPTED = [AUTHORITY.publicB64]
 
 /**
- * Payload layout, post-ENT-5/6: version(1) issued(4) expiry(4) customerId(4) serial(8) quantity(3).
+ * Payload layout, after the widening to 24 bytes: version(1) issued(4) expiry(4) customerId(4) serial(8) quantity(3).
  * The serial and quantity are fixed here rather than random so a minted test key is reproducible;
  * production keys get a random serial from the issuer.
  */
@@ -400,7 +400,7 @@ describe('License Key System', () => {
       // class that survives a copy badly (mixed case, +/ from base64, or URL-unsafe punctuation).
       const key = generateLicenseKey('fabrick', AUTHORITY.privateKey, { expiry: new Date('2027-06-15T00:00:00Z') })
       expect(key).toMatch(/^[A-Z0-9-]+$/)
-      // 4 (WVR-) + 4 (tier-) + 24 (payload) + 1 (-) + 103 (sig). Was 124 before ENT-5/6
+      // 4 (WVR-) + 4 (tier-) + 24 (payload) + 1 (-) + 103 (sig). Was 124 before the payload widened
       // widened the payload from 12 to 24.
       expect(key).toHaveLength(136)
     })

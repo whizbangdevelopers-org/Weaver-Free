@@ -1,7 +1,7 @@
 // Copyright (c) 2026 whizBANG Developers LLC. All rights reserved.
 // Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE.
 //
-// VENDORED from wbd-entitlement@bd8b407 — do not edit here.
+// VENDORED from wbd-entitlement@0de98b8 — do not edit here.
 // Edit upstream, re-run scripts/vendor-entitlement.ts. audit:entitlement-vendor fails on drift.
 
 import { SIGNATURE_B32_LENGTH } from './base32.js'
@@ -15,11 +15,11 @@ import type { ProductProfile } from './profile.js'
  * All base36, uppercase, so the whole key stays transcription-safe.
  *
  * **This layout is fixed the moment a production key reaches a customer.** It is being set now
- * precisely because `ACCEPTED_PUBLIC_KEYS` is still empty and no key exists — ENT-1's whole timing
+ * precisely because `ACCEPTED_PUBLIC_KEYS` is still empty and no key exists — the extraction's whole timing
  * argument. Encode and decode are functions rather than inline slicing at the call sites so that
  * a later change is confined here.
  *
- * ## Why a version character (ENT-6)
+ * ## Why a version character
  *
  * Without it, this is the LAST free format change: every subsequent field addition invalidates
  * every key in the field, because an old verifier rejects a longer payload on the regex and a new
@@ -129,7 +129,7 @@ export function decodeDate(encoded: string): Date | null {
  * Generic on purpose. Weaver counts nodes (per-node Fabrick, Contract blocks); Qepton's commercial
  * licence already grants use on "the number of devices specified in the purchased license tier".
  * A field named for one product's noun could not serve the other, and the shared format cannot
- * encode one product's vocabulary (ENT-4's boundary, applied to the payload).
+ * encode one product's vocabulary — the library/product boundary, applied to the payload.
  *
  * `null` means unbounded and is encoded as an explicit sentinel.
  */

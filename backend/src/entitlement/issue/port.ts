@@ -1,11 +1,11 @@
 // Copyright (c) 2026 whizBANG Developers LLC. All rights reserved.
 // Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE.
 //
-// VENDORED from wbd-entitlement@bd8b407 — do not edit here.
+// VENDORED from wbd-entitlement@0de98b8 — do not edit here.
 // Edit upstream, re-run scripts/vendor-entitlement.ts. audit:entitlement-vendor fails on drift.
 
 /**
- * The entitlement port (ENT-4).
+ * The entitlement port.
  *
  * Issuance consumes ONE narrow fact from a provider and owns every policy decision downstream of
  * it. The port carries entitlement; it never models payment. No invoices, refunds, tax, payment

@@ -7,7 +7,7 @@
  * write and wrong for a check, and nothing distinguished the two: they are the same three words.
  *
  * The instance this was built from — `security-scan.yml` ran `npm audit --audit-level=high` with
- * continue-on-error for months while SEC-021's disposition in the security register named that
+ * continue-on-error for months while its disposition in the security register named that
  * same audit as its mitigating control. The audit reported a HIGH advisory in `@fastify/static`
  * (an authorization bypass in the module serving the SPA) on every single run, and nothing failed.
  *

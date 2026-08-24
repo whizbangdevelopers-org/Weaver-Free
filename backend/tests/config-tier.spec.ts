@@ -36,7 +36,7 @@ const OPERATOR = generateKeyPairSync('ed25519')
 function operatorMintedKey(tierCode: string, expiryDate?: Date): string {
   const issueDate = encodeDateToBase36(new Date())
   const expiryEncoded = expiryDate ? encodeDateToBase36(expiryDate) : 'ZZZZ'
-  // version(1) + issued(4) + expiry(4) + customerId(4) + serial(8) + quantity(3) = 24 (ENT-5/6).
+  // version(1) + issued(4) + expiry(4) + customerId(4) + serial(8) + quantity(3) = 24.
   // This has to stay byte-correct: the assertion below checks the key fails on the SIGNATURE, so a
   // malformed payload would make the test pass for the wrong reason and keep passing if signature
   // verification were removed entirely.

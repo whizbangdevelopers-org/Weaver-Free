@@ -5,7 +5,7 @@
  * Weaver's licence binding.
  *
  * The key mechanism — format, signing, verification, rotation — is vendored from
- * `wbd-entitlement` into `entitlement/` (ENT-1). What stays here is the part that is genuinely
+ * `wbd-entitlement` into `entitlement/`. What stays here is the part that is genuinely
  * Weaver's: the tier ordering, `requireTier`, and the single site that binds Weaver's profile to
  * the build's accepted keys.
  *
@@ -139,12 +139,12 @@ export const decodeDateFromBase36 = decodeDate
  * Guard that throws a 403-style error if the current tier is below the minimum.
  *
  * Stays here rather than moving upstream: tier→feature gating is product policy, and
- * `wbd-entitlement` deliberately does not know what a Weaver tier permits (ENT-4).
+ * `wbd-entitlement` deliberately does not know what a Weaver tier permits.
  */
 /**
  * Guard that throws a 403-style error when enrolling a node would exceed the licensed count.
  *
- * **SEC-027.** `quantity` was signed into every key, populated from the purchase, returned by the
+ * **The per-node capacity finding.** `quantity` was signed into every key, populated from the purchase, returned by the
  * verifier — and read by nothing. The upstream library states the consequence on the field itself:
  * *"A product that ignores this field has an unenforced licence term, and that is the product's
  * bug."* This is the consumer that makes it not one.
@@ -170,7 +170,7 @@ export const decodeDateFromBase36 = decodeDate
  *
  * **The first call site is v2.2 Weaver Team peer federation, not Fabrick clustering.** Multi-node
  * starts at Team — v2.2 ships full management of remote Weaver hosts — so this binds a release
- * earlier than the Fabrick work at v2.4, and the deadline in SEC-027 is correspondingly tighter.
+ * earlier than the Fabrick work at v2.4, and the deadline on that finding is correspondingly tighter.
  *
  * A tension to settle when that lands, flagged here because it is easy to build both by accident:
  * v2.2's roadmap describes a peer limit as a TIER property ("up to 2 remote hosts, upgrade prompt

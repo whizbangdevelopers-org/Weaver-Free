@@ -32,7 +32,7 @@ export interface DistroImageSource {
   cloudInit: boolean
   guestOs?: 'linux' | 'windows'
   /**
-   * How this image's integrity is established (SEC-031).
+   * How this image's integrity is established.
    *
    * **Required, deliberately** — there is no optional-digest branch, because an entry that omits
    * it would download unverified while every sibling reported a successful verification, and
@@ -89,7 +89,7 @@ const DISTRO_IMAGES: Record<string, DistroImageSource> = {
   },
   fedora: {
     // Was Fedora 42, which 404s: 42 is EOL and its Cloud images have left the primary mirrors.
-    // Measured 2026-08-23 while implementing SEC-031 — a user choosing Fedora got a failed
+    // Measured while wiring image integrity — a user choosing Fedora got a failed
     // provision, and nothing in the catalog could have told anyone. 44-1.7 is current.
     url: 'https://download.fedoraproject.org/pub/fedora/linux/releases/44/Cloud/x86_64/images/Fedora-Cloud-Base-Generic-44-1.7.x86_64.qcow2',
     format: 'qcow2',
