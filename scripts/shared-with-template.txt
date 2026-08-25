@@ -177,3 +177,49 @@ code/codebase-mcp-base/tools/form-validation-rules.ts
 code/codebase-mcp-base/tools/global-vocabulary.ts
 code/codebase-mcp-base/tools/store-signatures.ts
 code/codebase-mcp-base/tools/type-definitions.ts
+
+# Decision-reference integrity (FORGE-1). The CHECKER is shared byte-identical; the DECLARATION
+# beside it (forge/decision-sources.yaml — own_prefix, whitelisted foreign namespaces) is per-repo
+# and deliberately NOT pinned. Same split as verify-license-headers.ts against verify-legal-ip.ts.
+#
+# It is on this list because the un-shared version is what caused the defect. FORGE-1 has been
+# portfolio policy since 2026-06-11 and was implemented in exactly ONE repo; the others hand-copied
+# fragments or nothing, and the sole complete copy hardcoded /WVR-\d+/ in four places while reading
+# own_prefix from the manifest in a fifth. Copied anywhere else it would have reported PASS while
+# checking nothing — zero matching rows, zero matching tokens, no findings, green. Meanwhile a
+# product shipped for months with a bare-numbered decision table and code citing a GAN-9 that
+# existed nowhere. Pinning the checker is what stops the next repo re-deriving a partial one.
+code/scripts/verify-decision-refs.ts
+
+# The decision-table writer and the citation resolver. Shared because the un-shared version is
+# what produced the drift: four hand-copies (Weaver, Forge, wbd-entitlement, Gantry) that differed
+# only by a hardcoded namespace string, each improved in a DIFFERENT direction. Promoting any one
+# of them alone would have dropped the rest of the work — taking the newest generic copy would
+# have lost the duplicate-title guard and the sed-escaping fix, both written after real incidents.
+# This file is their union, and pinning it is what stops a fifth fork.
+scripts/add-decision.sh
+scripts/decision-cite.sh
+
+# The command-position unwrapper, shared by every hook that parses a command string.
+#
+# Pinned because four copies of one file with nothing comparing them is exactly the drift that
+# produced the defect it exists to fix. Its own history is the argument: `bash -c '…'` bypassed
+# every PreToolUse guard from 2026-07-15 to 2026-08-25 because five hooks had independently
+# hand-copied a quote-stripping idiom, and Qepton's block-dangerous was accidentally immune only
+# because it had NOT copied the newer version. Neither copy was simply better; nothing could tell.
+#
+# It lives under .claude/hooks/ rather than code/, so a repo whose hooks sit flat (Weaver) and one
+# that splits core/ + stack/ (this template, Gantry) both carry it at their own path — the entry
+# below is this repo's. audit:template-divergence excludes the licence line, which is what lets a
+# proprietary repo and a licence-blank template hold byte-identical logic.
+.claude/hooks/lib/unwrap-interpreter.sh
+
+# The form matrix and its vocabulary. Pinned for the same reason as the unwrapper beside it: the
+# whole point is that ONE list of command shapes is re-tested against EVERY hook, so a per-repo
+# copy of the shapes would defeat it — a form added in one repo and not another means the guard is
+# checked against a different world in each.
+#
+# The checker is bash rather than TypeScript deliberately: it drives the hooks by executing them,
+# and a hook is a shell script whatever the repo's stack is.
+.claude/hooks/lib/command-forms.sh
+code/scripts/verify-hook-forms.sh
