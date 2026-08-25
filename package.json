@@ -103,6 +103,7 @@
     "audit:sync-exclude-cruft": "npx tsx scripts/verify-sync-exclude-cruft.ts",
     "audit:synonym-dictionary": "npx tsx scripts/verify-synonym-dictionary.ts",
     "audit:taint": "npx tsx scripts/audit-taint.ts",
+    "sync:shared": "npx tsx scripts/sync-shared-file.ts",
     "audit:template-divergence": "npx tsx scripts/audit-template-divergence.ts",
     "audit:test-coverage": "npx tsx scripts/verify-test-coverage.ts",
     "audit:tier-parity": "npx tsx scripts/verify-tier-parity.ts",
