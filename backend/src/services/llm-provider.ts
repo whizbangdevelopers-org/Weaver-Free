@@ -30,9 +30,23 @@ export class AnthropicProvider implements LlmProvider {
       model: opts.model,
       max_tokens: opts.maxTokens,
       messages: [{ role: 'user', content: opts.prompt }],
+      // Set EXPLICITLY, because omitting it stopped being neutral. Every current model
+      // runs adaptive thinking when `thinking` is absent — the retired claude-sonnet-4-5 default
+      // did not — so a bare model-id swap would have added billed thinking tokens to every
+      // customer's usage without anyone deciding to. The key is the operator's own
+      // (`services.weaver.aiApiKey`), so that bill is theirs.
+      //
+      // effort 'medium' bounds it for what this agent does: short, host-scoped workload tasks
+      // under a per-tier rate limit. Raise it per-install via AGENT_MODEL + a config change, not
+      // here.
+      thinking: { type: 'adaptive' },
+      output_config: { effort: 'medium' },
     })
 
     for await (const event of stream) {
+      // Only text is surfaced. Thinking arrives as its own block type and is skipped — deliberate:
+      // the caller streams to a UI, and a summarised chain of thought is not what it asked for.
+      // The tokens are still billed, which is why effort is pinned above rather than left default.
       if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
         yield event.delta.text
       }
@@ -44,8 +58,10 @@ export class AnthropicProvider implements LlmProvider {
 
 export type LlmVendor = 'anthropic'
 
+// UNDATED ids only, by convention. A dated snapshot is how this went stale for months: it named a
+// superseded model and nothing failed, because a model id is just a string to the API.
 const DEFAULT_MODELS: Record<LlmVendor, string> = {
-  anthropic: 'claude-sonnet-4-5-20250929',
+  anthropic: 'claude-sonnet-5',
 }
 
 export function getDefaultModel(vendor: LlmVendor): string {

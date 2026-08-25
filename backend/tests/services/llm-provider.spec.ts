@@ -31,7 +31,7 @@ describe('getDefaultModel', () => {
   it('returns the anthropic default model when AGENT_MODEL is not set', () => {
     vi.stubEnv('AGENT_MODEL', '')
     const model = getDefaultModel('anthropic')
-    expect(model).toBe('claude-sonnet-4-5-20250929')
+    expect(model).toBe('claude-sonnet-5')
   })
 })
 
@@ -86,6 +86,50 @@ describe('resolveProvider', () => {
       // Server key IS set in this environment — provider will be non-null
       expect(resolvedResult).not.toBeNull()
     }
+  })
+})
+
+describe('AnthropicProvider request shape', () => {
+  // The thinking posture is a DECISION, and a decision recorded only in a comment is prose.
+  // These assertions are the control: they fail if someone drops `thinking`/`effort`, and they
+  // fail if someone adds a parameter that current models reject with a 400.
+  function captureRequest(): { body: Record<string, unknown> | undefined } {
+    const captured: { body: Record<string, unknown> | undefined } = { body: undefined }
+    const provider = new AnthropicProvider('test-key')
+    // Replace the SDK client with a stub that records the request and yields nothing.
+    ;(provider as unknown as { client: unknown }).client = {
+      messages: {
+        stream: (body: Record<string, unknown>) => {
+          captured.body = body
+          return (async function* () { /* no events — we only care about the request */ })()
+        },
+      },
+    }
+    // Drain the generator so stream() actually runs.
+    const it_ = provider.stream({ model: 'm', maxTokens: 16, prompt: 'p' })[Symbol.asyncIterator]()
+    void it_.next()
+    return captured
+  }
+
+  it('pins adaptive thinking at effort medium', () => {
+    const { body } = captureRequest()
+    expect(body?.thinking).toEqual({ type: 'adaptive' })
+    expect(body?.output_config).toEqual({ effort: 'medium' })
+  })
+
+  it('sends NO sampling parameters — current models reject them with a 400', () => {
+    const { body } = captureRequest()
+    // Opus 5 / Sonnet 5 / Fable 5 removed these outright. A future edit re-adding one would
+    // break every agent call at runtime, where nothing else in this suite would notice.
+    expect(body).not.toHaveProperty('temperature')
+    expect(body).not.toHaveProperty('top_p')
+    expect(body).not.toHaveProperty('top_k')
+  })
+
+  it('carries the caller\'s model and max_tokens through unchanged', () => {
+    const { body } = captureRequest()
+    expect(body?.model).toBe('m')
+    expect(body?.max_tokens).toBe(16)
   })
 })
 
