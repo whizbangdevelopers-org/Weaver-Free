@@ -223,3 +223,11 @@ scripts/decision-cite.sh
 # and a hook is a shell script whatever the repo's stack is.
 .claude/hooks/lib/command-forms.sh
 code/scripts/verify-hook-forms.sh
+
+# The per-repo header definition and the sync tool that honours it. Shared because the
+# ALTERNATIVE to a sync tool is `cp`, and `cp` silently overwrites the licence line and any
+# publish marker — the two things audit:template-divergence normalises away, so the copy looks
+# correct to the very checker that sent you to make it. Measured 2026-08-25: three clobbers in
+# one session, each caught only by looking afterwards.
+code/scripts/lib/per-repo-header.ts
+code/scripts/sync-shared-file.ts
