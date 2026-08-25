@@ -122,7 +122,7 @@ The backend reads configuration from environment variables. Key variables for de
 | `HOST` | `127.0.0.1` | Backend bind address |
 | `JWT_SECRET` | *(auto-generated in dev)* | JWT signing secret (required in production) |
 | `ANTHROPIC_API_KEY` | *(none)* | Claude API key for AI agent (absent = mock mode) |
-| `AGENT_MODEL` | `claude-sonnet-4-5-20250929` | Claude model for agent operations |
+| `AGENT_MODEL` | `claude-sonnet-5` | Claude model for agent operations. Undated by convention — a dated snapshot goes stale silently |
 | `PROVISIONING_ENABLED` | `false` | Enable VM creation (requires NixOS + bridge) |
 
 See [docs/PRODUCTION-DEPLOYMENT.md](docs/PRODUCTION-DEPLOYMENT.md) for the complete environment reference.
