@@ -111,6 +111,7 @@ export const PHASES: Phase[] = [
       'audit:lockfile',
       'audit:sast',
       'audit:hooks',
+      'audit:hook-forms',
       'audit:template-divergence',
       'audit:taint',
       'audit:semgrep-regression',
