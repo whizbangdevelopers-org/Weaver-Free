@@ -19,6 +19,20 @@
  * in the middle of an otherwise successful write. Prose is data; a document body that runs is not
  * a document.
  *
+ * RULE G — A GATE MUST NOT DISCARD ITS EXIT STATUS
+ * ------------------------------------------------
+ * The second rule this auditor carries. Swallowing a gate's exit status converts a refusal into
+ * an invisible success: the command still prints its finding, the script still exits 0, and CI
+ * still goes green. That is the same act as `--no-verify`, one layer in — see
+ * ~/.claude/rules/bypass-permissions-is-not-bypass-the-system.md, whose PreToolUse hook blocks it
+ * at the moment of typing. This is that hook's ARTIFACT backstop: the hook protects one agent in
+ * one tool on one machine, and a committed script outlives all three.
+ *
+ * It lived only in Weaver's copy of this auditor until 2026-08-25, so two of the three repos that
+ * run `audit:shell-safety` were green on a rule they could not evaluate. A check present in one
+ * repo and absent in its siblings is the same defect as a rule scoped behind a stack glob: it
+ * exists, and for most callers it does not.
+ *
  * BACKSTOP ROLE
  * ------------------------
  * This is the vendor-neutral half of ~/.claude/hooks/enforce-shell-safety.sh, rule H. The hook
@@ -42,6 +56,11 @@
  * Measured at introduction: 0 occurrences across 71 tracked shell files, so this starts green and
  * only ever fires on something new. A guard added over known violations is one that gets disabled
  * on its first real run.
+ *
+ * The vendor-neutrality this auditor depends on — that the rule is expressed against committed
+ * artifacts rather than any one agent runtime — is a portfolio-level decision recorded in the
+ * dev-system plan. The id is deliberately not quoted here: this file ships to the public mirror,
+ * where an internal register reference is a pointer no reader can follow.
  */
 import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
@@ -55,11 +74,50 @@ const OPENER = /<<-?[ \t]*("[^"]+"|'[^']+'|[A-Za-z_][A-Za-z0-9_]*)/g
 const SUBST = /`|\$\(/
 const SUPPRESS = /shell-safety-ok:\s*\S+/
 
+/**
+ * Ranges of a line covered by a quoted string. A `<<TOKEN` sitting INSIDE one is text, not a
+ * heredoc opener — `check 0 $'cat > f <<SH\\nbody\\nSH'` is a self-test FIXTURE, and its `\\n`
+ * are two characters, so the terminator never appears as a line of its own.
+ *
+ * Measured 2026-08-25: adding exactly such fixtures to block-dangerous.sh opened a heredoc that
+ * never closed, so every remaining line in the file counted as body and 17 ordinary COMMENTS
+ * containing backticks were reported as executing code. The scanner was reading a string literal
+ * as shell — the same quotes-mark-prose problem `.claude/hooks/lib/unwrap-interpreter.sh` exists
+ * for, one layer up.
+ */
+/**
+ * Index of the `#` that starts a comment, or Infinity. A `<<TOKEN` after it is PROSE — real bash
+ * agrees: `echo hi # see <<EOF` opens nothing.
+ *
+ * Measured 2026-08-25: block-dangerous.sh documents its own heredoc handling, so its comments say
+ * `<<PY`, `<<TOKEN`, `cmd <<A <<B`. Each registered as an opener that never terminated. A file
+ * ABOUT heredocs is exactly the file this scanner must not misread.
+ */
+function commentStart(line: string, spans: [number, number][]): number {
+  for (let i = 0; i < line.length; i++) {
+    if (line[i] !== '#') continue
+    if (i > 0 && line[i - 1] === '$') continue          // ${#var}
+    if (spans.some(([s, e]) => i > s && i < e)) continue // inside a string
+    return i
+  }
+  return Infinity
+}
+
+function quotedSpans(line: string): [number, number][] {
+  const spans: [number, number][] = []
+  for (const m of line.matchAll(/'[^']*'|"[^"]*"/g)) {
+    spans.push([m.index ?? 0, (m.index ?? 0) + m[0].length])
+  }
+  return spans
+}
+
 export interface Finding { file: string; line: number; text: string }
 
 /** Pure: which lines sit inside an UNQUOTED heredoc body and contain command substitution? */
 export function findHeredocSubstitutions(content: string, path = ''): Finding[] {
   const lines = content.split('\n')
+  // Findings are held PER FRAME and banked only when that frame's terminator is seen — see the
+  // discard note at the end of this function.
   const stack: { delim: string; expands: boolean; suppressed: boolean; found: Finding[] }[] = []
   const closed: Finding[] = []
 
@@ -79,20 +137,15 @@ export function findHeredocSubstitutions(content: string, path = ''): Finding[] 
       return
     }
     const suppressed = SUPPRESS.test(raw)
-    // Scan for openers on the line with QUOTED SPANS REMOVED.
-    //
-    // `<<WORD` inside a string is text, not a redirect — `echo '<<NOPE'`, or a test fixture
-    // asserting on heredoc handling. Without this, such a line opens a phantom frame, and the
-    // frame then SHADOWS every real heredoc after it: the loop below is only reached when the
-    // stack is empty, so a genuine `cat <<EOF` two lines later is read as phantom body and its
-    // command substitution is never reported. Discarding unclosed frames at EOF does not save it,
-    // because the finding was attributed to the phantom.
-    //
-    // Removing a quoted delimiter (`<<'EOF'`) also removes that opener — which changes nothing,
-    // since a quoted delimiter disables expansion and was never reportable. Same verdict, and now
-    // by a route that cannot shadow.
-    const scan = raw.replace(/'[^']*'/g, '').replace(/"[^"]*"/g, '')
-    for (const m of scan.matchAll(OPENER)) {
+    const spans = quotedSpans(raw)
+    for (const m of raw.matchAll(OPENER)) {
+      // STRICTLY inside: `<<'EOF'` starts at the `<`, which is before its own quoted delimiter,
+      // so a legitimately quoted delimiter still registers. Only `$'… <<SH …'` is skipped.
+      const at = m.index ?? 0
+      if (spans.some(([s, e]) => at > s && at < e)) continue
+      // `cat <<EOF # note` still opens: the opener precedes the comment. Only the reverse is skipped,
+      // which is also what keeps the `# shell-safety-ok:` suppression form working.
+      if (at > commentStart(raw, spans)) continue
       const tok = m[1]!
       // Quoting ANY part of the delimiter disables expansion — both ' and " forms.
       const expands = !/["']/.test(tok)
@@ -102,40 +155,30 @@ export function findHeredocSubstitutions(content: string, path = ''): Finding[] 
 
   // ── Frames still open at EOF are DISCARDED, deliberately ──────────────────────────────────
   //
-  // OPENER matches `<<WORD` anywhere on a line, including inside a string. A file that TALKS
-  // about heredocs — a hook that parses them, a test fixture that asserts on them — therefore
-  // opens phantom heredocs that never close, and every line after one was being reported as its
-  // body. Measured 2026-08-24: 9 findings against `.claude/hooks/block-dangerous.sh`, every one a
-  // comment or a normal line of shell, and the auditor blind to the real remainder of the file
-  // from the phantom opener onward.
+  // The quoted-span and comment filters above stop most phantom openers, but they are heuristics
+  // about where a `<<WORD` sits. This is not a heuristic: an UNTERMINATED heredoc is a SYNTAX
+  // ERROR. A file containing one does not run at all, so there would be nothing to audit. If a
+  // frame is still open when the input ends, that `<<WORD` was never an opener — it was text, its
+  // "body" was ordinary code, and reporting it is a false positive by construction.
   //
-  // The discriminator is exact rather than heuristic: an UNTERMINATED heredoc is a SYNTAX ERROR.
-  // A file containing one does not run at all, so `bash -n` would reject it and there would be
-  // nothing to audit. If a frame is still open when the input ends, that `<<WORD` was not an
-  // opener — it was text. Its "body" was ordinary code, and reporting it is a false positive by
-  // construction.
+  // Measured 2026-08-24, before this existed: 9 findings against a hook that PARSES heredocs,
+  // every one a comment or a normal line of shell, and the scanner blind to the real remainder of
+  // the file from the phantom opener onward — a false positive and a false negative from one bug.
   //
-  // This cannot hide a true positive: a real heredoc closes, which is precisely the condition for
-  // keeping its findings. Asserted both ways in the corpus below.
+  // It cannot hide a true positive: a real heredoc closes, which is precisely the condition for
+  // banking its findings. Asserted both ways in the corpus below.
   return closed
 }
 
 /**
  * Rule G — a GATE whose exit status is discarded.
  *
- * `npm run audit:x || true` converts a refusal into an invisible success: the command still
- * prints its finding, the script still exits 0, and CI still goes green. That is the same act as
- * `--no-verify`, one layer in — see ~/.claude/rules/bypass-permissions-is-not-bypass-the-system.md,
- * whose PreToolUse hook blocks it at the moment of typing. This is that hook's ARTIFACT backstop:
- * the hook protects one agent in one tool on one machine, and a committed script outlives all
- * three.
- *
- * `|| true` is legitimate on CLEANUP and on PROBES, where a non-zero exit carries no verdict —
+ * Discarding it is legitimate on CLEANUP and on PROBES, where a non-zero exit carries no verdict —
  * `rm -f`, `pkill`, an existence test. It is never legitimate on something whose whole purpose is
- * to fail. So the rule keys on the COMMAND being swallowed, not on `|| true` itself.
+ * to fail. So the rule keys on the COMMAND being swallowed, not on the discard idiom itself.
  */
 const GATE = /(?:npm(?:[ \t]+--prefix[ \t]+\S+)?[ \t]+run[ \t]+(?:audit|test|check|verify|lint|typecheck)[:a-z0-9-]*|(?:\.\/|bash[ \t]+|npx[ \t]+tsx[ \t]+|python3[ \t]+)?[\w./-]*(?:audit|verify|check)[\w./-]*\.(?:sh|ts|py|mjs))[^\n|&]*\|\|[ \t]*(?:true|:)(?=[ \t;&|#]|$)/
-/** A deliberate, reasoned exemption. Checked over the WHOLE line — the comment trails the `||`. */
+/** A deliberate, reasoned exemption. Checked over the WHOLE line — the comment trails the guard. */
 const GATE_OK = /#[^\n]*gate-ok:\s*\S/
 
 /** Pure: which lines discard a gate's exit status? */
@@ -154,8 +197,12 @@ const MUST_CATCH: [string, string][] = [
   ['the 2026-08-07 entry mangle', 'cat >> f.md <<ENTRY\nbucketing by `created_at` was in place\nENTRY\n'],
   ['dollar-paren in an unquoted body', 'cat <<EOF\nbuilt at $(date)\nEOF\n'],
   ['interpolating id AND a backtick', 'cat <<ENTRY\nid: L-x-$U\nsee `col_name`\nENTRY\n'],
-  // The discard must not become a bypass: a heredoc that DOES close is still judged, including
-  // when more code follows it.
+  // The skip below must not become a bypass: a REAL opener on a line that also carries a
+  // quoted argument still opens, because the `<<` sits outside that argument.
+  ['real opener on a line that also quotes an argument', 'cat > "$f" <<EOF\nbuilt at $(date)\nEOF\n'],  // A trailing comment must not hide a real opener that precedes it.
+  ['real opener followed by a comment', 'cat <<EOF # writes the file\nbuilt at $(date)\nEOF\n'],
+  // The EOF discard must not become a bypass: a heredoc that DOES close is still judged, including
+  // when more code follows it, and including when a phantom opener preceded it.
   ['closed heredoc, code after it', 'cat <<EOF\nbuilt $(date)\nEOF\necho done\n'],
   ['second heredoc closes, first is phantom', "echo '<<NOPE'\ncat <<EOF\n`whoami`\nEOF\n"],
 ]
@@ -167,10 +214,10 @@ const MUST_IGNORE: [string, string][] = [
   ['plain prose body', 'git commit -F - <<EOF\nfix: a normal message\nEOF\n'],
   ['substitution outside any heredoc', 'D=$(date)\necho "$D"\n'],
   ['backtick after the terminator', "cat <<'EOF'\nbody\nEOF\necho `date`\n"],
-  ['suppressed with a reason', 'cat <<EOF # shell-safety-ok: generator, the body is meant to expand\nbuilt $(date)\nEOF\n'],
-  // A file that TALKS about heredocs. `<<SH` here is inside a string and never terminates, so it
-  // was never an opener — an unterminated heredoc would be a syntax error and the file would not
-  // run. Everything after it is ordinary code, not a body.
+  ['suppressed with a reason', 'cat <<EOF # shell-safety-ok: generator, the body is meant to expand\nbuilt $(date)\nEOF\n'],  // A heredoc opener inside a string literal is a FIXTURE, not an opener. Without this the
+  // unterminated delimiter swallowed the rest of the file.
+  ['opener inside a quoted string is text', "check 0 $'cat > f.sh <<SH\\nbody\\nSH'\necho `date`\n"],  ['opener named in a comment is text', 'echo hi # the shape is cat <<EOF\necho `date`\n'],
+  // A file that TALKS about heredocs — a hook that parses them, a test that asserts on them.
   ['a fixture string that merely contains an opener', "check 0 $'cat > e.sh <<SH\\nbody\\nSH'\nD=$(date)\n"],
   ['prose naming a delimiter, then real code', '# see the <<ENTRY form below\nX=`date`\n'],
 ]
@@ -183,7 +230,7 @@ const GATE_CATCH: [string, string][] = [
   ['tsx-invoked auditor swallowed', 'npx tsx scripts/audit-code-scanning.ts || true\n'],
 ]
 const GATE_IGNORE: [string, string][] = [
-  // The reason `|| true` exists at all — a non-zero exit here carries no verdict.
+  // The reason the discard idiom exists at all — a non-zero exit here carries no verdict.
   ['cleanup', 'rm -f /tmp/scratch || true\n'],
   ['a probe whose failure is expected', 'pgrep -f thing >/dev/null || true\n'],
   ['unmount that may not be mounted', 'umount /mnt/x || true\n'],
@@ -200,16 +247,16 @@ function selfTest(): string[] {
   for (const [name, src] of MUST_CATCH) {
     if (findHeredocSubstitutions(src, 'x.sh').length === 0) fails.push(`MUST CATCH but did not: ${name}`)
   }
+  for (const [name, src] of MUST_IGNORE) {
+    const got = findHeredocSubstitutions(src, 'x.sh')
+    if (got.length) fails.push(`MUST IGNORE but flagged: ${name} -> ${JSON.stringify(got)}`)
+  }
   for (const [name, src] of GATE_CATCH) {
     if (findSwallowedGates(src, 'x.sh').length === 0) fails.push(`GATE MUST CATCH but did not: ${name}`)
   }
   for (const [name, src] of GATE_IGNORE) {
     const g = findSwallowedGates(src, 'x.sh')
     if (g.length) fails.push(`GATE MUST IGNORE but flagged: ${name} -> ${JSON.stringify(g)}`)
-  }
-  for (const [name, src] of MUST_IGNORE) {
-    const got = findHeredocSubstitutions(src, 'x.sh')
-    if (got.length) fails.push(`MUST IGNORE but flagged: ${name} -> ${JSON.stringify(got)}`)
   }
   return fails
 }
@@ -221,7 +268,7 @@ function isShell(path: string, body: string): boolean {
 
 function main(): number {
   console.log('\x1b[1mShell Safety Audit\x1b[0m')
-  console.log('\x1b[2mA committed heredoc must not execute its own body\x1b[0m\n')
+  console.log('\x1b[2mA committed heredoc must not execute its own body; a gate must not discard its exit status\x1b[0m\n')
 
   const fails = selfTest()
   if (fails.length) {
@@ -234,7 +281,8 @@ function main(): number {
 
   // audit:auditor-contracts reads this line to see BOTH halves rather than trust they exist.
   console.log(`  auditor-contract: catch=${MUST_CATCH.length + GATE_CATCH.length} ` +
-    `ignore=${MUST_IGNORE.length + GATE_IGNORE.length}`)
+    `ignore=${MUST_IGNORE.length + GATE_IGNORE.length}\n`)
+
   const tracked = execFileSync('git', ['-C', REPO, 'ls-files'], { encoding: 'utf-8' })
     .split('\n').filter(Boolean)
   const found: Finding[] = []
@@ -252,8 +300,8 @@ function main(): number {
   if (gates.length) {
     for (const g of gates) console.log(`\x1b[31m  ✗ ${g.file}:${g.line}\x1b[0m  ${g.text.slice(0, 96)}`)
     console.log(`\n\x1b[31m\x1b[1mRESULT: FAIL\x1b[0m — ${gates.length} gate(s) with a discarded exit status.`)
-    console.log('  `|| true` on something whose purpose is to FAIL converts a refusal into an')
-    console.log('  invisible success — the same act as --no-verify, one layer in.')
+    console.log('  Discarding the status of something whose purpose is to FAIL converts a refusal')
+    console.log('  into an invisible success — the same act as --no-verify, one layer in.')
     console.log('  Fine on cleanup and probes. If genuinely advisory, say so:  # gate-ok: <reason>')
     return 1
   }
