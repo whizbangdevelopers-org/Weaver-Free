@@ -231,3 +231,13 @@ code/scripts/verify-hook-forms.sh
 # one session, each caught only by looking afterwards.
 code/scripts/lib/per-repo-header.ts
 code/scripts/sync-shared-file.ts
+
+# The decision-table SHAPE auditor. Pinned as an implementation, not just a corpus, because
+# nothing in it is project-specific: it derives the repo's own prefix from its own rows and reads
+# its own MASTER-PLAN. A repo running a forked copy would be holding its decision table to a
+# different grammar than the rest of the portfolio, which is the exact class this file catches —
+# five different headers for the same three columns across six repos, none of them checked.
+#
+# Added 2026-08-26, after decision-cite.sh GAN-8 returned 476 characters of decision BODY as a
+# "title" and exited 0, satisfying both audit:decision-refs and the citation rule it enforces.
+scripts/verify-decision-table.py

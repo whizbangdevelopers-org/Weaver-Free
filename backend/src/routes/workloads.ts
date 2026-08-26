@@ -491,7 +491,7 @@ export const workloadsRoutes: FastifyPluginAsync<VmsRouteOptions> = async (fasti
         }
         if (body.virtioDrivers && !config?.virtioWinIso) {
           return reply.status(400).send({
-            error: 'The VirtIO driver ISO was requested but none is configured on this host. Set services.weaver.virtioWinIso, or create the VM without it (Windows will use IDE and e1000).',
+            error: 'The VirtIO driver ISO was requested but none is configured on this host. Set services.weaver.uefi.virtioWinIso, or create the VM without it (Windows will use IDE and e1000).',
           })
         }
       }
