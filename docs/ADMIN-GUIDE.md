@@ -711,6 +711,27 @@ curl -sf http://localhost:3100/api/health > /dev/null || echo "Weaver is down"
 
 ### Host Information (Weaver Solo+ Admin)
 
+### Host configuration path
+
+`services.weaver.nixConfigPath` tells Weaver which file the **Host Configuration Viewer**
+(Settings → Host Configuration, `GET /api/config`) should read. It defaults to
+`/etc/nixos/configuration.nix`.
+
+Set it when your host is **built from a flake in a git working tree** rather than from
+`/etc/nixos` — the configuration lives in the repository, and `/etc/nixos/configuration.nix` may
+not exist on that machine at all. The viewer then reports "Configuration file not found" and lists
+no sections, which reads as a broken page rather than a misconfigured path.
+
+```nix
+services.weaver.nixConfigPath = "/home/ops/infra/hosts/web01/configuration.nix";
+```
+
+The file is read as the `weaver` service user, so it must be readable by that user. A path that
+symlinks into a `0700` home directory produces a permission error rather than a not-found one, and
+the viewer reports the two differently: for the permission case it follows the symlink, names the
+home directory the path resolves into, and gives you the `chmod o+x` that grants traversal without
+granting listing.
+
 ### MicroVM state directory
 
 `services.weaver.microvmsDir` tells Weaver where microvm.nix keeps each VM's generated files. It

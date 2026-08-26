@@ -180,6 +180,26 @@ in
       '';
     };
 
+    nixConfigPath = mkOption {
+      type = types.str;
+      default = "/etc/nixos/configuration.nix";
+      description = ''
+        Path to the host's NixOS configuration file, shown read-only by the Config page
+        (`GET /api/config`).
+
+        **This option exists because the backend already told operators to set it.** `config.ts`
+        has always read `NIXOS_CONFIG_PATH`, and the `ENOENT` branch of `routes/host-config.ts`
+        names `services.weaver.nixConfigPath` in its remediation text — but nothing declared the
+        option and nothing exported the variable, so the default was the only reachable value and
+        the advice led to an eval error naming a nonexistent option. A remedy that cannot be
+        followed is worse than no remedy: it costs the reader the time to try it.
+
+        The default is right for a host built from `/etc/nixos`. It is wrong for a host built from
+        a flake in a git working tree — which is how every fleet host here is deployed — where the
+        configuration lives in the repo and `/etc/nixos/configuration.nix` may not exist at all.
+      '';
+    };
+
     bridgeInterface = mkOption {
       type = types.str;
       default = "br-microvm";
@@ -745,6 +765,10 @@ in
           LSCPU_BIN = cfg.lscpuBin;
           DF_BIN = cfg.dfBin;
           NIXOS_VERSION_BIN = cfg.nixosVersionBin;
+          # Unconditional, not optionalAttrs: config.ts falls back to the same literal when the
+          # variable is absent, so a conditional export would make the option settable and
+          # simultaneously make "unset" and "set to the default" indistinguishable on the host.
+          NIXOS_CONFIG_PATH = cfg.nixConfigPath;
         } // {
           # Declared runtimes only. Exporting a bin for a runtime the operator did not declare
           # would make config.ts believe it is available and scan for containers that cannot
