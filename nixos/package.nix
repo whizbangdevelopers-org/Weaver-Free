@@ -167,6 +167,42 @@ pkgs.buildNpmPackage rec {
     TUI_LAUNCHER
     chmod +x $out/bin/microvm-tui
 
+    # Strip node-gyp build intermediates from the shipped node_modules.
+    #
+    # They are dead weight at runtime AND they embed the BUILD SANDBOX PATH: config.gypi
+    # carries "local_prefix": "/build/<source-hash>-source" and the generated Makefile
+    # repeats it in cmd_regen_makefile. Because that hash is the SOURCE hash, two builds of
+    # byte-identical source fetched different ways can never produce a bit-identical output.
+    # Measured 2026-08-27: that was the ONLY difference between a path:-built artifact and a
+    # git-ref-built one — 15 lines across 3 files, every one of them gyp detritus.
+    #
+    # Scoped by the presence of config.gypi, never by directory NAME. Most `build/`
+    # directories under node_modules are ordinary JS dist dirs — 52 of them here (pvtsutils,
+    # idb, ink, linkify-it, …) — and removing those would break the packages outright.
+    # config.gypi exists only inside a real node-gyp output.
+    #
+    # Every compiled addon is kept: better-sqlite3 resolves through require('bindings'),
+    # which probes module_root/build/Release/ (bindings.js:41), so the .node files are the
+    # only thing under build/ that the runtime ever loads. sqlite3.a is a build-time static
+    # library, obj/ and .deps/ are intermediates, and the .target.mk / Makefile pair only
+    # exists to re-run gyp.
+    find $out/lib/weaver -type f -name config.gypi | while read -r gypfile; do
+      gypdir=$(dirname "$gypfile")
+      find "$gypdir" -mindepth 1 -maxdepth 1 ! -name Release ! -name Debug -exec rm -rf {} +
+      for variant in Release Debug; do
+        if [ -d "$gypdir/$variant" ]; then
+          find "$gypdir/$variant" -mindepth 1 -maxdepth 1 ! -name '*.node' -exec rm -rf {} +
+        fi
+      done
+    done
+
+    # Fail the build rather than ship a leaked path. This is the invariant the prune exists
+    # for, and a prune that silently stops matching is worse than no prune at all.
+    if grep -rqE '/build/[a-z0-9]{32}-source' $out/lib/weaver 2>/dev/null; then
+      echo "[package.nix] ERROR: build sandbox paths still present in the output:" >&2
+      grep -rlE '/build/[a-z0-9]{32}-source' $out/lib/weaver >&2 || true
+      exit 1
+    fi
   '';
 
   meta = with pkgs.lib; {
