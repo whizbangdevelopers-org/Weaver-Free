@@ -11,7 +11,26 @@ pkgs.buildNpmPackage rec {
   pname = "weaver";
   version = "1.0.5";
 
-  src = ./..;
+  # `src = ./..` copied the WHOLE directory, gitignored build output included. That was safe
+  # only by ACCIDENT: a git flake fetcher drops gitignored paths, so the protection was a
+  # property of the FETCHER rather than of anything this expression declared. A direct
+  # `nix-build nixos/package.nix`, or `nix build path:<working tree>#weaver`, copied the lot —
+  # a `path:` input is NOT git-aware and takes the whole directory, untracked files included,
+  # unlike `git+file:`. Measured 2026-08-28: a git fetch is 35M / 1148 files — exactly the
+  # tracked count — against a 1.8G working tree, 565M of it node_modules.
+  #
+  # Excluding by NAME is safe here, and that was checked rather than assumed: zero tracked
+  # files under code/ live beneath a node_modules/, dist/ or .quasar/ path, and nothing tracked
+  # is named result*. So this filter can only ever drop build output, never source.
+  src = pkgs.lib.cleanSourceWith {
+    src = ./..;
+    name = "weaver-src";
+    filter = path: type:
+      let base = baseNameOf (toString path); in
+      !(type == "directory" && (base == "node_modules" || base == "dist" || base == ".quasar"))
+      && base != "result"
+      && !(pkgs.lib.hasPrefix "result-" base);
+  };
 
   # Single hash covers all workspace deps (root + backend + tui).
   # Paired with a lockfile-marker comment below — both must be updated together
