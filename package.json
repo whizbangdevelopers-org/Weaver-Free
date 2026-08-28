@@ -83,6 +83,7 @@
     "audit:port-allocation": "npx tsx scripts/verify-port-allocation.ts",
     "audit:project-parity": "npx tsx scripts/verify-project-parity.ts",
     "audit:free-tree": "node scripts/verify-free-tree.mjs --simulate",
+    "audit:free-build": "./scripts/verify-free-build.sh",
     "audit:published-comments": "npx tsx scripts/verify-published-comments.ts",
     "audit:published-entrypoints": "npx tsx scripts/verify-published-entrypoints.ts",
     "audit:published-secrets": "npx tsx scripts/verify-published-secrets.ts",

@@ -53,6 +53,40 @@ pkgs.buildNpmPackage rec {
       echo "[package.nix] Paid-tier sources absent — VITE_FREE_BUILD=true enabled for rolldown tree-shake"
     fi
 
+    # Stage src-pwa as a sub-package so Quasar does not go to the network for it.
+    #
+    # @quasar/app-vite 3 (2026-08-17, 0207b1be) treats src-pwa as its own package:
+    # modes-utils.js `ensureModeDeps()` returns early ONLY when src-pwa/package.json was
+    # already present (so nothing had to be created) AND src-pwa/node_modules exists.
+    # Otherwise it runs `npm install` inside src-pwa — which a sandboxed build cannot
+    # satisfy, and the whole derivation dies on `ENOTCACHED register-service-worker`.
+    #
+    # Both files are DELIBERATELY untracked (see code/.gitignore): they carry nothing
+    # project-specific and would drift against the CLI template on every Quasar upgrade.
+    # That decision is right and stays — it was simply verified with a network available,
+    # which is the one condition a nix build never has. So satisfy the two conditions from
+    # inside the closure instead of tracking generated files:
+    #
+    #   package.json  ← the CLI's own template, i.e. byte-identical to what Quasar would
+    #                   have written (verified 2026-08-17, and again 2026-08-27)
+    #   node_modules  ← the root install, which already declares every dep src-pwa needs
+    #                   (register-service-worker, workbox-*) at newer ranges
+    #
+    # Nothing new is tracked and nothing new ships to Weaver-Free.
+    # Refuse loudly if the CLI moves its template: the failure mode we are avoiding is a
+    # networked install inside a sandbox, and a bare `cp` error would send the next reader
+    # hunting the wrong thing.
+    pwaTemplate=node_modules/@quasar/app-vite/templates/pwa/common/package.json
+    if [ ! -f "$pwaTemplate" ]; then
+      echo "[package.nix] ERROR: Quasar's PWA template moved — expected $pwaTemplate" >&2
+      echo "[package.nix] Without it, quasar build -m pwa runs a NETWORKED npm install in" >&2
+      echo "[package.nix] src-pwa and this sandboxed build dies on ENOTCACHED. Find the new" >&2
+      echo "[package.nix] template path in @quasar/app-vite/lib/modes/modes-utils.js." >&2
+      exit 1
+    fi
+    cp "$pwaTemplate" src-pwa/package.json
+    ln -s ../node_modules src-pwa/node_modules
+
     # Build frontend PWA
     npx quasar build -m pwa
   '';

@@ -45,7 +45,7 @@
  * not test:compliance (too slow for every push).
  */
 
-import { readFileSync, existsSync, mkdtempSync, rmSync, mkdirSync } from 'fs'
+import { readFileSync, existsSync, mkdtempSync, rmSync, mkdirSync, writeFileSync } from 'fs'
 import { resolve, dirname, join } from 'path'
 import { tmpdir } from 'os'
 import { fileURLToPath } from 'url'
@@ -103,6 +103,11 @@ function readSyncExcludes(): string[] {
  * Hard-coded base excludes from sync-to-free.yml (the rsync step). Kept in
  * sync with the workflow's literal --exclude flags.
  */
+// NOTE: flake.nix + flake.lock are deliberately NOT excluded — sync-to-free.yml ships them to
+// the Free root so users can install via a direct flake input (UPGRADE.md Path B, fixed
+// 2026-04-21). They were listed here until 2026-08-27, four months out of step with the
+// workflow this list claims to mirror, which meant the free-tarball context built a tree with
+// no flake in it and could not have caught a nix-build regression even in principle.
 const BASE_CODE_EXCLUDES = [
   '.git',
   'testing/',
@@ -112,8 +117,6 @@ const BASE_CODE_EXCLUDES = [
   'playwright.config.ts',
   'vitest.config.ts',
   '.mcp.json',
-  'flake.nix',
-  'flake.lock',
 ]
 
 // ---------------------------------------------------------------------------
@@ -162,16 +165,46 @@ function run(argv: string[], cwd: string, env: NodeJS.ProcessEnv = process.env):
 function flattenToFreeLayout(sandboxDir: string): void {
   mkdirSync(sandboxDir, { recursive: true })
   const allExcludes = [...BASE_CODE_EXCLUDES, ...readSyncExcludes()]
-  const argv = [
-    'rsync',
-    '-a',
-    '--delete',
-    ...allExcludes.map((p) => `--exclude=${p}`),
-    // Trailing slashes matter — `code/` sources contents; `sandbox/` is the target.
-    `${CODE_ROOT}/`,
-    `${sandboxDir}/`,
-  ]
-  run(argv, PROJECT_ROOT)
+
+  // TRACKED FILES ONLY, then excludes — two steps, exactly as verify-free-tree.mjs's
+  // simulate() does, and for the same reason. sync-to-free.yml rsyncs from a fresh
+  // `actions/checkout`, which holds tracked files and nothing else. Sourcing the WORKING
+  // TREE instead sweeps in every gitignored artifact, and a checker whose universe is
+  // broader than its consumer's can only ever return green.
+  //
+  // Measured 2026-08-27: this function copied the gitignored src-pwa/package.json and its
+  // 217-package src-pwa/node_modules into the sandbox, so Quasar's PWA step found its deps
+  // pre-staged and never needed the network. The published tree has neither, and the nix
+  // build of it had been failing since 2026-08-17 while this context stayed green.
+  // Same defect published-tree.ts was written to fix (G-process-2026-07-21-01KYSBXCJ95C678S8YWKZZQ84M).
+  //
+  // rsync cannot do it in one pass: it does not apply exclude rules to a --files-from list.
+  const staged = `${sandboxDir}.staged`
+  mkdirSync(staged, { recursive: true })
+  const ls = spawnSync('git', ['-C', CODE_ROOT, 'ls-files', '-z'], {
+    encoding: 'buffer',
+    maxBuffer: 64 * 1024 * 1024,
+  })
+  if (ls.status !== 0) throw new Error('git ls-files failed while staging the Free layout')
+  const listFile = `${staged}.files.txt`
+  writeFileSync(listFile, ls.stdout)
+
+  run(['rsync', '-a', '--from0', `--files-from=${listFile}`, `${CODE_ROOT}/`, `${staged}/`], PROJECT_ROOT)
+  run(
+    [
+      'rsync',
+      '-a',
+      '--delete',
+      '--delete-excluded',
+      ...allExcludes.map((p) => `--exclude=${p}`),
+      // Trailing slashes matter — sources contents, not the directory itself.
+      `${staged}/`,
+      `${sandboxDir}/`,
+    ],
+    PROJECT_ROOT,
+  )
+  rmSync(staged, { recursive: true, force: true })
+  rmSync(listFile, { force: true })
 }
 
 const CONTEXTS: BuildContext[] = [
