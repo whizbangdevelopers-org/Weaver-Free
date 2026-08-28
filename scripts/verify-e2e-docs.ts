@@ -78,6 +78,11 @@ const FEATURE_ALLOWLIST = new Set<string>([
   'keyboard',
   'license',
   'metrics',
+  // A Toll is a licence the OPERATOR owns (a Windows key, a RHEL subscription) with seats and
+  // expiry — deliberately a different feature area from 'license', which is Weaver's own product
+  // key. Sharing a tag would merge two coverage stories that have different owners and different
+  // failure modes, which is the same conflation the distinct noun exists to prevent.
+  'toll',
   'mobile',
   'navigation',
   'network',
