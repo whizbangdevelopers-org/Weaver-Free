@@ -33,6 +33,42 @@ code/scripts/fixtures/sast-secret-corpus.txt
 # turtles-all-the-way-down failure (a broken checker reporting green) is exactly what goes
 # uncaught. So the checker checks itself.
 code/scripts/audit-template-divergence.ts
+code/scripts/sync-template.ts
+
+# The header-preserving sync path, and the lib it reads. Declared 2026-08-29 (Mark's call).
+#
+# WHY. `sync-template.ts --pull` copies BYTES. It normalises the licence line for COMPARISON so its
+# report agrees with audit:template-divergence, and then clobbers that line on the way down —
+# there is no preservation path in it (copyFileSync, no capture/restore). sync-shared-file.ts was
+# built for exactly that, after the template's `{{LICENSE_IDENTIFIER}}` was overwritten with a
+# downstream repo's proprietary line THREE times in one session on 2026-08-25, and a
+# `weaver-free: never-publish` marker was dropped from a file whose exclusion depended on it. Its
+# own docblock states the principle this manifest exists to serve: "Remember to check is not a
+# control; this is."
+#
+# WHAT IT WAS FIXING, MEASURED. Until today these two files lived in the archetype and in Weaver
+# and were declared by NEITHER manifest, so the portfolio ran two sync lineages: the archetype and
+# Gantry declared sync-template.ts + lib/template-normalise.ts; Weaver declared these two and does
+# not carry the other pair at all. All three manifests read 35 rows throughout — a total
+# substitution of the mechanism that every cardinality check reported as healthy. Cardinality was
+# never the property anyone cared about; the declared SET is.
+#
+# THAT RESIDUE IS RESOLVED — FORGE-54 retired lib/template-normalise.ts, and the paragraph that
+# stood here was WRONG in a way worth keeping, because the error is reusable. It said the two
+# normalisers' disagreement was LATENT, on the basis that all 8 marker forms then live in the
+# portfolio were stripped by both. That test filters on the wrong attribute. The trigger was never
+# a new marker FORM; it is editing a marker-mentioning docblock line in one repo only, across files
+# already declared here — an ordinary act. Measured 2026-09-01 across the declared set: 16 file
+# instances / 25 lines in Weaver, 6 files / 9 lines in Gantry, replicated by two sessions reading
+# the shipped sources independently. Every instance .ts/.txt, so no markdown row was ever needed.
+#
+# Four parties held the latent reading, and it survived because a scope test that filters on the
+# wrong attribute returns a clean answer to a question nobody asked — indistinguishable from a
+# clean answer to the right one. lib/per-repo-header.ts is now the single predicate; its rule 2 is
+# comment-agnostic but anchored on a comment OPENER, never on `^.*`, and it carries a paired
+# corpus that fails in both directions. See its docblock before widening it again.
+code/scripts/sync-shared-file.ts
+code/scripts/lib/per-repo-header.ts
 code/scripts/shared-with-template.txt
 
 # The licence-header guard. Its LOGIC must be identical everywhere — it is what stops a copied file
@@ -92,15 +128,21 @@ code/scripts/verify-rule-contracts.ts
 # session LOADS is that implementation.
 #
 # Shared because all three legs are derived, not declared: settings files, hook trees and the
-# self-test target all come from `git ls-files`, so it fits any layout — this repo keeps root hooks
-# under core/ and stack/, Weaver keeps them flat. The one hardcoded path it originally carried
+# self-test target all come from `git ls-files`, so it fits any layout — the template and Gantry
+# keep root hooks under core/ and stack/, Weaver keeps them flat.
+#
+# NAMED, not "this repo": this file is declared shared with ITSELF, so every word here is
+# byte-identical in every repo and a self-reference re-binds to whoever is reading. The sentence
+# above said "this repo keeps root hooks under core/ and stack/" until 2026-08-29 — true in the
+# template and Gantry, FALSE in Weaver, which carried it verbatim while keeping its hooks flat.
+# In a file that travels, only absolute names can be true everywhere. The one hardcoded path it originally carried
 # (.claude/hooks/core/block-dangerous.sh) was the only thing that would have forked it, and is now
 # derived from the wiring — which also made it strictly stronger, since a repo with the guard in two
 # trees now self-tests BOTH.
 code/scripts/verify-hooks.ts
 
 # The dev-server alias derivation and its guard. app-vite 3 dropped the built-in `src`/`layouts`/
-# `stores`/… aliases, and every project scaffolded from this template imports through them — so the
+# `stores`/… aliases, and every project scaffolded from quasar-project-template imports through
 # breakage, and therefore the fix, is portfolio-wide by construction. The derivation reads JSONC,
 # because a tsconfig may legitimately carry comments; a comment scanner replicated by hand into four
 # quasar.config.js files is four chances to mishandle a string boundary, in a file whose failure mode
@@ -209,40 +251,37 @@ scripts/decision-cite.sh
 # because it had NOT copied the newer version. Neither copy was simply better; nothing could tell.
 #
 # It lives under .claude/hooks/ rather than code/, so a repo whose hooks sit flat (Weaver) and one
-# that splits core/ + stack/ (this template, Gantry) both carry it at their own path — the entry
-# below is this repo's. audit:template-divergence excludes the licence line, which is what lets a
+# that splits core/ + stack/ (the template, Gantry) both carry it at their own path — the entry
+# below is the template's, and each consumer's copy names its own. audit:template-divergence excludes the licence line, which is what lets a
 # proprietary repo and a licence-blank template hold byte-identical logic.
 .claude/hooks/lib/unwrap-interpreter.sh
 
-# The form matrix and its vocabulary. Pinned for the same reason as the unwrapper beside it: the
-# whole point is that ONE list of command shapes is re-tested against EVERY hook, so a per-repo
-# copy of the shapes would defeat it — a form added in one repo and not another means the guard is
-# checked against a different world in each.
+# Its two siblings, added 2026-08-28. Same argument, and the omission was measurable: the reach
+# check built that day found `command-forms.sh` ABSENT from Gantry, while Gantry's own
+# verify-hooks.ts carried a comment naming it as a live consumer — a dangling reference to a file
+# the repo did not have. `strip-heredocs.sh` was in both and pinned by nothing, which is the exact
+# state unwrap-interpreter.sh was in while four copies quietly diverged for six weeks.
 #
-# The checker is bash rather than TypeScript deliberately: it drives the hooks by executing them,
-# and a hook is a shell script whatever the repo's stack is.
+# `command-forms.sh` is the canonical list of SHAPES a command can arrive in; `strip-heredocs.sh`
+# is one definition shared by every command-parsing guard. Neither has a per-repo half.
+#
+# NO CONSUMER COUNT, and the reason is worth keeping: this quoted the lib's own "five
+# consumers" until 2026-08-29, when there were seven. Worse, that number describes the
+# GLOBAL ~/.claude/hooks population, not this repo — in every product tree these libs have
+# exactly one consumer. A count quoted from another file's header is a second copy of a
+# number with no generator, and it travelled here and to two product repos before anyone
+# checked it.
 .claude/hooks/lib/command-forms.sh
-code/scripts/verify-hook-forms.sh
-
-# The heredoc-body stripper the guard above depends on. Pinned because this repo's
-# .claude/hooks/block-dangerous.sh does not merely USE it, it refuses to run without it —
-# "refusing to guard with a half-blind scanner" — so a missing or drifted copy does not degrade
-# the live safety guard, it disables it. Weaver's copy has been byte-identical to the archetype's
-# by luck rather than by gate: it was the one lib of the three that nothing compared, which is
-# precisely the state unwrap-interpreter.sh was in while four copies diverged for six weeks.
-#
-# Same no-`code/`-prefix path as its two siblings above, so it fits this repo's flat hook tree and
-# the template's core/+stack/ split alike; audit:template-divergence excludes the licence line,
-# which is the only byte separating the two copies today.
 .claude/hooks/lib/strip-heredocs.sh
 
-# The per-repo header definition and the sync tool that honours it. Shared because the
-# ALTERNATIVE to a sync tool is `cp`, and `cp` silently overwrites the licence line and any
-# publish marker — the two things audit:template-divergence normalises away, so the copy looks
-# correct to the very checker that sent you to make it. Measured 2026-08-25: three clobbers in
-# one session, each caught only by looking afterwards.
-code/scripts/lib/per-repo-header.ts
-code/scripts/sync-shared-file.ts
+# The form-invariance auditor that consumes command-forms.sh. Product-neutral by construction and
+# for the same reason verify-hooks.ts is: coverage is enumerated from .claude/settings.json and
+# each trigger regex is EXTRACTED from the hook rather than restated, so it fits a flat hook tree
+# and a core/+stack/ split alike. A forked copy would hold one repo's guards to a different set of
+# command forms than the rest of the portfolio — which is the defect it exists to catch, one level
+# down: `bash -c '…'` bypassed every PreToolUse guard for six weeks because the house rules
+# INSTRUCT that wrapper and nothing checked that the guards understood it.
+code/scripts/verify-hook-forms.sh
 
 # The decision-table SHAPE auditor. Pinned as an implementation, not just a corpus, because
 # nothing in it is project-specific: it derives the repo's own prefix from its own rows and reads
