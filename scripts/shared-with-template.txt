@@ -224,6 +224,18 @@ scripts/decision-cite.sh
 .claude/hooks/lib/command-forms.sh
 code/scripts/verify-hook-forms.sh
 
+# The heredoc-body stripper the guard above depends on. Pinned because this repo's
+# .claude/hooks/block-dangerous.sh does not merely USE it, it refuses to run without it —
+# "refusing to guard with a half-blind scanner" — so a missing or drifted copy does not degrade
+# the live safety guard, it disables it. Weaver's copy has been byte-identical to the archetype's
+# by luck rather than by gate: it was the one lib of the three that nothing compared, which is
+# precisely the state unwrap-interpreter.sh was in while four copies diverged for six weeks.
+#
+# Same no-`code/`-prefix path as its two siblings above, so it fits this repo's flat hook tree and
+# the template's core/+stack/ split alike; audit:template-divergence excludes the licence line,
+# which is the only byte separating the two copies today.
+.claude/hooks/lib/strip-heredocs.sh
+
 # The per-repo header definition and the sync tool that honours it. Shared because the
 # ALTERNATIVE to a sync tool is `cp`, and `cp` silently overwrites the licence line and any
 # publish marker — the two things audit:template-divergence normalises away, so the copy looks
