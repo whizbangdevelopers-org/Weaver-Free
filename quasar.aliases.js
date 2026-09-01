@@ -229,6 +229,11 @@ export function deriveViteAliases(appDir, options = {}) {
       )
     }
 
+    // `alias` is a local object literal that never escapes this function, and `key` comes from
+    // THIS repo's own tsconfig.json compilerOptions.paths, read at build time — no request, no
+    // user input, no network path. Reaching a `__proto__` key requires write access to the
+    // tsconfig, which is control of the build already.
+    // sast-ignore[prototype-pollution]: build-time key from this repo's own tsconfig, not input
     alias[key.slice(0, -2)] = join(base, target.slice(0, -2))
   }
 
