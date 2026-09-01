@@ -213,6 +213,19 @@ code/scripts/verify-mcp-base-neutral.ts
 # from its own .engram.yaml and skips inherited template projections, so nothing in it is
 # repo-specific. The BASELINE beside it is per-repo data and is deliberately NOT pinned.
 code/scripts/verify-knowledge-entry-length.ts
+
+# The diagram-currency auditor. SHARED because the archetype AUTHORS the thing that breaks it:
+# .claude/rules/core/diagrams.md documents the opt-in marker, so it SHOWS one — a marker above a
+# d2 fence, nested inside a ```markdown example. An unanchored fence scan reads that example as a
+# live claim, and on 2026-09-01 it failed a consumer's push while the archetype had no such
+# auditor and could not learn it. An auditor's universe must match its consumer's; here the
+# consumer had one the author didn't, so the author now runs it too.
+#
+# The ALLOWLIST beside it is per-repo data and is deliberately NOT pinned: scripts/data/
+# diagram-external-refs.json declares tokens a diagram in THAT repo legitimately names but does
+# not track (tooling in a sibling repo). Absent means none, which is correct for a repo with no
+# cross-repo diagram. Same split as verify-license-headers.ts against verify-legal-ip.ts.
+code/scripts/verify-diagram-currency.ts
 code/codebase-mcp-base/utils/file-reader.ts
 code/codebase-mcp-base/tools/component-tree.ts
 code/codebase-mcp-base/tools/form-validation-rules.ts
