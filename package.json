@@ -176,7 +176,7 @@
     "sync:markers": "npx tsx scripts/sync-markers.ts",
     "test": "vitest run",
     "test:backend": "npm -w backend test",
-    "test:compliance": "npx tsx scripts/run-compliance.ts && npm run audit:decision-table",
+    "test:compliance": "npx tsx scripts/run-compliance.ts && npm run audit:decision-table && npm run audit:decision-table-negative",
     "test:coverage": "vitest run --coverage",
     "test:coverage:backend": "npm -w backend run test:coverage",
     "test:coverage:free": "vitest run --coverage --config vitest.free.config.ts",
@@ -234,7 +234,8 @@
     "report:gate-provenance": "npx tsx scripts/report-gate-provenance.ts",
     "audit:knowledge-entry-length": "npx tsx scripts/verify-knowledge-entry-length.ts",
     "e2e:visual": "testing/e2e-docker/scripts/run-single.sh testing/e2e/visual-regression.spec.ts; testing/e2e-docker/scripts/analyze-results.sh",
-    "audit:decision-table": "python3 ../scripts/verify-decision-table.py"
+    "audit:decision-table": "python3 ../scripts/verify-decision-table.py",
+    "audit:decision-table-negative": "python3 ../scripts/verify-decision-table.negative-test.py"
   },
   "dependencies": {
     "@quasar/extras": "^1.16.9",
