@@ -1,0 +1,27 @@
+{
+  "_comment": [
+    "Manifests audit:security DISCOVERS but whose lockfile is not in the repo.",
+    "",
+    "npm audit reads package-lock.json, so an untracked lockfile means the verdict is a fact",
+    "about one developer's disk: not reproducible from a clone, and unreachable from CI. That is",
+    "sometimes correct — but it must be DECLARED, so a SECOND untracked lockfile cannot appear",
+    "and inherit the same silence.",
+    "",
+    "The only excusable condition is `untrackedLock`. Drift between the lockfile and node_modules",
+    "is deliberately NOT excusable here: it is fixed by `npm ci`, and the auditor says so.",
+    "",
+    "Same three gates as security-allowlist.json — reason, ISO dates, and an expiry that FAILS —",
+    "because a non-ISO reviewBy is compared lexicographically and therefore never expires.",
+    "",
+    "Added 2026-09-02, after audit:security was found to be scanning a gitignored lockfile with",
+    "nothing recording that it was doing so."
+  ],
+  "exceptions": {
+    "src-pwa": {
+      "untrackedLock": true,
+      "reason": "Both src-pwa/package.json and src-pwa/package-lock.json are gitignored on purpose (code/.gitignore, the block ending '/src-pwa/package-lock.json'): Quasar regenerates them, they carry nothing project-specific, they duplicate dependencies the root package.json already declares at newer ranges, and they would drift against the template on every Quasar upgrade. The tracked PWA sources next to them - manifest.json, register-sw.ts, sw/ - are the real ones. A consequence worth stating: because the package.json is untracked too, discoverManifests will not even find this manifest in a fresh clone, so its advisories are only ever visible on a machine that has run a Quasar build. They are not lost - every dependency here is also reachable from the root manifest, at the same or newer ranges, so an advisory here is reachable and fixable from the root manifest.",
+      "addedAt": "2026-09-02",
+      "reviewBy": "2026-12-02"
+    }
+  }
+}
