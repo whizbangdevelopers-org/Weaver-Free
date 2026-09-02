@@ -305,3 +305,16 @@ code/scripts/verify-hook-forms.sh
 # Added 2026-08-26, after decision-cite.sh GAN-8 returned 476 characters of decision BODY as a
 # "title" and exited 0, satisfying both audit:decision-refs and the citation rule it enforces.
 scripts/verify-decision-table.py
+
+# Its proof that it can FAIL. Pinned for the same reason as the auditor: the corpus inside the
+# auditor proves the CASES exist, and only this proves main() reaches them with the rows it
+# should. A repo running the auditor without it holds a green it has never seen fail.
+#
+# Portable by construction — the prefix, the highest id and the id it relocates are all DERIVED
+# from whichever MASTER-PLAN.md sits beside it, so it runs unmodified in every namespace. A
+# hardcoded `FORGE-57` would have passed in Forge and been meaningless everywhere else.
+#
+# Added 2026-09-02 with FORGE-56, which gives a plan a second table and moves id contiguity to a
+# union pass. Its N6b case asserts the pre-split per-table check WOULD have reported a phantom
+# gap, so the fix cannot silently regress.
+scripts/verify-decision-table.negative-test.py
