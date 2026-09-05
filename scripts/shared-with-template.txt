@@ -335,3 +335,17 @@ scripts/verify-decision-open.py
 # goes first: it sets the pattern (declare, then prove, then descend the cap) with no argument
 # about whose copy is canonical.
 code/scripts/verify-lockfile.ts
+
+# FORGE-68 wave 1, script 2 of 8 — check-bundle-size.ts. Reconciled 2026-09-05.
+#
+# The measured divergence was 28 diff lines and NONE of it was the budgets: all three repos already
+# carried chunk 500 / JS 2500 / CSS 600. What forked was the PROSE justifying those numbers — the
+# template's re-baseline argument, Weaver's per-release snapshot accounting — plus a licence header
+# the template did not have and a docblock in all three still quoting the pre-baseline figures
+# (JS 2000, and CSS 200 in the template and Gantry).
+#
+# So the numbers AND their rationale moved to scripts/data/bundle-budgets.json, per-repo and NOT
+# shared. That is what lets the script be shared: when Weaver's budget genuinely moves at v1.2 —
+# its own rationale says it will — the data file changes and this file does not, which is exactly
+# the forking pressure ADP-2 exists to remove.
+code/scripts/check-bundle-size.ts
