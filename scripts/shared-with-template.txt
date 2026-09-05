@@ -377,3 +377,17 @@ code/scripts/verify-knowledge-ids-unique.ts
 # carries a `why` and loadExemptions() REFUSES a bare one — an exemption is a suppression, and the
 # same contract governs sast-ignore[rule-id] and template-auditors-declined.json.
 code/scripts/verify-e2e-selectors.ts
+
+# FORGE-68 wave 1, script 5 of 8 — verify-knowledge-schema.ts. Reconciled 2026-09-05.
+#
+# NEITHER SIDE LED OUTRIGHT — this one is a UNION, not a promotion, and P3 permits that.
+# Weaver had scope-RUNG validation the template lacked (a `scope: language` entry that names no
+# language is UNROUTABLE: the projection selects BY language, so it matches nothing and reaches no
+# consumer). The template had a wider domain list and the ID form carrying the projection's
+# fact-hash disambiguator. Both went upstream.
+#
+# VALID_DOMAINS was stale in BOTH, measured against the live knowledge_domains taxonomy (FORGE-19)
+# on 2026-09-05: template 16, weaver 13, authority 22 — attic, engram-nix, forgejo,
+# nixos-packaging, python-packaging and synology were in neither. It stays a literal because a
+# scaffolded template must audit itself with no database; it is now a literal that matches.
+code/scripts/verify-knowledge-schema.ts
