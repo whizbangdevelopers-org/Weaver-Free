@@ -349,3 +349,18 @@ code/scripts/verify-lockfile.ts
 # its own rationale says it will — the data file changes and this file does not, which is exactly
 # the forking pressure ADP-2 exists to remove.
 code/scripts/check-bundle-size.ts
+
+# FORGE-68 wave 1, script 3 of 8 — verify-knowledge-ids-unique.ts. Reconciled 2026-09-05.
+#
+# P3's CORRECTED direction: Weaver led and was promoted UPSTREAM, rather than the template's copy
+# being taken as canonical. Weaver already derived the category universe from the vendored vocab
+# (FORGE-20); the template and Gantry hardcoded ['lessons','gotchas'], which exempted the whole
+# heuristics subdir from uniqueness checking. Measured before the promotion: the TEMPLATE's own
+# store held 519 lessons + 402 gotchas + 312 heuristics, so a quarter of the corpus that seeds
+# every new project sat outside its own auditor. No duplicate had slipped through — which is what
+# a guard looks like right up until it matters.
+#
+# What travelled upstream from Weaver: the SUBDIRS import and its docstring. What was added here:
+# the P2 extraction (auditIds over injected file contents, so one proof serves three stores) and
+# the self-test the contract rows in all three repos said had never been exercised.
+code/scripts/verify-knowledge-ids-unique.ts
