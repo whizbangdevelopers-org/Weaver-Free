@@ -318,3 +318,20 @@ scripts/verify-decision-table.py
 # union pass. Its N6b case asserts the pre-split per-table check WOULD have reported a phantom
 # gap, so the fix cannot silently regress.
 scripts/verify-decision-table.negative-test.py
+
+# The ageing half of the decision register. verify-decision-table.py asserts an open row's SHAPE;
+# this asserts that it is MOVING — the thing FORGE-56 was written about ("nothing ages them"). A
+# plain `open` row past the threshold is neglect; a `blocked-on` row names the observation it waits
+# on, so its age measures the world rather than the register and it deliberately never ages.
+#
+# Pinned as an implementation because nothing in it is project-specific: it reads whichever
+# MASTER-PLAN.md sits beside it and takes its threshold from a per-repo baseline JSON.
+scripts/verify-decision-open.py
+
+# FORGE-68 (ADP-2 — the eight shared auditors reconcile before their proofs are written), wave 1.
+# Already byte-identical below the licence header in all three repos when it was measured on
+# 2026-09-04 — zero code AND zero prose divergence — so this entry records a fact rather than
+# forcing a reconciliation. That is the cheapest possible first row for the wave, and it is why it
+# goes first: it sets the pattern (declare, then prove, then descend the cap) with no argument
+# about whose copy is canonical.
+code/scripts/verify-lockfile.ts
