@@ -364,3 +364,16 @@ code/scripts/check-bundle-size.ts
 # the P2 extraction (auditIds over injected file contents, so one proof serves three stores) and
 # the self-test the contract rows in all three repos said had never been exercised.
 code/scripts/verify-knowledge-ids-unique.ts
+
+# FORGE-68 wave 1, script 4 of 8 — verify-e2e-selectors.ts. Reconciled 2026-09-05.
+#
+# THE PLAN CALLED THIS ONE RIGHT: "exemptions become data". The three copies had forked ONLY on
+# per-repo exemption patterns hardcoded into the shared script — Gantry five (three
+# @vue-flow/core runtime classes, two data-rendered label shapes), Weaver one (pricing values
+# rendered from constants). Both legitimate, neither belonging to the archetype, and together the
+# entire divergence beyond the licence header.
+#
+# They now live in scripts/data/e2e-selector-exemptions.json, per repo and NOT shared. Every rule
+# carries a `why` and loadExemptions() REFUSES a bare one — an exemption is a suppression, and the
+# same contract governs sast-ignore[rule-id] and template-auditors-declined.json.
+code/scripts/verify-e2e-selectors.ts
