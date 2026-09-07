@@ -47,7 +47,7 @@ import {
   deriveViteAliases,
   parseJsonc,
   stripJsonComments,
-  stripTrailingCommas,
+  stripTrailingCommas
 } from '../quasar.aliases.js'
 
 const APP_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -85,7 +85,7 @@ const APP_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '..')
  * @param files client source files
  */
 export function findProcessEnvInClient(
-  files: Array<{ name: string; text: string }>,
+  files: Array<{ name: string; text: string }>
 ): Array<{ file: string; line: number; text: string }> {
   const hits: Array<{ file: string; line: number; text: string }> = []
 
@@ -111,15 +111,24 @@ export function findProcessEnvInClient(
       for (let k = 0; k < line.length; k++) {
         const c = line[k]
         if (quote) {
-          if (c === '\\') { k++; continue }
+          if (c === '\\') {
+            k++
+            continue
+          }
           if (c === quote) quote = null
           continue
         }
-        if (c === '"' || c === "'") { quote = c; continue }
+        if (c === '"' || c === "'") {
+          quote = c
+          continue
+        }
         if (c === '/' && line[k + 1] === '/') break
         if (c === '/' && line[k + 1] === '*') {
           const end = line.indexOf('*/', k + 2)
-          if (end === -1) { inBlockComment = true; break }
+          if (end === -1) {
+            inBlockComment = true
+            break
+          }
           k = end + 1
           continue
         }
@@ -144,50 +153,50 @@ type Case = { name: string; tsconfig: string; expect?: Record<string, string> }
 const CATCH_CASES: Case[] = [
   {
     name: 'no compilerOptions at all',
-    tsconfig: '{ "include": ["src/**/*.ts"] }',
+    tsconfig: '{ "include": ["src/**/*.ts"] }'
   },
   {
     name: 'paths present but empty',
-    tsconfig: '{ "compilerOptions": { "paths": {} } }',
+    tsconfig: '{ "compilerOptions": { "paths": {} } }'
   },
   {
     name: 'only #q-app entries — nothing app-vite does not already provide',
     tsconfig: `{ "compilerOptions": { "paths": {
       "#q-app": ["./node_modules/@quasar/app-vite/types/index.d.ts"],
       "#q-app/*": ["./node_modules/@quasar/app-vite/types/*"]
-    } } }`,
+    } } }`
   },
   {
     name: 'only exact (non-wildcard) mappings — no safe Vite equivalent',
-    tsconfig: '{ "compilerOptions": { "paths": { "app-config": ["./src/config.ts"] } } }',
+    tsconfig: '{ "compilerOptions": { "paths": { "app-config": ["./src/config.ts"] } } }'
   },
   {
     name: 'wildcard key mapped to a non-wildcard target — would truncate silently',
-    tsconfig: '{ "compilerOptions": { "paths": { "src/*": ["./src"] } } }',
+    tsconfig: '{ "compilerOptions": { "paths": { "src/*": ["./src"] } } }'
   },
   {
     name: 'target is not a string',
-    tsconfig: '{ "compilerOptions": { "paths": { "src/*": [null] } } }',
+    tsconfig: '{ "compilerOptions": { "paths": { "src/*": [null] } } }'
   },
   {
     name: 'malformed JSON',
-    tsconfig: '{ "compilerOptions": { "paths": { "src/*": ["./src/*"] } }',
+    tsconfig: '{ "compilerOptions": { "paths": { "src/*": ["./src/*"] } }'
   },
   {
     name: 'unterminated block comment',
-    tsconfig: '{ /* "compilerOptions": { "paths": { "src/*": ["./src/*"] } } }',
+    tsconfig: '{ /* "compilerOptions": { "paths": { "src/*": ["./src/*"] } } }'
   },
   {
     name: 'paths declared only in an extended config — extends is not followed',
-    tsconfig: '{ "extends": "./tsconfig.base.json", "compilerOptions": {} }',
-  },
+    tsconfig: '{ "extends": "./tsconfig.base.json", "compilerOptions": {} }'
+  }
 ]
 
 const IGNORE_CASES: Case[] = [
   {
     name: 'plain JSON',
     tsconfig: '{ "compilerOptions": { "paths": { "src/*": ["./src/*"] } } }',
-    expect: { src: join('/app', 'src') },
+    expect: { src: join('/app', 'src') }
   },
   {
     name: 'line comments (the form that broke the first port of this fix)',
@@ -197,7 +206,7 @@ const IGNORE_CASES: Case[] = [
         "paths": { "src/*": ["./src/*"] } // trailing note
       }
     }`,
-    expect: { src: join('/app', 'src') },
+    expect: { src: join('/app', 'src') }
   },
   {
     name: 'block comments, including a multi-line one',
@@ -208,7 +217,7 @@ const IGNORE_CASES: Case[] = [
         "paths": { "src/*": ["./src/*"] }
       }
     }`,
-    expect: { src: join('/app', 'src') },
+    expect: { src: join('/app', 'src') }
   },
   {
     name: 'a // sequence INSIDE a string value is data, not a comment',
@@ -218,17 +227,17 @@ const IGNORE_CASES: Case[] = [
         "_docs": "https://example.test/quasar#aliases"
       }
     }`,
-    expect: { src: join('/app', 'src') },
+    expect: { src: join('/app', 'src') }
   },
   {
     name: 'a block-comment opener inside a string value is data',
     tsconfig: `{ "compilerOptions": { "paths": { "src/*": ["./src/*"] }, "_glob": "**/*.ts" } }`,
-    expect: { src: join('/app', 'src') },
+    expect: { src: join('/app', 'src') }
   },
   {
     name: 'an escaped quote before a // sequence keeps the string open',
     tsconfig: `{ "compilerOptions": { "_note": "a \\" then // not a comment", "paths": { "src/*": ["./src/*"] } } }`,
-    expect: { src: join('/app', 'src') },
+    expect: { src: join('/app', 'src') }
   },
   {
     name: 'trailing commas, which tsconfig tolerates and JSON does not',
@@ -240,12 +249,12 @@ const IGNORE_CASES: Case[] = [
         },
       },
     }`,
-    expect: { src: join('/app', 'src'), stores: join('/app', 'src', 'stores') },
+    expect: { src: join('/app', 'src'), stores: join('/app', 'src', 'stores') }
   },
   {
     name: 'a comma inside a string is not a trailing comma',
     tsconfig: `{ "compilerOptions": { "_note": "one, two,", "paths": { "src/*": ["./src/*"] } } }`,
-    expect: { src: join('/app', 'src') },
+    expect: { src: join('/app', 'src') }
   },
   {
     name: '#q-app is skipped but does not suppress the real aliases',
@@ -254,7 +263,7 @@ const IGNORE_CASES: Case[] = [
       "#q-app/*": ["./node_modules/@quasar/app-vite/types/*"],
       "layouts/*": ["./src/layouts/*"]
     } } }`,
-    expect: { layouts: join('/app', 'src', 'layouts') },
+    expect: { layouts: join('/app', 'src', 'layouts') }
   },
   {
     name: 'an exact mapping alongside wildcards is skipped, the wildcards survive',
@@ -262,13 +271,13 @@ const IGNORE_CASES: Case[] = [
       "app-config": ["./src/config.ts"],
       "src/*": ["./src/*"]
     } } }`,
-    expect: { src: join('/app', 'src') },
+    expect: { src: join('/app', 'src') }
   },
   {
     name: 'baseUrl is honoured when present',
     tsconfig: '{ "compilerOptions": { "baseUrl": "./sub", "paths": { "src/*": ["./src/*"] } } }',
-    expect: { src: join('/app', 'sub', 'src') },
-  },
+    expect: { src: join('/app', 'sub', 'src') }
+  }
 ]
 
 const ENV_CATCH = [
@@ -278,20 +287,32 @@ const ENV_CATCH = [
   ['spaced out to dodge a naive grep', 'const x = process . env . FOO\n'],
   ['after a line comment ends', '// process.env is banned here\nconst x = process.env.FOO\n'],
   ['after a block comment closes on the same line', '/* note */ const x = process.env.FOO\n'],
-  ['on the line that closes a multi-line block comment', '/*\n why\n*/ const x = process.env.FOO\n'],
-  ['inside a template literal, which IS a real read', 'const u = `${process.env.BASE}/api`\n'],
+  [
+    'on the line that closes a multi-line block comment',
+    '/*\n why\n*/ const x = process.env.FOO\n'
+  ],
+  ['inside a template literal, which IS a real read', 'const u = `${process.env.BASE}/api`\n']
 ]
 
 const ENV_IGNORE = [
   ['import.meta.env is the correct form', 'const h = import.meta.env.QUASAR_SERVER\n'],
-  ['a line comment naming it is documentation', '// use import.meta.env, never process.env\nconst x = 1\n'],
-  ['a block comment naming it is documentation', '/*\n * process.env.VUE_ROUTER_MODE was the v2 form\n */\nconst x = 1\n'],
-  ['a JSDoc block naming it', '/**\n * app-vite 2 exposed these as process.env\n */\nexport const x = 1\n'],
+  [
+    'a line comment naming it is documentation',
+    '// use import.meta.env, never process.env\nconst x = 1\n'
+  ],
+  [
+    'a block comment naming it is documentation',
+    '/*\n * process.env.VUE_ROUTER_MODE was the v2 form\n */\nconst x = 1\n'
+  ],
+  [
+    'a JSDoc block naming it',
+    '/**\n * app-vite 2 exposed these as process.env\n */\nexport const x = 1\n'
+  ],
   ['a single-quoted error message naming it', "throw new Error('process.env is not defined')\n"],
   ['a double-quoted message naming it', 'const m = "read process.env at build time"\n'],
   ['an unrelated identifier', 'const postprocess = envs.process\n'],
   ['a quote inside a comment does not open a string', "// don't use process.env\nconst x = 1\n"],
-  ['no env access at all', 'export const routes = []\n'],
+  ['no env access at all', 'export const routes = []\n']
 ]
 
 function runCase(c: Case): Record<string, string> {
@@ -338,17 +359,20 @@ function selfTest(): boolean {
       () => {
         const withComment = '{ // note\n  "a": 1 }'
         return stripJsonComments(withComment).length === withComment.length
-      },
+      }
     ],
-    ['stripTrailingCommas left a trailing comma', () => !stripTrailingCommas('{"a":1,}').includes(',')],
+    [
+      'stripTrailingCommas left a trailing comma',
+      () => !stripTrailingCommas('{"a":1,}').includes(',')
+    ],
     [
       'parseJsonc mangled a // sequence inside a string',
-      () => (parseJsonc('{"a":"//x"}') as { a: string }).a === '//x',
+      () => (parseJsonc('{"a":"//x"}') as { a: string }).a === '//x'
     ],
     [
       'parseJsonc mangled a block-comment opener inside a string',
-      () => (parseJsonc('{"a":"**/*.ts"}') as { a: string }).a === '**/*.ts',
-    ],
+      () => (parseJsonc('{"a":"**/*.ts"}') as { a: string }).a === '**/*.ts'
+    ]
   ]
   for (const [message, assertion] of direct) {
     try {
@@ -365,7 +389,8 @@ function selfTest(): boolean {
   }
   for (const [name, text] of ENV_IGNORE) {
     const hits = findProcessEnvInClient([{ name: 'x.ts', text }])
-    if (hits.length > 0) failures.push(`IGNORE wrongly flagged (process.env): ${name} — line ${hits[0]!.line}`)
+    if (hits.length > 0)
+      failures.push(`IGNORE wrongly flagged (process.env): ${name} — line ${hits[0]!.line}`)
   }
 
   for (const f of failures) console.error(`  ✗ ${f}`)
@@ -381,7 +406,15 @@ function selfTest(): boolean {
 const CTX_STUB = {
   dev: false,
   prod: true,
-  mode: { spa: true, pwa: false, ssr: false, bex: false, electron: false, capacitor: false, cordova: false },
+  mode: {
+    spa: true,
+    pwa: false,
+    ssr: false,
+    bex: false,
+    electron: false,
+    capacitor: false,
+    cordova: false
+  },
   modeName: 'spa',
   target: {},
   targetName: undefined,
@@ -390,7 +423,7 @@ const CTX_STUB = {
   bundlerName: undefined,
   debug: false,
   vueDevtools: false,
-  publicPath: '/',
+  publicPath: '/'
 }
 
 const SOURCE_DIRS = ['src', 'src-pwa', 'src-electron', 'src-capacitor', 'src-bex', 'src-ssr']
@@ -400,7 +433,19 @@ const SOURCE_DIRS = ['src', 'src-pwa', 'src-electron', 'src-capacitor', 'src-bex
 // must not reach them, while the alias leg still must.
 const CLIENT_DIRS = ['src', 'src-pwa', 'src-capacitor', 'src-bex']
 const SOURCE_EXT = ['.ts', '.mts', '.js', '.mjs', '.vue']
-const RESOLVE_EXT = ['', '.ts', '.mts', '.tsx', '.js', '.mjs', '.vue', '.json', '/index.ts', '/index.js', '/index.vue']
+const RESOLVE_EXT = [
+  '',
+  '.ts',
+  '.mts',
+  '.tsx',
+  '.js',
+  '.mjs',
+  '.vue',
+  '.json',
+  '/index.ts',
+  '/index.js',
+  '/index.vue'
+]
 
 function walk(dir: string, out: string[] = []): string[] {
   if (!existsSync(dir)) return out
@@ -408,7 +453,7 @@ function walk(dir: string, out: string[] = []): string[] {
     if (entry === 'node_modules' || entry.startsWith('.')) continue
     const full = join(dir, entry)
     if (statSync(full).isDirectory()) walk(full, out)
-    else if (SOURCE_EXT.some((e) => full.endsWith(e))) out.push(full)
+    else if (SOURCE_EXT.some(e => full.endsWith(e))) out.push(full)
   }
   return out
 }
@@ -420,7 +465,7 @@ function importSpecifiers(source: string): string[] {
     /\bfrom\s+['"]([^'"]+)['"]/g,
     /\bimport\s*\(\s*['"]([^'"]+)['"]\s*\)/g,
     /\brequire\s*\(\s*['"]([^'"]+)['"]\s*\)/g,
-    /\bimport\s+['"]([^'"]+)['"]/g,
+    /\bimport\s+['"]([^'"]+)['"]/g
   ]
   for (const re of patterns) {
     let m: RegExpExecArray | null
@@ -436,7 +481,9 @@ async function main(): Promise<void> {
 
   const corpusOk = selfTest()
   if (!corpusOk) {
-    console.error('\n✗ corpus FAILED — refusing to report on the repo, the checker is not trustworthy')
+    console.error(
+      '\n✗ corpus FAILED — refusing to report on the repo, the checker is not trustworthy'
+    )
     process.exit(1)
   }
   if (selfTestOnly) {
@@ -499,11 +546,12 @@ async function main(): Promise<void> {
   }
 
   // 4. COMPLETE — every prefix the source really imports through must be aliased.
-  const tsconfigPaths = (
-    parseJsonc(readFileSync(join(APP_DIR, 'tsconfig.json'), 'utf-8'), 'tsconfig.json') as {
-      compilerOptions?: { paths?: Record<string, string[]> }
-    }
-  ).compilerOptions?.paths ?? {}
+  const tsconfigPaths =
+    (
+      parseJsonc(readFileSync(join(APP_DIR, 'tsconfig.json'), 'utf-8'), 'tsconfig.json') as {
+        compilerOptions?: { paths?: Record<string, string[]> }
+      }
+    ).compilerOptions?.paths ?? {}
 
   const wildcardTargets = new Map<string, string>()
   for (const [key, targets] of Object.entries(tsconfigPaths)) {
@@ -525,7 +573,7 @@ async function main(): Promise<void> {
         // Only count it when the aliased path really resolves to a file on disk — otherwise a
         // dependency that happens to share a name with a source directory reads as an alias.
         const rest = spec.slice(head.length + 1)
-        const hit = RESOLVE_EXT.some((ext) => existsSync(join(base, rest + ext)))
+        const hit = RESOLVE_EXT.some(ext => existsSync(join(base, rest + ext)))
         if (hit && !used.has(head)) used.set(head, file.slice(APP_DIR.length + 1))
       }
     }
@@ -569,7 +617,7 @@ async function main(): Promise<void> {
   console.log('✓ audit:vite-aliases passed')
 }
 
-main().catch((err) => {
+main().catch(err => {
   console.error(err)
   process.exit(1)
 })

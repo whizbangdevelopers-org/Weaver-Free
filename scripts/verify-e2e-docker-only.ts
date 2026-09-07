@@ -46,7 +46,7 @@ import { fileURLToPath } from 'node:url'
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url))
 const PKG = join(SCRIPT_DIR, '..')
 const REPO = execFileSync('git', ['-C', PKG, 'rev-parse', '--show-toplevel'], {
-  encoding: 'utf-8',
+  encoding: 'utf-8'
 }).trim()
 
 /** Repo-relative directory whose contents run INSIDE the container — the invocation belongs there. */
@@ -67,7 +67,8 @@ const SCANNED_EXACT = /(^|\/)(Dockerfile|Makefile)$/
  * playwright test ..."`, and a negative test against a real file proved that it therefore missed
  * both of those. Prose is suppressed by PRINTING (below), not by quoting.
  */
-const RUNNER = /(?:^|[;&|("'`:]|\bthen\b|\bdo\b)\s*(?:(?:npx|pnpm|yarn|bunx)\s+|npm\s+exec\s+|\.?\/?node_modules\/\.bin\/)?playwright\s+test\b/
+const RUNNER =
+  /(?:^|[;&|("'`:]|\bthen\b|\bdo\b)\s*(?:(?:npx|pnpm|yarn|bunx)\s+|npm\s+exec\s+|\.?\/?node_modules\/\.bin\/)?playwright\s+test\b/
 
 /** A line that reaches the runner THROUGH docker is the sanctioned path, wherever it lives. */
 const VIA_DOCKER = /\bdocker(?:-compose)?\b/
@@ -158,8 +159,8 @@ function scanMarkdown(text: string): { line: number; text: string }[] {
 
 function scanPlain(text: string): { line: number; text: string }[] {
   return logicalLines(text)
-    .filter((l) => violates(l.text))
-    .map((l) => ({ line: l.line, text: l.text.split('\n')[0]!.trim() }))
+    .filter(l => violates(l.text))
+    .map(l => ({ line: l.line, text: l.text.split('\n')[0]!.trim() }))
 }
 
 /**
@@ -172,7 +173,9 @@ function selfTest(): void {
   try {
     corpus = readFileSync(corpusPath, 'utf-8')
   } catch {
-    console.error('\n  \x1b[31m✗\x1b[0m corpus missing: scripts/fixtures/e2e-docker-only-corpus.txt')
+    console.error(
+      '\n  \x1b[31m✗\x1b[0m corpus missing: scripts/fixtures/e2e-docker-only-corpus.txt'
+    )
     console.error('    The rule is unverified — refusing to report a clean scan.\n')
     process.exit(1)
   }
@@ -219,8 +222,8 @@ function main(): number {
   const tracked = execFileSync('git', ['-C', REPO, 'ls-files'], { encoding: 'utf-8' })
     .split('\n')
     .filter(Boolean)
-    .filter((p) => SCANNED.test(p) || SCANNED_EXACT.test(p))
-    .filter((p) => !p.startsWith(HARNESS_DIR))
+    .filter(p => SCANNED.test(p) || SCANNED_EXACT.test(p))
+    .filter(p => !p.startsWith(HARNESS_DIR))
 
   const problems: string[] = []
   for (const rel of tracked) {
@@ -234,7 +237,9 @@ function main(): number {
     for (const h of hits) problems.push(`${rel}:${h.line}\n        ${h.text}`)
   }
 
-  console.log(`  \x1b[32m✓\x1b[0m scanned ${tracked.length} tracked files (excluding ${HARNESS_DIR})`)
+  console.log(
+    `  \x1b[32m✓\x1b[0m scanned ${tracked.length} tracked files (excluding ${HARNESS_DIR})`
+  )
 
   if (problems.length) {
     console.log('')

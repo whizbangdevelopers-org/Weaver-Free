@@ -25,5 +25,5 @@ export function deriveViteAliases(
   options?: {
     tsconfigFile?: string
     read?: (path: string, encoding: string) => string
-  },
+  }
 ): Record<string, string>
