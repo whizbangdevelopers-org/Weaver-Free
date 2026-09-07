@@ -84,7 +84,7 @@ import { load } from 'js-yaml'
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url))
 const PKG = join(SCRIPT_DIR, '..')
 const REPO = execFileSync('git', ['-C', PKG, 'rev-parse', '--show-toplevel'], {
-  encoding: 'utf-8',
+  encoding: 'utf-8'
 }).trim()
 
 const GREEN = '\x1b[32m'
@@ -128,7 +128,9 @@ function outputAssignments(run: string): { name: string; value: string }[] {
 
   lines.forEach((line, i) => {
     // Heredoc form: `name<<DELIM` … value lines … `DELIM`
-    const hd = line.match(/(?:^|[\s{"'])([A-Za-z_][A-Za-z0-9_-]*)\s*<<\s*["']?([A-Za-z_][A-Za-z0-9_]*)["']?/)
+    const hd = line.match(
+      /(?:^|[\s{"'])([A-Za-z_][A-Za-z0-9_-]*)\s*<<\s*["']?([A-Za-z_][A-Za-z0-9_]*)["']?/
+    )
     if (hd) {
       const [, name, delim] = hd
       const body: string[] = []
@@ -184,10 +186,8 @@ function scanWorkflow(wf: Workflow, label: string): string[] {
       // Propagate PER ASSIGNMENT: only an output whose assigned value references tainted data.
       if (step.id && step.run) {
         for (const { name, value } of outputAssignments(step.run)) {
-          const viaExpr = [...value.matchAll(EXPR)].some((m) => isTainted(m[1]!, taintedOutputs))
-          const viaVar = [...taintedVars].some((v) =>
-            new RegExp(`\\$\\{?${v}\\b`).test(value)
-          )
+          const viaExpr = [...value.matchAll(EXPR)].some(m => isTainted(m[1]!, taintedOutputs))
+          const viaVar = [...taintedVars].some(v => new RegExp(`\\$\\{?${v}\\b`).test(value))
           if (viaExpr || viaVar) taintedOutputs.add(outputRef(step.id, name))
         }
       }
@@ -217,7 +217,10 @@ function selfTest(): void {
   for (const c of cases) {
     const found = scanWorkflow(c.workflow, 'corpus').length > 0
     const want = c.expect === 'catch'
-    if (found !== want) failures.push(`${c.expect.toUpperCase()} expected, got ${found ? 'catch' : 'ignore'}: ${c.name}`)
+    if (found !== want)
+      failures.push(
+        `${c.expect.toUpperCase()} expected, got ${found ? 'catch' : 'ignore'}: ${c.name}`
+      )
   }
 
   if (failures.length) {
@@ -226,7 +229,7 @@ function selfTest(): void {
     console.error('\n    Refusing to scan.\n')
     process.exit(1)
   }
-  const catches = cases.filter((c) => c.expect === 'catch').length
+  const catches = cases.filter(c => c.expect === 'catch').length
   console.log(
     `  ${GREEN}✓${OFF} self-test: ${cases.length}/${cases.length} corpus cases ` +
       `${DIM}(${catches} catch, ${cases.length - catches} ignore)${OFF}`
@@ -240,10 +243,10 @@ function main(): number {
   selfTest()
 
   const files = execFileSync('git', ['-C', REPO, 'ls-files', '.github/workflows'], {
-    encoding: 'utf-8',
+    encoding: 'utf-8'
   })
     .split('\n')
-    .filter((f) => /\.ya?ml$/.test(f))
+    .filter(f => /\.ya?ml$/.test(f))
 
   if (!files.length) {
     console.log(`  ${GREEN}✓${OFF} no workflows in this repo — nothing to check\n`)
