@@ -391,3 +391,14 @@ code/scripts/verify-e2e-selectors.ts
 # nixos-packaging, python-packaging and synology were in neither. It stays a literal because a
 # scaffolded template must audit itself with no database; it is now a literal that matches.
 code/scripts/verify-knowledge-schema.ts
+
+# The hook negative-test harness and its runner — byte-identical with the archetype and
+# with ~/.claude. A self-test proves a guard's CASES EXIST; only breaking the guard proves
+# it can FAIL, and from outside those are the same green. Both files are layout-agnostic on
+# purpose, which is what makes them shareable rather than forkable: neg_begin mirrors
+# whichever hook tree the repo uses, and the runner derives its universe from every tree
+# under the repo root. The per-hook tests under negative-tests/<hook>.sh are deliberately
+# NOT listed — each names its own repo's hooks and case labels, so byte-identity is wrong.
+.claude/hooks/negative-tests/lib.sh
+.claude/hooks/negative-tests/run-negative-tests.sh
+.claude/hooks/run-negative-tests.sh
