@@ -32,7 +32,7 @@
     "fastify-type-provider-zod": "^4.0.2",
     "jsonwebtoken": "^9.0.3",
     "markdown-it": "^14.1.1",
-    "nodemailer": "^9.0.3",
+    "nodemailer": "^9.1.1",
     "pg": "^8.20.0",
     "stripe": "^22.5.0",
     "web-push": "^3.6.7",

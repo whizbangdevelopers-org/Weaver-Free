@@ -145,6 +145,7 @@ export const PHASES: Phase[] = [
       'audit:nix-deps-hash',
       'audit:sync-exclude-cruft',
       'audit:release-rsync-paths',
+      'audit:dependabot-coverage',
       'audit:workflow-cwd',
       'audit:command-cwd',
       'audit:shell-safety',
