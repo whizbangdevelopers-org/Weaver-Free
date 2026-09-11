@@ -399,6 +399,7 @@ code/scripts/verify-vite-aliases.ts
 code/scripts/verify-workflow-taint.ts
 code/testing/e2e-docker/scripts/lib/host-user.sh
 scripts/add-decision.sh
+scripts/merge-dependabot.sh
 scripts/decision-cite.sh
 scripts/verify-decision-open.py
 scripts/verify-decision-table.negative-test.py

@@ -7,6 +7,11 @@
 #   PR/push test runs are intentionally DROPPED — the Weaver CI (pre-push hook) gates
 #   every push to main, and release.yml's `verify` job re-runs the full suite on the
 #   release tag. GitHub spends test minutes on releases only.
+#   That covers every change a PERSON pushes. It never covered a Dependabot PR: the bot
+#   pushes a branch to GitHub directly, so no local pre-push ever runs for it, and merging
+#   it with GitHub's button skipped the whole chain. So a Dependabot PR is merged only by the
+#   local merge command (scripts/merge-dependabot.sh), never GitHub's merge button: it pushes
+#   the PR through this same pre-push chain.
 #
 # REQUIRED SECRETS (optional, for dynamic badges):
 #   - GIST_TOKEN: PAT with gist scope for updating CI badges
@@ -23,7 +28,7 @@ name: Tests
 
 on:
   push:
-    tags: ['v*']         # Badge refresh on release only — pre-push hook + release.yml verify cover correctness
+    tags: ['v*']         # Badge refresh on release only — correctness is the pre-push hook + release.yml verify (Dependabot PRs included, via the local merge command)
   workflow_dispatch:       # Manual trigger for debugging
 
 permissions:
