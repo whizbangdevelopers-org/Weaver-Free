@@ -70,7 +70,7 @@ const RUNNER_DIR = join(APP_DIR, 'testing/e2e-docker/scripts')
 export function stripYamlComments(text) {
   return text
     .split('\n')
-    .map((line) => {
+    .map(line => {
       let out = ''
       let quote = null
       for (let i = 0; i < line.length; i++) {
@@ -130,7 +130,7 @@ export function parseComposeUsers(rawText) {
   const userAnchors = new Set()
   const uidVars = new Set()
 
-  const collectVars = (value) => {
+  const collectVars = value => {
     for (const m of value.matchAll(/\$\{([A-Za-z_][A-Za-z0-9_]*)(?::-[^}]*)?\}/g)) uidVars.add(m[1])
   }
 
@@ -146,7 +146,7 @@ export function parseComposeUsers(rawText) {
     }
   }
 
-  const servicesAt = lines.findIndex((l) => /^services:\s*$/.test(l))
+  const servicesAt = lines.findIndex(l => /^services:\s*$/.test(l))
   const services = []
   if (servicesAt === -1) return { services, uidVars: [...uidVars] }
 
@@ -176,7 +176,7 @@ export function parseComposeUsers(rawText) {
         exempt: null,
         bareExempt: false,
         ok: false,
-        why: '',
+        why: ''
       }
       continue
     }
@@ -191,7 +191,10 @@ export function parseComposeUsers(rawText) {
       else current.bareExempt = true
     }
 
-    if (/^ {4}volumes:\s*$/.test(line)) { inVolumes = true; continue }
+    if (/^ {4}volumes:\s*$/.test(line)) {
+      inVolumes = true
+      continue
+    }
     if (/^ {4}[A-Za-z0-9_.-]+:/.test(line)) inVolumes = false
 
     // A host bind is `- <host path>:<container path>`. A named volume has no path-looking left
@@ -265,26 +268,26 @@ export function parseComposeUsers(rawText) {
 export function findRunnersMissingUid(files, uidVars) {
   if (uidVars.length === 0) return []
 
-  const stripShellComments = (text) =>
+  const stripShellComments = text =>
     text
       .split('\n')
-      .map((l) => l.replace(/(^|\s)#.*$/, '$1'))
+      .map(l => l.replace(/(^|\s)#.*$/, '$1'))
       .join('\n')
 
-  const exportsUid = (text) => uidVars.every((v) => new RegExp(`export\\s+${v}=`).test(text))
-  const providers = new Set(files.filter((f) => exportsUid(f.text)).map((f) => f.name))
+  const exportsUid = text => uidVars.every(v => new RegExp(`export\\s+${v}=`).test(text))
+  const providers = new Set(files.filter(f => exportsUid(f.text)).map(f => f.name))
 
   // Escaping is an explicit helper rather than an inline .replace with '$&': in a replacement
   // STRING, `$&` means "the matched text", so writing it that way is one careless copy away from
   // silently substituting something else. A function replacer has no special sequences at all.
-  const escapeForRegExp = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, (ch) => '\\' + ch)
+  const escapeForRegExp = str => str.replace(/[.*+?^${}()|[\]\\]/g, ch => '\\' + ch)
 
   const missing = []
   for (const f of files) {
     const code = stripShellComments(f.text)
     if (!/docker[ -]compose/.test(code)) continue
     if (exportsUid(f.text)) continue
-    const sourced = [...providers].some((p) =>
+    const sourced = [...providers].some(p =>
       new RegExp(`(^|\\s)(\\.|source)\\s+[^\\n]*${escapeForRegExp(p)}`).test(code)
     )
     if (!sourced) missing.push(f.name)
@@ -312,7 +315,7 @@ export function findRunnersMissingUid(files, uidVars) {
 export function findForeignOwned(root, uid) {
   const r = spawnSync('find', [root, '-xdev', '!', '-uid', String(uid), '-print0'], {
     encoding: 'utf-8',
-    maxBuffer: 64 * 1024 * 1024,
+    maxBuffer: 64 * 1024 * 1024
   })
   // find exits non-zero on unreadable subtrees while still printing what it did read; the output
   // is what matters, so status is not treated as fatal.
@@ -324,7 +327,7 @@ export function topmostPaths(paths) {
   const sorted = [...paths].sort()
   const out = []
   for (const p of sorted) {
-    if (!out.some((prefix) => p === prefix || p.startsWith(prefix + '/'))) out.push(p)
+    if (!out.some(prefix => p === prefix || p.startsWith(prefix + '/'))) out.push(p)
   }
   return out
 }
@@ -348,7 +351,7 @@ const COMPOSE_CATCH = [
   ['a bind-mounting service with no user at all', 'services:\n  a:\n' + BIND + '    image: x\n'],
   [
     'a bind-mounting service merging an anchor that declares no user',
-    'x-common: &common\n  shm_size: 2g\n\nservices:\n  a:\n    <<: *common\n' + BIND,
+    'x-common: &common\n  shm_size: 2g\n\nservices:\n  a:\n    <<: *common\n' + BIND
   ],
   ['an explicit root user', 'services:\n  a:\n    user: "0:0"\n' + BIND],
   ['user: root by name', 'services:\n  a:\n    user: root\n' + BIND],
@@ -356,121 +359,134 @@ const COMPOSE_CATCH = [
   ['an anchor that is defined but never merged', ANCHOR + 'services:\n  a:\n' + BIND],
   [
     'a COMMENT claiming a user is set, over a service that does not',
-    'services:\n  a:\n    # user: "${HOST_UID}:${HOST_GID}" — every service sets this\n' + BIND,
+    'services:\n  a:\n    # user: "${HOST_UID}:${HOST_GID}" — every service sets this\n' + BIND
   ],
   [
     'one good service and one bad one',
-    ANCHOR + 'services:\n  a:\n    <<: *host-user\n' + BIND + '  b:\n' + BIND,
+    ANCHOR + 'services:\n  a:\n    <<: *host-user\n' + BIND + '  b:\n' + BIND
   ],
   [
     'a BARE ownership-exempt with no reason is not an exemption',
-    'services:\n  a:\n    # ownership-exempt\n' + BIND,
-  ],
+    'services:\n  a:\n    # ownership-exempt\n' + BIND
+  ]
 ]
 
 const COMPOSE_IGNORE = [
   [
     'anchor merged into every service',
-    ANCHOR + 'services:\n  a:\n    <<: *host-user\n' + BIND + '  b:\n    <<: *host-user\n' + BIND,
+    ANCHOR + 'services:\n  a:\n    <<: *host-user\n' + BIND + '  b:\n    <<: *host-user\n' + BIND
   ],
   [
     'per-service user, no anchor',
-    'services:\n  a:\n    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"\n' + BIND,
+    'services:\n  a:\n    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"\n' + BIND
   ],
   ['a literal non-root uid', 'services:\n  a:\n    user: "1000:1000"\n' + BIND],
   [
     'profiles do not hide a service from a source-level read',
-    ANCHOR + 'services:\n  a:\n    <<: *host-user\n    profiles:\n      - ui\n' + BIND,
+    ANCHOR + 'services:\n  a:\n    <<: *host-user\n    profiles:\n      - ui\n' + BIND
   ],
   [
     'a second anchor without a user does not cancel the one with it',
-    'x-log: &log\n  driver: json-file\n' + ANCHOR + 'services:\n  a:\n    <<: *host-user\n' + BIND,
+    'x-log: &log\n  driver: json-file\n' + ANCHOR + 'services:\n  a:\n    <<: *host-user\n' + BIND
   ],
   [
     'a # inside a quoted value is data, not a comment',
-    ANCHOR + 'services:\n  a:\n    <<: *host-user\n    command: "echo #1"\n' + BIND,
+    ANCHOR + 'services:\n  a:\n    <<: *host-user\n    command: "echo #1"\n' + BIND
   ],
   [
     'a nested key called user deeper in the service is not the service user',
-    ANCHOR + 'services:\n  a:\n    <<: *host-user\n' + BIND + '    environment:\n      user: someone\n',
+    ANCHOR +
+      'services:\n  a:\n    <<: *host-user\n' +
+      BIND +
+      '    environment:\n      user: someone\n'
   ],
   [
     'a service with NO volumes cannot write to the tree, so it needs no user',
-    'services:\n  a:\n    image: mcr.microsoft.com/playwright\n    command: chrome\n',
+    'services:\n  a:\n    image: mcr.microsoft.com/playwright\n    command: chrome\n'
   ],
   [
     'a NAMED volume is not a host bind and does not put the tree in the container',
-    'services:\n  a:\n    volumes:\n      - cache:/root/.cache\n    image: x\n',
+    'services:\n  a:\n    volumes:\n      - cache:/root/.cache\n    image: x\n'
   ],
   [
     'an ownership-exempt WITH a reason is honoured',
-    'services:\n  a:\n    # ownership-exempt: privileged for Apptainer setuid\n    privileged: true\n' + BIND,
-  ],
+    'services:\n  a:\n    # ownership-exempt: privileged for Apptainer setuid\n    privileged: true\n' +
+      BIND
+  ]
 ]
 
 // Runner-leg corpus. `files` is [{name, text}]; the check reports compose-driving scripts that
 // leave the uid unset.
-const HELPER = { name: 'host-user.sh', text: 'export HOST_UID="$(id -u)"\nexport HOST_GID="$(id -g)"\n' }
+const HELPER = {
+  name: 'host-user.sh',
+  text: 'export HOST_UID="$(id -u)"\nexport HOST_GID="$(id -g)"\n'
+}
 const UID_VARS = ['HOST_UID', 'HOST_GID']
 
 const RUNNER_CATCH = [
   [
     'a compose-driving script that neither exports nor sources',
-    [HELPER, { name: 'run-ui.sh', text: 'set -e\ndocker compose --profile ui up --build\n' }],
+    [HELPER, { name: 'run-ui.sh', text: 'set -e\ndocker compose --profile ui up --build\n' }]
   ],
   [
     'a script that sources a file which does NOT export the uid',
     [
       HELPER,
       { name: 'common.sh', text: 'echo hello\n' },
-      { name: 'run-x.sh', text: '. "$SCRIPT_DIR/lib/common.sh"\ndocker compose up\n' },
-    ],
+      { name: 'run-x.sh', text: '. "$SCRIPT_DIR/lib/common.sh"\ndocker compose up\n' }
+    ]
   ],
   [
     'one correct runner does not excuse a second incorrect one',
     [
       HELPER,
       { name: 'run-tests.sh', text: 'source "$SCRIPT_DIR/lib/host-user.sh"\ndocker compose up\n' },
-      { name: 'run-single.sh', text: 'docker compose --profile single up\n' },
-    ],
+      { name: 'run-single.sh', text: 'docker compose --profile single up\n' }
+    ]
   ],
   [
     'the legacy docker-compose spelling is still driving compose',
-    [HELPER, { name: 'old.sh', text: 'docker-compose up --build\n' }],
+    [HELPER, { name: 'old.sh', text: 'docker-compose up --build\n' }]
   ],
   [
     'exporting only ONE of the two uid variables is not enough',
-    [
-      { name: 'half.sh', text: 'export HOST_UID="$(id -u)"\ndocker compose up\n' },
-    ],
-  ],
+    [{ name: 'half.sh', text: 'export HOST_UID="$(id -u)"\ndocker compose up\n' }]
+  ]
 ]
 
 const RUNNER_IGNORE = [
   [
     'a runner that sources the helper',
-    [HELPER, { name: 'run-tests.sh', text: 'source "$SCRIPT_DIR/lib/host-user.sh"\ndocker compose up\n' }],
+    [
+      HELPER,
+      { name: 'run-tests.sh', text: 'source "$SCRIPT_DIR/lib/host-user.sh"\ndocker compose up\n' }
+    ]
   ],
   [
     'a runner that sources with the dot form',
-    [HELPER, { name: 'run-tests.sh', text: '. "$SCRIPT_DIR/lib/host-user.sh"\ndocker compose up\n' }],
+    [
+      HELPER,
+      { name: 'run-tests.sh', text: '. "$SCRIPT_DIR/lib/host-user.sh"\ndocker compose up\n' }
+    ]
   ],
   [
     'a runner that exports the uid itself',
-    [{ name: 'solo.sh', text: 'export HOST_UID="$(id -u)"\nexport HOST_GID="$(id -g)"\ndocker compose up\n' }],
+    [
+      {
+        name: 'solo.sh',
+        text: 'export HOST_UID="$(id -u)"\nexport HOST_GID="$(id -g)"\ndocker compose up\n'
+      }
+    ]
   ],
   [
     'a script that never drives compose is out of scope',
-    [HELPER, { name: 'analyze.sh', text: 'set -e\nnode analyze-results.mjs\n' }],
+    [HELPER, { name: 'analyze.sh', text: 'set -e\nnode analyze-results.mjs\n' }]
   ],
   [
     'a script that only MENTIONS docker compose in a comment is out of scope',
-    [HELPER, { name: 'notes.sh', text: '# this used to call docker compose up\nnode x.mjs\n' }],
+    [HELPER, { name: 'notes.sh', text: '# this used to call docker compose up\nnode x.mjs\n' }]
   ],
-  [
-    'the helper itself is not a runner',
-    [HELPER],
-  ],
+  ['the helper itself is not a runner', [HELPER]]
 ]
 
 function selfTest() {
@@ -478,15 +494,18 @@ function selfTest() {
 
   for (const [name, yaml] of COMPOSE_CATCH) {
     const { services } = parseComposeUsers(yaml)
-    const bad = services.filter((s) => !s.ok)
+    const bad = services.filter(s => !s.ok)
     if (bad.length === 0) failures.push(`CATCH missed: ${name}`)
   }
 
   for (const [name, yaml] of COMPOSE_IGNORE) {
     const { services } = parseComposeUsers(yaml)
-    const bad = services.filter((s) => !s.ok)
+    const bad = services.filter(s => !s.ok)
     if (services.length === 0) failures.push(`IGNORE parsed no services at all: ${name}`)
-    else if (bad.length > 0) failures.push(`IGNORE wrongly flagged: ${name} — ${bad.map((s) => `${s.name}: ${s.why}`).join('; ')}`)
+    else if (bad.length > 0)
+      failures.push(
+        `IGNORE wrongly flagged: ${name} — ${bad.map(s => `${s.name}: ${s.why}`).join('; ')}`
+      )
   }
 
   // The uid variable must be RECOVERED from the compose text, not assumed — Weaver's harness calls
@@ -495,14 +514,17 @@ function selfTest() {
     'x-host-user: &host-user\n  user: "${E2E_UID:-1000}:${E2E_GID:-1000}"\n\nservices:\n  a:\n    <<: *host-user\n'
   )
   if (!uidVars.includes('E2E_UID') || !uidVars.includes('E2E_GID')) {
-    failures.push(`uid variables not recovered from the compose expression (got ${uidVars.join(', ') || 'none'})`)
+    failures.push(
+      `uid variables not recovered from the compose expression (got ${uidVars.join(', ') || 'none'})`
+    )
   }
 
   // The ownership finder, both directions, without needing root: an impossible uid must make every
   // file foreign, and the real uid must make none of them foreign.
   const probe = APP_DIR
   const nobodyFinds = findForeignOwned(probe, 2147483646)
-  if (nobodyFinds.length === 0) failures.push('ownership finder reported nothing for an impossible uid — it cannot see files')
+  if (nobodyFinds.length === 0)
+    failures.push('ownership finder reported nothing for an impossible uid — it cannot see files')
   const selfFinds = findForeignOwned(probe, process.getuid())
   if (selfFinds.length > 0 && selfFinds.length === nobodyFinds.length) {
     failures.push('ownership finder ignores the uid argument — same result for self and for nobody')
@@ -513,11 +535,13 @@ function selfTest() {
   }
 
   for (const [name, files] of RUNNER_CATCH) {
-    if (findRunnersMissingUid(files, UID_VARS).length === 0) failures.push(`CATCH missed (runner): ${name}`)
+    if (findRunnersMissingUid(files, UID_VARS).length === 0)
+      failures.push(`CATCH missed (runner): ${name}`)
   }
   for (const [name, files] of RUNNER_IGNORE) {
     const flagged = findRunnersMissingUid(files, UID_VARS)
-    if (flagged.length > 0) failures.push(`IGNORE wrongly flagged (runner): ${name} — ${flagged.join(', ')}`)
+    if (flagged.length > 0)
+      failures.push(`IGNORE wrongly flagged (runner): ${name} — ${flagged.join(', ')}`)
   }
 
   for (const f of failures) console.error(`  ✗ ${f}`)
@@ -551,7 +575,9 @@ function main() {
   console.log('provision:ownership — working-tree ownership and the harness that writes to it')
 
   if (!selfTest()) {
-    console.error('\n✗ corpus FAILED — refusing to report or mutate; the checker is not trustworthy')
+    console.error(
+      '\n✗ corpus FAILED — refusing to report or mutate; the checker is not trustworthy'
+    )
     process.exit(1)
   }
   if (selfTestOnly) {
@@ -564,7 +590,7 @@ function main() {
   let worktree
   try {
     worktree = execFileSync('git', ['-C', APP_DIR, 'rev-parse', '--show-toplevel'], {
-      encoding: 'utf-8',
+      encoding: 'utf-8'
     }).trim()
   } catch {
     console.error(`\n✗ ${APP_DIR} is not inside a git worktree — refusing to touch ownership here.`)
@@ -584,13 +610,15 @@ function main() {
     console.log('  no testing/e2e-docker/docker-compose.yml — no container writes to guard')
   } else {
     const { services, uidVars } = parseComposeUsers(readFileSync(COMPOSE, 'utf-8'))
-    const bad = services.filter((s) => !s.ok)
+    const bad = services.filter(s => !s.ok)
 
     if (services.length === 0) {
       problems.push('docker-compose.yml parsed to zero services — the check cannot see anything')
     }
     for (const s of bad) {
-      problems.push(`compose service \`${s.name}\`: ${s.why} — it will write root-owned files into the working tree`)
+      problems.push(
+        `compose service \`${s.name}\`: ${s.why} — it will write root-owned files into the working tree`
+      )
     }
 
     // A `user:` reading ${HOST_UID} is only a fix if something exports HOST_UID. The variable name
@@ -598,9 +626,12 @@ function main() {
     // that named it E2E_UID.
     const runnerFiles = existsSync(RUNNER_DIR)
       ? readdirSync(RUNNER_DIR, { recursive: true })
-          .map((f) => String(f))
-          .filter((f) => statSync(join(RUNNER_DIR, f)).isFile())
-          .map((f) => ({ name: f.split('/').pop(), text: readFileSync(join(RUNNER_DIR, f), 'utf-8') }))
+          .map(f => String(f))
+          .filter(f => statSync(join(RUNNER_DIR, f)).isFile())
+          .map(f => ({
+            name: f.split('/').pop(),
+            text: readFileSync(join(RUNNER_DIR, f), 'utf-8')
+          }))
       : []
     const missing = findRunnersMissingUid(runnerFiles, uidVars)
     for (const name of missing) {
@@ -648,7 +679,9 @@ function main() {
   if (problems.length > 0) {
     console.error('')
     for (const p of problems) console.error(`  ✗ ${p}`)
-    console.error(`\n✗ ${checkOnly ? 'audit:ownership' : 'provision:ownership'} FAILED (${problems.length})`)
+    console.error(
+      `\n✗ ${checkOnly ? 'audit:ownership' : 'provision:ownership'} FAILED (${problems.length})`
+    )
     process.exit(1)
   }
 
