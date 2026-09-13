@@ -238,7 +238,8 @@
     "audit:decision-table": "python3 ../scripts/verify-decision-table.py",
     "audit:decision-table-negative": "python3 ../scripts/verify-decision-table.negative-test.py",
     "audit:plan-currency": "python3 ../scripts/verify-plan-currency.py",
-    "audit:dependabot-coverage": "npx tsx scripts/verify-dependabot-coverage.ts"
+    "audit:dependabot-coverage": "npx tsx scripts/verify-dependabot-coverage.ts",
+    "audit:dependabot-labeling": "bash ../scripts/dependabot-scope.sh --verify .."
   },
   "dependencies": {
     "@quasar/extras": "^1.16.9",

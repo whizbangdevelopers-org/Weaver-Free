@@ -262,6 +262,15 @@ scripts/decision-cite.sh
 # second merge path held to a weaker set of refusals than the rest of the portfolio.
 scripts/merge-dependabot.sh
 
+# Dependabot PR labelling: the production/development classifier, label creation, the check that a
+# PR ended up labelled, and audit:dependabot-labeling's wiring contract. Shared because triage labels
+# are only worth having when a developer can trust them without opening the PR, and the labelling
+# had drifted four ways by 2026-09-13 across hand-maintained workflow copies: a dev/prod split
+# removed in one repo, fetch-metadata pinned by a floating tag in another, a tracker failing every
+# run in a third. Nothing in it names a product; per-repo lists (the framework-blocked packages)
+# stay in each repo's dependabot-labeler.yml.
+scripts/dependabot-scope.sh
+
 # The command-position unwrapper, shared by every hook that parses a command string.
 #
 # Pinned because four copies of one file with nothing comparing them is exactly the drift that
