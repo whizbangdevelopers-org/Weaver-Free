@@ -146,6 +146,7 @@ export const PHASES: Phase[] = [
       'audit:sync-exclude-cruft',
       'audit:release-rsync-paths',
       'audit:dependabot-coverage',
+      'audit:dependabot-labeling',
       'audit:workflow-cwd',
       'audit:command-cwd',
       'audit:shell-safety',
