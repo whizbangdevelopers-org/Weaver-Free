@@ -122,15 +122,29 @@ if [[ "$CHANGES" == "true" ]]; then
   echo "    nixos/package.nix updated."
 fi
 
-# Stage all changes so the path: flake input sees them.
-# Nix path: inputs on a git repo only include tracked/staged content —
-# unstaged modifications are invisible to nix flake update.
-echo "==> Staging changes for flake input visibility..."
-git -C "$REPO_ROOT" add -A
+# Stage the one file this script writes — and nothing else.
+#
+# This was `git add -A`, run as root, which staged the WHOLE working tree: anything another
+# session had in progress went into the index, and the next bare commit swept it in — the failure
+# G-process-2026-09-12-01M2C22G255VZWEGBFHKCC2ARX records (Gantry's knowledge store). The reason
+# given for it is real — a `path:` flake input sees only git-tracked content, so a NEW source file
+# is invisible to the build — but the decision to track a file belongs to its author, not to a
+# rebuild script. So a rebuild refuses below, naming them, instead of sweeping them in.
+# (Corrected 2026-09-15 in Gantry, this archetype and Weaver together.)
+echo "==> Staging nixos/package.nix for flake input visibility..."
+git -C "$REPO_ROOT" add -- nixos/package.nix
 
 if [[ "$HASH_ONLY" == "true" ]]; then
   echo "==> Hash-only mode — skipping rebuild."
   exit 0
+fi
+
+UNTRACKED=$(git -C "$REPO_ROOT" ls-files --others --exclude-standard -- .)
+if [[ -n "$UNTRACKED" ]]; then
+  echo "ERROR: untracked files under $REPO_ROOT would be invisible to the flake input:"
+  sed 's/^/    /' <<< "$UNTRACKED"
+  echo "       git add the ones the build needs, or ignore them, then re-run."
+  exit 1
 fi
 
 # Update flake lock and rebuild (script must be run as root)
