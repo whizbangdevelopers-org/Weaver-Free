@@ -317,9 +317,10 @@ scripts/dependabot-scope.sh
 .claude/hooks/run-negative-tests.sh
 
 # The form-invariance auditor that consumes command-forms.sh. Product-neutral by construction and
-# for the same reason verify-hooks.ts is: coverage is enumerated from .claude/settings.json and
-# each trigger regex is EXTRACTED from the hook rather than restated, so it fits a flat hook tree
-# and a core/+stack/ split alike. A forked copy would hold one repo's guards to a different set of
+# for the same reason verify-hooks.ts is: coverage is enumerated from BOTH .claude/settings.json and
+# code/.claude/settings.json, cases are declared by basename and applied to every wired path, and
+# each trigger is EXTRACTED from the hook rather than restated, so it fits a flat hook tree and a
+# core/+stack/ split alike. A forked copy would hold one repo's guards to a different set of
 # command forms than the rest of the portfolio — which is the defect it exists to catch, one level
 # down: `bash -c '…'` bypassed every PreToolUse guard for six weeks because the house rules
 # INSTRUCT that wrapper and nothing checked that the guards understood it.
