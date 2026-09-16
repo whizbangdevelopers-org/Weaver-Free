@@ -1,5 +1,5 @@
 {
-  "_doc": "Dynamic security-advisory whitelist (Decision: dynamic whitelist, 2026-06-17). SINGLE SOURCE read by scripts/audit-security.ts AND .github/workflows/dependabot-labeler.yml — do not duplicate the list anywhere else. Each entry is a PACKAGE whose high/critical advisories are ACKNOWLEDGED (not auto-failed) with a documented, dated reason. The auditor AUTO-DERIVES transitives: a vulnerable package whose every dependency path to root passes through an acknowledged package is acknowledged automatically (no entry needed) — so esbuild/ajv/minimatch/etc. need no explicit row. Auto-derivation is FAIL-CLOSED: if the auditor cannot prove every path runs through an acknowledged package, the advisory FAILS. A package that is independently fixable within its semver constraint must be FIXED, never whitelisted (fixing > acknowledging). Refresh/review with: npm run refresh:security-allowlist.",
+  "_doc": "Dynamic security-advisory whitelist (Decision: dynamic whitelist, 2026-06-17). SINGLE SOURCE for scripts/audit-security.ts, and through it for .github/workflows/security-advisory-watch.yml — do not duplicate the list anywhere else. Until 2026-09-16 this line also named dependabot-labeler.yml as a reader. It never was one: the labeler keeps its own QUASAR_BLOCKED list, and converging the advisory surfaces is an open consolidation item (security-advisory-watch.yml header). Each entry is a PACKAGE whose high/critical advisories are ACKNOWLEDGED (not auto-failed) with a documented, dated reason. The auditor AUTO-DERIVES transitives: a vulnerable package whose every dependency path to root passes through an acknowledged package is acknowledged automatically (no entry needed) — so esbuild/ajv/minimatch/etc. need no explicit row. Auto-derivation is FAIL-CLOSED: if the auditor cannot prove every path runs through an acknowledged package, the advisory FAILS. A package that is independently fixable within its semver constraint must be FIXED, never whitelisted (fixing > acknowledging). Refresh/review with: npm run refresh:security-allowlist.",
   "_lastReviewed": "2026-08-23",
   "_categories": {
     "dev-test-only": "Pulled only by a dev/test dependency — never present in the production runtime artifact.",
@@ -44,48 +44,6 @@
       "reviewBy": "2026-11-21",
       "reviewedAt": "2026-08-23"
     },
-    "fastify": {
-      "category": "awaiting-upstream",
-      "reason": "Already on the newest published major (5.x; installed 5.12.1, latest 5.12.3 — a patch, not a gate). The previous reason read “v5 breaking API, deferred post-v1.0” — stale by a whole major: the v5 migration has happened. The parenthetical then read “5.12.1 = latest”, which had quietly become false; corrected 2026-09-11 by measurement, AFTER taking the fast-uri fix rather than instead of it. Re-measured 2026-08-23.",
-      "addedAt": "2026-06-17",
-      "reviewBy": "2026-09-15",
-      "reviewedAt": "2026-08-23"
-    },
-    "@fastify/websocket": {
-      "category": "awaiting-upstream",
-      "reason": "Already on the newest published major (11.x = latest); fastify itself is on 5.x, so the “blocked-by-fastify” reason this entry carried was stale by a major. Re-measured 2026-08-23.",
-      "addedAt": "2026-06-17",
-      "reviewBy": "2026-09-15",
-      "reviewedAt": "2026-08-23"
-    },
-    "@fastify/cors": {
-      "category": "awaiting-upstream",
-      "reason": "Already on the newest published major (11.3.0 = latest); the “blocked-by-fastify” reason was stale by a major. Re-measured 2026-08-23.",
-      "addedAt": "2026-06-17",
-      "reviewBy": "2026-09-15",
-      "reviewedAt": "2026-08-23"
-    },
-    "@fastify/static": {
-      "category": "awaiting-upstream",
-      "reason": "Already on the newest published major (10.1.3 = latest); the “blocked-by-fastify” reason was stale by a major. Re-measured 2026-08-23.",
-      "addedAt": "2026-06-17",
-      "reviewBy": "2026-09-15",
-      "reviewedAt": "2026-08-23"
-    },
-    "@fastify/helmet": {
-      "category": "awaiting-upstream",
-      "reason": "Already on the newest published major (13.1.1 = latest); the “blocked-by-fastify” reason was stale by a major. Re-measured 2026-08-23.",
-      "addedAt": "2026-06-17",
-      "reviewBy": "2026-09-15",
-      "reviewedAt": "2026-08-23"
-    },
-    "@quasar/app-vite": {
-      "category": "awaiting-upstream",
-      "reason": "Already on the newest published major (3.x = latest; 3.8.0 available, 3.6.1 installed — a minor, not a gate). It pins the vite/esbuild/workbox/babel build chain, which is why its transitives auto-derive through it. Re-measured 2026-08-23.",
-      "addedAt": "2026-06-17",
-      "reviewBy": "2026-09-15",
-      "reviewedAt": "2026-08-23"
-    },
     "@vue/test-utils": {
       "category": "dev-test-only",
       "reason": "unit-test harness only (pulls js-beautify → js-cookie); never in the production runtime",
@@ -115,18 +73,6 @@
       "reason": "Quasar PWA service-worker build (pulls @babel/preset-env → transform plugins); runs at build time, not shipped in the bundle",
       "addedAt": "2026-06-17",
       "reviewBy": "2026-12-17"
-    },
-    "form-data": {
-      "category": "awaiting-upstream",
-      "reason": "transitive via axios@1.18.0 (latest); axios pins form-data ^4.0.0 and the fixed release is not yet pulled. Re-check when axios ships a bump.",
-      "addedAt": "2026-06-17",
-      "reviewBy": "2026-09-15"
-    },
-    "minimatch": {
-      "category": "context-safe",
-      "reason": "ReDoS requires attacker-controlled glob patterns. Every call site here is build/lint/test tooling (glob/eslint/@stryker/archiver) or @fastify/static route globs — all developer-controlled, never production user input. Not cleanly fixable within-constraint (glob@7→minimatch@3 vs glob@10→minimatch@9 across the tree).",
-      "addedAt": "2026-06-17",
-      "reviewBy": "2026-09-15"
     }
   }
 }
