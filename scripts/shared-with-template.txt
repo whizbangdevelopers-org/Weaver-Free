@@ -271,6 +271,15 @@ scripts/merge-dependabot.sh
 # stay in each repo's dependabot-labeler.yml.
 scripts/dependabot-scope.sh
 
+# The runner for every repo-root script's --self-test. Shared because the gap it closes was
+# portfolio-wide: on 2026-09-16 the self-tests of merge-dependabot.sh, add-decision.sh and
+# dependabot-scope.sh ran in no gate in the archetype, Gantry, Weaver or Qepton. It DERIVES the set
+# from what the repo tracks — a hand list in package.json was disproved by the first consumer it
+# met (Qepton has no add-decision.sh; Weaver has a fourth self-testing script) — so the same bytes
+# serve every layout. Only the package.json line that calls it is per-repo, because the relative
+# path from the package root differs (`../scripts/` here, `../../scripts/` in Qepton).
+scripts/run-root-self-tests.sh
+
 # The command-position unwrapper, shared by every hook that parses a command string.
 #
 # Pinned because four copies of one file with nothing comparing them is exactly the drift that
