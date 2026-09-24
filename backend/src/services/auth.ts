@@ -2,7 +2,7 @@
 // Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE.
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
-import { randomUUID } from 'node:crypto'
+import { randomBytes, randomUUID } from 'node:crypto'
 import { readFile, writeFile, mkdir } from 'node:fs/promises'
 import { dirname } from 'node:path'
 import { EventEmitter } from 'node:events'
@@ -21,8 +21,19 @@ const REFRESH_TOKEN_TTL = '7d'
 const ACCESS_TOKEN_TTL_MS = 15 * 60 * 1000
 const IDLE_TIMEOUT_MS = 15 * 60 * 1000  // 15 minutes — session expires after inactivity
 
-// Dummy hash for constant-time login — prevents user enumeration via timing
-const DUMMY_HASH = '$2b$13$dummyhashfortimingequalitycheckxx'
+// Dummy hash for constant-time login — prevents user enumeration via timing.
+//
+// It must be a REAL bcrypt hash at BCRYPT_ROUNDS, so it is made, not typed. The literal that sat
+// here ('$2b$13$dummyhashfortimingequalitycheckxx') is not a valid bcrypt hash: bcryptjs rejects it
+// without hashing, and a missing username answered in 0 ms against 719 ms for a wrong password
+// (measured 2026-09-24). The dummy meant to hide which usernames exist was what revealed them.
+// Found while building Gantry's sign-in, whose test times both paths; tests/services/auth.spec.ts
+// now does the same here.
+let dummyHash: Promise<string> | null = null
+function getDummyHash(): Promise<string> {
+  dummyHash ??= bcrypt.hash(randomBytes(32).toString('hex'), BCRYPT_ROUNDS)
+  return dummyHash
+}
 const REFRESH_TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000
 
 // Account lockout: 5 failed attempts within 15 minutes, with progressive delay
@@ -79,6 +90,8 @@ export class AuthService {
     lockoutFilePath?: string,
   ) {
     this.lockoutFilePath = lockoutFilePath ?? null
+    // Prime the dummy now, so the first missing-user sign-in does not pay for making it.
+    void getDummyHash()
   }
 
   /** Load persisted lockout state from disk (call after construction). */
@@ -136,7 +149,7 @@ export class AuthService {
     const user = this.userStore.getByUsername(username)
     if (!user) {
       // Constant-time: perform bcrypt compare against dummy hash to equalize timing
-      await bcrypt.compare(password, DUMMY_HASH)
+      await bcrypt.compare(password, await getDummyHash())
       await this.recordFailedAttempt(username)
       await this.applyProgressiveDelay(username)
       throw new AuthError('Invalid username or password', 401)
