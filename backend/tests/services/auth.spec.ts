@@ -89,6 +89,24 @@ describe('AuthService', () => {
     })
   })
 
+  describe('login timing — a missing user costs what a wrong password costs', () => {
+    it('is MEASURED, not inferred from the code path', async () => {
+      // A malformed dummy hash is rejected by bcryptjs in ~0 ms against ~700 ms for a real one,
+      // which tells a caller which usernames exist. Asserting that compare() was called would pass
+      // against that defect; only the time separates them.
+      await authService.register('timed', PWD, 'viewer')
+      const time = async (u: string) => {
+        const t = performance.now()
+        await authService.login(u, 'Wr0ng-Password!!').catch(() => undefined)
+        return performance.now() - t
+      }
+      await time('warm-up-nobody')
+      const existing = await time('timed')
+      const missing = await time('nobody-at-all')
+      expect(missing).toBeGreaterThan(existing * 0.5)
+    }, 30_000)
+  })
+
   describe('verifyToken', () => {
     it('should verify a valid access token', async () => {
       const { token } = await authService.register('admin', PWD, 'admin')
