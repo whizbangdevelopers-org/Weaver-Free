@@ -4,6 +4,7 @@ import { readFile, mkdir } from 'node:fs/promises'
 import { atomicWriteJson } from './lib/atomic-write.js'
 import { dirname } from 'node:path'
 import type { DistroImageSource } from '../services/image-manager.js'
+import { ownRecord, ownValue } from './lib/own-keys.js'
 
 export interface CustomDistro {
   name: string
@@ -18,7 +19,7 @@ export interface CustomDistro {
 
 export class DistroStore {
   private filePath: string
-  private distros: Record<string, CustomDistro> = {}
+  private distros: Record<string, CustomDistro> = ownRecord()
 
   constructor(filePath: string) {
     this.filePath = filePath
@@ -27,7 +28,7 @@ export class DistroStore {
   async init(): Promise<void> {
     try {
       const data = await readFile(this.filePath, 'utf-8')
-      this.distros = JSON.parse(data) as Record<string, CustomDistro>
+      this.distros = ownRecord(JSON.parse(data) as Record<string, CustomDistro>)
     } catch {
       await mkdir(dirname(this.filePath), { recursive: true })
       await this.persist()
@@ -39,11 +40,11 @@ export class DistroStore {
   }
 
   get(name: string): CustomDistro | null {
-    return this.distros[name] ?? null
+    return ownValue(this.distros, name)
   }
 
   has(name: string): boolean {
-    return name in this.distros
+    return Object.hasOwn(this.distros, name)
   }
 
   names(): string[] {
@@ -51,21 +52,21 @@ export class DistroStore {
   }
 
   async add(distro: CustomDistro): Promise<boolean> {
-    if (this.distros[distro.name]) return false
+    if (Object.hasOwn(this.distros, distro.name)) return false
     this.distros[distro.name] = distro
     await this.persist()
     return true
   }
 
   async update(name: string, fields: Partial<Omit<CustomDistro, 'name'>>): Promise<boolean> {
-    if (!this.distros[name]) return false
+    if (!Object.hasOwn(this.distros, name)) return false
     this.distros[name] = { ...this.distros[name], ...fields, name }
     await this.persist()
     return true
   }
 
   async remove(name: string): Promise<boolean> {
-    if (!this.distros[name]) return false
+    if (!Object.hasOwn(this.distros, name)) return false
     delete this.distros[name]
     await this.persist()
     return true

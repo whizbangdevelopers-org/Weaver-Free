@@ -86,6 +86,25 @@ describe('generateCompliancePdf()', () => {
     ).rejects.toThrow('Unknown compliance document: not-a-real-slug')
   })
 
+  // The service carried its own `COMPLIANCE_DOCS[slug]` lookup, which walks the prototype chain:
+  // `constructor` resolves to a function, passes `if (!docDef)`, and the slug reaches the cache
+  // path's `join`. The route's schema rejects it first, so this is defence in depth — the sink
+  // must not depend on its one caller remembering the allowlist.
+  it.each(['constructor', '__proto__', 'toString', 'hasOwnProperty'])(
+    'throws for inherited Object.prototype member %j before any filesystem call',
+    async (inherited) => {
+      await expect(
+        generateCompliancePdf({
+          slug: inherited,
+          version: '1.0.0',
+          weasyprintBin: 'weasyprint',
+          docsRoot: '/tmp/docs',
+          cacheDir: '/tmp/cache',
+        }),
+      ).rejects.toThrow(`Unknown compliance document: ${inherited}`)
+    },
+  )
+
   it('throws for an empty slug', async () => {
     await expect(
       generateCompliancePdf({

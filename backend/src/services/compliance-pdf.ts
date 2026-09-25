@@ -68,8 +68,11 @@ interface PdfOptions {
  */
 export async function generateCompliancePdf(options: PdfOptions): Promise<Buffer> {
   const { slug, version, weasyprintBin, docsRoot, cacheDir } = options
+  // The allowlist check, not `!COMPLIANCE_DOCS[slug]`: a bare lookup walks the prototype chain, so
+  // `constructor` resolved to a function, passed, and reached the cache path's `join`. The route's
+  // schema already rejects it; the sink checks too, rather than trusting its one caller.
+  if (!isValidComplianceSlug(slug)) throw new Error(`Unknown compliance document: ${slug}`)
   const docDef = COMPLIANCE_DOCS[slug]
-  if (!docDef) throw new Error(`Unknown compliance document: ${slug}`)
 
   // Check cache first — read-with-ENOENT-fallthrough instead of existsSync+readFile
   // to avoid the TOCTOU window where a file passes existsSync() and is then

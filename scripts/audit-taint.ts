@@ -4,11 +4,12 @@
  * Taint Analysis Auditor — runs Semgrep with custom taint rules
  *
  * Covers four taint flows the regex-based audit:sast cannot detect
- * (cross-expression data flow):
+ * (cross-expression data flow), plus one structural rule:
  *   no-raw-execfile-args   — user input reaching shell command args (CWE-78)
  *   no-user-input-in-path  — user input reaching filesystem paths (CWE-22)
  *   no-unvalidated-jwt-claim — unverified JWT payload in auth decisions (CWE-347)
  *   no-ssrf-in-fetch       — user input reaching outbound HTTP URLs (CWE-918)
+ *   no-interpolated-console-format — a value in console's format string with args after it (CWE-134)
  *
  * Requires: semgrep in PATH — `nix develop`; CI installs `semgrep==1.143.0` via pipx in
  *           release.yml's `verify` job and test.yml's `compliance` job. Keep those pins and
@@ -41,6 +42,7 @@ const RULES = [
   'no-user-input-in-path.yaml',
   'no-unvalidated-jwt-claim.yaml',
   'no-ssrf-in-fetch.yaml',
+  'no-interpolated-console-format.yaml',
 ]
 
 interface SemgrepResult {

@@ -11,6 +11,7 @@ import type { SessionStore, SessionData } from '../storage/session-store.js'
 import type { User, SafeUser, UserRole, SectorId } from '../models/user.js'
 import { toSafeUser } from '../models/user.js'
 import { ROLES } from '../constants/vocabularies.js'
+import { ownRecord } from '../storage/lib/own-keys.js'
 
 /** Emitted when a user's sessions are revoked (e.g. single-session enforcement on login). */
 export const sessionEvents = new EventEmitter()
@@ -322,7 +323,9 @@ export class AuthService {
   /** Fire-and-forget persist of lockout state to disk */
   private persistLockout(): void {
     if (!this.lockoutFilePath) return
-    const data: Record<string, LockoutRecord> = {}
+    // Null-prototype: a `__proto__` username would otherwise replace the object's prototype and
+    // its lockout would silently never persist (lib/own-keys.ts).
+    const data = ownRecord<LockoutRecord>()
     const now = Date.now()
     for (const [username, record] of this.failedAttempts) {
       // Only persist non-expired entries

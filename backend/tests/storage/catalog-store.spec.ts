@@ -204,4 +204,16 @@ describe('CatalogStore', () => {
       await expect(store.refresh()).rejects.toThrow('No remote URL configured')
     })
   })
+
+  // js/remote-property-injection (2026-09-24): `name in this.distros` walked the prototype chain.
+  describe('names that are Object.prototype members', () => {
+    it.each(['constructor', 'toString', '__proto__'])('%j is absent from a loaded catalog', async (name) => {
+      await mkdir(join(testDir, 'persist'), { recursive: true })
+      await writeFile(persistPath, JSON.stringify(sampleCatalog), 'utf-8')
+      const store = new CatalogStore(persistPath, defaultPath)
+      await store.init()
+      expect(store.has(name)).toBe(false)
+      expect(store.get(name)).toBeNull()
+    })
+  })
 })

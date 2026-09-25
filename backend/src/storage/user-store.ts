@@ -5,10 +5,11 @@ import { dirname } from 'node:path'
 import { randomUUID } from 'node:crypto'
 import type { User, UserRole } from '../models/user.js'
 import { ROLES } from '../constants/vocabularies.js'
+import { ownRecord, ownValue } from './lib/own-keys.js'
 
 export class UserStore {
   private filePath: string
-  private users: Record<string, User> = {}
+  private users: Record<string, User> = ownRecord()
   /** Secondary index: username -> userId for O(1) lookup */
   private usernameIndex = new Map<string, string>()
 
@@ -19,7 +20,7 @@ export class UserStore {
   async init(): Promise<void> {
     try {
       const data = await readFile(this.filePath, 'utf-8')
-      this.users = JSON.parse(data) as Record<string, User>
+      this.users = ownRecord(JSON.parse(data) as Record<string, User>)
     } catch {
       await mkdir(dirname(this.filePath), { recursive: true })
       await this.persist()
@@ -34,7 +35,7 @@ export class UserStore {
    */
   async reload(): Promise<{ count: number }> {
     const data = await readFile(this.filePath, 'utf-8')
-    this.users = JSON.parse(data) as Record<string, User>
+    this.users = ownRecord(JSON.parse(data) as Record<string, User>)
     this.rebuildIndex()
     return { count: this.count() }
   }
@@ -45,11 +46,11 @@ export class UserStore {
 
   getByUsername(username: string): User | null {
     const id = this.usernameIndex.get(username)
-    return id ? this.users[id] ?? null : null
+    return id ? ownValue(this.users, id) : null
   }
 
   getById(id: string): User | null {
-    return this.users[id] ?? null
+    return ownValue(this.users, id)
   }
 
   async create(username: string, passwordHash: string, role: UserRole = ROLES.VIEWER): Promise<User> {

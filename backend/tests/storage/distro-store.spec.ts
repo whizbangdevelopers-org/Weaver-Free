@@ -114,4 +114,20 @@ describe('DistroStore', () => {
     expect(sources.rocky.format).toBe('qcow2')
     expect(sources.rocky.cloudInit).toBe(true)
   })
+
+  // js/remote-property-injection (2026-09-24): a plain `{}` store read `constructor` — a legal
+  // distro name — as an existing entry, and a `__proto__` write replaced the store's prototype.
+  it.each(['constructor', 'toString', 'valueOf', 'hasOwnProperty', '__proto__'])(
+    'treats Object.prototype member %j as an ordinary, absent name',
+    async (name) => {
+      await store.init()
+      expect(store.has(name)).toBe(false)
+      expect(store.get(name)).toBeNull()
+      expect(await store.update(name, { label: 'x' })).toBe(false)
+      expect(await store.remove(name)).toBe(false)
+      expect(await store.add({ name, label: 'L', url: 'https://example.com/x.qcow2', format: 'qcow2', cloudInit: true })).toBe(true)
+      expect(store.get(name)?.name).toBe(name)
+      expect(store.names()).toEqual([name])
+    },
+  )
 })
