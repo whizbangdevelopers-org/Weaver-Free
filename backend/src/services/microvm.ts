@@ -810,7 +810,11 @@ async function startApptainerInstance(def: WorkloadDefinition, name: string): Pr
     await execFileAsync(getContainerBin('apptainer'), ['instance', 'start', def.image, name])
     return { success: true, message: `Instance '${name}' started` }
   } catch (err) {
-    console.error(`[microvm] Failed to start apptainer instance '${name}':`, err)
+    // The format string is a constant and the name is an escaped ARGUMENT (CodeQL js/tainted-format-
+    // string, js/log-injection): interpolated into console's first argument, a `%o` in a name was
+    // read as a directive and a newline forged a log line. Routes validate names, but the sink must
+    // not depend on that. Same shape at every site below.
+    console.error('[microvm] Failed to start apptainer instance %s:', JSON.stringify(name), err)
     return { success: false, message: `Failed to start instance '${name}'. Check server logs for details.` }
   }
 }
@@ -820,7 +824,7 @@ async function stopApptainerInstance(name: string): Promise<{ success: boolean; 
     await execFileAsync(getContainerBin('apptainer'), ['instance', 'stop', name])
     return { success: true, message: `Instance '${name}' stopped` }
   } catch (err) {
-    console.error(`[microvm] Failed to stop apptainer instance '${name}':`, err)
+    console.error('[microvm] Failed to stop apptainer instance %s:', JSON.stringify(name), err)
     return { success: false, message: `Failed to stop instance '${name}'. Check server logs for details.` }
   }
 }
@@ -842,7 +846,7 @@ export async function startVm(name: string): Promise<{ success: boolean; message
       await execFileAsync(bin, ['start', name])
       return { success: true, message: `Container '${name}' started` }
     } catch (err) {
-      console.error(`[microvm] Failed to start container '${name}':`, err)
+      console.error('[microvm] Failed to start container %s:', JSON.stringify(name), err)
       return { success: false, message: `Failed to start container '${name}'. Check server logs for details.` }
     }
   }
@@ -861,7 +865,7 @@ export async function startVm(name: string): Promise<{ success: boolean; message
     }
     return { success: true, message: `VM '${name}' started` }
   } catch (err) {
-    console.error(`[microvm] Failed to start VM '${name}':`, err)
+    console.error('[microvm] Failed to start VM %s:', JSON.stringify(name), err)
     return { success: false, message: `Failed to start VM '${name}'. Check server logs for details.` }
   }
 }
@@ -883,7 +887,7 @@ export async function stopVm(name: string): Promise<{ success: boolean; message:
       await execFileAsync(bin, ['stop', name])
       return { success: true, message: `Container '${name}' stopped` }
     } catch (err) {
-      console.error(`[microvm] Failed to stop container '${name}':`, err)
+      console.error('[microvm] Failed to stop container %s:', JSON.stringify(name), err)
       return { success: false, message: `Failed to stop container '${name}'. Check server logs for details.` }
     }
   }
@@ -898,7 +902,7 @@ export async function stopVm(name: string): Promise<{ success: boolean; message:
     await execFileAsync(config?.sudoBin ?? 'sudo', [config?.systemctlBin ?? 'systemctl', 'stop', `microvm@${name}.service`])
     return { success: true, message: `VM '${name}' stopped` }
   } catch (err) {
-    console.error(`[microvm] Failed to stop VM '${name}':`, err)
+    console.error('[microvm] Failed to stop VM %s:', JSON.stringify(name), err)
     return { success: false, message: `Failed to stop VM '${name}'. Check server logs for details.` }
   }
 }
@@ -928,7 +932,7 @@ export async function restartVm(name: string): Promise<{ success: boolean; messa
       await execFileAsync(bin, ['restart', name])
       return { success: true, message: `Container '${name}' restarted` }
     } catch (err) {
-      console.error(`[microvm] Failed to restart container '${name}':`, err)
+      console.error('[microvm] Failed to restart container %s:', JSON.stringify(name), err)
       return { success: false, message: `Failed to restart container '${name}'. Check server logs for details.` }
     }
   }
@@ -948,7 +952,7 @@ export async function restartVm(name: string): Promise<{ success: boolean; messa
     }
     return { success: true, message: `VM '${name}' restarted` }
   } catch (err) {
-    console.error(`[microvm] Failed to restart VM '${name}':`, err)
+    console.error('[microvm] Failed to restart VM %s:', JSON.stringify(name), err)
     return { success: false, message: `Failed to restart VM '${name}'. Check server logs for details.` }
   }
 }

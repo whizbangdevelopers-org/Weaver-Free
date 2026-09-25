@@ -143,4 +143,34 @@ describe('JsonWorkloadRegistry', () => {
       expect(vm!.name).toBe('persist-test')
     })
   })
+
+  // CodeQL js/remote-property-injection (2026-09-24). The registry was a plain `{}`, so a lookup
+  // walked the prototype chain: `constructor` — which passes the VM-name regex — read as an
+  // existing workload, blocked its own creation, and `get` returned a function. `__proto__` is
+  // refused by the name regex upstream, but the store must not rely on that: `update` would
+  // otherwise assign straight through to the object's prototype.
+  describe('names that are Object.prototype members', () => {
+    const inherited = ['constructor', 'toString', 'valueOf', 'hasOwnProperty', '__proto__']
+
+    it.each(inherited)('%j is not an existing workload in an empty registry', async (name) => {
+      const registry = new JsonWorkloadRegistry(filePath)
+      await registry.init()
+      expect(await registry.has(name)).toBe(false)
+      expect(await registry.get(name)).toBeNull()
+      expect(await registry.update(name, { description: 'x' })).toBe(false)
+      expect(await registry.remove(name)).toBe(false)
+    })
+
+    it.each(inherited)('%j can be added, read back and survives a reload', async (name) => {
+      const registry = new JsonWorkloadRegistry(filePath)
+      await registry.init()
+      expect(await registry.add({ ...DEFAULT_VMS[0], name })).toBe(true)
+      expect((await registry.get(name))?.name).toBe(name)
+
+      const reloaded = new JsonWorkloadRegistry(filePath)
+      await reloaded.init()
+      expect((await reloaded.get(name))?.name).toBe(name)
+      expect(Object.keys(await reloaded.getAll())).toEqual([name])
+    })
+  })
 })

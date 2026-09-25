@@ -78,6 +78,34 @@ function fetchAlerts(repo: string): CodeQLAlert[] {
   return JSON.parse(raw) as CodeQLAlert[]
 }
 
+/**
+ * The new `lastSeen` for a rule that is firing today, or null when nothing changes.
+ *
+ * `never-fired` is not exempt. Until 2026-09-25 this condition skipped it, so the one transition
+ * that matters most — a proactively-mapped rule firing for the FIRST time — was never recorded,
+ * and js/path-injection kept notes saying "CodeQL has not fired" while five alerts were open.
+ */
+export function nextLastSeen(current: string | undefined, today: string): string | null {
+  return current === today ? null : today
+}
+
+function selfTest(): void {
+  const cases: [string, string | undefined, string | null][] = [
+    ['CATCH a never-fired rule that fires is recorded', 'never-fired', '2026-09-25'],
+    ['CATCH a stale date moves to today', '2026-09-24', '2026-09-25'],
+    ['CATCH a rule with no lastSeen gets one', undefined, '2026-09-25'],
+    ['IGNORE a rule already seen today is unchanged', '2026-09-25', null],
+  ]
+  let failed = 0
+  for (const [name, current, want] of cases) {
+    const got = nextLastSeen(current, '2026-09-25')
+    if (got === want) console.log(`  ok   ${name}`)
+    else { failed++; console.log(`  FAIL ${name} (got ${got}, want ${want})`) }
+  }
+  console.log(`auditor-contract: catch=3 ignore=1`)
+  process.exit(failed ? 1 : 0)
+}
+
 function run(): void {
   const { repo, mapPath } = parseArgs()
   const today = new Date().toISOString().slice(0, 10)
@@ -104,9 +132,13 @@ function run(): void {
 
   for (const [ruleId, { severity, description }] of seen.entries()) {
     if (ruleId in map.rules) {
-      // Update lastSeen
-      if (map.rules[ruleId].lastSeen !== today && map.rules[ruleId].lastSeen !== 'never-fired') {
-        map.rules[ruleId].lastSeen = today
+      const next = nextLastSeen(map.rules[ruleId].lastSeen, today)
+      if (next) {
+        if (map.rules[ruleId].lastSeen === 'never-fired') {
+          // Its notes were written for a rule that had not fired. Say so; do not rewrite them.
+          console.log(`  ⚠ ${ruleId} fired for the first time — re-check its status and notes`)
+        }
+        map.rules[ruleId].lastSeen = next
         changed = true
       }
     } else {
@@ -138,4 +170,5 @@ function run(): void {
   }
 }
 
-run()
+if (process.argv.includes('--self-test')) selfTest()
+else run()

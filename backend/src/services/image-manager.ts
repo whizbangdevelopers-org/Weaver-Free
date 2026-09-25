@@ -14,6 +14,7 @@ import type { IncomingMessage } from 'node:http'
 import type { WorkloadDefinition } from '../storage/workload-registry.js'
 import type { DashboardConfig } from '../config.js'
 import { validateExternalUrl } from '../validate-url.js'
+import { ownRecord, ownValue } from '../storage/lib/own-keys.js'
 import {
   assertChecksumUrl,
   hashFile,
@@ -172,17 +173,18 @@ export class ImageManager {
 
   /** Get all known image sources (built-in + catalog + custom; custom overrides catalog overrides built-in) */
   getAllSources(): Record<string, DistroImageSource> {
-    return { ...DISTRO_IMAGES, ...this.catalogSources, ...this.customSources }
+    // Null-prototype merge: a distro named `constructor` must not resolve to an inherited member.
+    return ownRecord(DISTRO_IMAGES, this.catalogSources, this.customSources)
   }
 
   /** Get the built-in URL for a distro (ignoring catalog/custom overrides) */
   static builtinUrl(distro: string): string | null {
-    return DISTRO_IMAGES[distro]?.url ?? null
+    return ownValue(DISTRO_IMAGES, distro)?.url ?? null
   }
 
   /** Get the full built-in source metadata for a distro */
   static builtinSource(distro: string): DistroImageSource | null {
-    return DISTRO_IMAGES[distro] ?? null
+    return ownValue(DISTRO_IMAGES, distro)
   }
 
   /** Get built-in non-NixOS distro names */

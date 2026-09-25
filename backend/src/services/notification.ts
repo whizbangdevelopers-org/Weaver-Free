@@ -256,7 +256,7 @@ export class NotificationService {
       dispatches.push(
         adapter.send(event).catch(err => {
           // Log but don't crash — adapters should be resilient
-          console.error(`[notification] ${channelId} adapter failed:`, err)
+          console.error('[notification] %s adapter failed:', JSON.stringify(channelId), err)
         })
       )
     }

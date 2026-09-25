@@ -28,6 +28,14 @@
  *                  documented behaviour, so it is reported and does not fail. What DOES fail is a
  *                  `partially-covered` entry whose notes explain nothing: that is an unexamined
  *                  claim wearing a hedge.
+ *   FIXED-PENDING-RESCAN  status `covered`, Semgrep does not fire on the CURRENT file, but does
+ *                  fire on the file AT THE COMMIT CodeQL scanned. The rule is proven where CodeQL
+ *                  found the problem and the code has since been fixed; the alert closes on the
+ *                  next scan. Reported, does not fail. Added 2026-09-25: before it, fixing the
+ *                  code turned a correct `covered` claim into INSUFFICIENT, and the re-scan that
+ *                  would close the alert runs only after the fix is pushed — which this gate
+ *                  refused. No honest action could clear it. If the file at the alert's commit
+ *                  cannot be read, the verdict stays INSUFFICIENT: an unread file proves nothing.
  *   UNVERIFIABLE   the alert's file lies outside the Semgrep scan universe, so the rule was never
  *                  going to look at it and a miss says nothing about the rule. Reported loudly,
  *                  because it means the map's claim cannot be checked where CodeQL actually found
@@ -45,9 +53,10 @@
  *   npx tsx scripts/verify-semgrep-regression.ts --self-test
  */
 
-import { readFileSync, existsSync } from 'fs'
+import { readFileSync, existsSync, mkdtempSync, writeFileSync, rmSync } from 'fs'
+import { tmpdir } from 'os'
 import { execFileSync } from 'child_process'
-import { resolve, dirname, relative } from 'path'
+import { resolve, dirname, relative, join, basename } from 'path'
 import { fileURLToPath } from 'url'
 
 const __filename = fileURLToPath(import.meta.url)
@@ -80,9 +89,11 @@ interface Alert {
   ruleId: string
   path: string
   line: number
+  commitSha?: string
 }
 
-export type Verdict = 'confirmed' | 'insufficient' | 'expected-gap' | 'unverifiable' | 'undocumented-hedge'
+export type Verdict =
+  | 'confirmed' | 'insufficient' | 'expected-gap' | 'unverifiable' | 'undocumented-hedge' | 'fixed-pending-rescan'
 
 export interface Assessment {
   alert: Alert
@@ -115,8 +126,10 @@ export function assess(opts: {
   alert: Alert
   entry: RuleEntry
   semgrepFired: boolean | null   // null = not run, because the file is out of scope
+  // The rule run against the file AS CODEQL SCANNED IT. null = not run or could not be read.
+  firedAtAlertCommit?: boolean | null
 }): Assessment {
-  const { alert, entry, semgrepFired } = opts
+  const { alert, entry, semgrepFired, firedAtAlertCommit = null } = opts
   const semgrepRuleId = entry.semgrepRuleId ?? '(none)'
 
   if (semgrepFired === null) {
@@ -131,6 +144,14 @@ export function assess(opts: {
     return {
       alert, semgrepRuleId, status: entry.status, verdict: 'confirmed',
       detail: `${semgrepRuleId} fires on ${alert.path} — the coverage claim holds where CodeQL found the problem.`,
+    }
+  }
+
+  if (entry.status === 'covered' && firedAtAlertCommit === true) {
+    return {
+      alert, semgrepRuleId, status: entry.status, verdict: 'fixed-pending-rescan',
+      detail: `${semgrepRuleId} fires on ${alert.path} at the alerted commit and not on the current file — ` +
+        `the rule is proven and the code is fixed; the alert closes on the next CodeQL scan.`,
     }
   }
 
@@ -186,6 +207,7 @@ function normaliseAlerts(raw: unknown): Alert[] {
         ruleId: String((a.rule as Record<string, unknown>)?.id ?? ''),
         path: String(loc.path ?? ''),
         line: Number(loc.start_line ?? 0),
+        commitSha: typeof inst.commit_sha === 'string' ? inst.commit_sha : undefined,
       }
     })
     .filter(a => a.ruleId && a.path && !a.path.startsWith('no file'))
@@ -198,6 +220,29 @@ function runSemgrep(ruleId: string, filePath: string): boolean {
     'scan', '--config', ruleFile, filePath, '--quiet', '--json',
   ], { encoding: 'utf-8', cwd: ROOT, maxBuffer: 32 * 1024 * 1024, stdio: ['ignore', 'pipe', 'ignore'] })
   return (JSON.parse(out).results ?? []).length > 0
+}
+
+/**
+ * The rule run against the flagged file as it stood at the alert's commit, read from the repo
+ * CodeQL scanned. null when there is no sha or the read fails — never a guessed `false`.
+ */
+function runSemgrepAtAlertCommit(ruleId: string, alert: Alert): boolean | null {
+  if (!alert.commitSha) return null
+  let dir: string | null = null
+  try {
+    const body = execFileSync('gh', [
+      'api', '-H', 'Accept: application/vnd.github.raw',
+      `repos/whizbangdevelopers-org/Weaver-Free/contents/${alert.path}?ref=${alert.commitSha}`,
+    ], { encoding: 'utf-8', maxBuffer: 32 * 1024 * 1024, stdio: ['ignore', 'pipe', 'ignore'] })
+    dir = mkdtempSync(join(tmpdir(), 'semgrep-at-commit-'))
+    const file = join(dir, basename(alert.path))
+    writeFileSync(file, body)
+    return runSemgrep(ruleId, file)
+  } catch {
+    return null
+  } finally {
+    if (dir) rmSync(dir, { recursive: true, force: true })
+  }
 }
 
 // ── Self-test ────────────────────────────────────────────────────────────────
@@ -224,6 +269,19 @@ function selfTest(): boolean {
   // CATCH — a covered claim that Semgrep disproves is the failure this tier exists for.
   check('covered + miss = insufficient',
     assess({ alert, entry: { status: 'covered', semgrepRuleId: 'r' }, semgrepFired: false }).verdict === 'insufficient')
+
+  // IGNORE — the code was fixed after the scan; the rule fires on the alerted version.
+  check('covered + miss now + hit at the alerted commit = fixed-pending-rescan',
+    assess({ alert, entry: { status: 'covered', semgrepRuleId: 'r' }, semgrepFired: false, firedAtAlertCommit: true })
+      .verdict === 'fixed-pending-rescan', 'ignore')
+  // CATCH — missing at the alerted commit too: the claim really is disproven.
+  check('covered + miss now + miss at the alerted commit = insufficient',
+    assess({ alert, entry: { status: 'covered', semgrepRuleId: 'r' }, semgrepFired: false, firedAtAlertCommit: false })
+      .verdict === 'insufficient')
+  // CATCH — the alerted version could not be read: an unread file proves nothing.
+  check('covered + miss now + alerted commit unreadable = insufficient',
+    assess({ alert, entry: { status: 'covered', semgrepRuleId: 'r' }, semgrepFired: false, firedAtAlertCommit: null })
+      .verdict === 'insufficient')
 
   // IGNORE — a covered claim Semgrep confirms must not be flagged.
   check('covered + hit = confirmed',
@@ -307,7 +365,10 @@ for (const alert of mapped) {
       continue
     }
   }
-  assessments.push(assess({ alert, entry, semgrepFired: fired }))
+  // Only a covered miss needs the alerted version; every other verdict is decided without it.
+  const atCommit = fired === false && entry.status === 'covered'
+    ? runSemgrepAtAlertCommit(entry.semgrepRuleId!, alert) : null
+  assessments.push(assess({ alert, entry, semgrepFired: fired, firedAtAlertCommit: atCommit }))
 }
 
 const icon: Record<Verdict, string> = {
@@ -315,6 +376,7 @@ const icon: Record<Verdict, string> = {
   insufficient: `${RED}✗${RESET}`,
   'undocumented-hedge': `${RED}✗${RESET}`,
   'expected-gap': `${DIM}·${RESET}`,
+  'fixed-pending-rescan': `${GREEN}✓${RESET}`,
   unverifiable: `${YELLOW}⚠${RESET}`,
 }
 

@@ -6,6 +6,7 @@ import { dirname } from 'node:path'
 import { z } from 'zod'
 import type { DistroImageSource } from '../services/image-manager.js'
 import { validateExternalUrl } from '../validate-url.js'
+import { ownRecord, ownValue } from './lib/own-keys.js'
 
 // Max size of a catalog payload we'll accept from a remote URL (1 MiB).
 // Real catalogs are a few KB; anything remotely close to this is either
@@ -56,7 +57,7 @@ export class CatalogStore {
   private persistPath: string
   private defaultPath: string
   private remoteUrl: string | null
-  private distros: Record<string, CatalogDistro> = {}
+  private distros: Record<string, CatalogDistro> = ownRecord()
 
   constructor(persistPath: string, defaultPath: string, remoteUrl?: string) {
     this.persistPath = persistPath
@@ -84,7 +85,7 @@ export class CatalogStore {
       // was validated when they were written.
       const parsed = JSON.parse(data) as CatalogData
       if (!parsed.entries || !Array.isArray(parsed.entries)) return false
-      this.distros = {}
+      this.distros = ownRecord()
       for (const entry of parsed.entries) {
         if (entry.name && (entry.url || entry.format === 'flake')) {
           this.distros[entry.name] = entry
@@ -134,7 +135,7 @@ export class CatalogStore {
 
     const oldKeys = Object.keys(this.distros).sort().join(',')
 
-    this.distros = {}
+    this.distros = ownRecord()
     for (const entry of data.entries) {
       if (entry.name && (entry.url || entry.format === 'flake')) {
         this.distros[entry.name] = entry
@@ -160,11 +161,11 @@ export class CatalogStore {
   }
 
   get(name: string): CatalogDistro | null {
-    return this.distros[name] ?? null
+    return ownValue(this.distros, name)
   }
 
   has(name: string): boolean {
-    return name in this.distros
+    return Object.hasOwn(this.distros, name)
   }
 
   names(): string[] {
