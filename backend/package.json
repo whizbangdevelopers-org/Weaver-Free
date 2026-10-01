@@ -28,7 +28,7 @@
     "bcryptjs": "^3.0.3",
     "better-sqlite3": "^12.6.2",
     "dotenv": "^16.3.1",
-    "fastify": "^5.12.1",
+    "fastify": "^5.12.5",
     "fastify-type-provider-zod": "^4.0.2",
     "jsonwebtoken": "^9.0.3",
     "markdown-it": "^14.1.1",

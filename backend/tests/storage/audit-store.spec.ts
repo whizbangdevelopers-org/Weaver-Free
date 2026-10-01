@@ -5,7 +5,7 @@ import { rm, mkdir, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { randomUUID } from 'node:crypto'
-import { AuditStore } from '../../src/storage/audit-store.js'
+import { AuditStore, archivePathFor } from '../../src/storage/audit-store.js'
 import type { AuditEntry } from '../../src/storage/audit-store.js'
 
 function makeEntry(overrides: Partial<AuditEntry> = {}): AuditEntry {
@@ -75,6 +75,62 @@ describe('AuditStore', () => {
 
       expect(store.count()).toBe(2)
     })
+
+    // Until 2026-10-01 every read failure, a parse failure included, fell into one catch that
+    // started an empty log AND WROTE IT over the file. A damaged audit log was replaced by `[]`,
+    // which destroyed the history the file still held. The contract now: whatever cannot be read
+    // is moved aside byte-for-byte, and a new log starts beside it.
+    it('moves an unparseable file aside unchanged instead of overwriting it', async () => {
+      const { writeFile, readdir } = await import('node:fs/promises')
+      const original = '[{"id":"half-written"'
+      await writeFile(filePath, original, 'utf-8')
+      const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+      try {
+        const store = makeStore()
+        await store.init()
+
+        expect(store.count()).toBe(0)
+        const aside = (await readdir(testDir)).filter(f => f.startsWith('audit-log.json.unreadable-'))
+        expect(aside).toHaveLength(1)
+        expect(await readFile(join(testDir, aside[0]), 'utf-8')).toBe(original)
+        expect(JSON.parse(await readFile(filePath, 'utf-8'))).toEqual([])
+        expect(spy).toHaveBeenCalledWith(expect.stringContaining('[audit-store]'))
+      } finally {
+        spy.mockRestore()
+      }
+    })
+
+    it('moves aside a file that parses but is not a list of entries', async () => {
+      const { writeFile, readdir } = await import('node:fs/promises')
+      await writeFile(filePath, '{"entries":[]}', 'utf-8')
+      const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+      try {
+        const store = makeStore()
+        await store.init()
+
+        expect(store.count()).toBe(0)
+        expect((await readdir(testDir)).some(f => f.startsWith('audit-log.json.unreadable-'))).toBe(true)
+      } finally {
+        spy.mockRestore()
+      }
+    })
+
+    it('moves aside a path it cannot read for any reason other than absence', async () => {
+      const { readdir } = await import('node:fs/promises')
+      // A directory where the file should be: readFile fails with EISDIR, not ENOENT.
+      await mkdir(filePath)
+      const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+      try {
+        const store = makeStore()
+        await store.init()
+
+        expect(store.count()).toBe(0)
+        expect((await readdir(testDir)).some(f => f.startsWith('audit-log.json.unreadable-'))).toBe(true)
+        expect(JSON.parse(await readFile(filePath, 'utf-8'))).toEqual([])
+      } finally {
+        spy.mockRestore()
+      }
+    })
   })
 
   describe('append', () => {
@@ -94,22 +150,80 @@ describe('AuditStore', () => {
       expect(data[0].id).toBe(entry.id)
     })
 
-    it('should rotate oldest entries when exceeding max', async () => {
-      // Use a small maxEntries to test rotation without timeout
+    // Until 2026-10-01 this test asserted that entries 0-4 were GONE: the store spliced the oldest
+    // entries off past maxEntries and wrote the shortened list, with no record anywhere that they
+    // had existed. The live log is still capped, because it is rewritten whole on every write and
+    // the query reads it from memory; what changed is that the overflow is kept.
+    it('moves the oldest entries to the archive instead of deleting them', async () => {
       const store = makeStore(filePath, 10)
       await store.init()
 
-      // Add 15 entries (exceeds max of 10)
       for (let i = 0; i < 15; i++) {
         await store.append(makeEntry({ id: `entry-${i}` }))
       }
 
-      // Should be capped at 10
       expect(store.count()).toBe(10)
-
-      // Oldest entries should have been removed (entries 0-4 rotated out)
       const result = store.query({ limit: 1, offset: 9 })
       expect(result.entries[0].id).toBe('entry-5')
+
+      const archived = (await readFile(archivePathFor(filePath), 'utf-8'))
+        .split('\n')
+        .filter(l => l.trim())
+        .map(l => (JSON.parse(l) as AuditEntry).id)
+      expect(archived).toEqual(['entry-0', 'entry-1', 'entry-2', 'entry-3', 'entry-4'])
+
+      const live = (JSON.parse(await readFile(filePath, 'utf-8')) as AuditEntry[]).map(e => e.id)
+      expect([...archived, ...live]).toEqual(Array.from({ length: 15 }, (_, i) => `entry-${i}`))
+    })
+
+    it('keeps entries in the live log when the archive cannot be written', async () => {
+      // A directory at the archive path: appendFile fails with EISDIR.
+      await mkdir(archivePathFor(filePath))
+      const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+      try {
+        const store = makeStore(filePath, 10)
+        await store.init()
+
+        for (let i = 0; i < 15; i++) {
+          await store.append(makeEntry({ id: `entry-${i}` }))
+        }
+
+        // Nothing is dropped when it cannot first be kept somewhere else.
+        expect(store.count()).toBe(15)
+        expect(JSON.parse(await readFile(filePath, 'utf-8'))).toHaveLength(15)
+        expect(spy).toHaveBeenCalledWith(expect.stringContaining('[audit-store] could not archive'))
+      } finally {
+        spy.mockRestore()
+      }
+    })
+
+    // Until 2026-10-01 append() resolved before anything was written: the write waited on a
+    // 500 ms timer, nothing in production ever called flush(), so a crash or an ordinary shutdown
+    // inside that window lost entries whose actions had already been reported as done.
+    it('resolves only after its entry has been written', async () => {
+      const store = makeStore()
+      await store.init()
+
+      await store.append(makeEntry({ id: 'written-before-resolve' }))
+
+      const data = JSON.parse(await readFile(filePath, 'utf-8')) as AuditEntry[]
+      expect(data.map(e => e.id)).toContain('written-before-resolve')
+    })
+
+    it('writes every one of a burst of concurrent appends by the time each resolves', async () => {
+      const store = makeStore()
+      await store.init()
+
+      const ids = Array.from({ length: 25 }, (_, i) => `burst-${i}`)
+      await Promise.all(
+        ids.map(id =>
+          store.append(makeEntry({ id })).then(async () => {
+            const data = JSON.parse(await readFile(filePath, 'utf-8')) as AuditEntry[]
+            expect(data.map(e => e.id)).toContain(id)
+          }),
+        ),
+      )
+      expect(store.count()).toBe(25)
     })
   })
 
@@ -251,16 +365,16 @@ describe('AuditStore', () => {
       expect(result.entries[0].id).toBe('persist-test')
     })
 
-    // The DEBOUNCED write is the only persist path with nobody to catch it: every other caller
-    // sits in a promise chain a caller can await. A rejection in a timer callback is an unhandled
-    // rejection, and Node has terminated the process on those since v15 — so before 2026-08-24 a
-    // single failed audit-log write took the backend down, in the one subsystem where a silent
-    // death is least acceptable.
+    // A failed write must not reject append(). Nine callers do not await or catch log(): the
+    // Stripe webhook's eight calls and the licence applier's `void auditService.log(entry)` in
+    // index.ts. A rejection there is an unhandled rejection, and Node has terminated the process on
+    // those since v15. Before 2026-08-24 one failed write took the backend down that way, from a
+    // timer callback; with the write now inside append(), the same guard has to live there.
     //
     // This asserts the CONSUMER-side fact, not the provider-side one: that the process is still
-    // alive and the store still works after the write has been made to fail. Asserting only that
-    // persist() rejects would prove nothing about who catches it.
-    it('survives a failing deferred write instead of crashing the process', async () => {
+    // alive, the entry is retained, and the next write carries it. Asserting only that a write
+    // failed would prove nothing about who catches it.
+    it('survives a failing write without rejecting, and the next write carries the entry', async () => {
       const store = makeStore()
       await store.init()
 
@@ -270,22 +384,37 @@ describe('AuditStore', () => {
       process.on('unhandledRejection', onUnhandled)
       try {
         // Make the write fail the way the real failure does: the directory stops existing.
-        await store.append(makeEntry({ id: 'doomed' }))
         await rm(testDir, { recursive: true, force: true })
-
-        // Outlast PERSIST_DEBOUNCE_MS, which is 500 in audit-store.ts — read, not assumed. The
-        // first draft of this test waited 400ms on a guessed 100ms debounce and passed its
-        // "no unhandled rejection" assertion for the wrong reason: the timer had not fired at
-        // all. Only the console.error assertion caught that, which is the argument for asserting
-        // the positive fact (the guard RAN) beside the negative one (nothing crashed).
-        await new Promise(r => setTimeout(r, 900))
+        await expect(store.append(makeEntry({ id: 'doomed' }))).resolves.toBeUndefined()
 
         expect(unhandled).toHaveLength(0)
-        expect(spy).toHaveBeenCalledWith(expect.stringContaining('[audit-store] deferred persist'))
-        // Entries are RETAINED, not dropped — the next write retries them.
+        expect(spy).toHaveBeenCalledWith(expect.stringContaining('[audit-store] write'))
+        // Entries are RETAINED, not dropped.
         expect(store.count()).toBe(1)
+
+        await mkdir(testDir, { recursive: true })
+        await store.append(makeEntry({ id: 'after-recovery' }))
+        const ids = (JSON.parse(await readFile(filePath, 'utf-8')) as AuditEntry[]).map(e => e.id)
+        expect(ids).toEqual(['doomed', 'after-recovery'])
       } finally {
         process.off('unhandledRejection', onUnhandled)
+        spy.mockRestore()
+        await mkdir(testDir, { recursive: true })
+      }
+    })
+
+    // flush() is the one path that may reject: graceful shutdown and tests call it and can catch,
+    // and a shutdown that cannot write the log should say so rather than exit as if it had.
+    it('flush() rejects when the retained entries still cannot be written', async () => {
+      const store = makeStore()
+      await store.init()
+
+      const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+      try {
+        await rm(testDir, { recursive: true, force: true })
+        await store.append(makeEntry({ id: 'unwritten' }))
+        await expect(store.flush()).rejects.toThrow(/audit/i)
+      } finally {
         spy.mockRestore()
         await mkdir(testDir, { recursive: true })
       }

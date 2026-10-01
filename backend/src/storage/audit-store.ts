@@ -1,6 +1,6 @@
 // Copyright (c) 2026 whizBANG Developers LLC. All rights reserved.
 // Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE.
-import { readFile, mkdir } from 'node:fs/promises'
+import { readFile, mkdir, rename, appendFile } from 'node:fs/promises'
 import { atomicWriteJson } from './lib/atomic-write.js'
 import { dirname } from 'node:path'
 
@@ -117,40 +117,93 @@ export interface AuditQueryResult {
 
 const DEFAULT_MAX_ENTRIES = 10_000
 const DEFAULT_LIMIT = 100
-const PERSIST_DEBOUNCE_MS = 500
 
+/**
+ * Where entries older than the live window are kept: `audit-log.json` → `audit-log.archive.jsonl`.
+ * One JSON entry per line, appended and never rewritten. Exported so a reader (and the tests)
+ * derive the path rather than restating it.
+ */
+export function archivePathFor(filePath: string): string {
+  return filePath.replace(/\.json$/, '') + '.archive.jsonl'
+}
+
+/**
+ * The audit log: a live window of the newest `maxEntries` entries in a JSON file, which query()
+ * reads from memory, and an append-only archive holding everything older.
+ *
+ * ── WHAT THIS GUARANTEES, AND WHY EACH ONE IS HERE (all 2026-10-01) ─────────────────────────
+ * 1. Nothing is deleted. Past `maxEntries` the oldest entries are appended to the archive FIRST
+ *    and only then removed from the live window. If the archive cannot be written they stay in
+ *    the live window. Before this the overflow was spliced off and gone, with no record.
+ * 2. A file that cannot be read is never overwritten. It is moved aside, byte for byte, to
+ *    `<file>.unreadable-<time>`, and a new log starts beside it. Before this a damaged file
+ *    fell into the same catch as a missing one, and `[]` was written over it.
+ * 3. append() resolves only after its entry is written. Before this the write waited on a
+ *    500 ms timer and nothing in production called flush(), so a crash or an ordinary shutdown
+ *    inside the window lost entries for actions already reported as done. "Written" means the
+ *    atomic rename has happened; there is no fsync, so a power cut can still lose recent writes.
+ *
+ * ── A FAILED WRITE IS LOGGED, NEVER THROWN, FROM append() ───────────────────────────────────
+ * Nine callers do not await or catch AuditService.log(): the Stripe webhook's eight and the
+ * licence applier's `void auditService.log(entry)`. A rejection there is unhandled, and Node
+ * terminates the process on those, which is how one failed write took the backend down before
+ * 2026-08-24. So a write failure keeps the entries in memory, says so on stderr, and the next
+ * write carries them. flush() is the exception: its callers can catch, so it rejects.
+ *
+ * The format stays a JSON array: the store is kept as it is until a SQL store replaces it. The
+ * archive file is new beside it, not a migration of it.
+ */
 export class AuditStore {
   private filePath: string
+  private archivePath: string
   private entries: AuditEntry[] = []
   private maxEntries: number
-  private persistTimer: ReturnType<typeof setTimeout> | null = null
+  // Group commit. `appended` counts entries added since init; `written` is how many of them the
+  // last successful write covered. Every append waits until `written` reaches its own count, and
+  // concurrent appends share whichever write is in flight instead of each rewriting the file.
+  private appended = 0
+  private written = 0
+  private writing: Promise<boolean> | null = null
 
   constructor(filePath: string, maxEntries: number = DEFAULT_MAX_ENTRIES) {
     this.filePath = filePath
+    this.archivePath = archivePathFor(filePath)
     this.maxEntries = maxEntries
   }
 
   async init(): Promise<void> {
+    let data: string
     try {
-      const data = await readFile(this.filePath, 'utf-8')
-      this.entries = JSON.parse(data) as AuditEntry[]
-    } catch {
-      await mkdir(dirname(this.filePath), { recursive: true })
-      this.entries = []
-      await this.persist()
+      data = await readFile(this.filePath, 'utf-8')
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+        await mkdir(dirname(this.filePath), { recursive: true })
+        this.entries = []
+        await atomicWriteJson(this.filePath, this.entries)
+        return
+      }
+      await this.setAside(err)
+      return
     }
+
+    let parsed: unknown
+    try {
+      parsed = JSON.parse(data)
+    } catch (err) {
+      await this.setAside(err)
+      return
+    }
+    if (!Array.isArray(parsed)) {
+      await this.setAside(new Error('the file is JSON but not a list of entries'))
+      return
+    }
+    this.entries = parsed as AuditEntry[]
   }
 
   async append(entry: AuditEntry): Promise<void> {
     this.entries.push(entry)
-
-    // Rotate: remove oldest entries when exceeding max
-    if (this.entries.length > this.maxEntries) {
-      const excess = this.entries.length - this.maxEntries
-      this.entries.splice(0, excess)
-    }
-
-    this.schedulePersist()
+    const mine = ++this.appended
+    await this.writeThrough(mine)
   }
 
   query(filters: AuditQueryFilters = {}): AuditQueryResult {
@@ -198,52 +251,93 @@ export class AuditStore {
     return this.entries.length
   }
 
-  /** Flush any pending writes immediately (for graceful shutdown / tests) */
+  /**
+   * Wait until every appended entry is written. Rejects if they still cannot be, because its
+   * callers (graceful shutdown, tests) can catch, and a shutdown that could not write the log
+   * should say so rather than exit as if it had.
+   */
   async flush(): Promise<void> {
-    if (this.persistTimer) {
-      clearTimeout(this.persistTimer)
-      this.persistTimer = null
-      await this.persist()
+    await this.writeThrough(this.appended)
+    if (this.written < this.appended) {
+      throw new Error(
+        `audit log ${this.filePath}: ${this.appended - this.written} entries could not be written ` +
+          `and are held only in memory`,
+      )
+    }
+  }
+
+  /** Resolve once the write covering entry number `target` has happened, or a write has failed. */
+  private async writeThrough(target: number): Promise<void> {
+    while (this.written < target) {
+      if (!this.writing) this.writing = this.writeOnce()
+      const ok = await this.writing
+      if (!ok) return // logged in writeOnce; the entries stay in memory for the next write
     }
   }
 
   /**
-   * Debounced persist: coalesces rapid writes (e.g., burst of audit entries)
-   * into a single file write within PERSIST_DEBOUNCE_MS.
+   * One write: move any overflow to the archive, then rewrite the live file. Only one runs at a
+   * time (writeThrough starts it only when `writing` is empty), which is what makes the eviction
+   * below safe: nothing else ever removes entries from the head of the array.
    */
-  private schedulePersist(): void {
-    if (this.persistTimer) return
-    this.persistTimer = setTimeout(async () => {
-      this.persistTimer = null
-      // The await MUST be guarded, and this is not defensive tidiness.
-      //
-      // Every other caller of persist() is inside a promise chain someone can catch. This one is
-      // not: it is a timer callback, so a rejection here is an UNHANDLED rejection, and Node has
-      // terminated the process on those since v15. Verified on node v24.16.0 — a rejecting async
-      // setTimeout body kills the process before the next timer runs. So one transient audit-log
-      // write failure (disk full, a permissions change, the directory moving underneath us) took
-      // down the whole backend, and the audit log is exactly the subsystem where a silent process
-      // death is least acceptable.
-      //
-      // Surfaced 2026-08-24 by the test suite, which hit it as a teardown race: afterEach removed
-      // the temp directory while this timer was still pending, ENOENT rejected here, and vitest
-      // reported ten unhandled errors on an otherwise 1605/1605 green run. That is the same defect
-      // wearing test clothes — the test only made the write fail on purpose-by-accident.
-      //
-      // Logged, not swallowed: the entries stay in memory and the next schedulePersist() retries.
-      // Matches the existing guard on the ws.ts broadcast interval, the only other async timer here.
-      try {
-        await this.persist()
-      } catch (err) {
-        console.error(
-          `[audit-store] deferred persist to ${this.filePath} failed; entries retained in memory ` +
-            `and will be retried on the next write: ${err instanceof Error ? err.message : String(err)}`,
-        )
-      }
-    }, PERSIST_DEBOUNCE_MS)
+  private async writeOnce(): Promise<boolean> {
+    try {
+      await this.archiveOverflow()
+      // Read the count immediately before the call: atomicWriteJson serialises `entries`
+      // synchronously, so every entry counted here is in the bytes it writes.
+      const covers = this.appended
+      await atomicWriteJson(this.filePath, this.entries)
+      this.written = covers
+      return true
+    } catch (err) {
+      console.error(
+        `[audit-store] write to ${this.filePath} failed; ${this.appended - this.written} entries are ` +
+          `retained in memory and the next write will carry them: ${messageOf(err)}`,
+      )
+      return false
+    } finally {
+      this.writing = null
+    }
   }
 
-  private async persist(): Promise<void> {
+  /**
+   * Append the entries past `maxEntries` to the archive, then drop them from the live window.
+   * If the append fails they stay in the live window, which only makes the file larger.
+   * A failure part-way through can leave a partial last line or, on the retry, a repeated entry;
+   * a reader of the archive skips a line that does not parse and keys entries by `id`.
+   */
+  private async archiveOverflow(): Promise<void> {
+    const excess = this.entries.length - this.maxEntries
+    if (excess <= 0) return
+    const leaving = this.entries.slice(0, excess)
+    try {
+      await appendFile(this.archivePath, leaving.map(e => JSON.stringify(e)).join('\n') + '\n', 'utf-8')
+    } catch (err) {
+      console.error(
+        `[audit-store] could not archive ${excess} entries to ${this.archivePath}; they stay in ` +
+          `the live log until the archive can be written: ${messageOf(err)}`,
+      )
+      return
+    }
+    this.entries.splice(0, excess)
+  }
+
+  /**
+   * Move an unreadable log aside unchanged and start a new one. If the move itself fails this
+   * throws, and startup fails: the only way left to continue would be to write over the file.
+   */
+  private async setAside(cause: unknown): Promise<void> {
+    const aside = `${this.filePath}.unreadable-${new Date().toISOString().replace(/[:.]/g, '-')}`
+    await rename(this.filePath, aside)
+    console.error(
+      `[audit-store] ${this.filePath} could not be read (${messageOf(cause)}). It was moved, ` +
+        `unchanged, to ${aside}, and a new audit log was started. Nothing was deleted.`,
+    )
+    this.entries = []
     await atomicWriteJson(this.filePath, this.entries)
   }
+}
+
+function messageOf(err: unknown): string {
+  return err instanceof Error ? err.message : String(err)
 }
