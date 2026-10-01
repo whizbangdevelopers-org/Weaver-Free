@@ -364,7 +364,8 @@ All persistent state is JSON files in the data directory (`/var/lib/weaver`). JS
 | File | Description |
 | --- | --- |
 | `users.json` | User accounts (usernames, bcrypt password hashes, roles) |
-| `audit-log.json` | Audit trail of all user actions |
+| `audit-log.json` | Audit trail: the newest 10,000 entries |
+| `audit-log.archive.jsonl` | Audit trail: every older entry, never deleted |
 | `vms.json` | VM registry (discovered VMs and metadata) |
 
 Back up with a simple archive:
@@ -380,7 +381,8 @@ Solo adds provisioning data, session persistence, and secrets. Back up the data 
 | File | Description |
 | --- | --- |
 | `users.json` | User accounts |
-| `audit-log.json` | Audit trail |
+| `audit-log.json` | Audit trail: the newest 10,000 entries |
+| `audit-log.archive.jsonl` | Audit trail: every older entry, never deleted |
 | `vms.json` | VM registry (provisioned + discovered) |
 | `custom-distros.json` | User-defined VM distribution templates |
 | `network-config.json` | Bridge and network configuration |

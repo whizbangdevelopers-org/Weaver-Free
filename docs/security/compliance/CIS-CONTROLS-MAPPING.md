@@ -99,7 +99,7 @@ CIS Controls v8.1 tiers safeguards by Implementation Group — IG1 for basic cyb
 |-----------|------------|----------------------|--------|------|
 | 8.1 | Establish and maintain an audit log management process | **Declarative audit log (Decision WVR-103).** Every auth event, user lifecycle event, workload action, and config change is captured in SQLite audit store. Retention and access policy documented | Implemented | Free |
 | 8.2 | Collect audit logs | `audit-store.ts` captures: login, logout, password change, role change, user create/delete, workload start/stop/restart, config change, approval (v2.3) | Implemented | Free |
-| 8.3 | Ensure adequate audit log storage | SQLite-backed with configurable retention; git-based declarative config change log is append-only by construction | Implemented | Free |
+| 8.3 | Ensure adequate audit log storage | A JSON file holding the newest 10,000 entries, with every older entry moved to an append-only archive file and never deleted; no retention setting, so the period is the deployer's policy. The git history of the declarative configuration records each config change | Implemented | Free |
 | 8.4 | Standardize time synchronization | NixOS NTP configuration (deployer); timestamps in audit log use UTC | Deployer Responsibility (NTP) · Implemented (UTC) | Free |
 | 8.5 | Collect detailed audit logs | Audit entries include: timestamp, user ID, action, target, source IP, outcome | Implemented | Free |
 | 8.6 | Collect DNS query audit logs | DNS plugin (v1.1) with query logging at Fabrick | Implemented | Fabrick |
