@@ -3,7 +3,7 @@
 
 # HIPAA Section 164.312 Technical Safeguards Mapping
 
-**Date:** 2026-04-01
+**Date:** 2026-04-01 · **Updated:** 2026-10-01 (audit retention rows corrected to the store's actual behaviour and to the text of 164.312(b) and 164.316(b)(2)(i))
 **Scope:** Weaver v1.0 — single-host NixOS workload isolation manager. This mapping covers Technical Safeguards only (Section 164.312). Administrative Safeguards (Section 164.308) and Physical Safeguards (Section 164.310) are organizational responsibilities, not software controls.
 
 > **Disclaimer:** This document maps Weaver's technical controls to HIPAA Section 164.312 requirements. It is not a certification claim. Covered entities must verify controls against their specific compliance requirements and conduct their own risk analysis per Section 164.308(a)(1).
@@ -24,7 +24,7 @@
 | Implement audit mechanisms | 164.312(b) Required | Comprehensive audit log: login success/failure, logout, password change, role change, user create/delete, workload start/stop/restart | Implemented | Free |
 | Record examination activity | 164.312(b) Required | All audit entries include: timestamp, authenticated user ID, action type, target resource, source IP | Implemented | Free |
 | Audit log access control | 164.312(b) Required | Audit log queryable only by Admin/Operator roles via `GET /api/audit`; no delete/modify API exposed | Implemented | Free |
-| Audit log retention | 164.312(b) Required | Log persistence to disk; retention period configurable by deployer | Deployer Responsibility (retention policy) | Free |
+| Audit log retention | 164.312(b) Required | Entries are written to disk and never deleted: the newest 10,000 in `audit-log.json`, older ones in the append-only `audit-log.archive.jsonl`. Weaver has no retention setting; the period is the deployer's policy, applied to these files and their backups | Deployer Responsibility (retention policy) | Free |
 
 ## Section 164.312(c) — Integrity
 
@@ -64,7 +64,7 @@ Weaver provides the application-level controls listed above. The following are o
 | Disk encryption | Enable NixOS LUKS or equivalent full-disk encryption for ePHI at rest |
 | Backup and recovery | Implement backup procedures for workload data and Weaver configuration |
 | Network segmentation | Configure host firewall and network isolation appropriate to the environment |
-| Log retention | Configure audit log retention period per organizational policy (HIPAA requires 6 years) |
+| Log retention | Decide how long audit records are kept and apply it to the audit files and their backups. Section 164.312(b) sets no retention period; the six-year retention in 164.316(b)(2)(i) applies to the documentation the Security Rule requires, so whether it covers your audit records is your compliance team's determination |
 | Physical security | Physical access controls to the NixOS host are organizational responsibilities |
 | BAA | Execute Business Associate Agreement with whizBANG Developers LLC if applicable |
 

@@ -505,7 +505,7 @@ In Settings, the Tag Management section shows all tags in use with VM counts. Ad
 
 *Available: v1.0+ (recording), Fabrick (UI viewer)*
 
-Weaver records significant user actions in an audit log. All tiers record audit events to `audit-log.json` in the data directory.
+Weaver records significant user actions in an audit log. All tiers record audit events in the data directory: the newest 10,000 entries in `audit-log.json`, and every older entry in `audit-log.archive.jsonl` beside it. Weaver never deletes an audit entry.
 
 ### What Is Logged
 
@@ -528,19 +528,38 @@ On Fabrick tier, admins and operators can browse the audit log on the Audit Log 
 
 ### Retention
 
-Audit entries are stored in `audit-log.json` in the data directory. Back up this file as part of your regular backup procedure (see [Backup & Restore](#backup--restore)).
+Audit entries live in two files in the data directory:
+
+- `audit-log.json` — the newest 10,000 entries. The Audit Log page reads this file.
+- `audit-log.archive.jsonl` — every older entry, one JSON object per line, appended and never
+  rewritten. The Audit Log page does not show it; read it directly.
+
+Weaver never deletes an audit entry, and it has no retention setting. How long you keep audit
+records is your policy, and you apply it to these files and their backups. Back up both files as
+part of your regular backup procedure (see [Backup & Restore](#backup--restore)).
+
+If Weaver cannot read `audit-log.json` when it starts, it does not overwrite it. It moves the file
+aside unchanged as `audit-log.json.unreadable-<time>`, starts a new log, and says so in the service
+log. Keep that file: it holds the history the new log does not.
 
 ### If a write fails
 
-Audit writes are debounced — a burst of events is coalesced into a single file write rather than
-one write per event. If that write fails (a full disk, a permissions change, the data directory
-becoming unavailable), Weaver logs the failure to the server log and **keeps the pending entries in
-memory**; the next audit event retries the whole set. The service stays up.
+Each audit entry is written to disk before the action that produced it completes; events that
+arrive together share one write. If that write fails (a full disk, a permissions change, the data
+directory becoming unavailable), Weaver logs the failure to the server log and **keeps the unwritten
+entries in memory**; the next audit event writes them all. The service stays up.
 
 Look for this line in the service log — it names the path, so it tells you which volume to check:
 
 ```
-[audit-store] deferred persist to <path> failed; entries retained in memory and will be retried on the next write: <reason>
+[audit-store] write to <path> failed; <n> entries are retained in memory and the next write will carry them: <reason>
+```
+
+Two related lines say what happened to a file rather than to a write:
+
+```
+[audit-store] could not archive <n> entries to <path>; they stay in the live log until the archive can be written: <reason>
+[audit-store] <path> could not be read (<reason>). It was moved, unchanged, to <path>.unreadable-<time>, and a new audit log was started. Nothing was deleted.
 ```
 
 Treat a repeating occurrence as a real alert rather than noise: entries held only in memory do not
@@ -672,7 +691,9 @@ All persistent state lives in the data directory (`/var/lib/weaver` on NixOS, or
 | File | Description | Critical? |
 |------|------------|-----------|
 | `users.json` | User accounts, bcrypt password hashes, roles | Yes |
-| `audit-log.json` | Audit trail of all user actions | Yes |
+| `audit-log.json` | Audit trail: the newest 10,000 entries | Yes |
+| `audit-log.archive.jsonl` | Audit trail: every older entry, never deleted | Yes |
+| `audit-log.json.unreadable-*` | An audit log Weaver could not read and set aside (only present after that happened) | Yes |
 | `vms.json` | VM registry and metadata | Yes |
 | `network-config.json` | Network configuration | Yes |
 | `custom-distros.json` | User-defined distribution templates | Yes |

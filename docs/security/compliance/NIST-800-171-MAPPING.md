@@ -26,7 +26,7 @@
 
 | 800-171 ID | Control | Weaver Implementation | Status | Tier |
 |-------------|---------|----------------------|--------|------|
-| 3.3.1 | Create and retain audit records | Audit log captures: login success/failure, logout, password change, role change, user create/delete, workload actions | Implemented | Free |
+| 3.3.1 | Create and retain audit records | Audit log captures: login success/failure, logout, password change, role change, user create/delete, workload actions. Entries are never deleted: past the newest 10,000 they move to an append-only archive file | Implemented | Free |
 | 3.3.2 | Ensure actions are traceable to individual users | Every audit entry includes authenticated user ID, timestamp, action type, and target | Implemented | Free |
 | 3.3.4 | Alert on audit process failure | Audit log write failures logged to systemd journal | Implemented | Free |
 | 3.3.5 | Correlate audit review/analysis/reporting | Audit log queryable via `GET /api/audit` (Admin/Operator); filterable by event type, user, date range | Implemented | Free |
