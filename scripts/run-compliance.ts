@@ -149,6 +149,8 @@ export const PHASES: Phase[] = [
       'audit:dependabot-labeling',
       'audit:workflow-cwd',
       'audit:command-cwd',
+      // The push gate runs, reaches the build, and runs on the pushed commit (2026-10-02).
+      'audit:push-gates',
       'audit:shell-safety',
       // Sibling of shell-safety, opposite failure: shell-safety catches a body that RUNS when it
       // should be data; this catches a command that STOPS when it should continue. Scans workflow
