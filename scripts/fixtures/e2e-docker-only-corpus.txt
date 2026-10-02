@@ -59,3 +59,22 @@ IGNORE npx playwright install chromium
 IGNORE npm install --save-dev @playwright/test@1.58.2
 IGNORE import { test, expect } from '@playwright/test'
 IGNORE const { chromium } = require('playwright')
+
+# ── Must ignore: a SEARCH for the string is looking for the command, not running it ──────────
+# A handoff's check that a doc no longer teaches the bare runner, as it reaches the generated
+# handoff corpus (Gantry, 2026-10-02). Only the search tool's quoted pattern is set aside.
+IGNORE grep -c 'npx playwright test' docs/PLAYWRIGHT_LOCAL_TESTING.md
+IGNORE       "command": "grep -c 'npx playwright test' /srv/repo/docs/E2E.md",
+IGNORE rg -n "npx playwright test" docs/
+# ...and a real run on the same line as a search is still a run
+CATCH grep -q ready logs/app.log && npx playwright test
+CATCH grep -c 'npx playwright test' docs/E2E.md; npx playwright test
+
+# ── Must catch: printing or docker in ONE command does not exempt the next ───────────────────
+# PRINTS and VIA_DOCKER exempted the whole LINE (found 2026-10-02 while adding the search case), so
+# a script that announced its run, or touched docker first, ran the bare runner unseen.
+CATCH echo "running e2e"; npx playwright test
+CATCH docker ps -q && npx playwright test --workers=2
+# ...while a printed or containerised runner stays exempt, quotes and all
+IGNORE echo "step 2; then npx playwright test runs in the image"
+IGNORE docker compose run --rm tests sh -c "cd /app && npx playwright test"
