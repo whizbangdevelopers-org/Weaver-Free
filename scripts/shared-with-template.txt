@@ -158,6 +158,19 @@ code/quasar.aliases.js
 code/quasar.aliases.d.ts
 code/scripts/verify-vite-aliases.ts
 
+# The dev server's dependency scan, started where the browser starts. Quasar starts Vite's scan from
+# an index.html with no script tag, so in every app scaffolded from this template the scan finds no
+# dependency at all, every one is found when a page first imports it, and a find can reload the
+# page mid-test. Measured in Gantry on 2026-10-02, where it failed a sign-in case. Portfolio-wide by
+# construction, for the reason the aliases above are. At the app root for the same build-time reason.
+# The module, its contract, and the harness check that fails a run on a late find are one unit;
+# each repo's quasar.config.js calls configureDepOptimizer(viteConf) and each E2E entrypoint runs
+# the check.
+code/quasar.scan.js
+code/quasar.scan.d.ts
+code/testing/unit/quasar-scan.spec.ts
+code/testing/e2e-docker/config/late-deps.sh
+
 # The port-block checker (FORGE-43). Portfolio-wide by definition: it enforces that a repo names
 # only ports inside its OWN block, and the whole point of a block scheme is that every product
 # obeys it. Product-agnostic by construction — it reads productName from package.json and parses
