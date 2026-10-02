@@ -447,3 +447,13 @@ code/scripts/verify-knowledge-schema.ts
 # and nothing failed — a forked manifest only WARNS. It stood for three days. Add a row under the
 # comment that justifies it; never regenerate this file by sorting it.
 code/scripts/verify-dependabot-coverage.ts
+
+# The pre-commit restage library and its spec (2026-10-01, Weaver SOITS item 128). A hook that
+# regenerates a projection stages it through `restage`; in a path-limited commit that is a staged
+# revert, and the per-repo fix refused at the FIRST regenerated file, so a hook whose legs chain
+# refused once per link. Gantry and Weaver had each written that fix separately, with the same
+# defect. The library stages into the temporary index, records every path, and refuses once; the
+# spec drives a real scratch repository with two chained legs. A forked copy would let one repo's
+# hook go back to refusing per link with every chain green.
+code/.githooks/lib/restage.sh
+code/testing/unit/githooks-restage.spec.ts
