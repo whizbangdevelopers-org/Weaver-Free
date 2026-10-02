@@ -77,6 +77,16 @@ const VIA_DOCKER = /\bdocker(?:-compose)?\b/
 const PRINTS = /(?:^|[;&|(]\s*)(?:echo|printf|console\.(?:log|info|warn|error)|print)\b/
 
 /**
+ * Searching for the string is looking for the command, not running it. `grep -c 'npx playwright
+ * test' docs/x.md` is a handoff's check that a doc no longer teaches the bare runner, and it reached
+ * Gantry's generated handoff corpus on 2026-10-02. Only a search tool's quoted PATTERN is set aside,
+ * never the line, so a real run beside a search is still caught: `grep -q x f && npx playwright
+ * test`.
+ */
+const SEARCH_PATTERN =
+  /\b(?:grep|egrep|fgrep|rg|ugrep|ag)\b(?:\s+-{1,2}[\w=-]+)*\s+(["'])[^"'\n]*?\1/g
+
+/**
  * Suppression carries a mandatory reason — the pattern will not match without one, so a bare
  * suppression cannot be committed (same convention as `sast-ignore[rule-id]:`). Read from the RAW
  * line, before comments are stripped.
@@ -95,12 +105,44 @@ function stripComments(line: string): string {
   return s
 }
 
+/**
+ * A line's commands: split at `;`, `&&`, `||`, `|` and `&` outside quotes, each trimmed.
+ *
+ * VIA_DOCKER and PRINTS judge ONE command. They exempted the whole LINE until 2026-10-02, so
+ * `echo "running e2e"; npx playwright test` and `docker ps -q && npx playwright test` ran the bare
+ * runner unseen: the corpus's two CATCH cases for it failed against that code. Quotes are kept
+ * whole, so `docker compose run tests sh -c "cd /app && npx playwright test"` stays one command.
+ */
+function commands(line: string): string[] {
+  const out: string[] = []
+  let cur = ''
+  let quote: string | null = null
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i]!
+    if (quote) {
+      if (c === quote) quote = null
+      cur += c
+    } else if (c === '"' || c === "'" || c === '`') {
+      quote = c
+      cur += c
+    } else if (c === ';' || c === '|' || c === '&') {
+      out.push(cur.trim())
+      cur = ''
+      if ((c === '|' || c === '&') && line[i + 1] === c) i++
+    } else {
+      cur += c
+    }
+  }
+  out.push(cur.trim())
+  return out.filter(Boolean)
+}
+
 function violatesPhysical(rawLine: string): boolean {
-  const line = stripComments(rawLine)
+  const line = stripComments(rawLine).replace(SEARCH_PATTERN, ' ')
   if (!line.trim()) return false
-  if (VIA_DOCKER.test(line)) return false
-  if (PRINTS.test(line)) return false
-  return RUNNER.test(` ${line}`)
+  return commands(line).some(
+    cmd => !VIA_DOCKER.test(cmd) && !PRINTS.test(cmd) && RUNNER.test(` ${cmd}`)
+  )
 }
 
 /**
