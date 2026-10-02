@@ -11,6 +11,7 @@ import { fileURLToPath } from 'node:url'
 import { getCompatibleVersions } from 'baseline-browser-mapping'
 
 import { deriveViteAliases } from './quasar.aliases.js'
+import { configureDepOptimizer } from './quasar.scan.js'
 
 // ESM has no __dirname; app-vite 3 only loads quasar.config.js (ESM) or .ts — the .cjs form
 // it replaced is not recognised at all, which presents as "not a Quasar project folder".
@@ -141,6 +142,9 @@ export default function (/* ctx */) {
       extendViteConf(viteConf) {
         viteConf.define = viteConf.define || {}
         viteConf.define.__APP_VERSION__ = JSON.stringify(packageJson.version)
+        // The dev server's dependency scan starts from Quasar's generated entry, not from an
+        // index.html with no script tag (quasar.scan.js, shared with the archetype, says why).
+        configureDepOptimizer(viteConf)
 
         // Split heavy vendor chunks for better long-term caching
         viteConf.build = viteConf.build || {}
