@@ -197,8 +197,10 @@ code/scripts/provision-ownership.js
 # the two are a pair: the guard enforces that every compose-driving script puts the uid in the
 # environment, and this is the thing they all source to do it. It forked three ways before being
 # pinned — weaver had it under a different variable name, gantry inlined two of its four lines in
-# three scripts and nothing in four others, and the template had none at all.
+# three scripts and nothing in four others, and the template had none at all. Since 2026-10-02 it
+# also makes each ./output mount source as the host user, so its spec travels with it.
 code/testing/e2e-docker/scripts/lib/host-user.sh
+code/testing/unit/e2e-host-user.spec.ts
 
 # The shared MCP base, and the guard that keeps it shared-able.
 #
