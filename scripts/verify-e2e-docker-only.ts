@@ -67,8 +67,27 @@ const SCANNED_EXACT = /(^|\/)(Dockerfile|Makefile)$/
  * playwright test ..."`, and a negative test against a real file proved that it therefore missed
  * both of those. Prose is suppressed by PRINTING (below), not by quoting.
  */
-const RUNNER =
-  /(?:^|[;&|("'`:]|\bthen\b|\bdo\b)\s*(?:(?:npx|pnpm|yarn|bunx)\s+|npm\s+exec\s+|\.?\/?node_modules\/\.bin\/)?playwright\s+test\b/
+const RUNNER_TAIL = String.raw`\s*(?:(?:npx|pnpm|yarn|bunx)\s+|npm\s+exec\s+|\.?\/?node_modules\/\.bin\/)?playwright\s+test\b`
+const runnerAfter = (anchors: string) =>
+  new RegExp(String.raw`(?:^|[${anchors}]|\bthen\b|\bdo\b)` + RUNNER_TAIL)
+const RUNNER = runnerAfter(`;&|("'\`:`)
+
+/**
+ * The same rule for a JSON file, where a backtick is not a command anchor.
+ *
+ * In shell a backtick opens a command substitution, and in TypeScript a template literal may be
+ * handed to execSync, so a backtick anchors a command there. JSON has no backtick syntax: inside a
+ * JSON string one is markdown inline code in prose, and the one place JSON strings are shell, an
+ * npm script value, is anchored by the string's own quote. Measured 2026-10-02: a knowledge entry's
+ * title, "Under `set -e`, `npx playwright test; RC=$?` ends the script…", projected into Gantry's
+ * generated .gantry/export.json, was reported as a bare runner and refused a push. The same title
+ * in the markdown it came from is prose, and was not. Both patterns share one tail, so the two
+ * cannot drift apart.
+ */
+const RUNNER_JSON = runnerAfter(`;&|("':`)
+
+/** What kind of text a line is, which decides what a backtick means in it. */
+type Language = 'plain' | 'json'
 
 /** A line that reaches the runner THROUGH docker is the sanctioned path, wherever it lives. */
 const VIA_DOCKER = /\bdocker(?:-compose)?\b/
@@ -137,11 +156,12 @@ function commands(line: string): string[] {
   return out.filter(Boolean)
 }
 
-function violatesPhysical(rawLine: string): boolean {
+function violatesPhysical(rawLine: string, language: Language = 'plain'): boolean {
   const line = stripComments(rawLine).replace(SEARCH_PATTERN, ' ')
   if (!line.trim()) return false
+  const runner = language === 'json' ? RUNNER_JSON : RUNNER
   return commands(line).some(
-    cmd => !VIA_DOCKER.test(cmd) && !PRINTS.test(cmd) && RUNNER.test(` ${cmd}`)
+    cmd => !VIA_DOCKER.test(cmd) && !PRINTS.test(cmd) && runner.test(` ${cmd}`)
   )
 }
 
@@ -156,9 +176,9 @@ function violatesPhysical(rawLine: string): boolean {
  * the command it annotates, which is unambiguous because they are one command. The reported line
  * number stays the first physical line, where a reader will look.
  */
-function violates(rawLine: string): boolean {
+function violates(rawLine: string, language: Language = 'plain'): boolean {
   if (SUPPRESSED.test(rawLine)) return false
-  return rawLine.split('\n').some(violatesPhysical)
+  return rawLine.split('\n').some(l => violatesPhysical(l, language))
 }
 
 /** Join `\`-continued physical lines into logical ones, keeping the first line number. */
@@ -199,9 +219,9 @@ function scanMarkdown(text: string): { line: number; text: string }[] {
   return hits
 }
 
-function scanPlain(text: string): { line: number; text: string }[] {
+function scanPlain(text: string, language: Language = 'plain'): { line: number; text: string }[] {
   return logicalLines(text)
-    .filter(l => violates(l.text))
+    .filter(l => violates(l.text, language))
     .map(l => ({ line: l.line, text: l.text.split('\n')[0]!.trim() }))
 }
 
@@ -228,16 +248,18 @@ function selfTest(): void {
   for (const raw of corpus.split('\n')) {
     const line = raw.trim()
     if (!line || line.startsWith('#')) continue
-    const expectCatch = line.startsWith('CATCH ')
-    const expectIgnore = line.startsWith('IGNORE ')
-    if (!expectCatch && !expectIgnore) {
+    // `CATCH:json` / `IGNORE:json` judge the line as a line of a JSON file.
+    const m = /^(CATCH|IGNORE)(:json)? (.*)$/.exec(line)
+    if (!m) {
       failures.push(`malformed corpus line (needs CATCH/IGNORE): ${line}`)
       continue
     }
+    const expectCatch = m[1] === 'CATCH'
+    const expectIgnore = !expectCatch
     cases++
     if (expectCatch) catches++
-    const subject = line.slice(expectCatch ? 6 : 7)
-    const flagged = violates(subject)
+    const subject = m[3]!
+    const flagged = violates(subject, m[2] ? 'json' : 'plain')
     if (expectCatch && !flagged) failures.push(`MISSED (should CATCH): ${subject}`)
     if (expectIgnore && flagged) failures.push(`FALSE POSITIVE (should IGNORE): ${subject}`)
   }
@@ -275,7 +297,9 @@ function main(): number {
     } catch {
       continue // submodule, symlink, or deleted-but-tracked
     }
-    const hits = rel.endsWith('.md') ? scanMarkdown(text) : scanPlain(text)
+    const hits = rel.endsWith('.md')
+      ? scanMarkdown(text)
+      : scanPlain(text, rel.endsWith('.json') ? 'json' : 'plain')
     for (const h of hits) problems.push(`${rel}:${h.line}\n        ${h.text}`)
   }
 
