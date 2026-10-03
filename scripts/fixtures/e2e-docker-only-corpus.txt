@@ -9,6 +9,7 @@
 #
 # Format:  CATCH <line>   — must be reported as a violation
 #          IGNORE <line>  — must NOT be reported
+#          CATCH:json / IGNORE:json — the same, judged as a line of a JSON file
 # Blank lines and lines starting with # are skipped.
 
 # ── Must catch: a real bare invocation at a command position ─────────────────────────────────
@@ -78,3 +79,15 @@ CATCH docker ps -q && npx playwright test --workers=2
 # ...while a printed or containerised runner stays exempt, quotes and all
 IGNORE echo "step 2; then npx playwright test runs in the image"
 IGNORE docker compose run --rm tests sh -c "cd /app && npx playwright test"
+
+# ── A backtick means different things by language ──────────────────────────────────────────────
+# In TypeScript a template literal handed to a shell is a command, and in shell a backtick is a
+# command substitution. In JSON a backtick is only markdown inline code inside a string: a knowledge
+# entry's title projected into a generated export was reported as a runner on 2026-10-02. An npm
+# script, the one place a JSON string is shell, is still anchored by its own quote.
+CATCH execSync(`npx playwright test`)
+CATCH result=`npx playwright test --reporter=list`
+CATCH:json   "test:e2e": "npx playwright test",
+CATCH:json   "e2e": "npm run build && npx playwright test --workers=1",
+IGNORE:json        "title": "Under `set -e`, `npx playwright test; RC=$?` ends the script at the first failing run",
+IGNORE:json        "body": "**Problem:** E2E entrypoints ran the suite as `npx playwright test` and read `$?` next",
