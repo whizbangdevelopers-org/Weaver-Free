@@ -10,6 +10,7 @@ import type { VmAclStore } from '../storage/vm-acl-store.js'
 import type { DashboardConfig } from '../config.js'
 import type { UserStore } from '../storage/user-store.js'
 import type { AuditService } from '../services/audit.js'
+import { errorResponseSchema } from '../schemas/errors.js'
 
 const userIdParamsSchema = z.object({
   id: z.string().uuid('Invalid user ID format'),
@@ -20,8 +21,6 @@ const vmAclBodySchema = z.object({
     z.string().regex(/^[a-z][a-z0-9-]*$/, 'Invalid VM name format')
   ).max(200),
 })
-
-const errorResponseSchema = z.object({ error: z.string() })
 
 interface VmAclRouteOptions {
   aclStore: VmAclStore

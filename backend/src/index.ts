@@ -9,7 +9,7 @@ import { randomUUID, createPrivateKey, type KeyObject } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 
 const execFileAsync = promisify(execFile)
-import Fastify, { type FastifyError } from 'fastify'
+import Fastify from 'fastify'
 import compress from '@fastify/compress'
 import cors from '@fastify/cors'
 import helmet from '@fastify/helmet'
@@ -87,6 +87,7 @@ import { stripeWebhookRoutes } from './routes/stripe-webhook.js'
 import { LicenseStore } from './storage/license-store.js'
 import { initStripe, initProductMap } from './services/stripe.js'
 import { EmailService } from './services/email.js'
+import { apiErrorHandler } from './error-handler.js'
 
 const fastify = Fastify({
   logger: {
@@ -936,30 +937,8 @@ if (staticDir) {
   })
 }
 
-// Error handler
-fastify.setErrorHandler((error: FastifyError, request, reply) => {
-  fastify.log.error(error)
-
-  // Zod validation errors — fastify-type-provider-zod v4+ populates error.validation
-  // with ZodFastifySchemaValidationError objects (each has .message and .params.issue).
-  if (error.validation) {
-    const messages = error.validation
-      .map((v: { message?: string }) => v.message ?? '')
-      .filter(Boolean)
-    return reply.status(400).send({
-      error: 'Validation failed',
-      details: messages.length > 0 ? messages : ['Invalid request data'],
-    })
-  }
-
-  // Default error — suppress internal details for 500s in production
-  const statusCode = error.statusCode || 500
-  const isProduction = process.env.NODE_ENV === 'production'
-  const message = statusCode >= 500 && isProduction
-    ? 'Internal Server Error'
-    : (error.message || 'Internal Server Error')
-  reply.status(statusCode).send({ error: message })
-})
+// Error handler: its own module, so it is tested without booting the server
+fastify.setErrorHandler(apiErrorHandler)
 
 // Check if a port is already in use before attempting to listen
 async function checkPortAvailable(port: number, host: string): Promise<void> {

@@ -7,6 +7,7 @@ import { requireRole } from '../middleware/rbac.js'
 import { ROLES } from '../constants/vocabularies.js'
 import { createRateLimit } from '../middleware/rate-limit.js'
 import type { DoctorService } from '../services/doctor.js'
+import { errorResponseSchema } from '../schemas/errors.js'
 
 interface DoctorRouteOptions {
   doctorService: DoctorService
@@ -43,8 +44,8 @@ export const doctorRoutes: FastifyPluginAsync<DoctorRouteOptions> = async (fasti
       schema: {
         response: {
           200: doctorResponseSchema,
-          401: z.object({ error: z.string() }),
-          403: z.object({ error: z.string() }),
+          401: errorResponseSchema,
+          403: errorResponseSchema,
         },
       },
       preHandler: [requireRole(ROLES.ADMIN)],

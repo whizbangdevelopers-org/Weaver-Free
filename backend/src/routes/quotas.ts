@@ -15,8 +15,8 @@ import {
   quotaUpdateSchema,
   quotaResponseSchema,
   quotaUsageResponseSchema,
-  quotaErrorResponseSchema,
 } from '../schemas/quotas.js'
+import { errorResponseSchema } from '../schemas/errors.js'
 
 interface QuotaRouteOptions {
   config: DashboardConfig
@@ -37,8 +37,8 @@ export const quotaRoutes: FastifyPluginAsync<QuotaRouteOptions> = async (fastify
         params: quotaParamsSchema,
         response: {
           200: quotaUsageResponseSchema,
-          403: quotaErrorResponseSchema,
-          404: quotaErrorResponseSchema,
+          403: errorResponseSchema,
+          404: errorResponseSchema,
         },
       },
       preHandler: [requireRole(ROLES.ADMIN)],
@@ -83,8 +83,8 @@ export const quotaRoutes: FastifyPluginAsync<QuotaRouteOptions> = async (fastify
         body: quotaUpdateSchema,
         response: {
           200: quotaResponseSchema,
-          403: quotaErrorResponseSchema,
-          404: quotaErrorResponseSchema,
+          403: errorResponseSchema,
+          404: errorResponseSchema,
         },
       },
       preHandler: [requireRole(ROLES.ADMIN)],

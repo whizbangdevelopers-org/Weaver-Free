@@ -15,6 +15,7 @@ import type { DashboardConfig } from '../config.js'
 import type { AuditService } from '../services/audit.js'
 import type { DistroTester } from '../services/distro-tester.js'
 import { candidatesFor, isHost, resolveDistroUrl, type HeadProbe } from '../services/distro-url-resolver.js'
+import { errorResponseSchema } from '../schemas/errors.js'
 
 /** Response shape for a single distro entry */
 interface DistroEntry {
@@ -504,8 +505,8 @@ export const distroRoutes: FastifyPluginAsync<DistroRouteOptions> = async (fasti
         params: distroNameSchema,
         response: {
           202: z.object({ status: z.string(), message: z.string() }),
-          400: z.object({ error: z.string() }),
-          409: z.object({ error: z.string() }),
+          400: errorResponseSchema,
+          409: errorResponseSchema,
         },
       },
       preHandler: [requireRole(ROLES.ADMIN), requireWeaverTier],

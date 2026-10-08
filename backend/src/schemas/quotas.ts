@@ -41,11 +41,6 @@ export const quotaUsageResponseSchema = z.object({
   currentVcpus: z.number().int(),
 })
 
-/** Error response schema */
-export const quotaErrorResponseSchema = z.object({
-  error: z.string(),
-})
-
 export interface UserQuota {
   userId: string
   maxVms: number | null

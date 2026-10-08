@@ -8,6 +8,7 @@ import { requireRole } from '../middleware/rbac.js'
 import { ROLES } from '../constants/vocabularies.js'
 import type { LicenseStore } from '../storage/license-store.js'
 import type { DashboardConfig } from '../config.js'
+import { errorResponseSchema } from '../schemas/errors.js'
 
 interface LicenseRouteOptions {
   config: DashboardConfig
@@ -103,10 +104,6 @@ interface PortalResponse {
   url: string
 }
 
-const errorSchema = z.object({
-  error: z.string(),
-})
-
 // Routes --------------------------------------------------------------------
 
 export const licenseRoutes: FastifyPluginAsync<LicenseRouteOptions> = async (fastify, opts) => {
@@ -117,7 +114,7 @@ export const licenseRoutes: FastifyPluginAsync<LicenseRouteOptions> = async (fas
       body: activateBodySchema,
       response: {
         200: activateResponseSchema,
-        400: errorSchema,
+        400: errorResponseSchema,
       },
     },
   }, async (request, reply) => {
@@ -163,7 +160,7 @@ export const licenseRoutes: FastifyPluginAsync<LicenseRouteOptions> = async (fas
       body: checkoutBodySchema,
       response: {
         200: checkoutResponseSchema,
-        400: errorSchema,
+        400: errorResponseSchema,
       },
     },
   }, async (request, reply) => {
@@ -211,9 +208,9 @@ export const licenseRoutes: FastifyPluginAsync<LicenseRouteOptions> = async (fas
       body: portalBodySchema,
       response: {
         200: portalResponseSchema,
-        400: errorSchema,
-        403: errorSchema,
-        404: errorSchema,
+        400: errorResponseSchema,
+        403: errorResponseSchema,
+        404: errorResponseSchema,
       },
     },
     preHandler: [requireRole(ROLES.ADMIN)],
