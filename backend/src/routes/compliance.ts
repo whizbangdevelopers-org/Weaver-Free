@@ -6,6 +6,7 @@ import { join } from 'node:path'
 import { z } from 'zod'
 import type { DashboardConfig } from '../config.js'
 import { generateCompliancePdf, isValidComplianceSlug, getComplianceSlugs } from '../services/compliance-pdf.js'
+import { errorResponseSchema } from '../schemas/errors.js'
 
 interface ComplianceRouteOptions {
   config: DashboardConfig
@@ -19,10 +20,6 @@ const slugParam = z.object({
   slug: z.string().refine(isValidComplianceSlug, {
     message: 'Unknown compliance document',
   }),
-})
-
-const errorResponseSchema = z.object({
-  error: z.string(),
 })
 
 export const complianceRoutes: FastifyPluginAsync<ComplianceRouteOptions> = async (fastify, opts) => {

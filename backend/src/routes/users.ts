@@ -12,10 +12,10 @@ import {
   userListResponseSchema,
   roleUpdateSchema,
   userIdParamsSchema,
-  errorResponseSchema,
   userMutationResponseSchema,
   safeUserSchema,
 } from '../schemas/users.js'
+import { errorResponseSchema } from '../schemas/errors.js'
 
 interface UsersRouteOptions {
   userStore: UserStore

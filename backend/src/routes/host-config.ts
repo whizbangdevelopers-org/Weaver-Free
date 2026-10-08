@@ -4,13 +4,13 @@ import { readFile, readlink, lstat } from 'node:fs/promises'
 import { isAbsolute, resolve as pathResolve, dirname } from 'node:path'
 import { FastifyPluginAsync } from 'fastify'
 import { ZodTypeProvider } from 'fastify-type-provider-zod'
-import { z } from 'zod'
 import { requireRole } from '../middleware/rbac.js'
 import { createRateLimit } from '../middleware/rate-limit.js'
 import type { DashboardConfig } from '../config.js'
 import { TIERS, ROLES } from '../constants/vocabularies.js'
 import { nixConfigResponseSchema } from '../schemas/host-config.js'
 import { parseNixConfig } from '../services/nix-config-parser.js'
+import { errorResponseSchema } from '../schemas/errors.js'
 
 // ── Mock content for demo mode ─────────────────────────────────────────────
 
@@ -85,8 +85,8 @@ export const hostConfigRoutes: FastifyPluginAsync<HostConfigRouteOptions> = asyn
       schema: {
         response: {
           200: nixConfigResponseSchema,
-          401: z.object({ error: z.string() }),
-          403: z.object({ error: z.string() }),
+          401: errorResponseSchema,
+          403: errorResponseSchema,
         },
       },
       preHandler: [requireRole(ROLES.ADMIN, ROLES.OPERATOR, ROLES.VIEWER)],

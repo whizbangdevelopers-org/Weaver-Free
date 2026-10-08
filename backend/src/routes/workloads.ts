@@ -21,6 +21,7 @@ import { resolveWindowMs, SAMPLE_INTERVAL_MS } from '../services/metrics.js'
 import type { PromqlMetricsSource } from '../services/promql.js'
 import { firmwareRejectionReason } from '../services/firmware.js'
 import { isProbeableUrl } from '../services/health-probe.js'
+import { errorResponseSchema } from '../schemas/errors.js'
 
 const vmNameSchema = z.object({
   name: z.string().regex(/^[a-z][a-z0-9-]*$/, 'Invalid VM name format')
@@ -180,10 +181,6 @@ const vmActionResponseSchema = z.object({
   success: z.boolean(),
   message: z.string(),
   provisioningState: z.string().optional(),
-})
-
-const errorResponseSchema = z.object({
-  error: z.string(),
 })
 
 const CLOUD_DISTROS = ['arch', 'fedora', 'ubuntu', 'debian', 'alpine']

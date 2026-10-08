@@ -8,6 +8,7 @@ import { ROLES, TIERS, TIER_ORDER } from '../constants/vocabularies.js'
 import { createRateLimit } from '../middleware/rate-limit.js'
 import { DEFAULT_DNS_DOMAIN, type DnsZone } from '../services/dns-zone.js'
 import type { DashboardConfig } from '../config.js'
+import { errorResponseSchema } from '../schemas/errors.js'
 
 const dnsRecordSchema = z.object({
   name: z.string(),
@@ -33,8 +34,6 @@ const dnsZoneResponseSchema = z.object({
   records: z.array(dnsRecordSchema),
   skipped: z.array(z.object({ name: z.string(), reason: z.string() })),
 })
-
-const errorResponseSchema = z.object({ error: z.string() })
 
 const vmNameSchema = z.object({
   name: z.string().regex(/^[a-z][a-z0-9-]*$/, 'Invalid workload name format'),

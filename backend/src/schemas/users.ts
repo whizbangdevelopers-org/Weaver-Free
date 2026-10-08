@@ -31,9 +31,6 @@ export const userIdParamsSchema = z.object({
 })
 
 // Common error response
-export const errorResponseSchema = z.object({
-  error: z.string(),
-})
 
 // Success response for mutations
 export const userMutationResponseSchema = z.object({
