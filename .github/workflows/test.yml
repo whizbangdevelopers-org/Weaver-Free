@@ -336,6 +336,16 @@ jobs:
         # NOT ALLOW_MISSING_SEMGREP=1 — that would restore the exact false green, at the
         # release gate of all places.
         run: pipx install semgrep==1.143.0
+      - name: Install Nix (the pinned Python toolchain the chain's Python auditors run on)
+        # audit:python-lint and the decision auditors run on the interpreter and ruff
+        # that scripts/python-toolchain.sh builds from one locked nixpkgs, so a verdict cannot
+        # depend on the host. Same answer as semgrep above: give CI the engine. The toolchain
+        # refuses without nix and never falls back to the runner's python3. Pin shared with
+        # release.yml.
+        uses: cachix/install-nix-action@e4f4bde15728394ded896ef07491a85f2eb24956  # v31
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
       - name: Install dependencies (workspaces)
         run: npm ci
 
