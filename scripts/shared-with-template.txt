@@ -382,6 +382,29 @@ scripts/verify-decision-table.negative-test.py
 # MASTER-PLAN.md sits beside it and takes its threshold from a per-repo baseline JSON.
 scripts/verify-decision-open.py
 
+# The other half of a MASTER-PLAN: the decision tables are guarded above, and the header has its
+# own claim, that `Last updated:` is not older than the file's last substantive commit. Held
+# code-identical in this archetype, Gantry, Forge and Weaver and declared in NO manifest until
+# 2026-10-08, when FORGE-107 brought the shared Python auditors to the floor and found it outside
+# every list: a fix to any copy would have reached none of the others.
+scripts/verify-plan-currency.py
+
+# The Python floor, FORGE-107 (Python code meets one portfolio floor, built by replicating the Nix
+# lint process with its three defects fixed). Four files, one mechanism, and each is pinned:
+#   ruff-floor.toml               the policy. A repo RAISES it in its own root ruff.toml (not
+#                                 shared), and the gate runs this file with `ruff --config`, so
+#                                 nothing a repo writes can lower it.
+#   scripts/python-toolchain.sh   the ONE pinned nixpkgs for ruff and the interpreter. A pin that
+#                                 differed per repo would be the host-dependence FORGE-107 removes,
+#                                 moved one level down. A bump is this file, synced.
+#   scripts/verify-python-lint.py the gate, with its corpus. Proven here, fed down (FORGE-60).
+#   .claude/rules/stack/python.md the rule the gate enforces.
+# Added 2026-10-08. Plan and measured baseline: Forge/PYTHON-FUNDAMENTALS-PLAN.md.
+ruff-floor.toml
+scripts/python-toolchain.sh
+scripts/verify-python-lint.py
+.claude/rules/stack/python.md
+
 # FORGE-68 (ADP-2 — the eight shared auditors reconcile before their proofs are written), wave 1.
 # Already byte-identical below the licence header in all three repos when it was measured on
 # 2026-09-04 — zero code AND zero prose divergence — so this entry records a fact rather than
@@ -583,6 +606,16 @@ code/testing/unit/core/access/policy.spec.ts
 code/src/core/canonical-json.ts
 code/src/core/audit-chain.ts
 code/testing/unit/core/audit-chain.spec.ts
+#
+# ── The credential vault's core (Gantry's GAN-83 and GAN-92, on Weaver's WVR-73) ───────────────
+# One encrypted SQLite file opened with a master key read from a file, a value that leaves only to
+# its reader, a lookup by host, owner and purpose, a snapshot before every change and the record of
+# which key reads which snapshot. The ENCRYPTION is a driver each product supplies over its own
+# cipher build, so the archetype carries no native dependency; the core refuses a driver that does
+# not encrypt outside its tests, which run on node:sqlite. Declared in the commit that creates it,
+# as GAN-48 requires of a shared module, with its contract beside it.
+code/backend/src/vault/vault.ts
+code/backend/testing/vault-core.spec.ts
 #
 # The gate that keeps the ladder's ordering private. Shared because it guards a shared module: a
 # repo that adopts the access core and not this gate has the property only for as long as nobody
