@@ -523,6 +523,15 @@ code/testing/unit/app-icons.spec.ts
 code/.githooks/lib/restage.sh
 code/testing/unit/githooks-restage.spec.ts
 
+# No spec inherits a git hook's GIT_* variables (2026-10-08). `commit -- <paths>` and `commit -a`
+# export GIT_INDEX_FILE as an absolute path to the index being committed and git honours it over
+# `-C`, so a spec's scratch `git add`, run from a hook, rewrote the outer commit's index while the
+# spec passed. One setup file, loaded by every vitest config in the repository, drops them before
+# any spec runs; the spec fails a tracked config that does not load it. Each repository's configs
+# are its own and are not shared; only the scrub and its wiring check are.
+code/testing/git-env-scrub.ts
+code/testing/unit/git-env-scrub.spec.ts
+
 # The pre-push gates run on the PUSHED COMMIT, in a linked worktree beside the repository, never on
 # the checkout (2026-10-02). Found in Gantry: the hook tested the working tree, so an uncommitted
 # edit decided the verdict on commits it was not part of, failing correct ones and, the worse
