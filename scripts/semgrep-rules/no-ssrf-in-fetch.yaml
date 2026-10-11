@@ -81,8 +81,24 @@ rules:
       - patterns:
           - pattern: axios($SINK)
         focus-metavariable: $SINK
+      # Node's own clients, which a URL or its host can reach without passing fetch or axios.
+      - patterns:
+          - pattern-either:
+              - pattern: https.get($SINK, ...)
+              - pattern: https.request($SINK, ...)
+              - pattern: http.get($SINK, ...)
+              - pattern: http.request($SINK, ...)
+        focus-metavariable: $SINK
+      # A URL built from user input stands in for the request it is usually built for, including
+      # through a client not listed above. A URL parsed only to read where it points (its host or
+      # hostname, shown to a person) is not a request, and is not this rule's subject: the message
+      # above is the specification, and it says "an outbound HTTP request URL". If that host does
+      # reach a request, the request's own sink above reports it (corpus: hostReadIntoRequest).
+      # Found 2026-10-11 on the consent page naming the host an app returns to (slice 22, piece 4).
       - patterns:
           - pattern: new URL($SINK)
+          - pattern-not-inside: new URL(...).host
+          - pattern-not-inside: new URL(...).hostname
         focus-metavariable: $SINK
     pattern-sanitizers:
       - patterns:

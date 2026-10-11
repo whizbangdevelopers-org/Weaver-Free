@@ -6,6 +6,8 @@
  * See execfile.ts for the annotation contract and the distinct-variable-name constraint.
  * Third consumer of the shared `$REQ.params|body|query` source block.
  */
+import * as https from 'node:https'
+
 import axios from 'axios'
 
 // ---------------------------------------------------------------------------
@@ -42,6 +44,20 @@ export async function newUrlFromCast(request: any) {
   return new URL(echo)
 }
 
+// A host read from user input that reaches a request is caught at the request, though reading a
+// host alone is not a sink.
+export async function hostReadIntoRequest(request: any) {
+  const { india } = request.query as { india: string }
+  // taint-expect: no-ssrf-in-fetch
+  https.get({ host: new URL(india).host, path: '/' })
+}
+
+export async function httpsRequestFromCast(request: any) {
+  const { juliet } = request.params as { juliet: string }
+  // taint-expect: no-ssrf-in-fetch
+  https.request(juliet)
+}
+
 // ---------------------------------------------------------------------------
 // MUST NOT FLAG
 // ---------------------------------------------------------------------------
@@ -72,6 +88,12 @@ export async function hostCheckedThenFetched(request: any) {
 export async function neverFetched(request: any, reply: any) {
   const { hotel } = request.query as { hotel: string }
   reply.send({ hotel })
+}
+
+// A URL parsed only to show a person where it points: its host, sent back, and no request made.
+export async function hostShownOnly(request: any, reply: any) {
+  const { kilo } = request.query as { kilo: string }
+  reply.send({ returnsTo: new URL(kilo).host, name: new URL(kilo).hostname })
 }
 
 declare function isAllowedUrl(u: string): boolean
