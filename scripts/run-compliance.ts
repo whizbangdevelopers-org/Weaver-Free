@@ -109,6 +109,9 @@ export const PHASES: Phase[] = [
       'audit:entitlement-vendor',
       'audit:authority-binding',
       'audit:lockfile',
+      // Every dependency with an install script is approved or denied in its root's allowScripts,
+      // since npm runs an unnamed one with only a warning.
+      'audit:install-scripts',
       'audit:sast',
       'audit:hooks',
       'audit:hook-forms',
