@@ -625,6 +625,12 @@ code/testing/unit/core/audit-chain.spec.ts
 # as GAN-48 requires of a shared module, with its contract beside it.
 code/backend/src/vault/vault.ts
 code/backend/testing/vault-core.spec.ts
+# The vault replaces its marker file through the server's one rename helper, which retries while
+# Windows holds a file; a shared module cannot import a per-repo file, so the helper travels with
+# it, its contract beside it. Shared 2026-10-14, archetype first, after Gantry's copy of vault.ts
+# had forked onto a helper the archetype did not have.
+code/backend/src/system/replace-file.ts
+code/backend/testing/replace-file.spec.ts
 #
 # The gate that keeps the ladder's ordering private. Shared because it guards a shared module: a
 # repo that adopts the access core and not this gate has the property only for as long as nobody
@@ -637,3 +643,24 @@ code/scripts/verify-fail-closed-roles.ts
 # repo — the archetype's is `## Authentication` with four columns where Gantry's is `## Credentials`
 # with three, while stating the same values — so a shared parser would assert a formatting
 # convention rather than a baseline. Each repo checks its own doc, in whatever shape it has.
+#
+# FORGE-116 (A browser session's tokens travel only in httpOnly cookies that every tab shares;
+# programs keep bearer tokens) and FORGE-117 (Every window of the app shows its number once a second
+# one is open): the server's session cookies and their cross-site guard, the browser's refresh
+# serialized across tabs and its identity changes told to every tab, and the window number, each
+# with its spec. Product-neutral: a product names its cookies, lock and channel by passing its name.
+code/backend/src/middleware/session-cookies.ts
+code/backend/testing/session-cookies.spec.ts
+code/src/services/session-tabs.ts
+code/testing/unit/services/session-tabs.spec.ts
+code/src/core/window-number.ts
+code/testing/unit/core/window-number.spec.ts
+code/src/services/window-number.ts
+code/testing/unit/services/window-number.spec.ts
+code/src/boot/window-number.ts
+
+# FORGE-121 point (3): every dependency that carries an install script is named in its root's
+# allowScripts. npm (11.19) runs an unreviewed one with only a warning and skips only a denial, so
+# the rule holds only while the lists are complete. Shared 2026-10-22: one pure judgement and one
+# corpus serve every repo; each repo's package.json files carry its own lists.
+code/scripts/verify-install-scripts.ts
