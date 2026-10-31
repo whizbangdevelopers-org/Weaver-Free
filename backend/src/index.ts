@@ -111,6 +111,12 @@ fastify.decorateRequest('authRejectionReason', undefined)
 fastify.setValidatorCompiler(validatorCompiler)
 fastify.setSerializerCompiler(serializerCompiler)
 
+// Error handler, FIRST: its own module, so it is tested without booting the server. A route takes
+// the handler its instance has when the route is registered, so one set afterwards reaches no
+// route. It was set after every route until 2026-10-24, and every route answered with Fastify's
+// own handler. `tests/entry-order.spec.ts` keeps it before the first route.
+fastify.setErrorHandler(apiErrorHandler)
+
 // Register plugins
 await fastify.register(helmet, {
   contentSecurityPolicy: {
@@ -936,9 +942,6 @@ if (staticDir) {
     }
   })
 }
-
-// Error handler: its own module, so it is tested without booting the server
-fastify.setErrorHandler(apiErrorHandler)
 
 // Check if a port is already in use before attempting to listen
 async function checkPortAvailable(port: number, host: string): Promise<void> {

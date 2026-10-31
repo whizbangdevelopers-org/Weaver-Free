@@ -50,6 +50,7 @@
       </div>
 
       <!-- Rendered markdown -->
+      <!-- sast-ignore[v-html-xss]: renderedHtml is MarkdownIt with html:false over docs bundled with the app (?raw loaders), so raw HTML is escaped and nothing a user types reaches it -->
       <div v-else class="docs-content" v-html="renderedHtml" @click="handleContentClick" />
 
       <!-- Back to help -->

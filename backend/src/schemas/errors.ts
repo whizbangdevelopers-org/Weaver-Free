@@ -4,8 +4,9 @@
 import { z } from 'zod'
 
 /**
- * Every error body the API sends: a handler's `error`, and the `details` the error handler adds to
- * a validation failure (`src/error-handler.ts`). Every route declares its error statuses with this.
+ * Every error body the API sends: a handler's `error`, and the `message` and `details` the error
+ * handler adds to a validation failure (`src/error-handler.ts`). Every route declares its error
+ * statuses with this.
  *
  * ONE schema, imported, never retyped. A response schema is a filter as well as a description: the
  * serializer drops any field it does not declare. Thirteen retyped copies declaring `error` alone
@@ -15,5 +16,7 @@ import { z } from 'zod'
  */
 export const errorResponseSchema = z.object({
   error: z.string(),
+  /** A validation failure's problems as one sentence, which the screens show first. */
+  message: z.string().optional(),
   details: z.array(z.string()).optional(),
 })

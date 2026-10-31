@@ -111,8 +111,8 @@ const exportStamp = () => new Date().toISOString().slice(0, 10)
  */
 const vmCloneSchema = z.object({
   name: z.string().min(1).max(64),
-  ip: z.string().ip({ version: 'v4' }).optional(),
-  tags: z.array(z.string()).optional(),
+  ip: z.ipv4().optional(),
+  tags: z.array(z.string()).max(10).optional(),
   description: z.string().max(500).optional(),
 })
 
@@ -211,7 +211,7 @@ const vmCreateSchema = z.object({
   runtime: z.enum(['microvm', 'docker', 'podman', 'apptainer']).optional(),
   containerId: z.string().optional(),
   image: z.string().optional(),
-  ports: z.array(z.string()).optional(),
+  ports: z.array(z.string()).max(256).optional(),
   // Network-ownership phase A — accepted on create so an already-known network can be recorded at
   // registration, not only at scan. Same name constraint as bridgeNameSchema (network.ts), since
   // this value is compared against `bridgeInterface` and may later name a real interface.
@@ -222,36 +222,36 @@ const vmCreateSchema = z.object({
   const isContainer = (CONTAINER_HYPERVISORS as readonly string[]).includes(data.hypervisor)
   if (!isContainer) {
     // VM workloads require valid IPv4, min 64 MB, min 1 vCPU
-    const ipResult = z.string().ip({ version: 'v4' }).safeParse(data.ip)
+    const ipResult = z.ipv4().safeParse(data.ip)
     if (!ipResult.success) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Must be a valid IPv4 address', path: ['ip'] })
+      ctx.addIssue({ code: 'custom', message: 'Must be a valid IPv4 address', path: ['ip'] })
     }
     if (data.mem < 64) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Minimum 64 MB', path: ['mem'] })
+      ctx.addIssue({ code: 'custom', message: 'Minimum 64 MB', path: ['mem'] })
     }
     if (data.vcpu < 1) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Minimum 1 vCPU', path: ['vcpu'] })
+      ctx.addIssue({ code: 'custom', message: 'Minimum 1 vCPU', path: ['vcpu'] })
     }
     // VM-only distro constraints
     if (data.distro && CLOUD_DISTROS.includes(data.distro) && data.hypervisor !== 'qemu') {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Cloud distros require QEMU hypervisor', path: ['hypervisor'] })
+      ctx.addIssue({ code: 'custom', message: 'Cloud distros require QEMU hypervisor', path: ['hypervisor'] })
     }
     if (data.vmType === 'desktop' && data.hypervisor !== 'qemu') {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Desktop mode requires QEMU hypervisor', path: ['vmType'] })
+      ctx.addIssue({ code: 'custom', message: 'Desktop mode requires QEMU hypervisor', path: ['vmType'] })
     }
     if (data.distro === 'other' && (!data.imageUrl || data.imageUrl.length === 0)) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Image URL is required when distro is "Other"', path: ['imageUrl'] })
+      ctx.addIssue({ code: 'custom', message: 'Image URL is required when distro is "Other"', path: ['imageUrl'] })
     }
     if (data.distro === 'other' && data.hypervisor !== 'qemu') {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, message: '"Other" distro requires QEMU hypervisor', path: ['hypervisor'] })
+      ctx.addIssue({ code: 'custom', message: '"Other" distro requires QEMU hypervisor', path: ['hypervisor'] })
     }
     // Firmware and the driver ISO are QEMU concepts. microvm.nix runtimes boot their own way, so
     // accepting either there would record a field that silently does nothing.
     if (data.firmware === 'uefi' && data.hypervisor !== 'qemu') {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'UEFI firmware requires QEMU hypervisor', path: ['firmware'] })
+      ctx.addIssue({ code: 'custom', message: 'UEFI firmware requires QEMU hypervisor', path: ['firmware'] })
     }
     if (data.virtioDrivers && data.hypervisor !== 'qemu') {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'The VirtIO driver ISO requires QEMU hypervisor', path: ['hypervisor'] })
+      ctx.addIssue({ code: 'custom', message: 'The VirtIO driver ISO requires QEMU hypervisor', path: ['hypervisor'] })
     }
   }
 })

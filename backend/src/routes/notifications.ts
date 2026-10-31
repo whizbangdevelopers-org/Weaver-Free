@@ -32,7 +32,7 @@ export const notificationRoutes: FastifyPluginAsync<NotificationRouteOptions> = 
             vmName: z.string().optional(),
             severity: z.enum(['info', 'success', 'error']),
             message: z.string(),
-            details: z.record(z.unknown()).optional(),
+            details: z.record(z.string(), z.unknown()).optional(),
           })),
         }),
       },
