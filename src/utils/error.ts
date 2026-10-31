@@ -11,6 +11,9 @@ export function extractErrorMessage(err: unknown, fallback: string): string {
   if (axios.isAxiosError(err)) {
     // Backend returns { error: "meaningful message" } on 4xx/5xx
     const data = err.response?.data as Record<string, unknown> | undefined
+    // A validation failure's `error` is only "Validation failed": its problems are in `message`,
+    // which names the field (`backend/src/error-handler.ts`), so that is what a person is shown.
+    if (data && Array.isArray(data.details) && typeof data.message === 'string') return data.message
     if (data && typeof data.error === 'string') return data.error
     if (data && typeof data.message === 'string') return data.message
   }

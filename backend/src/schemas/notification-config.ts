@@ -16,7 +16,7 @@ const notificationEventSchema = z.enum([
 
 const channelBaseSchema = {
   enabled: z.boolean(),
-  events: z.array(notificationEventSchema).min(1, 'At least one event is required'),
+  events: z.array(notificationEventSchema).min(1, 'At least one event is required').max(notificationEventSchema.options.length),
 }
 
 const inAppChannelSchema = z.object({
@@ -41,15 +41,30 @@ const emailChannelSchema = z.object({
   smtpPass: z.string().min(1, 'SMTP password is required'),
   smtpSecure: z.boolean(),
   fromAddress: z.string().email('Must be a valid email address'),
-  recipients: z.array(z.string().email('Must be a valid email address')).min(1, 'At least one recipient is required'),
+  recipients: z.array(z.string().email('Must be a valid email address')).min(1, 'At least one recipient is required').max(100),
 })
+
+/**
+ * zod has no bound for a record and collects one issue per failing value (GHSA-mrhx-c7xc-m3w5), so
+ * the values accept anything here and one check judges the whole record, once.
+ */
+const MAX_WEBHOOK_HEADERS = 64
+const webhookHeadersSchema = z
+  .record(z.string(), z.unknown())
+  .refine(
+    (headers) =>
+      Object.keys(headers).length <= MAX_WEBHOOK_HEADERS &&
+      Object.values(headers).every((value) => typeof value === 'string'),
+    `At most ${MAX_WEBHOOK_HEADERS} headers, each a string`,
+  )
+  .transform((headers) => headers as Record<string, string>)
 
 const webhookChannelSchema = z.object({
   ...channelBaseSchema,
   type: z.literal('webhook'),
   url: z.string().url('Must be a valid URL'),
   method: z.enum(['POST', 'PUT']),
-  headers: z.record(z.string()).optional(),
+  headers: webhookHeadersSchema.optional(),
   format: z.enum(['json', 'slack', 'discord', 'pagerduty']),
 })
 

@@ -28,7 +28,7 @@ export const createBridgeSchema = z.object({
 export const ipPoolSchema = z.object({
   start: hostIp,
   end: hostIp,
-  allocated: z.array(z.string().regex(ipv4Pattern)).default([]),
+  allocated: z.array(z.string().regex(ipv4Pattern)).max(65_536).default([]),
 }).refine(
   (data) => ipToNum(data.start) <= ipToNum(data.end),
   { message: 'Start IP must be less than or equal to end IP', path: ['end'] },

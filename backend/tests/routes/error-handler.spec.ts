@@ -28,11 +28,19 @@ vi.mock('../../src/services/microvm.js', async (importOriginal) => ({
 import Fastify from 'fastify'
 import { z } from 'zod'
 import { serializerCompiler, validatorCompiler, ZodTypeProvider } from 'fastify-type-provider-zod'
-import { apiErrorHandler, FALLBACK_VALIDATION_DETAIL } from '../../src/error-handler.js'
+import {
+  apiErrorHandler,
+  FALLBACK_VALIDATION_DETAIL,
+  MAX_DETAIL_LENGTH,
+  MAX_VALIDATION_DETAILS,
+} from '../../src/error-handler.js'
 import { workloadsRoutes } from '../../src/routes/workloads.js'
 
-async function buildApp() {
-  const fastify = Fastify({ logger: false }).withTypeProvider<ZodTypeProvider>()
+/** As index.ts wires it; `log` reads its lines. */
+async function buildApp(log?: { write: (line: string) => void }) {
+  const fastify = Fastify({
+    logger: log ? { level: 'info', stream: log } : false,
+  }).withTypeProvider<ZodTypeProvider>()
   fastify.decorateRequest('userId', undefined)
   fastify.decorateRequest('userRole', undefined)
   fastify.decorateRequest('username', undefined)
@@ -47,6 +55,18 @@ async function buildApp() {
   fastify.post(
     '/things',
     { schema: { body: z.object({ name: z.string().min(1).max(64) }) } },
+    async () => ({ ok: true }),
+  )
+  // No bound on its array, so every failing element is a problem: what the handler's cap is for.
+  fastify.post(
+    '/unbounded',
+    { schema: { body: z.object({ ids: z.array(z.string()) }) } },
+    async () => ({ ok: true }),
+  )
+  // A strict object refuses unknown keys in ONE problem whose message names every key.
+  fastify.post(
+    '/strict',
+    { schema: { body: z.object({ name: z.string().optional() }).strict() } },
     async () => ({ ok: true }),
   )
   fastify.get('/boom', async () => {
@@ -74,16 +94,69 @@ describe('apiErrorHandler', () => {
     const body = res.json() as { error: string; details: string[] }
     expect(body.error).toBe('Validation failed')
     expect(body.details).not.toEqual([FALLBACK_VALIDATION_DETAIL])
-    expect(body.details.join(' ')).toMatch(/at least 1 character/)
+    expect(body.details.join(' ')).toMatch(/>=1 characters/)
     await app.close()
   })
 
-  it('in production a server error answers 500 without the raw message', async () => {
-    process.env.NODE_ENV = 'production'
+  // Until 2026-10-24 only in production; a raw system error leaks paths in every mode, and the log
+  // keeps it whole for whoever is debugging.
+  it('in every mode a server error answers 500 without the raw message', async () => {
+    for (const mode of ['production', 'development', 'test']) {
+      process.env.NODE_ENV = mode
+      const app = await buildApp()
+      const res = await app.inject({ method: 'GET', url: '/boom' })
+      expect(res.statusCode, mode).toBe(500)
+      expect(res.json(), mode).toEqual({ error: 'Internal Server Error' })
+      expect(res.body, mode).not.toContain('/run/secret')
+      await app.close()
+    }
+  })
+
+  // GHSA-mrhx-c7xc-m3w5, measured in a sibling product 2026-10-23: answering and logging every
+  // problem made one 1 MiB request cost an 18 MB answer and a 231 MB log line.
+  it('a body failing many times answers a bounded list of problems and how many more, and a message', async () => {
     const app = await buildApp()
-    const res = await app.inject({ method: 'GET', url: '/boom' })
-    expect(res.statusCode).toBe(500)
-    expect(res.json()).toEqual({ error: 'Internal Server Error' })
+    const res = await app.inject({
+      method: 'POST',
+      url: '/unbounded',
+      payload: { ids: Array.from({ length: 5000 }, () => 0) },
+    })
+    expect(res.statusCode).toBe(400)
+    const body = res.json() as { message: string; details: string[] }
+    expect(body.details).toHaveLength(MAX_VALIDATION_DETAILS + 1)
+    expect(body.details.at(-1)).toBe(`and ${5000 - MAX_VALIDATION_DETAILS} more`)
+    expect(body.message).toBe(body.details.join('; '))
+    await app.close()
+  })
+
+  it('a problem whose message is long is cut to a bounded length', async () => {
+    const app = await buildApp()
+    const extra = Object.fromEntries(Array.from({ length: 20_000 }, (_, i) => [`key${i}`, 1]))
+    const res = await app.inject({ method: 'POST', url: '/strict', payload: extra })
+    expect(res.statusCode).toBe(400)
+    const details = (res.json() as { details: string[] }).details
+    expect(details).toHaveLength(1)
+    expect(details[0]!.length).toBeLessThanOrEqual(MAX_DETAIL_LENGTH)
+    expect(details[0]).toMatch(/key0/)
+    expect(details[0]!.endsWith('…')).toBe(true)
+    await app.close()
+  })
+
+  it('a validation failure is logged as a count and the first problems, never every one', async () => {
+    const lines: string[] = []
+    const app = await buildApp({ write: (line: string) => void lines.push(line) })
+    await app.inject({
+      method: 'POST',
+      url: '/unbounded',
+      payload: { ids: Array.from({ length: 5000 }, () => 0) },
+    })
+    const failure = lines
+      .map(l => JSON.parse(l) as Record<string, unknown>)
+      .find(l => l.msg === 'request failed validation')
+    expect(failure, lines.join('')).toBeDefined()
+    expect(failure!.problems).toBe(5000)
+    expect((failure!.first as string[]).length).toBeLessThanOrEqual(MAX_VALIDATION_DETAILS)
+    expect(lines.join('').length).toBeLessThan(20_000)
     await app.close()
   })
 
@@ -95,8 +168,10 @@ describe('apiErrorHandler', () => {
       payload: { name: 'x'.repeat(65) },
     })
     expect(res.statusCode).toBe(400)
-    const body = res.json() as { error: string; details?: string[] }
-    expect(body.details?.join(' ')).toMatch(/at most 64 character/)
+    const body = res.json() as { error: string; message?: string; details?: string[] }
+    expect(body.details?.join(' ')).toMatch(/<=64 characters/)
+    // And the schema keeps the message, which the screens show for a validation failure.
+    expect(body.message).toMatch(/<=64 characters/)
     await app.close()
   })
 })

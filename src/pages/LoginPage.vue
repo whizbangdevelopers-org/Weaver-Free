@@ -195,6 +195,7 @@
             data-testid="tos-scroll-area"
             @scroll="onTosScroll"
           >
+            <!-- sast-ignore[v-html-xss]: tosHtml is MarkdownIt with html:false over docs/legal/TERMS-OF-SERVICE.md bundled at build (?raw), so raw HTML is escaped and nothing a user types reaches it -->
             <div class="tos-content" v-html="tosHtml" />
             <div style="height: 1px" data-testid="tos-sentinel" />
           </div>
