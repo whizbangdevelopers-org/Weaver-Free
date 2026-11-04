@@ -40,9 +40,13 @@ function upgrade(port: number, path = '/ws/status'): Promise<number | 'ERR'> {
         'Sec-WebSocket-Key': 'dGhlIHNhbXBsZSBub25jZQ==',
       },
     })
-    req.on('upgrade', (res) => {
+    // After an upgrade the socket belongs to the caller, not to `req`: `req.destroy()` leaves it
+    // open, and an open upgraded socket holds `app.close()` in afterEach. Node 24.21 closed the
+    // server anyway; 24.22 waits, so every test here timed out in its hook on a CI runner
+    // (2026-11-04) while passing locally on 24.21. Destroy the socket itself.
+    req.on('upgrade', (res, socket) => {
       resolve(res.statusCode ?? 101)
-      req.destroy()
+      socket.destroy()
     })
     req.on('response', (res) => {
       res.resume()
