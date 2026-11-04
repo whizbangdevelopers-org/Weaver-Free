@@ -11,10 +11,11 @@
  *   no-ssrf-in-fetch       — user input reaching outbound HTTP URLs (CWE-918)
  *   no-interpolated-console-format — a value in console's format string with args after it (CWE-134)
  *
- * Requires: semgrep in PATH — `nix develop`; CI installs `semgrep==1.143.0` via pipx in
- *           release.yml's `verify` job and test.yml's `compliance` job. Keep those pins and
- *           the devShell on the same version: an unpinned engine lets CI and local disagree
- *           about findings, which is the same class of problem as an unpinned action version.
+ * Requires: semgrep in PATH — `nix develop`; CI builds the same semgrep from the devShell's
+ *           locked nixpkgs (`nix build --inputs-from code nixpkgs#semgrep`) in release.yml's
+ *           `verify` job and test.yml's `compliance` job, so CI and local run one engine with one
+ *           dependency set from one lock. CI pinned `semgrep==1.143.0` through pipx until
+ *           2026-11-04, when pipx's fresh dependency resolution crashed it at startup.
  * Rules:    scripts/semgrep-rules/*.yaml
  *
  * Exit 0 = clean.
