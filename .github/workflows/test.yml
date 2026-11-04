@@ -68,28 +68,34 @@ jobs:
         if: github.repository == 'whizbangdevelopers-org/Weaver-Dev'
         run: npm run typecheck
 
+      # The verdict in this step and the backend and TUI steps below is vitest's own exit status.
+      # Each ran vitest with `|| true` and failed only when the JSON counted a failed ASSERTION, and a
+      # suite that fails to load, or whose beforeAll throws, fails without one, so it went unrun and
+      # the job stayed green. Measured on 2026-11-04 in a sibling repository's identical step, where
+      # two such suites were invisible; these three suites, run as this runner runs them (a depth-1
+      # clone, no nix, sops or age, an empty HOME), had no failed suite that day (681, 1700, 183).
+      # The counts stay, for the badges and the log, inline in each step: a helper under
+      # .github/scripts/ would be published to Weaver-Free by sync-to-free.yml.
       - name: Run unit tests
         id: vitest
         run: |
-          npm run test:unit:run -- --reporter=json --outputFile=test-results.json || true
-
-          # Extract test counts from JSON output
+          set +e
+          npm run test:unit:run -- --reporter=json --outputFile=test-results.json
+          status=$?
+          set -e
           if [[ -f test-results.json ]]; then
-            PASSED=$(jq '[.testResults[].assertionResults[] | select(.status == "passed")] | length' test-results.json)
-            FAILED=$(jq '[.testResults[].assertionResults[] | select(.status == "failed")] | length' test-results.json)
-            TOTAL=$((PASSED + FAILED))
-
-            echo "passed=$PASSED" >> $GITHUB_OUTPUT
-            echo "failed=$FAILED" >> $GITHUB_OUTPUT
-            echo "total=$TOTAL" >> $GITHUB_OUTPUT
-
-            echo "Unit tests: $PASSED passed, $FAILED failed, $TOTAL total"
+            PASSED=$(jq '.numPassedTests' test-results.json)
+            FAILED=$(jq '.numFailedTests' test-results.json)
+            echo "passed=$PASSED" >> "$GITHUB_OUTPUT"
+            echo "failed=$FAILED" >> "$GITHUB_OUTPUT"
+            echo "total=$(jq '.numTotalTests' test-results.json)" >> "$GITHUB_OUTPUT"
+            echo "Unit tests: $PASSED passed, $FAILED failed; $(jq '.numFailedTestSuites' test-results.json) suite(s) failed"
+            jq -r '.testResults[] | select(.status == "failed") | "FAILED " + .name + (if .message != "" then ": " + .message else "" end)' test-results.json
+            jq -r '.testResults[].assertionResults[] | select(.status == "failed") | "  - " + .fullName' test-results.json
+          else
+            echo "vitest wrote no test-results.json"
           fi
-
-          # Fail if tests failed
-          if [[ "$FAILED" -gt 0 ]]; then
-            exit 1
-          fi
+          exit "$status"
 
       # BLOCKING. The backend carries the auth, authz, licensing and command-execution code, it
       # sits at ~74% statements / ~64% branch, and `scripts/baselines/backend-coverage.json` holds
@@ -174,25 +180,23 @@ jobs:
         id: backend-vitest
         run: |
           cd backend
-          npx vitest run --reporter=json --outputFile=test-results.json || true
-
-          # Extract test counts from JSON output
+          set +e
+          npx vitest run --reporter=json --outputFile=test-results.json
+          status=$?
+          set -e
           if [[ -f test-results.json ]]; then
-            PASSED=$(jq '[.testResults[].assertionResults[] | select(.status == "passed")] | length' test-results.json)
-            FAILED=$(jq '[.testResults[].assertionResults[] | select(.status == "failed")] | length' test-results.json)
-            TOTAL=$((PASSED + FAILED))
-
-            echo "passed=$PASSED" >> $GITHUB_OUTPUT
-            echo "failed=$FAILED" >> $GITHUB_OUTPUT
-            echo "total=$TOTAL" >> $GITHUB_OUTPUT
-
-            echo "Backend tests: $PASSED passed, $FAILED failed, $TOTAL total"
+            PASSED=$(jq '.numPassedTests' test-results.json)
+            FAILED=$(jq '.numFailedTests' test-results.json)
+            echo "passed=$PASSED" >> "$GITHUB_OUTPUT"
+            echo "failed=$FAILED" >> "$GITHUB_OUTPUT"
+            echo "total=$(jq '.numTotalTests' test-results.json)" >> "$GITHUB_OUTPUT"
+            echo "Backend tests: $PASSED passed, $FAILED failed; $(jq '.numFailedTestSuites' test-results.json) suite(s) failed"
+            jq -r '.testResults[] | select(.status == "failed") | "FAILED " + .name + (if .message != "" then ": " + .message else "" end)' test-results.json
+            jq -r '.testResults[].assertionResults[] | select(.status == "failed") | "  - " + .fullName' test-results.json
+          else
+            echo "vitest wrote no test-results.json"
           fi
-
-          # Fail if tests failed
-          if [[ "$FAILED" -gt 0 ]]; then
-            exit 1
-          fi
+          exit "$status"
 
       - name: Update backend test badge
         if: github.repository == 'whizbangdevelopers-org/Weaver-Dev' && (github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v'))
@@ -236,25 +240,23 @@ jobs:
         id: tui-vitest
         run: |
           cd tui
-          npx vitest run --reporter=json --outputFile=test-results.json || true
-
-          # Extract test counts from JSON output
+          set +e
+          npx vitest run --reporter=json --outputFile=test-results.json
+          status=$?
+          set -e
           if [[ -f test-results.json ]]; then
-            PASSED=$(jq '[.testResults[].assertionResults[] | select(.status == "passed")] | length' test-results.json)
-            FAILED=$(jq '[.testResults[].assertionResults[] | select(.status == "failed")] | length' test-results.json)
-            TOTAL=$((PASSED + FAILED))
-
-            echo "passed=$PASSED" >> $GITHUB_OUTPUT
-            echo "failed=$FAILED" >> $GITHUB_OUTPUT
-            echo "total=$TOTAL" >> $GITHUB_OUTPUT
-
-            echo "TUI tests: $PASSED passed, $FAILED failed, $TOTAL total"
+            PASSED=$(jq '.numPassedTests' test-results.json)
+            FAILED=$(jq '.numFailedTests' test-results.json)
+            echo "passed=$PASSED" >> "$GITHUB_OUTPUT"
+            echo "failed=$FAILED" >> "$GITHUB_OUTPUT"
+            echo "total=$(jq '.numTotalTests' test-results.json)" >> "$GITHUB_OUTPUT"
+            echo "TUI tests: $PASSED passed, $FAILED failed; $(jq '.numFailedTestSuites' test-results.json) suite(s) failed"
+            jq -r '.testResults[] | select(.status == "failed") | "FAILED " + .name + (if .message != "" then ": " + .message else "" end)' test-results.json
+            jq -r '.testResults[].assertionResults[] | select(.status == "failed") | "  - " + .fullName' test-results.json
+          else
+            echo "vitest wrote no test-results.json"
           fi
-
-          # Fail if tests failed
-          if [[ "$FAILED" -gt 0 ]]; then
-            exit 1
-          fi
+          exit "$status"
 
       - name: Update TUI test badge
         if: github.repository == 'whizbangdevelopers-org/Weaver-Dev' && (github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v'))

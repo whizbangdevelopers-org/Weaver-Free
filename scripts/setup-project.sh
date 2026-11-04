@@ -250,8 +250,8 @@ main() {
 
     echo "Do you want to create a GitHub Organization for this project?"
     echo ""
-    echo "  [1] Yes - MVP and Future Clients (creates wbd-${PROJECT_NAME} org)"
-    echo "  [2] No  - MVP Only (use existing account/org)"
+    echo "  [1] Yes - This product and future clients (creates wbd-${PROJECT_NAME} org)"
+    echo "  [2] No  - This product only (use existing account/org)"
     echo ""
 
     read -p "Enter choice [1-2]: " ORG_CHOICE
