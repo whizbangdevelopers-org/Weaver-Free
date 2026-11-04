@@ -330,29 +330,37 @@ jobs:
         with:
           node-version: '24'
 
-      - name: Install semgrep (audit:taint refuses to run without it)
-        # PINNED to match the project devShell. audit:taint used to warn-and-pass when semgrep was
-        # absent, so CI reported green while running no taint analysis at all — every release
-        # from v1.0.4 to v1.0.5 inclusive. 1f277c5e made a missing engine a hard failure, and
-        # this is the other half of that fix: give CI the engine rather than let it skip.
-        # NOT ALLOW_MISSING_SEMGREP=1 — that would restore the exact false green, at the
-        # release gate of all places.
-        run: pipx install semgrep==1.143.0
       - name: Install Nix (the pinned Python toolchain the chain's Python auditors run on)
         # audit:python-lint and the decision auditors run on the interpreter and ruff
         # that scripts/python-toolchain.sh builds from one locked nixpkgs, so a verdict cannot
-        # depend on the host. Same answer as semgrep above: give CI the engine. The toolchain
-        # refuses without nix and never falls back to the runner's python3. Pin shared with
-        # release.yml.
+        # depend on the host. The toolchain refuses without nix and never falls back to the
+        # runner's python3. Pin shared with release.yml.
         uses: cachix/install-nix-action@e4f4bde15728394ded896ef07491a85f2eb24956  # v31
         with:
           extra_nix_config: |
             experimental-features = nix-command flakes
+      - name: Install semgrep from the devShell's locked nixpkgs (audit:taint refuses without it)
+        # audit:taint used to warn-and-pass when semgrep was absent, so CI reported green while
+        # running no taint analysis at all, every release from v1.0.4 to v1.0.5 inclusive.
+        # 1f277c5e made a missing engine a hard failure; this gives CI the engine rather than let
+        # it skip. NOT ALLOW_MISSING_SEMGREP=1, which would restore that false green.
+        # FROM code/flake.lock, not pipx. `pipx install semgrep==1.143.0` pinned semgrep and
+        # resolved its dependencies fresh on every run: on 2026-11-04 it got an `mcp` that
+        # imports `eval_type_backport` from a pydantic that lacks it, and semgrep died at
+        # startup. --inputs-from takes nixpkgs from the devShell's lock, so CI runs the
+        # devShell's semgrep with the devShell's dependencies, and a bump is one lock change.
+        run: |
+          out=$(nix build --no-link --print-out-paths --inputs-from . nixpkgs#semgrep)
+          echo "$out/bin" >> "$GITHUB_PATH"
+          "$out/bin/semgrep" --version
       - name: Install dependencies (workspaces)
         run: npm ci
 
-      - name: Build TUI (needed for cli-args audit)
-        run: npm run build:tui
+      - name: Build (audit:bundle reads the PWA build, the cli-args audit the TUI's)
+        # The pre-push chain builds everything before test:compliance (test:prepush runs
+        # build:all first). This job built only the TUI, so audit:bundle refused: no build
+        # output, which it reports as not passed rather than as clean.
+        run: npm run build:all
 
       # The security audit is no longer a separate step: it runs as `audit:security` inside
       # the compliance suite below (2026-08-24). Invoking it here as well would scan every
