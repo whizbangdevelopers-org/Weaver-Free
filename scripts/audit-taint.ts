@@ -31,7 +31,8 @@
 
 import { execFileSync, spawnSync } from 'node:child_process'
 import { readdirSync, readFileSync } from 'node:fs'
-import { basename, join } from 'node:path'
+import { basename, join, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 const RULES_DIR = join(import.meta.dirname, 'semgrep-rules')
 const SCAN_TARGET = join(import.meta.dirname, '..', 'backend', 'src')
@@ -55,9 +56,26 @@ interface SemgrepResult {
   errors: Array<{ type: string; long_msg?: string; message?: string }>
 }
 
-function checkSemgrep(): boolean {
-  const result = spawnSync('semgrep', ['--version'], { encoding: 'utf-8' })
-  return result.status === 0
+/**
+ * Why the engine cannot run, or null when `<bin> --version` succeeds.
+ *
+ * "Not found" is said only when the binary is absent. This returned a bare boolean until
+ * 2026-11-04, and the caller printed "semgrep not found in PATH" for every failure, so an engine
+ * that was installed and failed at startup read as one that was never installed, with its stderr
+ * thrown away. Measured that day: test.yml's compliance job installed semgrep 1.143.0 with pipx
+ * one step earlier and was still told it was not on PATH.
+ */
+export function semgrepUnavailable(bin = 'semgrep'): string | null {
+  const r = spawnSync(bin, ['--version'], { encoding: 'utf-8' })
+  if (r.error) {
+    return (r.error as NodeJS.ErrnoException).code === 'ENOENT'
+      ? `${bin} not found in PATH`
+      : `${bin} could not be started: ${r.error.message}`
+  }
+  if (r.status === 0) return null
+  const how = r.status === null ? `was killed by ${r.signal}` : `exited ${r.status}`
+  const said = `${r.stderr ?? ''}${r.stdout ?? ''}`.trim().slice(-1500)
+  return `${bin} is on PATH but \`${bin} --version\` ${how}${said ? `:\n${said}` : ', printing nothing'}`
 }
 
 // A single scan resolves to exactly one of three outcomes. The distinction is
@@ -238,16 +256,20 @@ function run(): void {
   //
   // semgrep is in the repo devShell (code/flake.nix), so `nix develop` has it. The escape hatch is
   // deliberate and visible rather than silent — same shape as a suppression needing a reason.
-  if (!checkSemgrep()) {
+  const unavailable = semgrepUnavailable()
+  if (unavailable) {
     if (process.env.ALLOW_MISSING_SEMGREP === '1') {
-      console.log('\x1b[33m⚠ semgrep not found — SKIPPED via ALLOW_MISSING_SEMGREP=1\x1b[0m')
+      console.log(`\x1b[33m⚠ ${unavailable} — SKIPPED via ALLOW_MISSING_SEMGREP=1\x1b[0m`)
       console.log('\x1b[33m  Taint analysis did NOT run. This is not a clean result.\x1b[0m')
       process.exit(0)
     }
-    console.log('\x1b[31m✗ semgrep not found in PATH — taint analysis cannot run\x1b[0m')
-    console.log('  This fails rather than passing: a check that cannot look must not report clean.')
-    console.log('  Fix:  nix develop   (semgrep is in the devShell)')
-    console.log('  Or:   nix profile install nixpkgs#semgrep')
+    console.log(`\x1b[31m✗ ${unavailable}\x1b[0m`)
+    console.log('  Taint analysis cannot run. This fails rather than passing: a check that cannot look')
+    console.log('  must not report clean.')
+    if (unavailable.endsWith('not found in PATH')) {
+      console.log('  Fix:  nix develop   (semgrep is in the devShell)')
+      console.log('  Or:   nix profile install nixpkgs#semgrep')
+    }
     console.log('  Deliberate bypass (records that the check did not run): ALLOW_MISSING_SEMGREP=1')
     process.exit(1)
   }
@@ -327,4 +349,5 @@ function run(): void {
   process.exit(1)
 }
 
-run()
+// Run when invoked, not when imported: the spec imports semgrepUnavailable.
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) run()
