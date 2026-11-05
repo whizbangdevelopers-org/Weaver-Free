@@ -1,0 +1,92 @@
+[
+  {
+    "name": "a universal entry naming a sibling product as provenance",
+    "expect": "CATCH",
+    "block": "\n---\nid: L-x\nscope: universal\nstatus: active\ndomain: process\n---\n\n## T\n\nMeasured 2026-10-23 in Gantry's MCP tool.\n"
+  },
+  {
+    "name": "a universal entry naming this product",
+    "expect": "CATCH",
+    "block": "\n---\nid: L-x\nscope: universal\nstatus: active\ndomain: process\n---\n\n## T\n\nWeaver's audit-sast.ts reads every line.\n"
+  },
+  {
+    "name": "a product decision id",
+    "expect": "CATCH",
+    "block": "\n---\nid: L-x\nscope: universal\nstatus: active\ndomain: process\n---\n\n## T\n\nper WVR-191 the ladder is closed.\n"
+  },
+  {
+    "name": "a pre-namespace decision id",
+    "expect": "CATCH",
+    "block": "\n---\nid: L-x\nscope: universal\nstatus: active\ndomain: rust\n---\n\n## T\n\nThe attestation is Decision #183.\n"
+  },
+  {
+    "name": "lowercase product name in prose",
+    "expect": "CATCH",
+    "block": "\n---\nid: H-x\nscope: universal\nstatus: active\ndomain: process\n---\n\n## T\n\n**Evidence (s):** 'weaver's proven combo is the authority'\n"
+  },
+  {
+    "name": "a nixos-domain entry, which projects into the nixos template",
+    "expect": "CATCH",
+    "block": "\n---\nid: G-x\nscope: domain\nstatus: active\ndomain: nixos\n---\n\n## T\n\nservices.weaver provisioning collides with a host's existing user.\n"
+  },
+  {
+    "name": "a typescript language-rung entry, which projects into the quasar template",
+    "expect": "CATCH",
+    "block": "\n---\nid: G-x\nscope: language\nstatus: active\ndomain: backend\nlanguage: [typescript]\n---\n\n## T\n\nQepton's notebook viewer rendered raw HTML.\n"
+  },
+  {
+    "name": "a fleet host in a universal entry (Weaver's local list)",
+    "expect": "CATCH",
+    "block": "\n---\nid: L-x\nscope: universal\nstatus: active\ndomain: nixos\n---\n\n## T\n\nThe intermediary (antsle) routes it.\n"
+  },
+  {
+    "name": "a product name as a tag, which the template renders",
+    "expect": "CATCH",
+    "block": "\n---\nid: L-x\nscope: universal\nstatus: active\ndomain: analysis\ntags: [scheduling, jacquard, ops]\n---\n\n## T\n\nA neutral body.\n"
+  },
+  {
+    "name": "a provenance tag, which the projection drops",
+    "expect": "IGNORE",
+    "block": "\n---\nid: H-x\nscope: universal\nstatus: active\ndomain: process\ntags: [auto-critic, src:gantry]\n---\n\n## T\n\nA neutral body.\n"
+  },
+  {
+    "name": "a product name as a camelCase segment of an identifier",
+    "expect": "CATCH",
+    "block": "\n---\nid: L-x\nscope: universal\nstatus: active\ndomain: frontend\n---\n\n## T\n\nAfter removing `appStore.isWeaver` from the `v-if`, the button stayed hidden.\n"
+  },
+  {
+    "name": "a neutral universal entry",
+    "expect": "IGNORE",
+    "block": "\n---\nid: L-x\nscope: universal\nstatus: active\ndomain: process\n---\n\n## T\n\nMeasured 2026-10-23 in a sibling product: the guard read one stage of the path.\n"
+  },
+  {
+    "name": "lowercase product name inside code, which the projection substitutes",
+    "expect": "IGNORE",
+    "block": "\n---\nid: G-x\nscope: universal\nstatus: active\ndomain: devops\n---\n\n## T\n\nRestart `weaver.service`, then:\n\n```\nrm -f /var/lib/weaver/engram.db-wal\n```\n"
+  },
+  {
+    "name": "a project-scoped entry may name the product",
+    "expect": "IGNORE",
+    "block": "\n---\nid: L-x\nscope: project\nstatus: active\ndomain: frontend\n---\n\n## T\n\nWeaver's Fabrick page renders Gantry links.\n"
+  },
+  {
+    "name": "a domain entry outside the projected domains",
+    "expect": "IGNORE",
+    "block": "\n---\nid: L-x\nscope: domain\nstatus: active\ndomain: frontend\n---\n\n## T\n\nWeaver's tier gate.\n"
+  },
+  {
+    "name": "a superseded universal entry never projects",
+    "expect": "IGNORE",
+    "block": "\n---\nid: L-x\nscope: universal\nstatus: superseded\ndomain: process\n---\n\n## T\n\nMeasured in Gantry.\n"
+  },
+  {
+    "name": "a pre-namespace decision id spelled out inside code, as an example",
+    "expect": "IGNORE",
+    "block": "\n---\nid: G-x\nscope: universal\nstatus: active\ndomain: process\n---\n\n## T\n\nStrip reference forms (`Decision 13`, `Decision #8`) before testing.\n"
+  },
+  {
+    "name": "English words that only resemble product names",
+    "expect": "IGNORE",
+    "block": "\n---\nid: L-x\nscope: universal\nstatus: active\ndomain: analysis\n---\n\n## T\n\nThe Observer pattern, a smart bridge, the Weaverbird library, the bedrock of the design.\n"
+  }
+]
