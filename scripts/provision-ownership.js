@@ -109,8 +109,9 @@ function isRootUser(value) {
  * that writes into the working tree runs as the person who owns it", and a service with no host
  * mount is structurally incapable of breaking it. Demanding `user:` there would flag correct
  * configuration, and a rule that flags correct configuration gets switched off, after which it
- * catches nothing at all. Weaver's `playwright-browser` is the live case: a stock Playwright
- * image with no volumes, which cannot touch the tree however it runs.
+ * catches nothing at all. The shape is a stock Playwright image with no volumes, which cannot
+ * touch the tree however it runs; the corpus carries it (COMPOSE_IGNORE). Weaver's retired local
+ * browser service was the live case until it was removed on 2026-11-10.
  *
  * EXEMPTION — a service that genuinely needs root declares it in the compose file:
  *
