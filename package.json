@@ -120,8 +120,6 @@
     "badge:e2e": "node -e 'const [p,f]=process.argv.slice(2);if(!p){console.error(\"usage: npm run badge:e2e -- <passed> [failed]\");process.exit(1)}console.log(`gh workflow run update-e2e-badge.yml -f passed=${p} -f failed=${f||0}`)'",
     "baseline:backend-coverage:refresh": "npx tsx scripts/refresh-backend-coverage-baseline.ts",
     "baseline:mcp-parser:refresh": "npx tsx scripts/refresh-mcp-parser-baseline.ts",
-    "browser:down": "docker compose -f testing/e2e-docker/docker-compose.yml --profile browser down",
-    "browser:up": "docker compose -f testing/e2e-docker/docker-compose.yml --profile browser up -d",
     "build": "quasar build -m pwa",
     "build:all": "npm run build && npm run build:backend && npm run build:tui",
     "build:backend": "npm -w backend run build",
@@ -217,6 +215,7 @@
     "audit:workflows": "npx tsx scripts/verify-workflows.ts",
     "audit:test-suites": "npx tsx scripts/verify-test-suites.ts",
     "audit:e2e-docker-only": "npx tsx scripts/verify-e2e-docker-only.ts",
+    "audit:playwright-pin": "npx tsx scripts/verify-playwright-pin.ts",
     "audit:workflow-taint": "npx tsx scripts/verify-workflow-taint.ts",
     "audit:archive-markers": "npx tsx scripts/verify-archive-markers.ts",
     "audit:auditor-contracts": "npx tsx scripts/verify-auditor-contracts.ts",
@@ -262,7 +261,7 @@
     "vue-router": "^5.2.0"
   },
   "devDependencies": {
-    "@playwright/test": "^1.52.0",
+    "@playwright/test": "1.58.2",
     "@quasar/app-vite": "^3.6.1",
     "@stryker-mutator/core": "^9.6.0",
     "@stryker-mutator/typescript-checker": "^9.6.0",

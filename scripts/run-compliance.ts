@@ -233,6 +233,7 @@ export const PHASES: Phase[] = [
       'audit:workflows',
       'audit:test-suites',
       'audit:e2e-docker-only',
+      'audit:playwright-pin',
       'audit:workflow-taint',
       'audit:auditor-contracts',
       'audit:rule-contracts',

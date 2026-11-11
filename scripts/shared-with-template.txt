@@ -94,6 +94,14 @@ code/scripts/verify-license-headers.ts
 code/scripts/fixtures/e2e-docker-only-corpus.txt
 code/scripts/verify-e2e-docker-only.ts
 
+# The Playwright pin: the client, its lockfile, the E2E image tags and the Dependabot hold are one
+# version. Nothing in it is project-specific (it finds the repository root through git, the package
+# root's Dependabot entry from its path, and an image version through an ARG default), and every
+# descendant runs Playwright in Docker. Added 2026-11-10, when this repository had no client
+# declared at all, one consumer held no hold on a ranged client and another ran client 1.63.0
+# against a 1.57.0 image; it existed until then only in one consumer, with that consumer's prose.
+code/scripts/verify-playwright-pin.ts
+
 # The workflow-taint contract. Same argument as the Docker-first pair above: the CORPUS is the spec
 # the rule is held to, and its IGNORE half carries the env-indirection remedy — a project whose
 # corpus differs is proving its rules against a different guarantee. The checker is pinned with it
@@ -201,6 +209,16 @@ code/scripts/provision-ownership.js
 # also makes each ./output mount source as the host user, so its spec travels with it.
 code/testing/e2e-docker/scripts/lib/host-user.sh
 code/testing/unit/e2e-host-user.spec.ts
+
+# The Compose project name host-user.sh exports, and the prune every building runner's teardown
+# runs. Every product's harness lives in testing/e2e-docker/, so unnamed they were one project,
+# and on 2026-11-10 one checkout's `up` replaced another's running container and its
+# `down --remove-orphans` removed another's. The name is derived from the checkout, so one copy
+# serves every repository; a forked copy that named a literal would put two of them back in one
+# project. The prune had two copies already, one per repository that had one.
+code/testing/e2e-docker/scripts/lib/compose-project.sh
+code/testing/unit/e2e-compose-project.spec.ts
+code/testing/e2e-docker/scripts/prune-docker-artifacts.sh
 
 # The shared MCP base, and the guard that keeps it shared-able.
 #
@@ -541,6 +559,15 @@ code/testing/unit/git-env-scrub.spec.ts
 code/.githooks/lib/pushed-commit.sh
 code/testing/unit/githooks-pushed-commit.spec.ts
 
+# The pre-commit checks judge what the commit HOLDS (2026-10-24). Its lint and format legs read each
+# staged file by path, so a file staged in part was judged by its working copy: Gantry refused a
+# one-line fix for the unformatted work in progress beside it, and the other direction would pass a
+# badly formatted blob a tidy working copy hid. The library says which files differ from what is
+# staged and gives their blob, which each hook checks through stdin. Each hook is its own shape; the
+# spec drives a real scratch repository, both kinds of commit, and was negative-tested.
+code/.githooks/lib/staged-content.sh
+code/testing/unit/githooks-staged-content.spec.ts
+
 # The git-provider transport and its spec (2026-09-16). Token auth, pagination, rate limits, retry,
 # error mapping and redaction, for any product that reads a git host's API. It is shared as a FILE
 # rather than a package, so a product sold on its own still builds without the fleet's registry.
@@ -556,6 +583,7 @@ code/testing/unit/githooks-pushed-commit.spec.ts
 # calls onto it. A repo with no git-host client simply carries an unused module. That cost of
 # sharing by file was stated when the file was shared.
 code/src/providers/git-provider.ts
+code/src/providers/token-shapes.ts
 code/testing/unit/providers/git-provider.spec.ts
 
 # The decision-register parser, and codebase-mcp's decisions tool and root paths (2026-09-17).
