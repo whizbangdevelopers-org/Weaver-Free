@@ -345,6 +345,13 @@ scripts/run-root-self-tests.sh
 .claude/hooks/lib/command-forms.sh
 .claude/hooks/lib/strip-heredocs.sh
 
+# The one way an advisory hook's message reaches the session, added 2026-11-11. A PreToolUse or
+# PostToolUse hook that exits 0 is read only through hookSpecificOutput.additionalContext; its plain
+# stdout and its stderr reach nobody. Measured that day: inject-knowledge had logged 342 firings
+# since 2026-08-12, all printed to stdout and none seen, and e2e-capture-lessons printed its
+# directive by hand and nothing when the harness ran it. No per-repo half.
+.claude/hooks/lib/emit-context.sh
+
 # The hook negative-test harness and its runner. A self-test proves a guard's CASES EXIST; only
 # breaking the guard proves it can FAIL, and those are indistinguishable from outside. Both files
 # are layout-agnostic on purpose — neg_begin mirrors whichever hook tree a repo uses, and the
