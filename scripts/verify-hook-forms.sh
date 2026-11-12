@@ -64,7 +64,9 @@
 set -uo pipefail
 
 CODE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-REPO="$(cd "$CODE/.." && pwd)"
+# The repository is git's answer, not the directory above the package: that held for a package at
+# code/ and named code/ itself for one at code/<app>/, where no .claude/ lives.
+REPO="$(git -C "$CODE" rev-parse --show-toplevel 2>/dev/null)" || REPO="$(cd "$CODE/.." && pwd)"
 
 # shellcheck source=../../.claude/hooks/lib/command-forms.sh
 . "$REPO/.claude/hooks/lib/command-forms.sh"
@@ -79,13 +81,17 @@ block-sweep-staging.sh@@git -C /abs add -A@@git -C /abs status
 ROWS
 )
 
-# hook @@ a command its trigger MUST see
+# hook @@ a command its trigger MUST see [@@ a sentence about that command it must NOT see]
+# The third field is the other half of a trigger. A trigger that never matches evaluates nothing;
+# one that matches a sentence ABOUT the command fires on prose, and an advisory hook's message
+# reaches the session as additionalContext, so every false firing spends the session's context.
+# The three E2E hooks grepped the raw command for the runner's path until 2026-11-11, so an
+# `echo` naming the script fired all three.
 TRIGGER_CASES=$(cat <<'ROWS'
-require-e2e-docs.sh@@git -C /abs commit -m x
-e2e-review-specs.sh@@./testing/e2e-docker/scripts/run-tests.sh
-e2e-inject-lessons.sh@@./testing/e2e-docker/scripts/run-tests.sh
-e2e-capture-lessons.sh@@./testing/e2e-docker/scripts/run-tests.sh
-e2e-after-code-push.sh@@git -C /abs push origin main
+e2e-review-specs.sh@@./testing/e2e-docker/scripts/run-tests.sh@@echo "then ./testing/e2e-docker/scripts/run-tests.sh"
+e2e-inject-lessons.sh@@./testing/e2e-docker/scripts/run-tests.sh@@echo "then ./testing/e2e-docker/scripts/run-tests.sh"
+e2e-capture-lessons.sh@@./testing/e2e-docker/scripts/run-tests.sh@@echo "then ./testing/e2e-docker/scripts/run-tests.sh"
+e2e-after-code-push.sh@@git -C /abs push origin main@@git commit -m "remember to git push later"
 ROWS
 )
 
@@ -96,6 +102,47 @@ exempt_reason() {
     csm-post-tool-use.sh) printf 'advisory — records every call on its matchers (bar secret-looking ones and a 2s debounce): no relevance trigger to go blind, no verdict' ;;
     *)                    printf 'NO REASON DECLARED' ;;
   esac
+}
+
+# A repository that does not carry a hook the rows above declare says so, per hook and with its
+# reason, in scripts/data/hooks-not-carried.json ({"<hook>": "<why>"}); this file is shared, the
+# list is not. A declared hook that is neither wired nor tracked is otherwise a failure: it cannot
+# be told from one that was renamed or deleted. Added 2026-11-11, when Qepton, which never carried
+# block-sweep-staging or e2e-after-code-push, first ran this auditor.
+NOT_CARRIED_FILE="$CODE/scripts/data/hooks-not-carried.json"
+
+# absent_verdict <hook> <instances> <list file> -> missing | not-carried <why> | carried-but-listed
+#   missing             no copy, and not declared: a hook that went missing
+#   not-carried <why>   no copy, declared with a reason
+#   carried-but-listed  a copy exists although the list says this repo does not carry it, so the
+#                       list is stale and would hide the next real absence
+absent_verdict() {
+  local why=""
+  [ -r "$3" ] && why="$(jq -r --arg h "$1" '.[$h] // empty' "$3" 2>/dev/null)"
+  if [ -n "$2" ]; then
+    [ -n "$why" ] && printf 'carried-but-listed' || printf 'present'
+  elif [ -n "$why" ]; then printf 'not-carried %s' "$why"
+  else printf 'missing'; fi
+}
+
+# report_absent <hook> <instances> — print the verdict for a declared hook; return 0 to skip it,
+# 1 to go on checking it. Counts a failure where the verdict is one.
+report_absent() {
+  local v
+  v="$(absent_verdict "$1" "$2" "$NOT_CARRIED_FILE")"
+  case "$v" in
+    present) return 1 ;;
+    missing)
+      printf '  %s✗%s %-44s not wired, and not found under any hook tree\n' "$RED" "$RESET" "$1"
+      fails=$((fails+1)) ;;
+    not-carried*)
+      printf '  %s○%s %-44s not carried here — %s\n' "$DIM" "$RESET" "$1" "${v#not-carried }" ;;
+    carried-but-listed)
+      printf '  %s✗%s %-44s listed in %s as not carried, yet it is here — drop the line\n' \
+        "$RED" "$RESET" "$1" "${NOT_CARRIED_FILE#"$REPO"/}"
+      fails=$((fails+1)); return 1 ;;
+  esac
+  return 0
 }
 
 # ── helpers ─────────────────────────────────────────────────────────────────────────────────────
@@ -120,10 +167,19 @@ def runs_on_bash(event, matcher):
     except re.error:
         return "Bash" in matcher.split("|")
 
-for rel in (".claude/settings.json", "code/.claude/settings.json"):
+# Every `.claude/settings.json` within three levels of the repository, which a session rooted at
+# that directory loads. This was the fixed pair `.claude/` and `code/.claude/`, which fits a package
+# at code/ and no other: a package one level deeper (code/Qepton-Dev) had its settings, and every
+# hook they wire, read by nobody.
+def settings_files(root):
+    for d, dirs, files in os.walk(root):
+        depth = os.path.relpath(d, root).count(os.sep) + (0 if d == root else 1)
+        dirs[:] = [x for x in dirs if x not in ("node_modules", ".git", "dist") and depth < 3]
+        if os.path.basename(d) == ".claude" and "settings.json" in files:
+            yield os.path.relpath(os.path.join(d, "settings.json"), root)
+
+for rel in sorted(settings_files(repo)):
     path = os.path.join(repo, rel)
-    if not os.path.exists(path):
-        continue
     try:
         d = json.load(open(path))
     except Exception:
@@ -150,12 +206,12 @@ PY
 }
 
 # hook_instances <basename> — every wired path carrying this name. A declared hook wired nowhere
-# falls back to every TRACKED file of that name under either hook tree.
+# falls back to every TRACKED file of that name under any hook tree in the repository.
 hook_instances() {
   local found
   found="$(printf '%s\n' "$WIRED" | awk -F/ -v b="$1" '$NF == b' | sort -u)"
   if [ -z "$found" ]; then
-    found="$(git -C "$REPO" ls-files -- .claude/hooks code/.claude/hooks 2>/dev/null \
+    found="$(git -C "$REPO" ls-files 2>/dev/null | grep -E '(^|/)\.claude/hooks/' \
       | grep -v '/negative-tests/' | awk -F/ -v b="$1" '$NF == b' | sort -u)"
   fi
   printf '%s' "$found"
@@ -258,6 +314,15 @@ EOS
     [ "$seen_block" -eq 1 ] && [ "$seen_allow" -eq 1 ] && printf 'yes' || printf 'no'
   }
 
+  fires_in() { # fires_in <hookpath> <sentence> -> yes when the trigger sees it in any form
+    local src kind file
+    src="$(trigger_source "$1")"; kind="${src%% *}"; file="${src#* }"
+    while read -r f; do
+      sees "$kind" "$file" "$(form_render "$f" "$2")" && { printf 'yes'; return; }
+    done < <(form_names)
+    printf 'no'
+  }
+
   blind_in() { # blind_in <hookpath> <sample> -> yes|no|noregex|missing
     local src kind file
     src="$(trigger_source "$1")"; kind="${src%% *}"; file="${src#* }"
@@ -286,6 +351,10 @@ JSON
   "PostToolUse":[{"matcher":"","hooks":[{"command":"./.claude/hooks/everytool.sh"}]}]
 }}
 JSON
+  # A package one level deeper, whose settings the fixed pair of paths never read.
+  mkdir -p "$tmp/repo/code/app/.claude"
+  printf '%s\n' '{"hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[{"command":"./.claude/hooks/nested.sh"}]}]}}' \
+    > "$tmp/repo/code/app/.claude/settings.json"
   wired="$(wired_hooks "$tmp/repo")"
   has() { printf '%s\n' "$wired" | grep -qxF "$1" && printf 'yes' || printf 'no'; }
   mkdir -p "$tmp/bad/.claude"; printf '{"hooks": ' > "$tmp/bad/.claude/settings.json"
@@ -306,12 +375,21 @@ JSON
   t CATCH  'a delegator whose target is gone is reported'    "$(blind_in "$tmp/code/deleg-gone.sh" 'git -C /abs commit -m x')" missing
   t CATCH  'a blind classifier is detected'                  "$(blind_in "$tmp/cls-blind.sh" 'git -C /abs push origin main')" yes
   t IGNORE 'a live classifier is not flagged'                "$(blind_in "$tmp/cls-live.sh" 'git -C /abs push origin main')"  no
+  t CATCH  'a classifier that fires on a sentence is detected'      "$(fires_in "$tmp/cls-live.sh" 'echo "then git push origin main"')"  yes
+  t IGNORE 'a classifier that ignores a sentence is not flagged'    "$(fires_in "$tmp/cls-blind.sh" 'echo "then git push origin main"')" no
   t CATCH  'a hook wired only from code/.claude is enumerated'  "$(has code/.claude/hooks/codeonly.sh)" yes
   t CATCH  "a pair's root copy is enumerated"                   "$(has .claude/hooks/core/pair.sh)"    yes
   t CATCH  "a pair's code/.claude copy is enumerated"           "$(has code/.claude/hooks/pair.sh)"    yes
   t CATCH  'a hook run as `bash <path>` resolves to its path'   "$(has code/.claude/hooks/viabash.sh)" yes
   t CATCH  '$CLAUDE_PROJECT_DIR resolves to its own tree'       "$(has code/.claude/hooks/viavar.sh)"  yes
   t CATCH  'an empty matcher on a tool event runs on Bash'      "$(has code/.claude/hooks/everytool.sh)" yes
+  t CATCH  "a nested package's settings are read"               "$(has code/app/.claude/hooks/nested.sh)" yes
+  printf '%s\n' '{"gone.sh": "never adopted here", "bare.sh": ""}' > "$tmp/not-carried.json"
+  t CATCH  'a declared hook that went missing fails'              "$(absent_verdict missing.sh '' "$tmp/not-carried.json")" missing
+  t IGNORE 'a hook not carried here, with its reason, is skipped'  "$(absent_verdict gone.sh '' "$tmp/not-carried.json")" 'not-carried never adopted here'
+  t CATCH  'a not-carried line with no reason excuses nothing'    "$(absent_verdict bare.sh '' "$tmp/not-carried.json")" missing
+  t CATCH  'a hook listed as not carried that is here fails'      "$(absent_verdict gone.sh x/gone.sh "$tmp/not-carried.json")" carried-but-listed
+  t IGNORE 'a carried hook off the list is checked as usual'      "$(absent_verdict here.sh x/here.sh "$tmp/not-carried.json")" present
   t IGNORE 'an Edit|Write matcher is not enumerated'            "$(has .claude/hooks/core/editonly.sh)"   no
   t IGNORE 'a BashOutput matcher is not a Bash matcher'         "$(has .claude/hooks/core/bashoutput.sh)" no
   t IGNORE 'an empty matcher on UserPromptSubmit is not a Bash hook' "$(has .claude/hooks/core/prompt.sh)" no
@@ -361,7 +439,7 @@ while IFS= read -r row; do
   hook="${row%%@@*}"; rest="${row#*@@}"
   bad="${rest%%@@*}"; good="${rest#*@@}"
   instances="$(hook_instances "$hook")"
-  [ -n "$instances" ] || { printf '  %s✗%s %-44s not wired, and not found under either hook tree\n' "$RED" "$RESET" "$hook"; fails=$((fails+1)); continue; }
+  report_absent "$hook" "$instances" && continue
 
   while IFS= read -r rel; do
     [ -f "$REPO/$rel" ] || { printf '  %s✗%s %-44s wired, but the file does not exist\n' "$RED" "$RESET" "$rel"; fails=$((fails+1)); continue; }
@@ -387,9 +465,10 @@ done <<< "$VERDICT_CASES"
 # ── trigger leg ─────────────────────────────────────────────────────────────────────────────────
 while IFS= read -r row; do
   [ -n "${row:-}" ] || continue
-  hook="${row%%@@*}"; sample="${row#*@@}"
+  hook="${row%%@@*}"; rest="${row#*@@}"; sample="${rest%%@@*}"; quiet=""
+  [ "$rest" = "$sample" ] || quiet="${rest#*@@}"
   instances="$(hook_instances "$hook")"
-  [ -n "$instances" ] || { printf '  %s✗%s %-44s not wired, and not found under either hook tree\n' "$RED" "$RESET" "$hook"; fails=$((fails+1)); continue; }
+  report_absent "$hook" "$instances" && continue
 
   while IFS= read -r rel; do
     [ -f "$REPO/$rel" ] || { printf '  %s✗%s %-44s wired, but the file does not exist\n' "$RED" "$RESET" "$rel"; fails=$((fails+1)); continue; }
@@ -417,6 +496,20 @@ while IFS= read -r row; do
       fails=$((fails+1))
       printf '  %s✗%s %-44s trigger BLIND in:%s%s%s%s\n' "$RED" "$RESET" "$rel" "$blind" "$DIM" "$via" "$RESET"
       printf '      %sa trigger that does not match never evaluates its gate%s\n' "$DIM" "$RESET"
+    fi
+
+    [ -n "$quiet" ] || continue
+    loud=""
+    while read -r form; do
+      checked=$((checked+1))
+      sees "$kind" "$file" "$(form_render "$form" "$quiet")" && loud="$loud $form"
+    done < <(form_names)
+    if [ -z "$loud" ]; then
+      printf '  %s✓%s %-44s trigger ignores a sentence about it in all forms%s%s%s\n' "$GREEN" "$RESET" "$rel" "$DIM" "$via" "$RESET"
+    else
+      fails=$((fails+1))
+      printf '  %s✗%s %-44s trigger FIRES on a sentence in:%s%s%s%s\n' "$RED" "$RESET" "$rel" "$loud" "$DIM" "$via" "$RESET"
+      printf '      %sa trigger that matches prose fires where nothing ran%s\n' "$DIM" "$RESET"
     fi
   done <<< "$instances"
 done <<< "$TRIGGER_CASES"

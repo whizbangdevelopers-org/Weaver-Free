@@ -115,6 +115,9 @@ export const PHASES: Phase[] = [
       'audit:sast',
       'audit:hooks',
       'audit:hook-forms',
+      // A commit's feature code carries a test, a new page its E2E spec and a written doc: the
+      // commit-msg hook's gate, whose corpus runs here.
+      'audit:lands-with-tests',
       'audit:template-divergence',
       'audit:taint',
       'audit:semgrep-regression',
