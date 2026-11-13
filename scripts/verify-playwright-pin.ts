@@ -24,7 +24,12 @@
  *   3. every Playwright image the harness builds FROM (`config/Dockerfile*`) carries that version,
  *      and there is at least one — no image means nothing was compared;
  *   4. `.github/dependabot.yml` holds `@playwright/test` on the /code entry at EVERY update type,
- *      because a majors-only hold is exactly what let the 2026-09-16 bump through.
+ *      because a majors-only hold is exactly what let the 2026-09-16 bump through;
+ *   5. `playwright.config.ts`, where it retries, sets `failOnFlakyTests: !!process.env.CI` beside
+ *      `retries`. Flaky = error (Mark, 2026-11-13; ~/.claude/rules/flaky-is-error.md): Playwright
+ *      exits 0 when a case fails and then passes on its retry, and on 2026-11-13 a sibling's release
+ *      gate reported 278 passed, 1 flaky, exited 0, and its tag was on its way out before the flake
+ *      was read. The option makes that run fail; this holds every repo's config to it.
  *
  * WHAT IT DOES NOT CHECK
  * ----------------------
@@ -112,6 +117,25 @@ export function pinFindings(i: PinInputs): string[] {
     )
   }
   return out
+}
+
+/**
+ * Check 5: what is wrong with a config's handling of a flaky case, as sentences. A config that
+ * retries must fail the run on a case that passed only on a retry. Comments are not read as
+ * settings, so a commented-out line does not satisfy it and a commented `retries` does not demand it.
+ */
+export function flakyFindings(config: string): string[] {
+  const code = config
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .split('\n')
+    .map(line => line.replace(/(^|[^:])\/\/.*$/, '$1'))
+    .join('\n')
+  const retries = /^\s*retries:\s*(.+?),?\s*$/m.exec(code)
+  if (!retries || retries[1]!.trim() === '0') return []
+  if (/^\s*failOnFlakyTests:\s*!!process\.env\.CI,?\s*$/m.test(code)) return []
+  return [
+    'playwright.config.ts retries without failOnFlakyTests: !!process.env.CI, so a case that passes only on its retry passes the run (flaky = error)'
+  ]
 }
 
 /**
@@ -276,6 +300,35 @@ const PARSE_IGNORE: [string, string][] = [
   ['a comment naming the image', '# FROM mcr.microsoft.com/playwright:v1.0.0-jammy']
 ]
 
+const FLAKY_CATCH: [string, string][] = [
+  [
+    'retries with no failOnFlakyTests — every config until 2026-11-13',
+    'retries: process.env.CI ? 2 : 0,\n'
+  ],
+  [
+    'failOnFlakyTests only in a line comment',
+    'retries: process.env.CI ? 2 : 0,\n  // failOnFlakyTests: !!process.env.CI,\n'
+  ],
+  [
+    'failOnFlakyTests in a block comment',
+    'retries: 2,\n/* failOnFlakyTests: !!process.env.CI, */\n'
+  ],
+  [
+    'failOnFlakyTests on a line of its own inside a block comment, as an option is commented out',
+    'retries: 2,\n/*\n  failOnFlakyTests: !!process.env.CI,\n*/\n'
+  ],
+  ['failOnFlakyTests switched off', 'retries: 2,\nfailOnFlakyTests: false,\n']
+]
+const FLAKY_IGNORE: [string, string][] = [
+  [
+    'retries beside failOnFlakyTests',
+    '  retries: process.env.CI ? 2 : 0,\n  failOnFlakyTests: !!process.env.CI,\n'
+  ],
+  ['no retries at all', 'workers: 1,\n'],
+  ['retries set to none', 'retries: 0,\n'],
+  ['retries named only in a comment', '/* Retry on CI only: retries: 2 */\nworkers: 1,\n']
+]
+
 function selfTest(): { ok: boolean; catches: number; ignores: number } {
   let ok = true
   const say = (good: boolean, what: string, why = '') => {
@@ -305,6 +358,13 @@ function selfTest(): { ok: boolean; catches: number; ignores: number } {
   for (const [name, line] of PARSE_IGNORE) {
     const got = playwrightImages('Dockerfile', line)
     say(got.length === 0, `IGNORE FROM parse: ${name}`, JSON.stringify(got))
+  }
+  for (const [name, config] of FLAKY_CATCH) {
+    say(flakyFindings(config).length === 1, `CATCH  flaky: ${name}`)
+  }
+  for (const [name, config] of FLAKY_IGNORE) {
+    const got = flakyFindings(config)
+    say(got.length === 0, `IGNORE flaky: ${name}`, got.join(' | '))
   }
   const holdCases: [string, DependabotDoc, string, boolean][] = [
     [
@@ -364,8 +424,10 @@ function selfTest(): { ok: boolean; catches: number; ignores: number } {
   }
   return {
     ok,
-    catches: CATCH.length + PARSE_CATCH.length + holdCases.filter(c => !c[3]).length,
-    ignores: IGNORE.length + PARSE_IGNORE.length + holdCases.filter(c => c[3]).length
+    catches:
+      CATCH.length + PARSE_CATCH.length + FLAKY_CATCH.length + holdCases.filter(c => !c[3]).length,
+    ignores:
+      IGNORE.length + PARSE_IGNORE.length + FLAKY_IGNORE.length + holdCases.filter(c => c[3]).length
   }
 }
 
@@ -391,16 +453,23 @@ function main(): void {
       `${inputs.images.map(i => i.ref).join(', ') || '(none)'}${OFF}`
   )
   const findings = pinFindings(inputs)
+  const flaky = flakyFindings(readFileSync(join(CODE, 'playwright.config.ts'), 'utf-8'))
+  for (const f of [...findings, ...flaky]) console.log(`  ${RED}✗${OFF} ${f}`)
   if (findings.length > 0) {
-    for (const f of findings) console.log(`  ${RED}✗${OFF} ${f}`)
     console.log(
       `\n${RED}${BOLD}RESULT: FAIL${OFF} — move ${PKG} and the images together: ` +
         'the Dockerfile FROM tags here, and any browser pinned outside this repository.'
     )
     process.exit(1)
   }
+  if (flaky.length > 0) {
+    console.log(
+      `\n${RED}${BOLD}RESULT: FAIL${OFF} — set failOnFlakyTests: !!process.env.CI beside retries in playwright.config.ts.`
+    )
+    process.exit(1)
+  }
   console.log(
-    `\n${GRN}${BOLD}RESULT: PASS${OFF} — client, lockfile and images agree, and Dependabot holds the version`
+    `\n${GRN}${BOLD}RESULT: PASS${OFF} — client, lockfile and images agree, Dependabot holds the version, and a flaky case fails the run`
   )
 }
 
