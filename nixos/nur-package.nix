@@ -1,11 +1,11 @@
 # Copyright (c) 2026 whizBANG Developers LLC. All rights reserved.
 # Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE.
-# NUR package definition reference for pkgs/weaver/default.nix in the nur-packages repo.
+# NUR package definition reference for pkgs/weaver-free/default.nix in the nur-packages repo.
 #
 # Uses fetchFromGitHub to pull from the public Weaver-Free release tag.
 # This differs from nixos/package.nix (which uses src = ./.. for local builds).
 #
-# src.hash is placeholder — filled by release.yml → update-weaver.yml dispatch.
+# src.hash is placeholder — filled by release.yml → update-weaver-free.yml dispatch.
 # npmDepsHash stays in sync with package-lock.json; audit:nix-deps-hash enforces this.
 {
   lib,
@@ -44,6 +44,12 @@ buildNpmPackage rec {
     patchShebangs node_modules 2>/dev/null || true
     npm run build
     popd
+
+    # The dependency patches in patches/, before the build reads the dependencies, as
+    # nixos/package.nix does and for its reason: whether npm rebuild ran the root's postinstall
+    # depends on the build's npm. A tag carries the applier from the first release that ships it,
+    # and the NUR repository's own package takes this step with that release.
+    npx tsx scripts/apply-dependency-patches.ts
 
     export VITE_FREE_BUILD=true
     npx quasar build -m pwa

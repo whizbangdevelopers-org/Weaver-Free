@@ -1,0 +1,18 @@
+{
+  "id": "quasar-queued-focus",
+  "package": "quasar",
+  "why": "FORGE-142 (A defect in a dependency is fixed in the dependency, by a patch the archetype carries and applies at every install until the dependency releases the fix; the first is Quasar's queued focus). A focus Quasar queues while a popup is in transition runs when the transition ends, whatever has been focused since, so a select whose option is picked while its menu opens takes focus back about 300 ms after the menu closes, and the next field loses what is typed. Measured 2026-11-13 on Quasar 2.33.2 and 2.35.0; 2.35.4 has the same code. Retire once the test passes without it.",
+  "test": "testing/unit/dependency-patches.spec.ts",
+  "edits": [
+    {
+      "file": "dist/quasar.client.js",
+      "find": "function removeFocusWaitFlag(flag) {\n\tclearFlag(flag);\n\tif (waitFlags.length === 0 && queue.length !== 0) {\n\t\tqueue.at(-1)();\n\t\tqueue = [];\n\t}\n}\nfunction addFocusFn(fn) {\n\tif (waitFlags.length === 0) fn();\n\telse queue.push(fn);\n}\nfunction removeFocusFn(fn) {\n\tqueue = queue.filter((entry) => entry !== fn);\n}\n",
+      "replace": "function removeFocusWaitFlag(flag) {\n\tclearFlag(flag);\n\tif (waitFlags.length === 0 && queue.length !== 0) {\n\t\t// FORGE-142: a focus queued behind a popup runs only while focus is still where it was when it was queued, or nowhere\n\t\tconst last = queue.at(-1);\n\t\tconst now = document.activeElement;\n\t\tif (now === last.from || now === null || now === document.body) last.fn();\n\t\tqueue = [];\n\t}\n}\nfunction addFocusFn(fn) {\n\tif (waitFlags.length === 0) fn();\n\telse queue.push({ fn, from: document.activeElement });\n}\nfunction removeFocusFn(fn) {\n\tqueue = queue.filter((entry) => entry.fn !== fn);\n}\n"
+    },
+    {
+      "file": "src/utils/private.focus/focus-manager.js",
+      "find": "export function removeFocusWaitFlag(flag) {\n  clearFlag(flag)\n\n  if (waitFlags.length === 0 && queue.length !== 0) {\n    // only call last focus handler (can't focus multiple things at once)\n    queue.at(-1)()\n    queue = []\n  }\n}\n\nexport function addFocusFn(fn) {\n  if (waitFlags.length === 0) {\n    fn()\n  } else {\n    queue.push(fn)\n  }\n}\n\nexport function removeFocusFn(fn) {\n  queue = queue.filter(entry => entry !== fn)\n}\n",
+      "replace": "export function removeFocusWaitFlag(flag) {\n  clearFlag(flag)\n\n  if (waitFlags.length === 0 && queue.length !== 0) {\n    // only call last focus handler (can't focus multiple things at once)\n    // FORGE-142: a focus queued behind a popup runs only while focus is still where it was when it was queued, or nowhere\n    const last = queue.at(-1)\n    const now = document.activeElement\n    if (now === last.from || now === null || now === document.body) last.fn()\n    queue = []\n  }\n}\n\nexport function addFocusFn(fn) {\n  if (waitFlags.length === 0) {\n    fn()\n  } else {\n    queue.push({ fn, from: document.activeElement })\n  }\n}\n\nexport function removeFocusFn(fn) {\n  queue = queue.filter(entry => entry.fn !== fn)\n}\n"
+    }
+  ]
+}

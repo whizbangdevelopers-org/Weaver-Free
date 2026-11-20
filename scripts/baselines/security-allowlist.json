@@ -73,6 +73,12 @@
       "reason": "Quasar PWA service-worker build (pulls @babel/preset-env → transform plugins); runs at build time, not shipped in the bundle",
       "addedAt": "2026-06-17",
       "reviewBy": "2026-12-17"
+    },
+    "picomatch": {
+      "category": "awaiting-upstream",
+      "reason": "GHSA-fc5q-39xc-vjpf (high): ReDoS through single-branch repeated extglobs. No fixed release exists: every version <= 4.0.7 is vulnerable, 4.0.7 is the latest published, and the advisory names no patched version (measured 2026-11-18, the day after GitHub reviewed it). Reached only through build and test tooling: vue-router 5's build plugin (unplugin, unplugin-utils, tinyglobby, fdir), vite, @quasar/app-vite, vitest, and sass through @parcel/watcher. The built app carries none of it: picomatch's constants (POSIX_REGEX_SOURCE) are absent from all 133 JavaScript files of dist (2026-10-28 build). The exploit needs attacker-controlled glob patterns, and build tooling takes the developer's. At reviewBy: `npm view picomatch version` and the advisory's first_patched_version; remove this row once a fix is adopted. Acknowledged with Mark's approval.",
+      "addedAt": "2026-11-18",
+      "reviewBy": "2026-12-02"
     }
   }
 }

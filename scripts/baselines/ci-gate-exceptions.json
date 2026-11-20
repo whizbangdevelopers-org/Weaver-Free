@@ -58,21 +58,21 @@
     },
     "release.yml::Attest build provenance (PWA tarball)": {
       "category": "platform-limit",
-      "reason": "GitHub attestations require a paid plan or a public repo. Weaver-Dev is private and the org is on the free plan. Attestations do fire on the public Weaver-Free mirror via release-to-free. Lifts when the org moves to Team/Enterprise, or when this workflow runs on the public repo directly.",
+      "reason": "GitHub refuses to store an attestation for this private repository. Measured in v1.1.0-rc.5's release run (2026-08-10): 'Failed to persist attestation: Feature not available for the whizbangdevelopers-org organization. To enable this feature, please upgrade the billing plan, or make this repository public.' The organisation is on GitHub Free and stays there (D24 of Forge's TOKEN-NAMING-PLAN.md, re-checked 2026-11-19). Lifts when the plan changes or the release builds in a public repository. Re-justified 2026-11-19, correcting two claims of the first reason. 'Attestations do fire on the public Weaver-Free mirror via release-to-free' was false: these steps run only in this workflow's `release` job on Weaver-Dev, and the `release-to-free` job copies the assets to Weaver-Free without attesting them, so the attestations API returns 404 on both repositories for v1.0.5's tarball (sha256:80fd458b…54e5e8), the last stable release Weaver-Free received. And GitHub's message does not say which plan lifts the limit, so 'Team' was not established. What does ship is the keyless cosign signature step in the same job: v1.0.5 on Weaver-Free carries a .sig and a .pem for the tarball and both SBOMs.",
       "addedAt": "2026-08-19",
-      "reviewBy": "2026-11-19"
+      "reviewBy": "2027-05-19"
     },
     "release.yml::Attest build provenance (SBOM frontend)": {
       "category": "platform-limit",
-      "reason": "Same platform limit as the PWA tarball attestation above.",
+      "reason": "Same platform limit as the PWA tarball attestation above, measured by the same refusal in the same run.",
       "addedAt": "2026-08-19",
-      "reviewBy": "2026-11-19"
+      "reviewBy": "2027-05-19"
     },
     "release.yml::Attest build provenance (SBOM backend)": {
       "category": "platform-limit",
-      "reason": "Same platform limit as the PWA tarball attestation above.",
+      "reason": "Same platform limit as the PWA tarball attestation above, measured by the same refusal in the same run.",
       "addedAt": "2026-08-19",
-      "reviewBy": "2026-11-19"
+      "reviewBy": "2027-05-19"
     }
   }
 }

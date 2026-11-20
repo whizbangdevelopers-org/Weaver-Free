@@ -220,7 +220,7 @@ async function main(): Promise<void> {
     console.error(`\n${C.red}Failed to fetch alerts from GitHub:${C.reset}`, (e as Error).message ?? e)
     console.error(`${C.dim}This is an ACCESS failure, not a security finding. A 403 "Resource not accessible`)
     console.error(`${C.dim}by integration" means GITHUB_TOKEN was used for a cross-repo query — it cannot`)
-    console.error(`${C.dim}reach another repository. Use the WEAVER_FREE_CODEQL_READ PAT instead.${C.reset}`)
+    console.error(`${C.dim}reach another repository. Use the wbd_github_weaver_free_scans_ro token instead.${C.reset}`)
     process.exit(EXIT_CANNOT_RUN)
   }
 
