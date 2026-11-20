@@ -31,6 +31,12 @@
       "path": "backend/src/services/compliance-pdf.ts",
       "reason": "Same false claim. The flagged write is the CACHE write, whose path is join(config.dataDir, 'pdf-cache') via routes/compliance.ts:54 \u2014 the configured data dir, not a shared temp dir. This file does use os.tmpdir() at line 94, but through mkdtemp(join(tmpdir(), 'weaver-pdf-')), which is the CORRECT secure pattern (0700, kernel-generated random suffix) and is not the flagged line. Hardened anyway with flag:'wx' and 12 random bytes.",
       "addedDate": "2026-07-22"
+    },
+    {
+      "rule": "js/remote-property-injection",
+      "path": "backend/src/storage/json-registry.ts",
+      "reason": "The defect was real when the alert opened (2026-09-24, Weaver-Free alert 212) and was fixed by 87e4e001 the next day: `vms` is now ownRecord(), a null-prototype record (storage/lib/own-keys.ts), and every read and delete checks Object.hasOwn, so a key such as '__proto__' or 'constructor' is an ordinary own key with no prototype to reach. The fix reached Weaver-Free in the September sync, and CodeQL still reports `this.vms[vm.name] = vm` (line 50) on b4b53b69, analysed 2026-11-15, because it does not carry the class field's null prototype to the write. tests/storage/json-registry.spec.ts adds, reads back, reloads, updates and removes '__proto__', 'constructor', 'toString', 'valueOf' and 'hasOwnProperty'.",
+      "addedDate": "2026-11-20"
     }
   ]
 }
