@@ -102,6 +102,18 @@ code/scripts/verify-e2e-docker-only.ts
 # against a 1.57.0 image; it existed until then only in one consumer, with that consumer's prose.
 code/scripts/verify-playwright-pin.ts
 
+# Dependency patches, FORGE-142 (A defect in a dependency is fixed in the dependency, by a patch the
+# archetype carries and applies at every install until the dependency releases the fix; the first is
+# Quasar's queued focus). The applier, its gate, the patches and the test that shows each defect are
+# one mechanism, carried by the archetype and fed to every product that uses the dependency, so a
+# product never holds a patch the archetype does not. Added 2026-11-13 with the first patch, found in
+# a sibling product's E2E flake: a Quasar select took focus back 300 ms after its menu closed.
+code/scripts/apply-dependency-patches.ts
+code/scripts/verify-dependency-patches.ts
+code/patches/quasar-queued-focus.json
+code/patches/quasar-select-refilter-typed.json
+code/testing/unit/dependency-patches.spec.ts
+
 # The workflow-taint contract. Same argument as the Docker-first pair above: the CORPUS is the spec
 # the rule is held to, and its IGNORE half carries the env-indirection remedy — a project whose
 # corpus differs is proving its rules against a different guarantee. The checker is pinned with it

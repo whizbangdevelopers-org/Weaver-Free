@@ -112,6 +112,10 @@ export const PHASES: Phase[] = [
       // Every dependency with an install script is approved or denied in its root's allowScripts,
       // since npm runs an unnamed one with only a warning.
       'audit:install-scripts',
+      // Every dependency patch in patches/ is in place in this install and still applies, and
+      // every install path applies it: the root's postinstall, each image or workflow installing
+      // with --ignore-scripts, and the Nix build. Reads node_modules and writes nothing.
+      'audit:dependency-patches',
       'audit:sast',
       'audit:hooks',
       'audit:hook-forms',

@@ -1,0 +1,18 @@
+{
+  "id": "quasar-select-refilter-typed",
+  "package": "quasar",
+  "why": "FORGE-142 (A defect in a dependency is fixed in the dependency, by a patch the archetype carries and applies at every install until the dependency releases the fix; the first is Quasar's queued focus). A QSelect with use-input and fill-input, holding no value with its popup open, re-filters with '' whenever its options change, though the text a person typed stays in its input: options that arrive after the typing are all offered, under a name that matches one of them. QSelect's watcher on its value runs when map-options recomputes it from new options, and calls filter('') rather than filtering by the input's text. The input's text is '' there unless the person typed, since resetInputValue() has just set it, so filtering by it changes nothing else. Measured 2026-11-19 in Gantry, where a backup picker typed into before its people loaded offered all 30; Quasar 2.33.2, 2.35.0 and 2.35.5 have the same code. Retire once the test passes without it.",
+  "test": "testing/unit/dependency-patches.spec.ts",
+  "edits": [
+    {
+      "file": "dist/quasar.client.js",
+      "find": "\t\t\t\tif (!userInputValue) resetInputValue();\n\t\t\t\tif (dialog.value || menu.value) filter(\"\");\n",
+      "replace": "\t\t\t\tif (!userInputValue) resetInputValue();\n\t\t\t\t// FORGE-142: re-filter by the text in the input, which is '' unless a person typed it\n\t\t\t\tif (dialog.value || menu.value) filter(inputValue.value);\n"
+    },
+    {
+      "file": "src/components/select/QSelect.js",
+      "find": "          if (!userInputValue) resetInputValue()\n          if (dialog.value || menu.value) filter('')\n",
+      "replace": "          if (!userInputValue) resetInputValue()\n          // FORGE-142: re-filter by the text in the input, which is '' unless a person typed it\n          if (dialog.value || menu.value) filter(inputValue.value)\n"
+    }
+  ]
+}

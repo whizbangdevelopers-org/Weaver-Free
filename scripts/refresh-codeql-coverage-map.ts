@@ -19,7 +19,7 @@
  * would have accumulated stale open security-labelled issues. Do not
  * reintroduce it; extend the workflow's triage-issue step instead.
  *
- * Requires: gh CLI authenticated with WEAVER_FREE_CODEQL_READ (security_events: read)
+ * Requires: gh CLI authenticated with wbd_github_weaver_free_scans_ro (Code scanning alerts: Read)
  *
  * Usage:
  *   npx tsx scripts/refresh-codeql-coverage-map.ts \

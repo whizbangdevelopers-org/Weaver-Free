@@ -16,6 +16,8 @@
     "tui"
   ],
   "scripts": {
+    "postinstall": "tsx scripts/apply-dependency-patches.ts",
+    "patch:dependencies": "tsx scripts/apply-dependency-patches.ts",
     "audit:agent-knowledge-coverage": "npx tsx scripts/verify-agent-knowledge-coverage.ts",
     "audit:attribution": "npx tsx scripts/verify-attribution-parity.ts",
     "audit:bundle": "npx tsx scripts/check-bundle-size.ts",
@@ -217,6 +219,7 @@
     "audit:test-suites": "npx tsx scripts/verify-test-suites.ts",
     "audit:e2e-docker-only": "npx tsx scripts/verify-e2e-docker-only.ts",
     "audit:playwright-pin": "npx tsx scripts/verify-playwright-pin.ts",
+    "audit:dependency-patches": "npx tsx scripts/verify-dependency-patches.ts",
     "audit:workflow-taint": "npx tsx scripts/verify-workflow-taint.ts",
     "audit:archive-markers": "npx tsx scripts/verify-archive-markers.ts",
     "audit:auditor-contracts": "npx tsx scripts/verify-auditor-contracts.ts",
@@ -262,7 +265,7 @@
     "vue-router": "^5.2.0"
   },
   "devDependencies": {
-    "@playwright/test": "1.58.2",
+    "@playwright/test": "1.63.0",
     "@quasar/app-vite": "^3.6.1",
     "@stryker-mutator/core": "^9.6.0",
     "@stryker-mutator/typescript-checker": "^9.6.0",

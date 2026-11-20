@@ -38,8 +38,8 @@ pkgs.buildNpmPackage rec {
   # on every push. Remediation when it fails: `npm run nix:refresh-deps-hash`
   # (or manually: nix-shell -p prefetch-npm-deps --run 'prefetch-npm-deps
   # package-lock.json' → copy sha256 to npmDepsHash → update marker below).
-  npmDepsHash = "sha256-k3vbDB5tQMYbP+Z+bFEzIjq+wk6ec11Zs/fDtRvMUZg=";
-  # lockfile-marker: 11ecbfb1ff3358ee
+  npmDepsHash = "sha256-fob5wumwWN34WizbKJYHdcMt1n8jk/gqMOUqNVbiDOk=";
+  # lockfile-marker: 1376340cf6fe6a20
 
   makeCacheWritable = true;
   nodejs = pkgs.nodejs_24;
@@ -105,6 +105,13 @@ pkgs.buildNpmPackage rec {
     fi
     cp "$pwaTemplate" src-pwa/package.json
     ln -s ../node_modules src-pwa/node_modules
+
+    # The dependency patches in patches/, before the build reads the dependencies: a defect in a
+    # dependency is fixed in the dependency, and the first is Quasar's queued focus. The install
+    # above ran with scripts off, and whether this build's npm rebuild ran the root's postinstall
+    # depends on its npm, so the step is named here; a second run finds every patch in place.
+    # audit:dependency-patches holds the build to it.
+    npx tsx scripts/apply-dependency-patches.ts
 
     # Build frontend PWA
     npx quasar build -m pwa
