@@ -75,8 +75,8 @@ function warn(name: string, detail: string): void {
 function workflowFiles(): string[] {
   if (!existsSync(WORKFLOWS_DIR)) return []
   return readdirSync(WORKFLOWS_DIR)
-    .filter((f) => f.endsWith('.yml') || f.endsWith('.yaml'))
-    .map((f) => join(WORKFLOWS_DIR, f))
+    .filter(f => f.endsWith('.yml') || f.endsWith('.yaml'))
+    .map(f => join(WORKFLOWS_DIR, f))
 }
 
 // ---------------------------------------------------------------------------
@@ -90,7 +90,7 @@ function checkTokenPermissions(): void {
     // Strip comments first; look for ^permissions: at workflow root
     const withoutComments = content
       .split('\n')
-      .map((l) => l.replace(/#.*$/, ''))
+      .map(l => l.replace(/#.*$/, ''))
       .join('\n')
     // Top-level permissions must appear at column 0
     if (!/^permissions:/m.test(withoutComments)) {
@@ -98,7 +98,10 @@ function checkTokenPermissions(): void {
     }
   }
   if (missing.length === 0) {
-    pass('Token-Permissions', `all ${workflowFiles().length} workflow(s) declare top-level permissions`)
+    pass(
+      'Token-Permissions',
+      `all ${workflowFiles().length} workflow(s) declare top-level permissions`
+    )
   } else {
     fail(
       'Token-Permissions',
@@ -121,12 +124,16 @@ function checkPinnedDependencies(): void {
       if (spec.startsWith('./') || spec.startsWith('docker://')) continue
       const atIdx = spec.lastIndexOf('@')
       if (atIdx === -1) {
-        unpinned.push(`${wf.replace(PROJECT_ROOT + '/', '')}:${i + 1} — no version specifier: ${spec}`)
+        unpinned.push(
+          `${wf.replace(PROJECT_ROOT + '/', '')}:${i + 1} — no version specifier: ${spec}`
+        )
         continue
       }
       const ref = spec.slice(atIdx + 1)
       if (!shaRe.test(ref)) {
-        unpinned.push(`${wf.replace(PROJECT_ROOT + '/', '')}:${i + 1} — ${spec} (uses tag/branch, not SHA)`)
+        unpinned.push(
+          `${wf.replace(PROJECT_ROOT + '/', '')}:${i + 1} — ${spec} (uses tag/branch, not SHA)`
+        )
       }
     }
   }
@@ -142,7 +149,10 @@ function checkPinnedDependencies(): void {
 
 function checkDependencyUpdateTool(): void {
   if (!existsSync(DEPENDABOT_YML)) {
-    fail('Dependency-Update-Tool', `.github/dependabot.yml missing — Scorecard scores this 0/10. Add a Dependabot config.`)
+    fail(
+      'Dependency-Update-Tool',
+      `.github/dependabot.yml missing — Scorecard scores this 0/10. Add a Dependabot config.`
+    )
     return
   }
   pass('Dependency-Update-Tool', '.github/dependabot.yml present')
@@ -177,12 +187,15 @@ function checkSast(): void {
   // Strip comments to avoid matching text inside them
   const active = content
     .split('\n')
-    .map((l) => l.replace(/#.*$/, ''))
+    .map(l => l.replace(/#.*$/, ''))
     .join('\n')
   // Look for "push:" as a workflow trigger (under `on:` block)
   const hasPushTrigger = /^on:\s*[\s\S]*?^\s*push:\s*$/m.test(active)
   if (!hasPushTrigger) {
-    fail('SAST', 'codeql.yml lacks a `push:` trigger — Scorecard caps SAST at 9/10 when CodeQL only runs on PRs/schedule')
+    fail(
+      'SAST',
+      'codeql.yml lacks a `push:` trigger — Scorecard caps SAST at 9/10 when CodeQL only runs on PRs/schedule'
+    )
   } else {
     pass('SAST', 'codeql.yml triggers on push')
   }
@@ -217,13 +230,13 @@ function checkSignedReleases(): void {
     return
   }
 
-  const attestContinueOnError = /attest-build-provenance[\s\S]{0,500}continue-on-error:\s*true/i.test(content)
+  const attestContinueOnError =
+    /attest-build-provenance[\s\S]{0,500}continue-on-error:\s*true/i.test(content)
   // Explicit exemption pragma: allows continue-on-error on attest when the
   // workflow comments document WHY (e.g., private repo on a free-plan org
   // where GitHub's attestation API returns "Feature not available"). The
   // pragma is the author asserting "I know; remove when constraint lifts."
-  const hasAttestExemption =
-    /#\s*openssf-baseline-allow:\s*attest-continue-on-error/i.test(content)
+  const hasAttestExemption = /#\s*openssf-baseline-allow:\s*attest-continue-on-error/i.test(content)
   if (attestContinueOnError && !hasAttestExemption) {
     fail(
       'Signed-Releases',
@@ -234,11 +247,16 @@ function checkSignedReleases(): void {
 
   if (hasCosign && hasAttest) {
     const suffix = attestContinueOnError ? ' (attest soft-fail exempted by pragma)' : ''
-    pass('Signed-Releases', `release.yml signs artifacts with cosign (keyless Sigstore) AND publishes build-provenance attestations${suffix}`)
+    pass(
+      'Signed-Releases',
+      `release.yml signs artifacts with cosign (keyless Sigstore) AND publishes build-provenance attestations${suffix}`
+    )
   } else if (hasCosign) {
     pass('Signed-Releases', 'release.yml signs artifacts with cosign (keyless Sigstore)')
   } else {
-    const suffix = attestContinueOnError ? ' (attest soft-fail exempted by pragma)' : ' (no continue-on-error)'
+    const suffix = attestContinueOnError
+      ? ' (attest soft-fail exempted by pragma)'
+      : ' (no continue-on-error)'
     pass('Signed-Releases', `release.yml publishes build-provenance attestations${suffix}`)
   }
 }
@@ -249,7 +267,9 @@ function checkSignedReleases(): void {
 
 function main(): void {
   console.log(`${BOLD}Pre-OpenSSF Scorecard Baseline${RESET}`)
-  console.log(`${DIM}Static, no-network checks that catch regressions before Scorecard's weekly scan${RESET}`)
+  console.log(
+    `${DIM}Static, no-network checks that catch regressions before Scorecard's weekly scan${RESET}`
+  )
   console.log()
 
   checkTokenPermissions()
@@ -262,11 +282,15 @@ function main(): void {
 
   console.log()
   if (failures > 0) {
-    console.log(`${RED}${BOLD}RESULT: FAIL${RESET} — ${failures} check(s) failed, ${warnings} warning(s)`)
+    console.log(
+      `${RED}${BOLD}RESULT: FAIL${RESET} — ${failures} check(s) failed, ${warnings} warning(s)`
+    )
     process.exit(1)
   }
   if (warnings > 0) {
-    console.log(`${YELLOW}${BOLD}RESULT: PASS${RESET} with ${warnings} warning(s). Scorecard may still score below maximum.`)
+    console.log(
+      `${YELLOW}${BOLD}RESULT: PASS${RESET} with ${warnings} warning(s). Scorecard may still score below maximum.`
+    )
   } else {
     console.log(`${GREEN}${BOLD}RESULT: PASS${RESET} — baseline clean.`)
   }

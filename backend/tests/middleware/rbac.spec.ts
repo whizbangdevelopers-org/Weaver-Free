@@ -2,11 +2,7 @@
 // Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE.
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import Fastify from 'fastify'
-import {
-  serializerCompiler,
-  validatorCompiler,
-  ZodTypeProvider
-} from 'fastify-type-provider-zod'
+import { serializerCompiler, validatorCompiler, ZodTypeProvider } from 'fastify-type-provider-zod'
 import { AuthService } from '../../src/services/auth.js'
 import { UserStore } from '../../src/storage/user-store.js'
 import { MemorySessionStore } from '../../src/storage/memory-session-store.js'
@@ -54,23 +50,35 @@ describe('RBAC Middleware', () => {
       return { message: 'open to all authenticated users' }
     })
 
-    fastify.post('/api/admin-only', {
-      preHandler: [requireRole('admin')],
-    }, async () => {
-      return { message: 'admin only' }
-    })
+    fastify.post(
+      '/api/admin-only',
+      {
+        preHandler: [requireRole('admin')]
+      },
+      async () => {
+        return { message: 'admin only' }
+      }
+    )
 
-    fastify.post('/api/operator-plus', {
-      preHandler: [requireRole('admin', 'operator')],
-    }, async () => {
-      return { message: 'operator or admin' }
-    })
+    fastify.post(
+      '/api/operator-plus',
+      {
+        preHandler: [requireRole('admin', 'operator')]
+      },
+      async () => {
+        return { message: 'operator or admin' }
+      }
+    )
 
-    fastify.post('/api/all-roles', {
-      preHandler: [requireRole('admin', 'operator', 'viewer')],
-    }, async () => {
-      return { message: 'any role' }
-    })
+    fastify.post(
+      '/api/all-roles',
+      {
+        preHandler: [requireRole('admin', 'operator', 'viewer')]
+      },
+      async () => {
+        return { message: 'any role' }
+      }
+    )
 
     await fastify.ready()
 
@@ -99,7 +107,7 @@ describe('RBAC Middleware', () => {
       const response = await fastify.inject({
         method: 'POST',
         url: '/api/admin-only',
-        headers: { authorization: `Bearer ${adminToken}` },
+        headers: { authorization: `Bearer ${adminToken}` }
       })
 
       expect(response.statusCode).toBe(200)
@@ -110,7 +118,7 @@ describe('RBAC Middleware', () => {
       const response = await fastify.inject({
         method: 'POST',
         url: '/api/admin-only',
-        headers: { authorization: `Bearer ${operatorToken}` },
+        headers: { authorization: `Bearer ${operatorToken}` }
       })
 
       expect(response.statusCode).toBe(403)
@@ -121,7 +129,7 @@ describe('RBAC Middleware', () => {
       const response = await fastify.inject({
         method: 'POST',
         url: '/api/admin-only',
-        headers: { authorization: `Bearer ${viewerToken}` },
+        headers: { authorization: `Bearer ${viewerToken}` }
       })
 
       expect(response.statusCode).toBe(403)
@@ -134,7 +142,7 @@ describe('RBAC Middleware', () => {
       const response = await fastify.inject({
         method: 'POST',
         url: '/api/operator-plus',
-        headers: { authorization: `Bearer ${adminToken}` },
+        headers: { authorization: `Bearer ${adminToken}` }
       })
 
       expect(response.statusCode).toBe(200)
@@ -144,7 +152,7 @@ describe('RBAC Middleware', () => {
       const response = await fastify.inject({
         method: 'POST',
         url: '/api/operator-plus',
-        headers: { authorization: `Bearer ${operatorToken}` },
+        headers: { authorization: `Bearer ${operatorToken}` }
       })
 
       expect(response.statusCode).toBe(200)
@@ -154,7 +162,7 @@ describe('RBAC Middleware', () => {
       const response = await fastify.inject({
         method: 'POST',
         url: '/api/operator-plus',
-        headers: { authorization: `Bearer ${viewerToken}` },
+        headers: { authorization: `Bearer ${viewerToken}` }
       })
 
       expect(response.statusCode).toBe(403)
@@ -168,7 +176,7 @@ describe('RBAC Middleware', () => {
         const response = await fastify.inject({
           method: 'POST',
           url: '/api/all-roles',
-          headers: { authorization: `Bearer ${token}` },
+          headers: { authorization: `Bearer ${token}` }
         })
 
         expect(response.statusCode).toBe(200)
@@ -180,7 +188,7 @@ describe('RBAC Middleware', () => {
     it('should return 401 before RBAC can check (auth middleware rejects first)', async () => {
       const response = await fastify.inject({
         method: 'POST',
-        url: '/api/admin-only',
+        url: '/api/admin-only'
       })
 
       // Auth middleware rejects with 401 before RBAC runs
@@ -194,7 +202,7 @@ describe('RBAC Middleware', () => {
         const response = await fastify.inject({
           method: 'GET',
           url: '/api/open',
-          headers: { authorization: `Bearer ${token}` },
+          headers: { authorization: `Bearer ${token}` }
         })
 
         expect(response.statusCode).toBe(200)

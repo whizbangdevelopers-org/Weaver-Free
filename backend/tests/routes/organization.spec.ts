@@ -2,11 +2,7 @@
 // Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE.
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest'
 import Fastify from 'fastify'
-import {
-  serializerCompiler,
-  validatorCompiler,
-  ZodTypeProvider
-} from 'fastify-type-provider-zod'
+import { serializerCompiler, validatorCompiler, ZodTypeProvider } from 'fastify-type-provider-zod'
 import { organizationRoutes } from '../../src/routes/organization.js'
 import { OrganizationStore } from '../../src/storage/organization-store.js'
 import type { DashboardConfig } from '../../src/config.js'
@@ -40,7 +36,7 @@ function makeConfig(tier: 'demo' | 'free' | 'solo' | 'fabrick'): DashboardConfig
     jwtSecret: 'test-secret',
     sessionStoreType: 'memory',
     notify: { ntfyUrl: null, ntfyTopic: null, ntfyToken: null },
-    aiApiKey: '',
+    aiApiKey: ''
   })
 }
 
@@ -70,7 +66,7 @@ describe('Organization Routes', () => {
     await fastify.register(organizationRoutes, {
       prefix: '/api/organization',
       organizationStore,
-      config: makeConfig('solo'),
+      config: makeConfig('solo')
     })
 
     await fastify.ready()
@@ -111,8 +107,8 @@ describe('Organization Routes', () => {
         url: '/api/organization',
         payload: {
           name: 'Acme Corp',
-          contactEmail: 'admin@acme.com',
-        },
+          contactEmail: 'admin@acme.com'
+        }
       })
       expect(res.statusCode).toBe(200)
       const body = res.json()
@@ -130,7 +126,7 @@ describe('Organization Routes', () => {
       const res = await fastify.inject({
         method: 'PUT',
         url: '/api/organization',
-        payload: { name: 'Hacker Corp' },
+        payload: { name: 'Hacker Corp' }
       })
       expect(res.statusCode).toBe(403)
     })
@@ -140,7 +136,7 @@ describe('Organization Routes', () => {
       const res = await fastify.inject({
         method: 'PUT',
         url: '/api/organization',
-        payload: { name: 'Hacker Corp' },
+        payload: { name: 'Hacker Corp' }
       })
       expect(res.statusCode).toBe(403)
     })
@@ -149,7 +145,7 @@ describe('Organization Routes', () => {
       const res = await fastify.inject({
         method: 'PUT',
         url: '/api/organization',
-        payload: { contactEmail: 'not-an-email' },
+        payload: { contactEmail: 'not-an-email' }
       })
       expect(res.statusCode).toBe(400)
     })
@@ -158,7 +154,7 @@ describe('Organization Routes', () => {
       const res = await fastify.inject({
         method: 'PUT',
         url: '/api/organization',
-        payload: { name: 'A'.repeat(101) },
+        payload: { name: 'A'.repeat(101) }
       })
       expect(res.statusCode).toBe(400)
     })
@@ -184,7 +180,7 @@ describe('Organization Routes', () => {
       await freeFastify.register(organizationRoutes, {
         prefix: '/api/organization',
         organizationStore: freeStore,
-        config: makeConfig('free'),
+        config: makeConfig('free')
       })
 
       await freeFastify.ready()
@@ -198,7 +194,7 @@ describe('Organization Routes', () => {
       const res = await freeFastify.inject({
         method: 'PUT',
         url: '/api/organization',
-        payload: { name: 'Free User Corp' },
+        payload: { name: 'Free User Corp' }
       })
       expect(res.statusCode).toBe(403)
       expect(res.json().error).toContain('solo tier')

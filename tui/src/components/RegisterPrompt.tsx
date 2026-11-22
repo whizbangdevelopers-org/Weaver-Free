@@ -16,7 +16,8 @@ const MIN_PASSWORD = 8
 
 function validateUsername(v: string): string | null {
   if (v.length < MIN_USERNAME) return `Min ${MIN_USERNAME} characters`
-  if (!USERNAME_RE.test(v)) return 'Lowercase, digits, hyphens, underscores only (start with letter)'
+  if (!USERNAME_RE.test(v))
+    return 'Lowercase, digits, hyphens, underscores only (start with letter)'
   return null
 }
 
@@ -45,11 +46,23 @@ export function RegisterPrompt({ onRegister, onLogin }: RegisterPromptProps) {
   async function handleSubmit() {
     // Validate all fields
     const uErr = validateUsername(username)
-    if (uErr) { setError(uErr); setField('username'); return }
+    if (uErr) {
+      setError(uErr)
+      setField('username')
+      return
+    }
     const pErr = validatePassword(password)
-    if (pErr) { setError(pErr); setField('password'); return }
+    if (pErr) {
+      setError(pErr)
+      setField('password')
+      return
+    }
     const cErr = validateConfirm(password, confirm)
-    if (cErr) { setError(cErr); setField('confirm'); return }
+    if (cErr) {
+      setError(cErr)
+      setField('confirm')
+      return
+    }
 
     setSubmitting(true)
     setError(null)
@@ -139,19 +152,22 @@ export function RegisterPrompt({ onRegister, onLogin }: RegisterPromptProps) {
 
       <Box marginTop={1}>
         <Text color={field === 'username' ? 'cyan' : undefined}>
-          Username: {username}{field === 'username' ? '█' : ''}
+          Username: {username}
+          {field === 'username' ? '█' : ''}
         </Text>
         {uHint && <Text color="yellow"> {uHint}</Text>}
       </Box>
       <Box>
         <Text color={field === 'password' ? 'cyan' : undefined}>
-          Password: {'*'.repeat(password.length)}{field === 'password' ? '█' : ''}
+          Password: {'*'.repeat(password.length)}
+          {field === 'password' ? '█' : ''}
         </Text>
         {pHint && <Text color="yellow"> {pHint}</Text>}
       </Box>
       <Box>
         <Text color={field === 'confirm' ? 'cyan' : undefined}>
-          Confirm:  {'*'.repeat(confirm.length)}{field === 'confirm' ? '█' : ''}
+          Confirm: {'*'.repeat(confirm.length)}
+          {field === 'confirm' ? '█' : ''}
         </Text>
         {cHint && <Text color="yellow"> {cHint}</Text>}
       </Box>

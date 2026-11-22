@@ -5,7 +5,7 @@ import {
   extractMicrovmBlocks,
   extractOciContainerBlocks,
   extractSlurmBlocks,
-  parseNixConfig,
+  parseNixConfig
 } from '../../src/services/nix-config-parser.js'
 
 // ── extractMicrovmBlocks ───────────────────────────────────────────────────

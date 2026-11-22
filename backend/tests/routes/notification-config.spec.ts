@@ -5,11 +5,7 @@ import { join } from 'node:path'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import Fastify from 'fastify'
-import {
-  serializerCompiler,
-  validatorCompiler,
-  ZodTypeProvider
-} from 'fastify-type-provider-zod'
+import { serializerCompiler, validatorCompiler, ZodTypeProvider } from 'fastify-type-provider-zod'
 import { notificationConfigRoutes } from '../../src/routes/weaver/notification-config.js'
 import { NotificationConfigStore } from '../../src/storage/notification-config-store.js'
 import { NotificationStore } from '../../src/storage/notification-store.js'
@@ -40,7 +36,7 @@ const baseConfig: DashboardConfig = makeTestConfig({
   distroCatalogUrl: null,
   jwtSecret: 'test-secret',
   sessionStoreType: 'memory',
-  notify: { ntfyUrl: null, ntfyTopic: null, ntfyToken: null },
+  notify: { ntfyUrl: null, ntfyTopic: null, ntfyToken: null }
 })
 
 describe('Notification Config Routes', () => {
@@ -87,7 +83,7 @@ describe('Notification Config Routes', () => {
         prefix: '/api/notifications/config',
         configStore,
         notificationService,
-        config: { ...baseConfig, tier: 'solo' as const },
+        config: { ...baseConfig, tier: 'solo' as const }
       })
       await fastify.ready()
     })
@@ -124,8 +120,8 @@ describe('Notification Config Routes', () => {
           enabled: true,
           events: ['vm:started', 'vm:failed'],
           url: 'https://ntfy.example.com',
-          topic: 'dashboard',
-        },
+          topic: 'dashboard'
+        }
       })
       expect(response.statusCode).toBe(200)
       expect(response.json().ok).toBe(true)
@@ -145,8 +141,8 @@ describe('Notification Config Routes', () => {
           enabled: true,
           events: ['vm:started'],
           url: 'https://ntfy.example.com',
-          topic: 'dashboard',
-        },
+          topic: 'dashboard'
+        }
       })
 
       // Then update
@@ -158,8 +154,8 @@ describe('Notification Config Routes', () => {
           enabled: false,
           events: ['vm:started', 'vm:failed'],
           url: 'https://ntfy2.example.com',
-          topic: 'dashboard2',
-        },
+          topic: 'dashboard2'
+        }
       })
       expect(response.statusCode).toBe(200)
 
@@ -177,10 +173,10 @@ describe('Notification Config Routes', () => {
         payload: {
           type: 'ntfy',
           enabled: true,
-          events: [],  // min 1 required
+          events: [], // min 1 required
           url: 'not-a-url',
-          topic: '',
-        },
+          topic: ''
+        }
       })
       expect(response.statusCode).toBe(400)
     })
@@ -194,8 +190,8 @@ describe('Notification Config Routes', () => {
           enabled: true,
           events: ['vm:started'],
           url: 'https://ntfy.example.com',
-          topic: 'dashboard',
-        },
+          topic: 'dashboard'
+        }
       })
       expect(response.statusCode).toBe(400)
       expect(response.json().error).toContain('in-app')
@@ -211,8 +207,8 @@ describe('Notification Config Routes', () => {
           enabled: true,
           events: ['vm:started'],
           url: 'https://ntfy.example.com',
-          topic: 'dashboard',
-        },
+          topic: 'dashboard'
+        }
       })
       expect(response.statusCode).toBe(403)
     })
@@ -227,8 +223,8 @@ describe('Notification Config Routes', () => {
           events: ['vm:failed', 'vm:recovered'],
           url: 'https://hooks.slack.com/services/test',
           method: 'POST',
-          format: 'slack',
-        },
+          format: 'slack'
+        }
       })
       expect(response.statusCode).toBe(200)
     })
@@ -247,8 +243,8 @@ describe('Notification Config Routes', () => {
           smtpPass: 'password',
           smtpSecure: true,
           fromAddress: 'noreply@example.com',
-          recipients: ['admin@example.com'],
-        },
+          recipients: ['admin@example.com']
+        }
       })
       expect(response.statusCode).toBe(200)
     })
@@ -262,12 +258,12 @@ describe('Notification Config Routes', () => {
         enabled: true,
         events: ['vm:started'],
         url: 'https://ntfy.example.com',
-        topic: 'dashboard',
+        topic: 'dashboard'
       })
 
       const response = await fastify.inject({
         method: 'DELETE',
-        url: '/api/notifications/config/channels/ntfy',
+        url: '/api/notifications/config/channels/ntfy'
       })
       expect(response.statusCode).toBe(200)
       expect(response.json().ok).toBe(true)
@@ -277,7 +273,7 @@ describe('Notification Config Routes', () => {
     it('DELETE /channels/:channelId should return 404 for nonexistent channel', async () => {
       const response = await fastify.inject({
         method: 'DELETE',
-        url: '/api/notifications/config/channels/nonexistent',
+        url: '/api/notifications/config/channels/nonexistent'
       })
       expect(response.statusCode).toBe(404)
     })
@@ -285,7 +281,7 @@ describe('Notification Config Routes', () => {
     it('DELETE /channels/in-app should be rejected', async () => {
       const response = await fastify.inject({
         method: 'DELETE',
-        url: '/api/notifications/config/channels/in-app',
+        url: '/api/notifications/config/channels/in-app'
       })
       expect(response.statusCode).toBe(400)
       expect(response.json().error).toContain('in-app')
@@ -296,7 +292,7 @@ describe('Notification Config Routes', () => {
     it('POST /channels/:channelId/test should return 404 for unknown channel', async () => {
       const response = await fastify.inject({
         method: 'POST',
-        url: '/api/notifications/config/channels/nonexistent/test',
+        url: '/api/notifications/config/channels/nonexistent/test'
       })
       expect(response.statusCode).toBe(404)
     })
@@ -309,8 +305,8 @@ describe('Notification Config Routes', () => {
         url: '/api/notifications/config/resource-alerts',
         payload: {
           cpuThresholdPercent: 80,
-          memoryThresholdPercent: 85,
-        },
+          memoryThresholdPercent: 85
+        }
       })
       expect(response.statusCode).toBe(200)
       expect(response.json().ok).toBe(true)
@@ -324,7 +320,7 @@ describe('Notification Config Routes', () => {
       const response = await fastify.inject({
         method: 'PUT',
         url: '/api/notifications/config/resource-alerts',
-        payload: { cpuThresholdPercent: 200 },  // max 100
+        payload: { cpuThresholdPercent: 200 } // max 100
       })
       expect(response.statusCode).toBe(400)
     })
@@ -334,7 +330,7 @@ describe('Notification Config Routes', () => {
       const response = await fastify.inject({
         method: 'PUT',
         url: '/api/notifications/config/resource-alerts',
-        payload: { cpuThresholdPercent: 80 },
+        payload: { cpuThresholdPercent: 80 }
       })
       expect(response.statusCode).toBe(403)
     })
@@ -364,7 +360,7 @@ describe('Notification Config Routes', () => {
         prefix: '/api/notifications/config',
         configStore,
         notificationService,
-        config: { ...baseConfig, tier: 'demo' as const },
+        config: { ...baseConfig, tier: 'demo' as const }
       })
       await fastify.ready()
     })
@@ -387,8 +383,8 @@ describe('Notification Config Routes', () => {
           enabled: true,
           events: ['vm:started'],
           url: 'https://ntfy.example.com',
-          topic: 'dashboard',
-        },
+          topic: 'dashboard'
+        }
       })
       expect(response.statusCode).toBe(403)
       expect(response.json().error).toContain('solo')
@@ -397,7 +393,7 @@ describe('Notification Config Routes', () => {
     it('DELETE /channels/:channelId should return 403', async () => {
       const response = await fastify.inject({
         method: 'DELETE',
-        url: '/api/notifications/config/channels/ntfy',
+        url: '/api/notifications/config/channels/ntfy'
       })
       expect(response.statusCode).toBe(403)
     })
@@ -406,7 +402,7 @@ describe('Notification Config Routes', () => {
       const response = await fastify.inject({
         method: 'PUT',
         url: '/api/notifications/config/resource-alerts',
-        payload: { cpuThresholdPercent: 80 },
+        payload: { cpuThresholdPercent: 80 }
       })
       expect(response.statusCode).toBe(403)
     })

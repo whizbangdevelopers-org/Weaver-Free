@@ -90,9 +90,7 @@ describe('Config Tier Resolution', () => {
     expect(config.tier).toBe('solo')
     expect(config.licenseExpiry).toBeNull()
     expect(config.licenseGraceMode).toBe(false)
-    expect(warnSpy).toHaveBeenCalledWith(
-      expect.stringContaining('PREMIUM_ENABLED is deprecated')
-    )
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('PREMIUM_ENABLED is deprecated'))
 
     warnSpy.mockRestore()
   })
@@ -200,9 +198,7 @@ describe('Config Tier Resolution', () => {
     const config = loadConfig()
 
     expect(config.tier).toBe('free')
-    expect(errorSpy).toHaveBeenCalledWith(
-      expect.stringContaining('Invalid LICENSE_KEY')
-    )
+    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('Invalid LICENSE_KEY'))
 
     errorSpy.mockRestore()
   })

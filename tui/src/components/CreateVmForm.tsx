@@ -55,13 +55,29 @@ export function CreateVmForm({ onSubmit, onBack }: CreateVmFormProps) {
 
   async function handleSubmit() {
     const nameErr = validateName(name)
-    if (nameErr) { setError(nameErr); setField('name'); return }
+    if (nameErr) {
+      setError(nameErr)
+      setField('name')
+      return
+    }
     const ipErr = validateIp(ip)
-    if (ipErr) { setError(ipErr); setField('ip'); return }
+    if (ipErr) {
+      setError(ipErr)
+      setField('ip')
+      return
+    }
     const memErr = validateMem(mem)
-    if (memErr) { setError(memErr); setField('mem'); return }
+    if (memErr) {
+      setError(memErr)
+      setField('mem')
+      return
+    }
     const vcpuErr = validateVcpu(vcpu)
-    if (vcpuErr) { setError(vcpuErr); setField('vcpu'); return }
+    if (vcpuErr) {
+      setError(vcpuErr)
+      setField('vcpu')
+      return
+    }
 
     setSubmitting(true)
     setError(null)
@@ -71,7 +87,7 @@ export function CreateVmForm({ onSubmit, onBack }: CreateVmFormProps) {
         ip,
         mem: parseInt(mem, 10),
         vcpu: parseInt(vcpu, 10),
-        hypervisor: HYPERVISORS[hvIndex]!,
+        hypervisor: HYPERVISORS[hvIndex]!
       })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Create VM failed')
@@ -91,11 +107,16 @@ export function CreateVmForm({ onSubmit, onBack }: CreateVmFormProps) {
 
   function currentValue(): string {
     switch (field) {
-      case 'name': return name
-      case 'ip': return ip
-      case 'mem': return mem
-      case 'vcpu': return vcpu
-      case 'hypervisor': return HYPERVISORS[hvIndex]!
+      case 'name':
+        return name
+      case 'ip':
+        return ip
+      case 'mem':
+        return mem
+      case 'vcpu':
+        return vcpu
+      case 'hypervisor':
+        return HYPERVISORS[hvIndex]!
     }
   }
 
@@ -137,20 +158,36 @@ export function CreateVmForm({ onSubmit, onBack }: CreateVmFormProps) {
 
     if (key.backspace || key.delete) {
       switch (field) {
-        case 'name': setName(v => v.slice(0, -1)); break
-        case 'ip': setIp(v => v.slice(0, -1)); break
-        case 'mem': setMem(v => v.slice(0, -1) || ''); break
-        case 'vcpu': setVcpu(v => v.slice(0, -1) || ''); break
+        case 'name':
+          setName(v => v.slice(0, -1))
+          break
+        case 'ip':
+          setIp(v => v.slice(0, -1))
+          break
+        case 'mem':
+          setMem(v => v.slice(0, -1) || '')
+          break
+        case 'vcpu':
+          setVcpu(v => v.slice(0, -1) || '')
+          break
       }
       return
     }
 
     if (input && !key.ctrl && !key.meta) {
       switch (field) {
-        case 'name': setName(v => v + input); break
-        case 'ip': setIp(v => v + input); break
-        case 'mem': if (/^\d$/.test(input)) setMem(v => v + input); break
-        case 'vcpu': if (/^\d$/.test(input)) setVcpu(v => v + input); break
+        case 'name':
+          setName(v => v + input)
+          break
+        case 'ip':
+          setIp(v => v + input)
+          break
+        case 'mem':
+          if (/^\d$/.test(input)) setMem(v => v + input)
+          break
+        case 'vcpu':
+          if (/^\d$/.test(input)) setVcpu(v => v + input)
+          break
       }
     }
   })
@@ -164,27 +201,34 @@ export function CreateVmForm({ onSubmit, onBack }: CreateVmFormProps) {
 
       <Box marginTop={1}>
         <Text color={field === 'name' ? 'cyan' : undefined}>
-          Name:       {name}{field === 'name' ? '█' : ''}
+          Name: {name}
+          {field === 'name' ? '█' : ''}
         </Text>
       </Box>
       <Box>
         <Text color={field === 'ip' ? 'cyan' : undefined}>
-          IP:         {ip}{field === 'ip' ? '█' : ''}
+          IP: {ip}
+          {field === 'ip' ? '█' : ''}
         </Text>
       </Box>
       <Box>
         <Text color={field === 'mem' ? 'cyan' : undefined}>
-          Memory (MB): {mem}{field === 'mem' ? '█' : ''}
+          Memory (MB): {mem}
+          {field === 'mem' ? '█' : ''}
         </Text>
       </Box>
       <Box>
         <Text color={field === 'vcpu' ? 'cyan' : undefined}>
-          vCPUs:      {vcpu}{field === 'vcpu' ? '█' : ''}
+          vCPUs: {vcpu}
+          {field === 'vcpu' ? '█' : ''}
         </Text>
       </Box>
       <Box>
         <Text color={field === 'hypervisor' ? 'cyan' : undefined}>
-          Hypervisor: {'< '}{HYPERVISORS[hvIndex]}{' >'}{field === 'hypervisor' ? ' ◄►' : ''}
+          Hypervisor: {'< '}
+          {HYPERVISORS[hvIndex]}
+          {' >'}
+          {field === 'hypervisor' ? ' ◄►' : ''}
         </Text>
       </Box>
 

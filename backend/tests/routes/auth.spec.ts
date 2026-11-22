@@ -2,11 +2,7 @@
 // Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE.
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import Fastify, { type FastifyError } from 'fastify'
-import {
-  serializerCompiler,
-  validatorCompiler,
-  ZodTypeProvider
-} from 'fastify-type-provider-zod'
+import { serializerCompiler, validatorCompiler, ZodTypeProvider } from 'fastify-type-provider-zod'
 import { authRoutes } from '../../src/routes/auth.js'
 import { AuthService } from '../../src/services/auth.js'
 import { UserStore } from '../../src/storage/user-store.js'
@@ -51,7 +47,7 @@ describe('Auth Routes', () => {
           .filter(Boolean)
         return reply.status(400).send({
           error: 'Validation failed',
-          details: messages.length > 0 ? messages : ['Invalid request data'],
+          details: messages.length > 0 ? messages : ['Invalid request data']
         })
       }
       const statusCode = error.statusCode || 500
@@ -83,7 +79,7 @@ describe('Auth Routes', () => {
       const response = await fastify.inject({
         method: 'POST',
         url: '/api/auth/register',
-        payload: { username: 'user@example.com', password: 'GoodPass1!xyzAB' },
+        payload: { username: 'user@example.com', password: 'GoodPass1!xyzAB' }
       })
 
       expect(response.statusCode).toBe(400)
@@ -92,14 +88,18 @@ describe('Auth Routes', () => {
       expect(body.details).toBeInstanceOf(Array)
       expect(body.details.length).toBeGreaterThan(0)
       // Should contain human-readable message, not raw JSON or "Bad Request"
-      expect(body.details.some((d: string) => d.toLowerCase().includes('letter') || d.toLowerCase().includes('invalid'))).toBe(true)
+      expect(
+        body.details.some(
+          (d: string) => d.toLowerCase().includes('letter') || d.toLowerCase().includes('invalid')
+        )
+      ).toBe(true)
     })
 
     it('should return error for password too short', async () => {
       const response = await fastify.inject({
         method: 'POST',
         url: '/api/auth/register',
-        payload: { username: 'gooduser', password: 'Ab1' },
+        payload: { username: 'gooduser', password: 'Ab1' }
       })
 
       expect(response.statusCode).toBe(400)
@@ -113,7 +113,7 @@ describe('Auth Routes', () => {
       const response = await fastify.inject({
         method: 'POST',
         url: '/api/auth/register',
-        payload: { username: 'gooduser', password: 'alllowercase1!x' },
+        payload: { username: 'gooduser', password: 'alllowercase1!x' }
       })
 
       expect(response.statusCode).toBe(400)
@@ -127,7 +127,7 @@ describe('Auth Routes', () => {
       const response = await fastify.inject({
         method: 'POST',
         url: '/api/auth/register',
-        payload: { username: 'ab', password: 'GoodPass1!xyzAB' },
+        payload: { username: 'ab', password: 'GoodPass1!xyzAB' }
       })
 
       expect(response.statusCode).toBe(400)
@@ -143,7 +143,7 @@ describe('Auth Routes', () => {
       const response = await fastify.inject({
         method: 'POST',
         url: '/api/auth/register',
-        payload: { username: 'admin', password: 'Secure#Pass123!xy' },
+        payload: { username: 'admin', password: 'Secure#Pass123!xy' }
       })
 
       expect(response.statusCode).toBe(201)
@@ -160,7 +160,7 @@ describe('Auth Routes', () => {
       const response = await fastify.inject({
         method: 'POST',
         url: '/api/auth/login',
-        payload: { username: 'admin', password: 'Secure#Pass123!xy' },
+        payload: { username: 'admin', password: 'Secure#Pass123!xy' }
       })
 
       expect(response.statusCode).toBe(200)
@@ -173,7 +173,7 @@ describe('Auth Routes', () => {
       const response = await fastify.inject({
         method: 'POST',
         url: '/api/auth/login',
-        payload: { username: 'admin', password: 'wrongpassword' },
+        payload: { username: 'admin', password: 'wrongpassword' }
       })
 
       expect(response.statusCode).toBe(401)
@@ -185,7 +185,7 @@ describe('Auth Routes', () => {
       const response = await fastify.inject({
         method: 'POST',
         url: '/api/auth/login',
-        payload: { username: 'nobody', password: 'password' },
+        payload: { username: 'nobody', password: 'password' }
       })
 
       expect(response.statusCode).toBe(401)
@@ -197,7 +197,7 @@ describe('Auth Routes', () => {
       const response = await fastify.inject({
         method: 'POST',
         url: '/api/auth/register',
-        payload: { username: 'user2', password: 'TestPass123!xyz' },
+        payload: { username: 'user2', password: 'TestPass123!xyz' }
       })
 
       expect(response.statusCode).toBe(401)
@@ -208,7 +208,7 @@ describe('Auth Routes', () => {
       const loginRes = await fastify.inject({
         method: 'POST',
         url: '/api/auth/login',
-        payload: { username: 'admin', password: 'Secure#Pass123!xy' },
+        payload: { username: 'admin', password: 'Secure#Pass123!xy' }
       })
       const { token } = loginRes.json()
 
@@ -217,7 +217,7 @@ describe('Auth Routes', () => {
         method: 'POST',
         url: '/api/auth/register',
         payload: { username: 'operator1', password: 'TestPass123!xyz', role: 'operator' },
-        headers: { authorization: `Bearer ${token}` },
+        headers: { authorization: `Bearer ${token}` }
       })
 
       expect(response.statusCode).toBe(201)
@@ -232,14 +232,14 @@ describe('Auth Routes', () => {
       const loginRes = await fastify.inject({
         method: 'POST',
         url: '/api/auth/login',
-        payload: { username: 'admin', password: 'Secure#Pass123!xy' },
+        payload: { username: 'admin', password: 'Secure#Pass123!xy' }
       })
       const { refreshToken } = loginRes.json()
 
       const response = await fastify.inject({
         method: 'POST',
         url: '/api/auth/refresh',
-        payload: { refreshToken },
+        payload: { refreshToken }
       })
 
       expect(response.statusCode).toBe(200)
@@ -252,7 +252,7 @@ describe('Auth Routes', () => {
       const response = await fastify.inject({
         method: 'POST',
         url: '/api/auth/refresh',
-        payload: { refreshToken: 'invalid' },
+        payload: { refreshToken: 'invalid' }
       })
 
       expect(response.statusCode).toBe(401)
@@ -264,14 +264,14 @@ describe('Auth Routes', () => {
       const loginRes = await fastify.inject({
         method: 'POST',
         url: '/api/auth/login',
-        payload: { username: 'admin', password: 'Secure#Pass123!xy' },
+        payload: { username: 'admin', password: 'Secure#Pass123!xy' }
       })
       const { token } = loginRes.json()
 
       const response = await fastify.inject({
         method: 'GET',
         url: '/api/auth/me',
-        headers: { authorization: `Bearer ${token}` },
+        headers: { authorization: `Bearer ${token}` }
       })
 
       expect(response.statusCode).toBe(200)
@@ -283,7 +283,7 @@ describe('Auth Routes', () => {
     it('should return 401 without token', async () => {
       const response = await fastify.inject({
         method: 'GET',
-        url: '/api/auth/me',
+        url: '/api/auth/me'
       })
 
       expect(response.statusCode).toBe(401)
@@ -295,7 +295,7 @@ describe('Auth Routes', () => {
       const loginRes = await fastify.inject({
         method: 'POST',
         url: '/api/auth/login',
-        payload: { username: 'admin', password: 'Secure#Pass123!xy' },
+        payload: { username: 'admin', password: 'Secure#Pass123!xy' }
       })
       const { token } = loginRes.json()
 
@@ -303,7 +303,7 @@ describe('Auth Routes', () => {
       const logoutRes = await fastify.inject({
         method: 'POST',
         url: '/api/auth/logout',
-        headers: { authorization: `Bearer ${token}` },
+        headers: { authorization: `Bearer ${token}` }
       })
 
       expect(logoutRes.statusCode).toBe(200)
@@ -312,7 +312,7 @@ describe('Auth Routes', () => {
       const meRes = await fastify.inject({
         method: 'GET',
         url: '/api/auth/me',
-        headers: { authorization: `Bearer ${token}` },
+        headers: { authorization: `Bearer ${token}` }
       })
 
       expect(meRes.statusCode).toBe(401)
@@ -323,7 +323,7 @@ describe('Auth Routes', () => {
     it('should return false when users exist', async () => {
       const response = await fastify.inject({
         method: 'GET',
-        url: '/api/auth/setup-required',
+        url: '/api/auth/setup-required'
       })
 
       expect(response.statusCode).toBe(200)

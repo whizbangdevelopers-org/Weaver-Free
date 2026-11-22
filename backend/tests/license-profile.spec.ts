@@ -20,10 +20,16 @@ import { WEAVER_PROFILE } from '../src/license-profile.js'
 import { createVerifier } from '../src/entitlement/verify/verifier.js'
 import { createIssuer } from '../src/entitlement/issue/issuer.js'
 import { parseManifest, resolveChannel } from '../src/entitlement/format/authority.js'
-import { resolveOrEmpty } from '../../scripts/generate-license-authority.js'
+import { format, resolveConfig } from 'prettier'
+import { renderAuthority, resolveOrEmpty } from '../../scripts/generate-license-authority.js'
 import { ACCEPTED_PUBLIC_KEYS, CHANNEL, IS_RELEASE } from '../src/generated/license-authority.js'
 import { TIERS, TIER_ORDER } from '../src/constants/vocabularies.js'
-import { generateLicenseKey, parseLicenseKey, requireTier, acceptedKeyCount } from '../src/license.js'
+import {
+  generateLicenseKey,
+  parseLicenseKey,
+  requireTier,
+  acceptedKeyCount
+} from '../src/license.js'
 
 const MANIFEST = new URL('../src/license-authority.json', import.meta.url).pathname
 
@@ -50,7 +56,7 @@ describe('WEAVER_PROFILE', () => {
   it('refuses to mint the demo tier rather than emitting a broken key', () => {
     const { privateKey } = keypair()
     expect(() => createIssuer(WEAVER_PROFILE, privateKey).generateLicenseKey(TIERS.DEMO)).toThrow(
-      /no code in codeForTier/,
+      /no code in codeForTier/
     )
   })
 
@@ -92,7 +98,8 @@ describe('the generated authority module', () => {
     // Pattern 1 (source → generator → committed artifact → freshness check). The committed file is
     // what a Weaver-Free clone typechecks against, so it cannot be gitignored the way upstream's is.
     const manifest = parseManifest(JSON.parse(readFileSync(MANIFEST, 'utf-8')))
-    const expected = Object.keys(manifest.keys).length === 0 ? [] : resolveChannel(manifest, CHANNEL)
+    const expected =
+      Object.keys(manifest.keys).length === 0 ? [] : resolveChannel(manifest, CHANNEL)
     expect([...ACCEPTED_PUBLIC_KEYS]).toEqual(expected)
   })
 
@@ -107,8 +114,8 @@ describe('the generated authority module', () => {
     // oracle handed to anyone who has cloned the harness.
     const manifest = parseManifest(JSON.parse(readFileSync(MANIFEST, 'utf-8')))
     const testKeys = Object.values(manifest.keys)
-      .filter((k) => k.kind === 'test')
-      .map((k) => k.publicKey)
+      .filter(k => k.kind === 'test')
+      .map(k => k.publicKey)
     for (const k of testKeys) expect(ACCEPTED_PUBLIC_KEYS).not.toContain(k)
   })
 })
@@ -182,5 +189,36 @@ describe('generate-license-authority — channel resolution', () => {
 
   it('refuses an empty channel when empties are not allowed', () => {
     expect(() => resolveOrEmpty('release', false)).toThrow(/resolves to no keys/)
+  })
+})
+
+/**
+ * The generated module sits inside `format:check`, and the freshness auditor reruns the generator
+ * and compares bytes. So what the generator writes must already be what prettier makes of it, for
+ * every key count. Otherwise each regeneration undoes a format and fails one gate or the other.
+ * The manifest holds no keys before the ceremony, so the committed artifact only ever shows the
+ * empty case. One and two keys are checked here, at an Ed25519 key's real length of 43 characters.
+ */
+describe('generate-license-authority — output is prettier-formatted', () => {
+  const key = (c: string) => c.repeat(43)
+  const prettierFormat = async (src: string) => {
+    const filepath = new URL('../src/generated/license-authority.ts', import.meta.url).pathname
+    const config = await resolveConfig(filepath)
+    return format(src, { ...config, filepath })
+  }
+
+  for (const [name, keys] of [
+    ['no keys', []],
+    ['one key', [key('A')]],
+    ['two keys', [key('B'), `a-_${key('C').slice(3)}`]]
+  ] as const) {
+    it(`is unchanged by prettier with ${name}`, async () => {
+      const src = renderAuthority('release', keys)
+      expect(await prettierFormat(src)).toBe(src)
+    })
+  }
+
+  it('refuses a channel name that prettier would quote differently', () => {
+    expect(() => renderAuthority("rel'ease", [])).toThrow(/not a channel name/)
   })
 })

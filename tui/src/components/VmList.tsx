@@ -36,10 +36,16 @@ const STATUS_COLORS: Record<string, string> = {
   [STATUSES.IDLE]: 'gray',
   [STATUSES.STOPPED]: 'gray',
   [STATUSES.FAILED]: 'red',
-  [STATUSES.UNKNOWN]: 'yellow',
+  [STATUSES.UNKNOWN]: 'yellow'
 }
 
-const STATUS_CYCLE: (string | null)[] = [null, STATUSES.RUNNING, STATUSES.IDLE, STATUSES.STOPPED, STATUSES.FAILED]
+const STATUS_CYCLE: (string | null)[] = [
+  null,
+  STATUSES.RUNNING,
+  STATUSES.IDLE,
+  STATUSES.STOPPED,
+  STATUSES.FAILED
+]
 
 function formatUptime(uptimeIso: string | null): string {
   if (!uptimeIso) return '-'
@@ -63,7 +69,28 @@ function pad(str: string, len: number): string {
   return str.length >= len ? str.slice(0, len) : str + ' '.repeat(len - str.length)
 }
 
-export function VmList({ vms, onAction, onSelect, onAgent, onCreateVm, onScan, onHelp, onNetwork, onDistros, onTemplates, onHostInfo, onNotifications, onSettings, onUsers, onAudit, onFleetBridges, onQuit, onLogout, version, isDemo }: VmListProps) {
+export function VmList({
+  vms,
+  onAction,
+  onSelect,
+  onAgent,
+  onCreateVm,
+  onScan,
+  onHelp,
+  onNetwork,
+  onDistros,
+  onTemplates,
+  onHostInfo,
+  onNotifications,
+  onSettings,
+  onUsers,
+  onAudit,
+  onFleetBridges,
+  onQuit,
+  onLogout,
+  version,
+  isDemo
+}: VmListProps) {
   const [selectedIndex, setSelectedIndex] = useState(0)
   const [pendingAction, setPendingAction] = useState<string | null>(null)
   const [searchMode, setSearchMode] = useState(false)
@@ -105,7 +132,10 @@ export function VmList({ vms, onAction, onSelect, onAgent, onCreateVm, onScan, o
 
     if (key.escape) {
       // Clear active filter/search, don't quit
-      if (statusFilter) { setStatusFilter(null); return }
+      if (statusFilter) {
+        setStatusFilter(null)
+        return
+      }
       return
     }
 
@@ -124,7 +154,7 @@ export function VmList({ vms, onAction, onSelect, onAgent, onCreateVm, onScan, o
       return
     }
 
-    if (input === '/' ) {
+    if (input === '/') {
       setSearchMode(true)
       return
     }
@@ -140,8 +170,10 @@ export function VmList({ vms, onAction, onSelect, onAgent, onCreateVm, onScan, o
     }
 
     if (input === 'f' && onScan) {
-      void onScan().then((result) => {
-        const r = result as { status: number; data: { discovered?: string[]; added?: string[] } } | undefined
+      void onScan().then(result => {
+        const r = result as
+          | { status: number; data: { discovered?: string[]; added?: string[] } }
+          | undefined
         if (r && r.status === 200 && r.data) {
           const disc = r.data.discovered?.length ?? 0
           const added = r.data.added?.length ?? 0
@@ -158,17 +190,44 @@ export function VmList({ vms, onAction, onSelect, onAgent, onCreateVm, onScan, o
     }
 
     // Weaver Solo keybindings
-    if (input === 'N' && onNetwork) { onNetwork(); return }
-    if (input === 'D' && onDistros) { onDistros(); return }
-    if (input === 'T' && onTemplates) { onTemplates(); return }
-    if (input === 'H' && onHostInfo) { onHostInfo(); return }
-    if (input === 'I' && onNotifications) { onNotifications(); return }
-    if (input === ',' && onSettings) { onSettings(); return }
+    if (input === 'N' && onNetwork) {
+      onNetwork()
+      return
+    }
+    if (input === 'D' && onDistros) {
+      onDistros()
+      return
+    }
+    if (input === 'T' && onTemplates) {
+      onTemplates()
+      return
+    }
+    if (input === 'H' && onHostInfo) {
+      onHostInfo()
+      return
+    }
+    if (input === 'I' && onNotifications) {
+      onNotifications()
+      return
+    }
+    if (input === ',' && onSettings) {
+      onSettings()
+      return
+    }
 
     // Fabrick keybindings
-    if (input === 'u' && onUsers) { onUsers(); return }
-    if (input === 'A' && onAudit) { onAudit(); return }
-    if (input === 'F' && onFleetBridges) { onFleetBridges(); return }
+    if (input === 'u' && onUsers) {
+      onUsers()
+      return
+    }
+    if (input === 'A' && onAudit) {
+      onAudit()
+      return
+    }
+    if (input === 'F' && onFleetBridges) {
+      onFleetBridges()
+      return
+    }
 
     if (filtered.length === 0) return
 
@@ -225,7 +284,14 @@ export function VmList({ vms, onAction, onSelect, onAgent, onCreateVm, onScan, o
       {/* Header */}
       <Box>
         <Text bold dimColor>
-          {'  '}{pad('NAME', 18)}{pad('STATUS', 12)}{pad('IP', 16)}{pad('MEM', 8)}{pad('CPU', 5)}{pad('UPTIME', 10)}{pad('DISTRO', 16)}
+          {'  '}
+          {pad('NAME', 18)}
+          {pad('STATUS', 12)}
+          {pad('IP', 16)}
+          {pad('MEM', 8)}
+          {pad('CPU', 5)}
+          {pad('UPTIME', 10)}
+          {pad('DISTRO', 16)}
         </Text>
       </Box>
 
@@ -262,9 +328,16 @@ export function VmList({ vms, onAction, onSelect, onAgent, onCreateVm, onScan, o
       {(searchQuery || statusFilter || searchMode) && (
         <Box marginTop={1} gap={1}>
           <Text>
-            {searchMode ? <Text color="cyan">Search: {searchQuery}█</Text> : searchQuery ? <Text>Search: {searchQuery}</Text> : null}
+            {searchMode ? (
+              <Text color="cyan">Search: {searchQuery}█</Text>
+            ) : searchQuery ? (
+              <Text>Search: {searchQuery}</Text>
+            ) : null}
             {statusFilter && <Text> Filter: {statusFilter}</Text>}
-            <Text dimColor> ({filtered.length} of {sorted.length})</Text>
+            <Text dimColor>
+              {' '}
+              ({filtered.length} of {sorted.length})
+            </Text>
           </Text>
         </Box>
       )}
@@ -278,11 +351,21 @@ export function VmList({ vms, onAction, onSelect, onAgent, onCreateVm, onScan, o
       {/* Key legend */}
       <Box marginTop={1} gap={1} flexDirection="column">
         <Text dimColor>
-          [s]tart [S]top [r]estart [d]etail [a]gent [n]ew [/]search [t]filter{onScan ? ' [f]scan' : ''}{onHelp ? ' [?]help' : ''} [L]ogout [q]uit
+          [s]tart [S]top [r]estart [d]etail [a]gent [n]ew [/]search [t]filter
+          {onScan ? ' [f]scan' : ''}
+          {onHelp ? ' [?]help' : ''} [L]ogout [q]uit
         </Text>
         {(onNetwork || onDistros || onTemplates || onHostInfo || onNotifications || onSettings) && (
           <Text dimColor>
-            {onNetwork ? '[N]etwork ' : ''}{onDistros ? '[D]istros ' : ''}{onTemplates ? '[T]emplates ' : ''}{onHostInfo ? '[H]ost ' : ''}{onNotifications ? '[I]nfo ' : ''}{onSettings ? '[,]settings ' : ''}{onUsers ? '[u]sers ' : ''}{onAudit ? '[A]udit ' : ''}{onFleetBridges ? '[F]leet bridges' : ''}
+            {onNetwork ? '[N]etwork ' : ''}
+            {onDistros ? '[D]istros ' : ''}
+            {onTemplates ? '[T]emplates ' : ''}
+            {onHostInfo ? '[H]ost ' : ''}
+            {onNotifications ? '[I]nfo ' : ''}
+            {onSettings ? '[,]settings ' : ''}
+            {onUsers ? '[u]sers ' : ''}
+            {onAudit ? '[A]udit ' : ''}
+            {onFleetBridges ? '[F]leet bridges' : ''}
           </Text>
         )}
       </Box>
@@ -290,24 +373,70 @@ export function VmList({ vms, onAction, onSelect, onAgent, onCreateVm, onScan, o
       {/* Version-gated feature indicators (demo mode only) */}
       {isDemo && version && (
         <Box marginTop={1} flexDirection="column">
-          {isDemoVersionAtLeast('1.1') && <Text color="cyan">  ● Containers: docker 3 · podman 2{isDemoVersionAtLeast('1.2') ? ' · [C]reate' : ' (read-only)'}</Text>}
-          {isDemoVersionAtLeast('1.3') && <Text color="cyan">  ● Remote: {isDemoVersionAtLeast('1.3') ? 'WireGuard tunnel active' : ''} · Mobile app connected</Text>}
-          {isDemoVersionAtLeast('1.4') && <Text color="cyan">  ● Cross-resource AI: diagnostics span VMs + containers + networking</Text>}
-          {isDemoVersionAtLeast('1.5') && <Text color="cyan">  ● Secrets: 3 managed · injected into 4 workloads</Text>}
-          {isDemoVersionAtLeast('1.6') && <Text color="cyan">  ● Migration: import/export ready (Proxmox, Docker Compose, libvirt)</Text>}
-          {isDemoVersionAtLeast('2.0') && <Text color="magenta">  ● Storage: disk management · OS templates</Text>}
-          {isDemoVersionAtLeast('2.1') && <Text color="magenta">  ● Snapshots: 3 saved · clone-to-template</Text>}
-          {isDemoVersionAtLeast('2.2') && <Text color="magenta">  ● Team: 3 peer hosts · blue/green deployment</Text>}
-          {isDemoVersionAtLeast('2.3') && <Text color="yellow">  ● Fleet: 15 nodes enrolled · cold migration ready</Text>}
-          {isDemoVersionAtLeast('2.4') && <Text color="magenta">  ● Backup: 2 jobs active · NFS + local targets</Text>}
-          {isDemoVersionAtLeast('2.6') && <Text color="yellow">  ● Backup+: S3, restic, borg · file-level restore · encryption</Text>}
-          {isDemoVersionAtLeast('3.0') && <Text color="yellow">  ● FabricK: HA clustering · live migration · fleet events</Text>}
-          {isDemoVersionAtLeast('3.3') && <Text color="yellow">  ● Groups: 4 workload groups · IdP sync · compliance audit</Text>}
+          {isDemoVersionAtLeast('1.1') && (
+            <Text color="cyan">
+              {' '}
+              ● Containers: docker 3 · podman 2
+              {isDemoVersionAtLeast('1.2') ? ' · [C]reate' : ' (read-only)'}
+            </Text>
+          )}
+          {isDemoVersionAtLeast('1.3') && (
+            <Text color="cyan">
+              {' '}
+              ● Remote: {isDemoVersionAtLeast('1.3') ? 'WireGuard tunnel active' : ''} · Mobile app
+              connected
+            </Text>
+          )}
+          {isDemoVersionAtLeast('1.4') && (
+            <Text color="cyan">
+              {' '}
+              ● Cross-resource AI: diagnostics span VMs + containers + networking
+            </Text>
+          )}
+          {isDemoVersionAtLeast('1.5') && (
+            <Text color="cyan"> ● Secrets: 3 managed · injected into 4 workloads</Text>
+          )}
+          {isDemoVersionAtLeast('1.6') && (
+            <Text color="cyan">
+              {' '}
+              ● Migration: import/export ready (Proxmox, Docker Compose, libvirt)
+            </Text>
+          )}
+          {isDemoVersionAtLeast('2.0') && (
+            <Text color="magenta"> ● Storage: disk management · OS templates</Text>
+          )}
+          {isDemoVersionAtLeast('2.1') && (
+            <Text color="magenta"> ● Snapshots: 3 saved · clone-to-template</Text>
+          )}
+          {isDemoVersionAtLeast('2.2') && (
+            <Text color="magenta"> ● Team: 3 peer hosts · blue/green deployment</Text>
+          )}
+          {isDemoVersionAtLeast('2.3') && (
+            <Text color="yellow"> ● Fleet: 15 nodes enrolled · cold migration ready</Text>
+          )}
+          {isDemoVersionAtLeast('2.4') && (
+            <Text color="magenta"> ● Backup: 2 jobs active · NFS + local targets</Text>
+          )}
+          {isDemoVersionAtLeast('2.6') && (
+            <Text color="yellow">
+              {' '}
+              ● Backup+: S3, restic, borg · file-level restore · encryption
+            </Text>
+          )}
+          {isDemoVersionAtLeast('3.0') && (
+            <Text color="yellow"> ● FabricK: HA clustering · live migration · fleet events</Text>
+          )}
+          {isDemoVersionAtLeast('3.3') && (
+            <Text color="yellow"> ● Groups: 4 workload groups · IdP sync · compliance audit</Text>
+          )}
           {/* Next version teaser */}
           {(() => {
             const nextVer = DEMO_VERSIONS.find(v => !isDemoVersionAtLeast(v.version))
             return nextVer ? (
-              <Text dimColor>  ○ Coming in v{nextVer.version}: {nextVer.headline}</Text>
+              <Text dimColor>
+                {' '}
+                ○ Coming in v{nextVer.version}: {nextVer.headline}
+              </Text>
             ) : null
           })()}
         </Box>

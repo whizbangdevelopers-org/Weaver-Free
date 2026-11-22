@@ -21,9 +21,9 @@ import type { DashboardConfig } from '../../src/config.js'
 import type { UserRole } from '../../src/models/user.js'
 import type { WorkloadDefinition } from '../../src/storage/workload-registry.js'
 
-vi.mock('../../src/services/microvm.js', async (importOriginal) => ({
+vi.mock('../../src/services/microvm.js', async importOriginal => ({
   ...(await importOriginal<typeof import('../../src/services/microvm.js')>()),
-  getWorkloadDefinitions: vi.fn(),
+  getWorkloadDefinitions: vi.fn()
 }))
 
 import Fastify from 'fastify'
@@ -35,7 +35,13 @@ import { PromqlMetricsSource, type PromMatrix, type RangeQuery } from '../../src
 
 const mockGetDefs = getWorkloadDefinitions as ReturnType<typeof vi.fn>
 
-const VM = { name: 'web-nginx', ip: '10.10.0.10', mem: 512, vcpu: 2, hypervisor: 'qemu' } as WorkloadDefinition
+const VM = {
+  name: 'web-nginx',
+  ip: '10.10.0.10',
+  mem: 512,
+  vcpu: 2,
+  hypervisor: 'qemu'
+} as WorkloadDefinition
 
 let mockUserRole: UserRole = 'admin'
 
@@ -46,7 +52,7 @@ async function buildApp(opts: { tier?: string; promqlSource?: PromqlMetricsSourc
   fastify.decorateRequest('username', undefined)
   fastify.setValidatorCompiler(validatorCompiler)
   fastify.setSerializerCompiler(serializerCompiler)
-  fastify.addHook('onRequest', async (request) => {
+  fastify.addHook('onRequest', async request => {
     request.userRole = mockUserRole
     request.userId = 'u'
     request.username = 'u'
@@ -54,7 +60,7 @@ async function buildApp(opts: { tier?: string; promqlSource?: PromqlMetricsSourc
   await fastify.register(workloadsRoutes, {
     prefix: '/api/workload',
     config: { tier: opts.tier ?? 'solo' } as unknown as DashboardConfig,
-    promqlSource: opts.promqlSource ?? null,
+    promqlSource: opts.promqlSource ?? null
   })
   await fastify.ready()
   return fastify
@@ -69,7 +75,9 @@ describe('GET /api/workload/:name/metrics', () => {
     mockUserRole = 'admin'
     mockGetDefs.mockResolvedValue({ 'web-nginx': VM })
   })
-  afterEach(() => { vi.resetAllMocks() })
+  afterEach(() => {
+    vi.resetAllMocks()
+  })
 
   it('404s an unknown workload', async () => {
     mockGetDefs.mockResolvedValue({})
@@ -101,7 +109,9 @@ describe('GET /api/workload/:name/metrics', () => {
 
   it('reports the interval alongside the samples', async () => {
     const app = await buildApp({ promqlSource: null })
-    expect((await get(app, '/api/workload/web-nginx/metrics')).json().intervalMs).toBe(SAMPLE_INTERVAL_MS)
+    expect((await get(app, '/api/workload/web-nginx/metrics')).json().intervalMs).toBe(
+      SAMPLE_INTERVAL_MS
+    )
     await app.close()
   })
 
@@ -110,8 +120,10 @@ describe('GET /api/workload/:name/metrics', () => {
     // through a fake Prometheus now, and they assert the same thing at the same place: the last
     // hop, where Zod either preserves the distinction the layers below worked to keep or quietly
     // destroys it.
-    const at = (sec: number, value: string): PromMatrix =>
-      ({ resultType: 'matrix', result: [{ metric: {}, values: [[sec, value]] }] })
+    const at = (sec: number, value: string): PromMatrix => ({
+      resultType: 'matrix',
+      result: [{ metric: {}, values: [[sec, value]] }]
+    })
 
     it('serves a null cpuPercent as null, not 0 and not a validation error', async () => {
       // Memory answers, CPU does not — so cpuPercent is null by construction while a sibling lane
@@ -169,13 +181,17 @@ describe('GET /api/workload/:name/metrics', () => {
 
     it('honours a narrower request from a paid tier', async () => {
       const app = await buildApp({ tier: 'solo' })
-      expect((await get(app, '/api/workload/web-nginx/metrics?window=30m')).json().windowMs).toBe(1_800_000)
+      expect((await get(app, '/api/workload/web-nginx/metrics?window=30m')).json().windowMs).toBe(
+        1_800_000
+      )
       await app.close()
     })
 
     it('falls back to the tier maximum on a malformed window', async () => {
       const app = await buildApp({ tier: 'solo' })
-      expect((await get(app, '/api/workload/web-nginx/metrics?window=bogus')).json().windowMs).toBe(86_400_000)
+      expect((await get(app, '/api/workload/web-nginx/metrics?window=bogus')).json().windowMs).toBe(
+        86_400_000
+      )
       await app.close()
     })
 
@@ -211,7 +227,9 @@ describe('GET /api/workload/:name/metrics — Prometheus read path', () => {
     mockUserRole = 'admin'
     mockGetDefs.mockResolvedValue({ 'web-nginx': VM })
   })
-  afterEach(() => { vi.resetAllMocks() })
+  afterEach(() => {
+    vi.resetAllMocks()
+  })
 
   const sourceFrom = (rq: RangeQuery) => new PromqlMetricsSource(rq)
 
@@ -237,7 +255,9 @@ describe('GET /api/workload/:name/metrics — Prometheus read path', () => {
   it('503s when Prometheus is unreachable — never an empty chart', async () => {
     // THE refuse case. Returning 200 with [] here would render a broken monitoring stack as a
     // perfectly normal idle workload, which is the one failure an operator cannot see.
-    const rq: RangeQuery = async () => { throw new Error('connect ECONNREFUSED 127.0.0.1:9090') }
+    const rq: RangeQuery = async () => {
+      throw new Error('connect ECONNREFUSED 127.0.0.1:9090')
+    }
     const app = await buildApp({ promqlSource: sourceFrom(rq) })
     const res = await get(app, '/api/workload/web-nginx/metrics')
 
@@ -296,7 +316,10 @@ describe('GET /api/workload/:name/metrics — Prometheus read path', () => {
 
     expect(samples).toHaveLength(10)
     expect(samples[0]).toMatchObject({
-      cpuPercent: null, memoryBytes: null, diskReadBps: null, diskWriteBps: null,
+      cpuPercent: null,
+      memoryBytes: null,
+      diskReadBps: null,
+      diskWriteBps: null
     })
     expect(typeof samples[0].timestamp).toBe('number')
     await app.close()

@@ -48,7 +48,7 @@ const STATUS_COLORS: Record<string, string> = {
   [STATUSES.IDLE]: 'gray',
   [STATUSES.STOPPED]: 'gray',
   [STATUSES.FAILED]: 'red',
-  [STATUSES.UNKNOWN]: 'yellow',
+  [STATUSES.UNKNOWN]: 'yellow'
 }
 
 export function VmDetail({ vm, api, onBack, onAction, onAgent, onDelete }: VmDetailProps) {
@@ -116,23 +116,12 @@ export function VmDetail({ vm, api, onBack, onAction, onAgent, onDelete }: VmDet
 
   // Sub-view: Console
   if (subView === 'console') {
-    return (
-      <VmConsole
-        vmName={vm.name}
-        onBack={() => setSubView('none')}
-      />
-    )
+    return <VmConsole vmName={vm.name} onBack={() => setSubView('none')} />
   }
 
   // Sub-view: Logs
   if (subView === 'logs') {
-    return (
-      <VmLogs
-        vmName={vm.name}
-        api={api}
-        onBack={() => setSubView('none')}
-      />
-    )
+    return <VmLogs vmName={vm.name} api={api} onBack={() => setSubView('none')} />
   }
 
   return (
@@ -141,7 +130,10 @@ export function VmDetail({ vm, api, onBack, onAction, onAgent, onDelete }: VmDet
       <Box marginTop={1} flexDirection="column">
         <Row label="Status" value={vm.status} color={STATUS_COLORS[vm.status]} />
         <Row label="IP" value={vm.ip || '-'} />
-        <Row label="Memory" value={vm.mem >= 1024 ? `${(vm.mem / 1024).toFixed(1)} GB` : `${vm.mem} MB`} />
+        <Row
+          label="Memory"
+          value={vm.mem >= 1024 ? `${(vm.mem / 1024).toFixed(1)} GB` : `${vm.mem} MB`}
+        />
         <Row label="vCPUs" value={String(vm.vcpu)} />
         <Row label="Hypervisor" value={vm.hypervisor} />
         <Row label="Uptime" value={formatUptime(vm.uptime)} />
@@ -151,14 +143,20 @@ export function VmDetail({ vm, api, onBack, onAction, onAgent, onDelete }: VmDet
         {vm.diskSize && <Row label="Disk" value={`${vm.diskSize} GB`} />}
         {vm.description && <Row label="Description" value={vm.description} />}
         {vm.tags && vm.tags.length > 0 && <Row label="Tags" value={vm.tags.join(', ')} />}
-        {vm.autostart !== undefined && <Row label="Autostart" value={vm.autostart ? 'yes' : 'no'} />}
+        {vm.autostart !== undefined && (
+          <Row label="Autostart" value={vm.autostart ? 'yes' : 'no'} />
+        )}
         {vm.provisioningState && <Row label="Provisioning" value={vm.provisioningState} />}
-        {vm.provisioningError && <Row label="Prov. Error" value={vm.provisioningError} color="red" />}
+        {vm.provisioningError && (
+          <Row label="Prov. Error" value={vm.provisioningError} color="red" />
+        )}
       </Box>
 
       {confirmDelete && (
         <Box marginTop={1}>
-          <Text color="red" bold>Delete VM: {vm.name}? [y] confirm [n/Esc] cancel</Text>
+          <Text color="red" bold>
+            Delete VM: {vm.name}? [y] confirm [n/Esc] cancel
+          </Text>
         </Box>
       )}
 

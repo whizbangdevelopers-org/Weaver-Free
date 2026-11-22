@@ -26,3 +26,40 @@ package-lock.json
 # Generated files
 *.min.js
 *.min.css
+
+# Vendored from wbd-entitlement, never formatted here: audit:entitlement-vendor compares them byte
+# for byte with upstream, and scripts/vendor-entitlement.ts (VENDOR_DIR, VENDORED_FILES) is the
+# list. A file added there is added here; if it is not, entitlement-vendor fails and names it.
+/backend/src/entitlement/
+/scripts/verify-authority-binding.ts
+
+# Not formatted yet: the frontend and backend source. Debt, and it shrinks to nothing.
+#
+# codebase-mcp's tools read these two trees with regexes that only see a declaration written on
+# one line, and prettier writes long ones over several. Measured 2026-11-22 by calling every tool
+# before and after a format of all of code/: form-validation-rules lost two whole schemas
+# (customDistroSchema, vmCreateSchema), storage-adapters lost every method whose signature now
+# spans lines, store-signatures split one multi-line action into four bogus ones, and
+# api-endpoints lost a route's role, because it looks for requireRole in a fixed 500-character
+# window. form-validation-rules and store-signatures live in codebase-mcp-base, shared
+# byte-for-byte with the template, so their parsers are fixed there and synced. When all four
+# read a formatted tree the same as this one, delete these two lines and run `npm run format`.
+/src/
+/backend/src/
+# A byte-for-byte copy of src/constants/vocabularies.ts (audit:vocabulary), so it is formatted
+# when its canonical is, and goes with the two lines above.
+/tui/src/constants/vocabularies.ts
+
+# Not formatted yet: four files where a rewrap would force text to change. audit:decision-refs
+# counts an id on an added line as newly written, excusing only a line whose text also left the
+# same hunk, and a rewrapped line has new text. In three of them the ids are test data, so a
+# title would go inside the very strings under test (a code comment naming an id, a
+# decision-table row) and change what they test. In compliance-frameworks.ts the id sits in
+# capability prose that gen:compliance-matrix renders into customer-facing sales docs, so a title
+# would publish internal release planning as a side effect of a format. The checker is shared
+# with the template. When its predicate reads a rewrap as unchanged, delete these and run
+# `npm run format`.
+/scripts/data/compliance-frameworks.ts
+/scripts/verify-published-comments.ts
+/testing/unit/scripts/historical-context.spec.ts
+/testing/unit/scripts/verify-superseded-architecture.spec.ts

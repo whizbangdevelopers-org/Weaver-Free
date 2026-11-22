@@ -4,7 +4,7 @@ import { describe, it, expect } from 'vitest'
 import {
   getComplianceSlugs,
   isValidComplianceSlug,
-  generateCompliancePdf,
+  generateCompliancePdf
 } from '../../src/services/compliance-pdf.js'
 
 describe('getComplianceSlugs()', () => {
@@ -67,9 +67,9 @@ describe('isValidComplianceSlug()', () => {
   // real slugs, and these prove it no longer admits things nobody put in it. A rule needs both.
   it.each(['constructor', '__proto__', 'toString', 'valueOf', 'hasOwnProperty', 'isPrototypeOf'])(
     'returns false for inherited Object.prototype member %j',
-    (inherited) => {
+    inherited => {
       expect(isValidComplianceSlug(inherited)).toBe(false)
-    },
+    }
   )
 })
 
@@ -81,8 +81,8 @@ describe('generateCompliancePdf()', () => {
         version: '1.0.0',
         weasyprintBin: 'weasyprint',
         docsRoot: '/tmp/docs',
-        cacheDir: '/tmp/cache',
-      }),
+        cacheDir: '/tmp/cache'
+      })
     ).rejects.toThrow('Unknown compliance document: not-a-real-slug')
   })
 
@@ -92,17 +92,17 @@ describe('generateCompliancePdf()', () => {
   // must not depend on its one caller remembering the allowlist.
   it.each(['constructor', '__proto__', 'toString', 'hasOwnProperty'])(
     'throws for inherited Object.prototype member %j before any filesystem call',
-    async (inherited) => {
+    async inherited => {
       await expect(
         generateCompliancePdf({
           slug: inherited,
           version: '1.0.0',
           weasyprintBin: 'weasyprint',
           docsRoot: '/tmp/docs',
-          cacheDir: '/tmp/cache',
-        }),
+          cacheDir: '/tmp/cache'
+        })
       ).rejects.toThrow(`Unknown compliance document: ${inherited}`)
-    },
+    }
   )
 
   it('throws for an empty slug', async () => {
@@ -112,8 +112,8 @@ describe('generateCompliancePdf()', () => {
         version: '1.0.0',
         weasyprintBin: 'weasyprint',
         docsRoot: '/tmp/docs',
-        cacheDir: '/tmp/cache',
-      }),
+        cacheDir: '/tmp/cache'
+      })
     ).rejects.toThrow('Unknown compliance document:')
   })
 })

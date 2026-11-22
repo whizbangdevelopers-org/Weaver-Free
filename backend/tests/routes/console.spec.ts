@@ -13,15 +13,15 @@ function createMockProvisioner(portMap: Record<string, number | null> = {}) {
     isCloudDistro: vi.fn(() => false),
     getCloudVmStatus: vi.fn(() => 'stopped' as const),
     getCloudVmUptime: vi.fn(() => null),
-    getLog: vi.fn(async () => ''),
+    getLog: vi.fn(async () => '')
   }
 }
 
 // Helper: start a simple TCP echo server
 function startEchoServer(port: number): Promise<Server> {
-  return new Promise((resolve) => {
-    const server = createServer((socket) => {
-      socket.on('data', (data) => {
+  return new Promise(resolve => {
+    const server = createServer(socket => {
+      socket.on('data', data => {
         socket.write(data) // echo back
       })
     })
@@ -42,10 +42,12 @@ describe('Console WebSocket Proxy', () => {
     await app.ready()
 
     // `import('ws')` is the module namespace, not the socket type.
-    const ws = await new Promise<import('ws').WebSocket>((resolve) => {
+    const ws = await new Promise<import('ws').WebSocket>(resolve => {
       // eslint-disable-next-line @typescript-eslint/no-var-requires
       const WebSocket = require('ws')
-      const wsClient = new WebSocket(`ws://localhost:${(app.server.address() as { port: number }).port}/ws/console/test-vm`)
+      const wsClient = new WebSocket(
+        `ws://localhost:${(app.server.address() as { port: number }).port}/ws/console/test-vm`
+      )
       wsClient.on('open', () => resolve(wsClient))
     }).catch(() => null)
 
@@ -99,7 +101,9 @@ describe('Console WebSocket Proxy', () => {
         try {
           JSON.parse(text)
           return
-        } catch { /* not JSON, good */ }
+        } catch {
+          /* not JSON, good */
+        }
 
         received.push(text)
         if (received.length >= 1) {

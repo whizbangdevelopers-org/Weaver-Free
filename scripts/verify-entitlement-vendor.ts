@@ -30,7 +30,7 @@ import {
   CODE_DIR,
   SUBTREES,
   expectedTree,
-  expectedFiles,
+  expectedFiles
 } from './vendor-entitlement.js'
 
 /**
@@ -45,7 +45,7 @@ import {
  */
 export function compareTrees(
   expected: ReadonlyMap<string, string>,
-  actual: ReadonlyMap<string, string>,
+  actual: ReadonlyMap<string, string>
 ): string[] {
   const problems: string[] = []
   for (const [rel, want] of expected) {
@@ -66,23 +66,86 @@ export function compareTrees(
 // that point nothing checks the copy at all, which is strictly worse than the state before.
 // ---------------------------------------------------------------------------
 
-const CASES: Array<{ name: string; expected: [string, string][]; actual: [string, string][]; catches: boolean }> = [
+const CASES: Array<{
+  name: string
+  expected: [string, string][]
+  actual: [string, string][]
+  catches: boolean
+}> = [
   // CATCH
-  { name: 'a file edited in place', expected: [['format/a.ts', 'X']], actual: [['format/a.ts', 'Y']], catches: true },
+  {
+    name: 'a file edited in place',
+    expected: [['format/a.ts', 'X']],
+    actual: [['format/a.ts', 'Y']],
+    catches: true
+  },
   { name: 'a file never copied', expected: [['format/a.ts', 'X']], actual: [], catches: true },
-  { name: 'a file added inside the vendored tree', expected: [], actual: [['format/mine.ts', 'X']], catches: true },
-  { name: 'one of several drifted', expected: [['a.ts', 'X'], ['b.ts', 'Y']], actual: [['a.ts', 'X'], ['b.ts', 'Z']], catches: true },
-  { name: 'whitespace-only edit', expected: [['a.ts', 'const x = 1\n']], actual: [['a.ts', 'const x = 1 \n']], catches: true },
-  { name: 'a truncated file', expected: [['a.ts', 'AAAA']], actual: [['a.ts', 'AAA']], catches: true },
+  {
+    name: 'a file added inside the vendored tree',
+    expected: [],
+    actual: [['format/mine.ts', 'X']],
+    catches: true
+  },
+  {
+    name: 'one of several drifted',
+    expected: [
+      ['a.ts', 'X'],
+      ['b.ts', 'Y']
+    ],
+    actual: [
+      ['a.ts', 'X'],
+      ['b.ts', 'Z']
+    ],
+    catches: true
+  },
+  {
+    name: 'whitespace-only edit',
+    expected: [['a.ts', 'const x = 1\n']],
+    actual: [['a.ts', 'const x = 1 \n']],
+    catches: true
+  },
+  {
+    name: 'a truncated file',
+    expected: [['a.ts', 'AAAA']],
+    actual: [['a.ts', 'AAA']],
+    catches: true
+  },
 
   // IGNORE
-  { name: 'an identical tree', expected: [['format/a.ts', 'X'], ['verify/b.ts', 'Y']], actual: [['format/a.ts', 'X'], ['verify/b.ts', 'Y']], catches: false },
+  {
+    name: 'an identical tree',
+    expected: [
+      ['format/a.ts', 'X'],
+      ['verify/b.ts', 'Y']
+    ],
+    actual: [
+      ['format/a.ts', 'X'],
+      ['verify/b.ts', 'Y']
+    ],
+    catches: false
+  },
   { name: 'an empty tree on both sides', expected: [], actual: [], catches: false },
-  { name: 'identical content with unicode', expected: [['a.ts', '// ✓ — é\n']], actual: [['a.ts', '// ✓ — é\n']], catches: false },
-  { name: 'order does not matter', expected: [['a.ts', 'X'], ['b.ts', 'Y']], actual: [['b.ts', 'Y'], ['a.ts', 'X']], catches: false },
+  {
+    name: 'identical content with unicode',
+    expected: [['a.ts', '// ✓ — é\n']],
+    actual: [['a.ts', '// ✓ — é\n']],
+    catches: false
+  },
+  {
+    name: 'order does not matter',
+    expected: [
+      ['a.ts', 'X'],
+      ['b.ts', 'Y']
+    ],
+    actual: [
+      ['b.ts', 'Y'],
+      ['a.ts', 'X']
+    ],
+    catches: false
+  }
 ]
 
-const corpusFailures = CASES.flatMap((c) => {
+const corpusFailures = CASES.flatMap(c => {
   const hit = compareTrees(new Map(c.expected), new Map(c.actual)).length > 0
   return hit === c.catches ? [] : [`  ${c.catches ? 'MISSED' : 'FALSE POSITIVE'}: ${c.name}`]
 })
@@ -91,7 +154,7 @@ if (corpusFailures.length > 0) {
   console.error(corpusFailures.join('\n'))
   process.exit(1)
 }
-const catchCount = CASES.filter((c) => c.catches).length
+const catchCount = CASES.filter(c => c.catches).length
 console.log(`auditor-contract: catch=${catchCount} ignore=${CASES.length - catchCount}`)
 
 if (process.argv.includes('--self-test')) process.exit(0)
@@ -102,7 +165,7 @@ if (!existsSync(join(upstream, 'code/src/format'))) {
   console.log(
     `audit:entitlement-vendor — SKIP: no wbd-entitlement checkout at ${upstream}.\n` +
       '  The vendored copy cannot be compared against an upstream that is not here. This is the\n' +
-      '  expected state in a Weaver-Free clone; in Dev it means the sibling repo is missing.',
+      '  expected state in a Weaver-Free clone; in Dev it means the sibling repo is missing.'
   )
   process.exit(0)
 }
@@ -144,16 +207,20 @@ for (const [rel, want] of wantFiles) {
 }
 
 if (problems.length > 0) {
-  console.error(`\naudit:entitlement-vendor — vendored copy disagrees with wbd-entitlement@${rev}:\n`)
+  console.error(
+    `\naudit:entitlement-vendor — vendored copy disagrees with wbd-entitlement@${rev}:\n`
+  )
   for (const p of problems) console.error(`  ${p}`)
   console.error(
     '\n  Fix by re-running the vendor step, never by editing the copy:\n' +
       '    npx tsx scripts/vendor-entitlement.ts\n' +
       '  If the change belongs to Weaver rather than the shared mechanism, it belongs OUTSIDE\n' +
       '  backend/src/entitlement/ — see backend/src/license-profile.ts for where product-specific\n' +
-      '  code goes.\n',
+      '  code goes.\n'
   )
   process.exit(1)
 }
 
-console.log(`audit:entitlement-vendor — ${files.size + wantFiles.size} file(s) match wbd-entitlement@${rev}`)
+console.log(
+  `audit:entitlement-vendor — ${files.size + wantFiles.size} file(s) match wbd-entitlement@${rev}`
+)

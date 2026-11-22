@@ -25,11 +25,20 @@ import type { DashboardConfig } from '../../src/config.js'
 const BRIDGE = 'br-microvm'
 
 const baseConfig = {
-  tier: 'solo', licenseExpiry: null, licenseGraceMode: false, storageBackend: 'json',
-  dataDir: './data', provisioningEnabled: false, microvmsDir: '/var/lib/microvms',
-  bridgeGateway: '10.10.0.1', bridgeInterface: BRIDGE,
-  microvmBin: '/bin/microvm', qemuBin: '/bin/qemu', qemuImgBin: '/bin/qemu-img',
-  ipBin: '/bin/ip', distroCatalogUrl: null,
+  tier: 'solo',
+  licenseExpiry: null,
+  licenseGraceMode: false,
+  storageBackend: 'json',
+  dataDir: './data',
+  provisioningEnabled: false,
+  microvmsDir: '/var/lib/microvms',
+  bridgeGateway: '10.10.0.1',
+  bridgeInterface: BRIDGE,
+  microvmBin: '/bin/microvm',
+  qemuBin: '/bin/qemu',
+  qemuImgBin: '/bin/qemu-img',
+  ipBin: '/bin/ip',
+  distroCatalogUrl: null
 } as unknown as DashboardConfig
 
 describe('IP allocation — single-authority IPAM', () => {
@@ -98,7 +107,7 @@ describe('IP allocation — single-authority IPAM', () => {
       const got = [
         await mgr.reserveIp(BRIDGE),
         await mgr.reserveIp(BRIDGE),
-        await mgr.reserveIp(BRIDGE),
+        await mgr.reserveIp(BRIDGE)
       ]
       expect(got).toEqual(['10.10.0.10', '10.10.0.11', '10.10.0.12'])
       expect(await mgr.reserveIp(BRIDGE)).toBeNull()
@@ -111,7 +120,11 @@ describe('IP allocation — single-authority IPAM', () => {
     })
 
     it('skips an address already recorded as allocated', async () => {
-      await mgr.setIpPool(BRIDGE, { start: '10.10.0.10', end: '10.10.0.12', allocated: ['10.10.0.10'] })
+      await mgr.setIpPool(BRIDGE, {
+        start: '10.10.0.10',
+        end: '10.10.0.12',
+        allocated: ['10.10.0.10']
+      })
       expect(await mgr.reserveIp(BRIDGE)).toBe('10.10.0.11')
     })
   })

@@ -25,13 +25,13 @@ const { mockRetrieve } = vi.hoisted(() => ({ mockRetrieve: vi.fn() }))
 vi.mock('stripe', () => ({
   default: class {
     subscriptions = { retrieve: mockRetrieve }
-  },
+  }
 }))
 
 import {
   initStripe,
   initProductMap,
-  generateLicenseFromSubscription,
+  generateLicenseFromSubscription
 } from '../../src/services/stripe.js'
 import { parseLicenseKey } from '../../src/license.js'
 import { TIERS } from '../../src/constants/vocabularies.js'
@@ -45,7 +45,7 @@ const TEST_VERIFIER = createVerifier(WEAVER_PROFILE, ACCEPTED)
 const PRODUCTS = {
   soloProductId: 'prod_solo',
   teamProductId: 'prod_team',
-  fabrickProductId: 'prod_fabrick',
+  fabrickProductId: 'prod_fabrick'
 }
 
 /** Seconds-since-epoch, as Stripe reports a period end. */
@@ -69,14 +69,14 @@ function stubSubscription(
   productId: string,
   periodEndIso: string,
   customer = 'cus_ABCD1234',
-  quantity = 1,
+  quantity = 1
 ) {
   mockRetrieve.mockResolvedValue({
     id: 'sub_test',
     customer,
     items: {
-      data: [{ price: { product: productId }, quantity, current_period_end: epoch(periodEndIso) }],
-    },
+      data: [{ price: { product: productId }, quantity, current_period_end: epoch(periodEndIso) }]
+    }
   })
 }
 
@@ -107,12 +107,14 @@ describe('issuance round-trip — a minted key verifies', () => {
     const cases: Array<[string, string]> = [
       [PRODUCTS.soloProductId, TIERS.SOLO],
       [PRODUCTS.teamProductId, TIERS.TEAM],
-      [PRODUCTS.fabrickProductId, TIERS.FABRICK],
+      [PRODUCTS.fabrickProductId, TIERS.FABRICK]
     ]
     for (const [productId, tier] of cases) {
       stubSubscription(productId, '2027-06-15T00:00:00Z')
       const license = await generateLicenseFromSubscription('sub_test', AUTHORITY.privateKey)
-      expect(TEST_VERIFIER.parseLicenseKey(license.key, new Date('2026-08-17T00:00:00Z')).tier).toBe(tier)
+      expect(
+        TEST_VERIFIER.parseLicenseKey(license.key, new Date('2026-08-17T00:00:00Z')).tier
+      ).toBe(tier)
     }
   })
 
@@ -146,7 +148,7 @@ describe('issuance round-trip — a minted key verifies', () => {
     // privilege, and this is what stops it becoming one.
     expect(license.tier).toBe(TIERS.FABRICK)
     expect(() =>
-      TEST_VERIFIER.parseLicenseKey(license.key, new Date('2026-08-17T00:00:00Z')),
+      TEST_VERIFIER.parseLicenseKey(license.key, new Date('2026-08-17T00:00:00Z'))
     ).toThrow('signature verification failed')
   })
 
@@ -168,8 +170,9 @@ describe('issuance round-trip — a minted key verifies', () => {
   it('refuses a subscription whose product maps to no tier', async () => {
     stubSubscription('prod_not_ours', '2027-06-15T00:00:00Z')
 
-    await expect(generateLicenseFromSubscription('sub_test', AUTHORITY.privateKey))
-      .rejects.toThrow('Unknown product ID')
+    await expect(generateLicenseFromSubscription('sub_test', AUTHORITY.privateKey)).rejects.toThrow(
+      'Unknown product ID'
+    )
   })
 
   it('signs the PURCHASED quantity, not the conservative default', async () => {
@@ -197,10 +200,10 @@ describe('issuance round-trip — a minted key verifies', () => {
         data: [
           {
             price: { product: PRODUCTS.soloProductId },
-            current_period_end: Math.floor(new Date('2027-06-15T00:00:00Z').getTime() / 1000),
-          },
-        ],
-      },
+            current_period_end: Math.floor(new Date('2027-06-15T00:00:00Z').getTime() / 1000)
+          }
+        ]
+      }
     })
 
     const license = await generateLicenseFromSubscription('sub_test', AUTHORITY.privateKey)
@@ -218,10 +221,11 @@ describe('issuance round-trip — a minted key verifies', () => {
     mockRetrieve.mockResolvedValue({
       id: 'sub_test',
       customer: 'cus_ABCD1234',
-      items: { data: [{ price: { product: PRODUCTS.soloProductId }, quantity: 1 }] },
+      items: { data: [{ price: { product: PRODUCTS.soloProductId }, quantity: 1 }] }
     })
 
-    await expect(generateLicenseFromSubscription('sub_test', AUTHORITY.privateKey))
-      .rejects.toThrow('current_period_end')
+    await expect(generateLicenseFromSubscription('sub_test', AUTHORITY.privateKey)).rejects.toThrow(
+      'current_period_end'
+    )
   })
 })

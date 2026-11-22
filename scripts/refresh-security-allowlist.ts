@@ -52,7 +52,10 @@ function inTree(pkg: string): boolean {
   for (const dir of [ROOT, resolve(ROOT, 'backend')]) {
     try {
       const out = execSync(`npm ls ${pkg} --all --json 2>/dev/null`, {
-        cwd: dir, encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'], maxBuffer: 64 * 1024 * 1024,
+        cwd: dir,
+        encoding: 'utf-8',
+        stdio: ['pipe', 'pipe', 'pipe'],
+        maxBuffer: 64 * 1024 * 1024
       })
       if (JSON.stringify(JSON.parse(out)).includes(`"${pkg}"`)) return true
     } catch (err) {
@@ -79,7 +82,8 @@ for (const [pkg, entry] of Object.entries(ack)) {
 
 if (expired.length) {
   console.log(`${RED}EXPIRED (reviewBy passed — re-justify or remove):${RESET}`)
-  for (const p of expired) console.log(`  ✗ ${p} — reviewBy ${ack[p].reviewBy} [${ack[p].category}]`)
+  for (const p of expired)
+    console.log(`  ✗ ${p} — reviewBy ${ack[p].reviewBy} [${ack[p].category}]`)
   console.log('')
 }
 if (stale.length) {
@@ -94,10 +98,16 @@ if (dueSoon.length) {
 }
 
 if (!expired.length && !stale.length && !dueSoon.length) {
-  console.log(`${GREEN}✓ All ${Object.keys(ack).length} allowlist entries are current, in-tree, and not due for review.${RESET}`)
+  console.log(
+    `${GREEN}✓ All ${Object.keys(ack).length} allowlist entries are current, in-tree, and not due for review.${RESET}`
+  )
 } else {
-  console.log(`${DIM}${Object.keys(ack).length} entries total · ${expired.length} expired · ${stale.length} stale · ${dueSoon.length} due soon.${RESET}`)
-  console.log(`${DIM}Edit scripts/baselines/security-allowlist.json and commit. Run \`npm run audit:security\` for the live pass/fail.${RESET}`)
+  console.log(
+    `${DIM}${Object.keys(ack).length} entries total · ${expired.length} expired · ${stale.length} stale · ${dueSoon.length} due soon.${RESET}`
+  )
+  console.log(
+    `${DIM}Edit scripts/baselines/security-allowlist.json and commit. Run \`npm run audit:security\` for the live pass/fail.${RESET}`
+  )
 }
 
 // Review tool — informational only, never fails CI.

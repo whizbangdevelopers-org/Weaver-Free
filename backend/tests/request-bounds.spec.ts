@@ -24,7 +24,11 @@ import { describe, expect, it } from 'vitest'
 import Fastify, { type FastifyPluginAsync } from 'fastify'
 import websocket from '@fastify/websocket'
 import { z } from 'zod'
-import { serializerCompiler, validatorCompiler, type ZodTypeProvider } from 'fastify-type-provider-zod'
+import {
+  serializerCompiler,
+  validatorCompiler,
+  type ZodTypeProvider
+} from 'fastify-type-provider-zod'
 
 import { apiErrorHandler } from '../src/error-handler.js'
 import { channelConfigSchema } from '../src/schemas/notification-config.js'
@@ -40,9 +44,10 @@ const ROUTES_DIR = join(dirname(fileURLToPath(import.meta.url)), '../src/routes'
 function standIn(): unknown {
   const target = () => undefined
   return new Proxy(target, {
-    get: (_t, key) => (key === 'then' ? undefined : key === Symbol.toPrimitive ? () => '' : standIn()),
+    get: (_t, key) =>
+      key === 'then' ? undefined : key === Symbol.toPrimitive ? () => '' : standIn(),
     apply: () => standIn(),
-    construct: () => standIn() as object,
+    construct: () => standIn() as object
   })
 }
 
@@ -53,10 +58,11 @@ async function inputsOf(plugin: FastifyPluginAsync<never>): Promise<Array<[strin
   app.setValidatorCompiler(validatorCompiler)
   app.setSerializerCompiler(serializerCompiler)
   await app.register(websocket)
-  app.addHook('onRoute', (route) => {
+  app.addHook('onRoute', route => {
     const schema = route.schema as Record<string, unknown> | undefined
     for (const part of ['body', 'querystring', 'params', 'headers']) {
-      if (schema?.[part]) inputs.push([`${String(route.method)} ${route.url} ${part}`, schema[part]])
+      if (schema?.[part])
+        inputs.push([`${String(route.method)} ${route.url} ${part}`, schema[part]])
     }
   })
   await app.register(plugin, standIn() as never)
@@ -68,9 +74,14 @@ async function inputsOf(plugin: FastifyPluginAsync<never>): Promise<Array<[strin
 /** Every exported `*Routes` plugin under `src/routes`, found on disk rather than named. */
 async function everyRoutePlugin(): Promise<Array<[string, FastifyPluginAsync<never>]>> {
   const plugins: Array<[string, FastifyPluginAsync<never>]> = []
-  const files = readdirSync(ROUTES_DIR, { recursive: true, encoding: 'utf-8' }).filter((f) => f.endsWith('.ts'))
+  const files = readdirSync(ROUTES_DIR, { recursive: true, encoding: 'utf-8' }).filter(f =>
+    f.endsWith('.ts')
+  )
   for (const file of files) {
-    const module = (await import(pathToFileURL(join(ROUTES_DIR, file)).href)) as Record<string, unknown>
+    const module = (await import(pathToFileURL(join(ROUTES_DIR, file)).href)) as Record<
+      string,
+      unknown
+    >
     for (const [name, value] of Object.entries(module)) {
       if (name.endsWith('Routes') && typeof value === 'function') {
         plugins.push([`${file}#${name}`, value as FastifyPluginAsync<never>])
@@ -82,8 +93,10 @@ async function everyRoutePlugin(): Promise<Array<[string, FastifyPluginAsync<nev
 
 const unboundedInSchema = (schema: unknown, where: string): Unbounded[] =>
   unboundedIn(
-    schema instanceof z.ZodType ? z.toJSONSchema(schema, { io: 'input', unrepresentable: 'any' }) : schema,
-    where,
+    schema instanceof z.ZodType
+      ? z.toJSONSchema(schema, { io: 'input', unrepresentable: 'any' })
+      : schema,
+    where
   )
 
 describe('the walker: what it must catch', () => {
@@ -99,9 +112,9 @@ describe('the walker: what it must catch', () => {
         {
           type: 'array',
           maxItems: 4,
-          items: { type: 'object', properties: { tags: { type: 'array', items: {} } } },
-        },
-      ],
+          items: { type: 'object', properties: { tags: { type: 'array', items: {} } } }
+        }
+      ]
     }
     expect(unboundedIn(schema, 'x')).toEqual([{ kind: 'array', where: 'x[].tags' }])
   })
@@ -112,8 +125,12 @@ describe('the walker: what it must catch', () => {
   })
 
   it('zod schemas, read as a request reads them', () => {
-    expect(unboundedInSchema(z.object({ ids: z.array(z.string()) }), 'x')).toEqual([{ kind: 'array', where: 'x.ids' }])
-    expect(unboundedInSchema(z.record(z.string(), z.string()), 'x')).toEqual([{ kind: 'record', where: 'x' }])
+    expect(unboundedInSchema(z.object({ ids: z.array(z.string()) }), 'x')).toEqual([
+      { kind: 'array', where: 'x.ids' }
+    ])
+    expect(unboundedInSchema(z.record(z.string(), z.string()), 'x')).toEqual([
+      { kind: 'record', where: 'x' }
+    ])
   })
 })
 
@@ -123,17 +140,26 @@ describe('the walker: what it must not flag', () => {
       type: 'object',
       properties: {
         ids: { type: 'array', maxItems: 8, items: { type: 'string' } },
-        pair: { type: 'array', prefixItems: [{}, {}], items: false },
-      },
+        pair: { type: 'array', prefixItems: [{}, {}], items: false }
+      }
     }
     expect(unboundedIn(schema, 'x')).toEqual([])
   })
 
   it('a record keyed by a closed set, one whose values accept anything, and a counted one', () => {
-    const closed = { type: 'object', propertyNames: { enum: ['a', 'b'] }, additionalProperties: { type: 'boolean' } }
+    const closed = {
+      type: 'object',
+      propertyNames: { enum: ['a', 'b'] },
+      additionalProperties: { type: 'boolean' }
+    }
     expect(unboundedIn(closed, 'x')).toEqual([])
     expect(unboundedIn({ type: 'object', additionalProperties: {} }, 'x')).toEqual([])
-    expect(unboundedIn({ type: 'object', maxProperties: 16, additionalProperties: { type: 'string' } }, 'x')).toEqual([])
+    expect(
+      unboundedIn(
+        { type: 'object', maxProperties: 16, additionalProperties: { type: 'string' } },
+        'x'
+      )
+    ).toEqual([])
   })
 })
 
@@ -161,7 +187,7 @@ describe('a webhook channel headers record', () => {
     url: 'https://example.com/hook',
     method: 'POST',
     format: 'json',
-    headers,
+    headers
   })
 
   it('takes string values, as far as its bound', () => {
@@ -192,14 +218,14 @@ describe('a request past its bound', () => {
     app.post(
       '/ids',
       { schema: { body: z.object({ ids: z.array(z.string()).max(8) }) } },
-      async () => ({ ok: true }),
+      async () => ({ ok: true })
     )
     await app.ready()
     const res = await app.inject({
       method: 'POST',
       url: '/ids',
       headers: { 'content-type': 'application/json' },
-      payload: JSON.stringify({ ids: Array.from({ length: 500_000 }, () => 0) }),
+      payload: JSON.stringify({ ids: Array.from({ length: 500_000 }, () => 0) })
     })
     expect(res.statusCode).toBe(400)
     expect((res.json() as { details: string[] }).details).toHaveLength(1)

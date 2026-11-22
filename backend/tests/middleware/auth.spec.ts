@@ -2,11 +2,7 @@
 // Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE.
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import Fastify from 'fastify'
-import {
-  serializerCompiler,
-  validatorCompiler,
-  ZodTypeProvider
-} from 'fastify-type-provider-zod'
+import { serializerCompiler, validatorCompiler, ZodTypeProvider } from 'fastify-type-provider-zod'
 import { AuthService } from '../../src/services/auth.js'
 import { UserStore } from '../../src/storage/user-store.js'
 import { MemorySessionStore } from '../../src/storage/memory-session-store.js'
@@ -84,7 +80,7 @@ describe('Auth Middleware', () => {
     const response = await fastify.inject({
       method: 'GET',
       url: '/api/protected',
-      headers: { authorization: `Bearer ${adminToken}` },
+      headers: { authorization: `Bearer ${adminToken}` }
     })
 
     expect(response.statusCode).toBe(200)
@@ -96,7 +92,7 @@ describe('Auth Middleware', () => {
   it('should return 401 for missing token', async () => {
     const response = await fastify.inject({
       method: 'GET',
-      url: '/api/protected',
+      url: '/api/protected'
     })
 
     expect(response.statusCode).toBe(401)
@@ -106,7 +102,7 @@ describe('Auth Middleware', () => {
     const response = await fastify.inject({
       method: 'GET',
       url: '/api/protected',
-      headers: { authorization: 'Bearer invalid-token-here' },
+      headers: { authorization: 'Bearer invalid-token-here' }
     })
 
     expect(response.statusCode).toBe(401)
@@ -120,7 +116,7 @@ describe('Auth Middleware', () => {
     const response = await fastify.inject({
       method: 'GET',
       url: '/api/protected',
-      headers: { authorization: `Bearer ${result.token}` },
+      headers: { authorization: `Bearer ${result.token}` }
     })
 
     expect(response.statusCode).toBe(401)
@@ -129,7 +125,7 @@ describe('Auth Middleware', () => {
   it('should skip auth for health check', async () => {
     const response = await fastify.inject({
       method: 'GET',
-      url: '/api/health',
+      url: '/api/health'
     })
 
     expect(response.statusCode).toBe(200)
@@ -140,7 +136,7 @@ describe('Auth Middleware', () => {
     const response = await fastify.inject({
       method: 'POST',
       url: '/api/auth/login',
-      payload: { username: 'admin', password: 'T3stP@ssw0rd!X' },
+      payload: { username: 'admin', password: 'T3stP@ssw0rd!X' }
     })
 
     expect(response.statusCode).toBe(200)
@@ -150,7 +146,7 @@ describe('Auth Middleware', () => {
     const response = await fastify.inject({
       method: 'GET',
       url: '/api/protected',
-      headers: { authorization: 'Basic dXNlcjpwYXNz' },
+      headers: { authorization: 'Basic dXNlcjpwYXNz' }
     })
 
     expect(response.statusCode).toBe(401)

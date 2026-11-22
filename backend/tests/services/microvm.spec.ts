@@ -43,24 +43,79 @@ function makeRegistry(initial: Record<string, WorkloadDefinition>): WorkloadRegi
       if (!vms[name]) return false
       vms[name] = { ...vms[name], ...fields }
       return true
-    },
+    }
   }
 }
 
 const MICROVM_FIXTURES: Record<string, WorkloadDefinition> = {
-  'web-nginx':   { name: 'web-nginx',   ip: '10.10.0.10', mem: 256, vcpu: 1, hypervisor: 'qemu', distro: 'nixos' },
-  'web-app':     { name: 'web-app',     ip: '10.10.0.11', mem: 512, vcpu: 1, hypervisor: 'qemu', distro: 'nixos' },
-  'dev-node':    { name: 'dev-node',    ip: '10.10.0.20', mem: 512, vcpu: 1, hypervisor: 'qemu', distro: 'nixos' },
-  'dev-python':  { name: 'dev-python',  ip: '10.10.0.21', mem: 512, vcpu: 1, hypervisor: 'qemu', distro: 'nixos' },
-  'svc-postgres':{ name: 'svc-postgres',ip: '10.10.0.30', mem: 512, vcpu: 1, hypervisor: 'qemu', distro: 'nixos' },
+  'web-nginx': {
+    name: 'web-nginx',
+    ip: '10.10.0.10',
+    mem: 256,
+    vcpu: 1,
+    hypervisor: 'qemu',
+    distro: 'nixos'
+  },
+  'web-app': {
+    name: 'web-app',
+    ip: '10.10.0.11',
+    mem: 512,
+    vcpu: 1,
+    hypervisor: 'qemu',
+    distro: 'nixos'
+  },
+  'dev-node': {
+    name: 'dev-node',
+    ip: '10.10.0.20',
+    mem: 512,
+    vcpu: 1,
+    hypervisor: 'qemu',
+    distro: 'nixos'
+  },
+  'dev-python': {
+    name: 'dev-python',
+    ip: '10.10.0.21',
+    mem: 512,
+    vcpu: 1,
+    hypervisor: 'qemu',
+    distro: 'nixos'
+  },
+  'svc-postgres': {
+    name: 'svc-postgres',
+    ip: '10.10.0.30',
+    mem: 512,
+    vcpu: 1,
+    hypervisor: 'qemu',
+    distro: 'nixos'
+  }
 }
 
 const CONTAINER_FIXTURES: Record<string, WorkloadDefinition> = {
-  'my-nginx':  { name: 'my-nginx',  ip: '', mem: 0, vcpu: 0, hypervisor: 'docker', runtime: 'docker', containerId: 'abc123', image: 'nginx:latest' },
-  'my-db':     { name: 'my-db',     ip: '', mem: 0, vcpu: 0, hypervisor: 'podman', runtime: 'podman', containerId: 'def456', image: 'postgres:15' },
+  'my-nginx': {
+    name: 'my-nginx',
+    ip: '',
+    mem: 0,
+    vcpu: 0,
+    hypervisor: 'docker',
+    runtime: 'docker',
+    containerId: 'abc123',
+    image: 'nginx:latest'
+  },
+  'my-db': {
+    name: 'my-db',
+    ip: '',
+    mem: 0,
+    vcpu: 0,
+    hypervisor: 'podman',
+    runtime: 'podman',
+    containerId: 'def456',
+    image: 'postgres:15'
+  }
 }
 
-function createMockRegistry(): WorkloadRegistry { return makeRegistry(MICROVM_FIXTURES) }
+function createMockRegistry(): WorkloadRegistry {
+  return makeRegistry(MICROVM_FIXTURES)
+}
 function createMockRegistryWithContainers(): WorkloadRegistry {
   return makeRegistry({ ...MICROVM_FIXTURES, ...CONTAINER_FIXTURES })
 }
@@ -86,7 +141,11 @@ function mockExecFileError(error: Error) {
 function _mockExecFileSequence(responses: Array<string | Error>) {
   let call = 0
   ;(execFile as unknown as ReturnType<typeof vi.fn>).mockImplementation(
-    (_cmd: string, _args: string[], callback: (err: Error | null, result?: { stdout: string; stderr: string }) => void) => {
+    (
+      _cmd: string,
+      _args: string[],
+      callback: (err: Error | null, result?: { stdout: string; stderr: string }) => void
+    ) => {
       const response = responses[call++] ?? ''
       if (response instanceof Error) {
         callback(response)
@@ -108,10 +167,18 @@ describe('MicroVM Service', () => {
       const defs = await getWorkloadDefinitions()
       expect(Object.keys(defs)).toHaveLength(5)
       expect(defs['web-nginx']).toMatchObject({
-        name: 'web-nginx', ip: '10.10.0.10', mem: 256, vcpu: 1, hypervisor: 'qemu'
+        name: 'web-nginx',
+        ip: '10.10.0.10',
+        mem: 256,
+        vcpu: 1,
+        hypervisor: 'qemu'
       })
       expect(defs['svc-postgres']).toMatchObject({
-        name: 'svc-postgres', ip: '10.10.0.30', mem: 512, vcpu: 1, hypervisor: 'qemu'
+        name: 'svc-postgres',
+        ip: '10.10.0.30',
+        mem: 512,
+        vcpu: 1,
+        hypervisor: 'qemu'
       })
     })
   })
@@ -126,8 +193,14 @@ describe('MicroVM Service', () => {
     it('should return stopped for inactive+enabled service (anomalous stop)', async () => {
       // is-active → inactive, is-enabled → enabled: unit should be running but isn't
       const mock = execFile as unknown as ReturnType<typeof vi.fn>
-      mock.mockImplementationOnce((_c: string, _a: string[], cb: (e: null, r: { stdout: string; stderr: string }) => void) => cb(null, { stdout: 'inactive\n', stderr: '' }))
-      mock.mockImplementationOnce((_c: string, _a: string[], cb: (e: null, r: { stdout: string; stderr: string }) => void) => cb(null, { stdout: 'enabled\n', stderr: '' }))
+      mock.mockImplementationOnce(
+        (_c: string, _a: string[], cb: (e: null, r: { stdout: string; stderr: string }) => void) =>
+          cb(null, { stdout: 'inactive\n', stderr: '' })
+      )
+      mock.mockImplementationOnce(
+        (_c: string, _a: string[], cb: (e: null, r: { stdout: string; stderr: string }) => void) =>
+          cb(null, { stdout: 'enabled\n', stderr: '' })
+      )
       const status = await getVmStatus('web-nginx')
       expect(status).toBe('stopped')
     })
@@ -135,8 +208,14 @@ describe('MicroVM Service', () => {
     it('should return idle for inactive+disabled service (intentional stop)', async () => {
       // is-active → inactive, is-enabled → disabled: operator intentionally parked it
       const mock = execFile as unknown as ReturnType<typeof vi.fn>
-      mock.mockImplementationOnce((_c: string, _a: string[], cb: (e: null, r: { stdout: string; stderr: string }) => void) => cb(null, { stdout: 'inactive\n', stderr: '' }))
-      mock.mockImplementationOnce((_c: string, _a: string[], cb: (e: null, r: { stdout: string; stderr: string }) => void) => cb(null, { stdout: 'disabled\n', stderr: '' }))
+      mock.mockImplementationOnce(
+        (_c: string, _a: string[], cb: (e: null, r: { stdout: string; stderr: string }) => void) =>
+          cb(null, { stdout: 'inactive\n', stderr: '' })
+      )
+      mock.mockImplementationOnce(
+        (_c: string, _a: string[], cb: (e: null, r: { stdout: string; stderr: string }) => void) =>
+          cb(null, { stdout: 'disabled\n', stderr: '' })
+      )
       const status = await getVmStatus('web-nginx')
       expect(status).toBe('idle')
     })
@@ -201,21 +280,29 @@ describe('MicroVM Service', () => {
     // 2s of network timeouts to answer a question neither asked.
     describe('service probes', () => {
       const PROBED_VM: WorkloadDefinition = {
-        name: 'probed', ip: '10.10.0.99', mem: 256, vcpu: 1, hypervisor: 'qemu',
+        name: 'probed',
+        ip: '10.10.0.99',
+        mem: 256,
+        vcpu: 1,
+        hypervisor: 'qemu',
         // Port 1 on a private address that does not exist: a real probe attempt resolves to
         // `unhealthy` (connection refused / timeout), never to `unknown`. That is what makes the
         // two branches below distinguishable rather than coincidentally equal.
-        serviceProbes: [{ port: 1, type: 'tcp', label: 'Nothing' }],
+        serviceProbes: [{ port: 1, type: 'tcp', label: 'Nothing' }]
       }
 
-      beforeEach(() => { setRegistry(makeRegistry({ probed: PROBED_VM })) })
+      beforeEach(() => {
+        setRegistry(makeRegistry({ probed: PROBED_VM }))
+      })
 
       it('reports configured probes as `unknown` when NOT asked to probe', async () => {
         mockExecFile('active\n')
         const vm = await getVm('probed')
         // `unknown` is this type's word for "not checked" — omitting the probes entirely would
         // tell an API client the workload has none configured, a different and false claim.
-        expect(vm!.serviceProbes).toEqual([{ port: 1, type: 'tcp', label: 'Nothing', health: 'unknown' }])
+        expect(vm!.serviceProbes).toEqual([
+          { port: 1, type: 'tcp', label: 'Nothing', health: 'unknown' }
+        ])
       })
 
       it('actually evaluates them when asked', async () => {
@@ -250,12 +337,18 @@ describe('MicroVM Service', () => {
     // no health at all. `...def` now carries specs, so the field must be overwritten
     // unconditionally rather than only when a probe happened to run.
     it('attaches health to every emitted probe', async () => {
-      setRegistry(makeRegistry({
-        probed: {
-          name: 'probed', ip: '10.10.0.99', mem: 256, vcpu: 1, hypervisor: 'qemu',
-          serviceProbes: [{ port: 1, type: 'tcp', label: 'Nothing' }],
-        },
-      }))
+      setRegistry(
+        makeRegistry({
+          probed: {
+            name: 'probed',
+            ip: '10.10.0.99',
+            mem: 256,
+            vcpu: 1,
+            hypervisor: 'qemu',
+            serviceProbes: [{ port: 1, type: 'tcp', label: 'Nothing' }]
+          }
+        })
+      )
       mockExecFile('inactive\n')
       const probes = (await listVms())[0]!.serviceProbes
       expect(probes).toHaveLength(1)
@@ -266,12 +359,18 @@ describe('MicroVM Service', () => {
       // `[]` and `undefined` are not the same claim downstream: one says "probes configured, none
       // healthy", the other says "none configured". Letting `...def` spread the stored `[]`
       // through is how the first gets said when the second is true.
-      setRegistry(makeRegistry({
-        empty: {
-          name: 'empty', ip: '10.10.0.98', mem: 256, vcpu: 1, hypervisor: 'qemu',
-          serviceProbes: [],
-        },
-      }))
+      setRegistry(
+        makeRegistry({
+          empty: {
+            name: 'empty',
+            ip: '10.10.0.98',
+            mem: 256,
+            vcpu: 1,
+            hypervisor: 'qemu',
+            serviceProbes: []
+          }
+        })
+      )
       mockExecFile('inactive\n')
       expect((await listVms())[0]!.serviceProbes).toBeUndefined()
     })
@@ -289,7 +388,11 @@ describe('MicroVM Service', () => {
       const vms = await listVms()
       expect(vms).toHaveLength(5)
       expect(vms.map(v => v.name).sort()).toEqual([
-        'dev-node', 'dev-python', 'svc-postgres', 'web-app', 'web-nginx'
+        'dev-node',
+        'dev-python',
+        'svc-postgres',
+        'web-app',
+        'web-nginx'
       ])
     })
   })
@@ -298,7 +401,11 @@ describe('MicroVM Service', () => {
     it('should succeed for known VM', async () => {
       let callCount = 0
       ;(execFile as unknown as ReturnType<typeof vi.fn>).mockImplementation(
-        (_cmd: string, args: string[], callback: (err: unknown, result: { stdout: string; stderr: string }) => void) => {
+        (
+          _cmd: string,
+          args: string[],
+          callback: (err: unknown, result: { stdout: string; stderr: string }) => void
+        ) => {
           callCount++
           // First call: systemctl start (no output), second call: is-active check
           const stdout = callCount === 1 ? '' : 'active\n'
@@ -342,7 +449,11 @@ describe('MicroVM Service', () => {
     it('should succeed for known VM', async () => {
       let callCount = 0
       ;(execFile as unknown as ReturnType<typeof vi.fn>).mockImplementation(
-        (_cmd: string, args: string[], callback: (err: unknown, result: { stdout: string; stderr: string }) => void) => {
+        (
+          _cmd: string,
+          args: string[],
+          callback: (err: unknown, result: { stdout: string; stderr: string }) => void
+        ) => {
           callCount++
           const stdout = callCount === 1 ? '' : 'active\n'
           callback(null, { stdout, stderr: '' })
@@ -358,7 +469,6 @@ describe('MicroVM Service', () => {
       expect(result.success).toBe(false)
     })
   })
-
 })
 
 describe('Container dispatch (docker/podman)', () => {
@@ -486,8 +596,20 @@ describe('scanContainers', () => {
   describe('docker', () => {
     it('discovers new containers and marks existing ones', async () => {
       const psOutput = [
-        JSON.stringify({ ID: 'abc123', Names: 'my-nginx', Image: 'nginx:latest', State: 'running', Ports: '' }),
-        JSON.stringify({ ID: 'xyz789', Names: 'new-app',  Image: 'redis:7',      State: 'exited',  Ports: '0.0.0.0:6379->6379/tcp' }),
+        JSON.stringify({
+          ID: 'abc123',
+          Names: 'my-nginx',
+          Image: 'nginx:latest',
+          State: 'running',
+          Ports: ''
+        }),
+        JSON.stringify({
+          ID: 'xyz789',
+          Names: 'new-app',
+          Image: 'redis:7',
+          State: 'exited',
+          Ports: '0.0.0.0:6379->6379/tcp'
+        })
       ].join('\n')
       mockExecFile(psOutput)
 
@@ -498,7 +620,13 @@ describe('scanContainers', () => {
     })
 
     it('strips leading slash from Docker container names', async () => {
-      const psOutput = JSON.stringify({ ID: 'abc', Names: '/slashed-name', Image: 'alpine', State: 'running', Ports: '' })
+      const psOutput = JSON.stringify({
+        ID: 'abc',
+        Names: '/slashed-name',
+        Image: 'alpine',
+        State: 'running',
+        Ports: ''
+      })
       mockExecFile(psOutput)
 
       const result = await scanContainers('docker')
@@ -509,7 +637,13 @@ describe('scanContainers', () => {
     it('stores image, containerId, and ports on new containers', async () => {
       const reg = makeRegistry({})
       setRegistry(reg)
-      const psOutput = JSON.stringify({ ID: 'abc123', Names: 'my-app', Image: 'nginx:latest', State: 'running', Ports: '0.0.0.0:8080->80/tcp, 0.0.0.0:8443->443/tcp' })
+      const psOutput = JSON.stringify({
+        ID: 'abc123',
+        Names: 'my-app',
+        Image: 'nginx:latest',
+        State: 'running',
+        Ports: '0.0.0.0:8080->80/tcp, 0.0.0.0:8443->443/tcp'
+      })
       mockExecFile(psOutput)
 
       await scanContainers('docker')
@@ -526,10 +660,16 @@ describe('scanContainers', () => {
     it('records bridge from the Networks field on a newly registered container', async () => {
       const reg = makeRegistry({})
       setRegistry(reg)
-      mockExecFile(JSON.stringify({
-        ID: 'abc123', Names: 'my-app', Image: 'nginx:latest', State: 'running',
-        Ports: '', Networks: 'bridge',
-      }))
+      mockExecFile(
+        JSON.stringify({
+          ID: 'abc123',
+          Names: 'my-app',
+          Image: 'nginx:latest',
+          State: 'running',
+          Ports: '',
+          Networks: 'bridge'
+        })
+      )
 
       await scanContainers('docker')
       // 'bridge' is docker0 — the divergent case, recorded honestly rather than normalised away.
@@ -539,10 +679,16 @@ describe('scanContainers', () => {
     it('records a container already on the Weaver bridge with that value unchanged', async () => {
       const reg = makeRegistry({})
       setRegistry(reg)
-      mockExecFile(JSON.stringify({
-        ID: 'def456', Names: 'conformant', Image: 'alpine', State: 'running',
-        Ports: '', Networks: 'br-microvm',
-      }))
+      mockExecFile(
+        JSON.stringify({
+          ID: 'def456',
+          Names: 'conformant',
+          Image: 'alpine',
+          State: 'running',
+          Ports: '',
+          Networks: 'br-microvm'
+        })
+      )
 
       await scanContainers('docker')
       expect((await reg.get('conformant'))!.bridge).toBe('br-microvm')
@@ -553,10 +699,16 @@ describe('scanContainers', () => {
       // already divergent from "one Weaver-managed bridge" — the first is enough to say so.
       const reg = makeRegistry({})
       setRegistry(reg)
-      mockExecFile(JSON.stringify({
-        ID: 'ghi789', Names: 'multi', Image: 'alpine', State: 'running',
-        Ports: '', Networks: 'frontend,backend',
-      }))
+      mockExecFile(
+        JSON.stringify({
+          ID: 'ghi789',
+          Names: 'multi',
+          Image: 'alpine',
+          State: 'running',
+          Ports: '',
+          Networks: 'frontend,backend'
+        })
+      )
 
       await scanContainers('docker')
       expect((await reg.get('multi'))!.bridge).toBe('frontend')
@@ -565,9 +717,16 @@ describe('scanContainers', () => {
     it('leaves bridge undefined — not "" — when docker reports no network', async () => {
       const reg = makeRegistry({})
       setRegistry(reg)
-      mockExecFile(JSON.stringify({
-        ID: 'jkl012', Names: 'netless', Image: 'alpine', State: 'running', Ports: '', Networks: '',
-      }))
+      mockExecFile(
+        JSON.stringify({
+          ID: 'jkl012',
+          Names: 'netless',
+          Image: 'alpine',
+          State: 'running',
+          Ports: '',
+          Networks: ''
+        })
+      )
 
       await scanContainers('docker')
       const stored = await reg.get('netless')
@@ -591,7 +750,13 @@ describe('scanContainers', () => {
     it('skips malformed JSON lines without throwing', async () => {
       const psOutput = [
         'not-valid-json',
-        JSON.stringify({ ID: 'abc', Names: 'good-container', Image: 'alpine', State: 'running', Ports: '' }),
+        JSON.stringify({
+          ID: 'abc',
+          Names: 'good-container',
+          Image: 'alpine',
+          State: 'running',
+          Ports: ''
+        })
       ].join('\n')
       mockExecFile(psOutput)
 
@@ -604,7 +769,13 @@ describe('scanContainers', () => {
     it('discovers podman containers and sets runtime: podman', async () => {
       const reg = makeRegistry({})
       setRegistry(reg)
-      const psOutput = JSON.stringify({ ID: 'pod111', Names: 'my-svc', Image: 'postgres:15', State: 'running', Ports: '' })
+      const psOutput = JSON.stringify({
+        ID: 'pod111',
+        Names: 'my-svc',
+        Image: 'postgres:15',
+        State: 'running',
+        Ports: ''
+      })
       mockExecFile(psOutput)
 
       const result = await scanContainers('podman')

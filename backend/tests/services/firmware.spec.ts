@@ -10,12 +10,12 @@ import {
   tpmPaths,
   swtpmArgs,
   tpmArgs,
-  type OvmfPaths,
+  type OvmfPaths
 } from '../../src/services/firmware.js'
 
 const OVMF: OvmfPaths = {
   code: '/nix/store/xxx-OVMF/FV/OVMF_CODE.fd',
-  varsTemplate: '/nix/store/xxx-OVMF/FV/OVMF_VARS.fd',
+  varsTemplate: '/nix/store/xxx-OVMF/FV/OVMF_VARS.fd'
 }
 
 describe('firmwareRejectionReason', () => {
@@ -57,7 +57,7 @@ describe('firmwareRejectionReason', () => {
 describe('resolveFirmware', () => {
   it('returns BIOS when UEFI was not asked for', () => {
     expect(resolveFirmware({ firmware: 'bios' }, OVMF, '/var/lib/microvms/win11')).toEqual({
-      mode: 'bios',
+      mode: 'bios'
     })
   })
 
@@ -66,7 +66,7 @@ describe('resolveFirmware', () => {
     // plan boots something; a UEFI plan naming files that do not exist fails inside QEMU with a
     // message the user cannot act on.
     expect(resolveFirmware({ firmware: 'uefi' }, null, '/var/lib/microvms/win11')).toEqual({
-      mode: 'bios',
+      mode: 'bios'
     })
   })
 
@@ -93,7 +93,7 @@ describe('resolveGuestDevices — the iff', () => {
     expect(resolveGuestDevices({ guestOs: 'linux' })).toEqual({
       diskInterface: 'virtio',
       netDevice: 'virtio-net-pci',
-      attachVirtioIso: false,
+      attachVirtioIso: false
     })
   })
 
@@ -102,7 +102,7 @@ describe('resolveGuestDevices — the iff', () => {
     expect(resolveGuestDevices({ guestOs: 'windows' })).toEqual({
       diskInterface: 'ide',
       netDevice: 'e1000',
-      attachVirtioIso: false,
+      attachVirtioIso: false
     })
   })
 
@@ -110,7 +110,7 @@ describe('resolveGuestDevices — the iff', () => {
     expect(resolveGuestDevices({ guestOs: 'windows', virtioDrivers: true })).toEqual({
       diskInterface: 'virtio',
       netDevice: 'virtio-net-pci',
-      attachVirtioIso: true,
+      attachVirtioIso: true
     })
   })
 
@@ -139,7 +139,7 @@ describe('machineFlags', () => {
       mode: 'uefi',
       code: OVMF.code,
       varsTemplate: OVMF.varsTemplate,
-      vars: '/v/OVMF_VARS.fd',
+      vars: '/v/OVMF_VARS.fd'
     })
     expect(flags).toContain('smm=on')
     expect(flags).toContain('q35')
@@ -156,11 +156,13 @@ describe('pflashArgs', () => {
       mode: 'uefi',
       code: OVMF.code,
       varsTemplate: OVMF.varsTemplate,
-      vars: '/v/OVMF_VARS.fd',
+      vars: '/v/OVMF_VARS.fd'
     })
     expect(args).toEqual([
-      '-drive', `if=pflash,format=raw,unit=0,readonly=on,file=${OVMF.code}`,
-      '-drive', 'if=pflash,format=raw,unit=1,file=/v/OVMF_VARS.fd',
+      '-drive',
+      `if=pflash,format=raw,unit=0,readonly=on,file=${OVMF.code}`,
+      '-drive',
+      'if=pflash,format=raw,unit=1,file=/v/OVMF_VARS.fd'
     ])
   })
 
@@ -171,7 +173,7 @@ describe('pflashArgs', () => {
       mode: 'uefi',
       code: OVMF.code,
       varsTemplate: OVMF.varsTemplate,
-      vars: '/v/OVMF_VARS.fd',
+      vars: '/v/OVMF_VARS.fd'
     })
     const varsArg = args.find(a => a.includes('unit=1'))
     expect(varsArg).toBeDefined()
@@ -213,8 +215,8 @@ describe('TPM', () => {
     const args = tpmArgs(tpmPaths('/m/a'))
     expect(args.join(' ')).toBe(
       '-chardev socket,id=chrtpm,path=/m/a/tpm/swtpm-sock ' +
-      '-tpmdev emulator,id=tpm0,chardev=chrtpm ' +
-      '-device tpm-tis,tpmdev=tpm0',
+        '-tpmdev emulator,id=tpm0,chardev=chrtpm ' +
+        '-device tpm-tis,tpmdev=tpm0'
     )
   })
 })

@@ -20,9 +20,9 @@ import type { DashboardConfig } from '../../src/config.js'
 import type { UserRole } from '../../src/models/user.js'
 import type { WorkloadDefinition } from '../../src/storage/workload-registry.js'
 
-vi.mock('../../src/services/microvm.js', async (importOriginal) => ({
+vi.mock('../../src/services/microvm.js', async importOriginal => ({
   ...(await importOriginal<typeof import('../../src/services/microvm.js')>()),
-  getWorkloadDefinitions: vi.fn(),
+  getWorkloadDefinitions: vi.fn()
 }))
 
 import Fastify from 'fastify'
@@ -57,7 +57,7 @@ const FULL: WorkloadDefinition = {
   provisioningError: 'a stale error from a previous attempt',
   tapInterface: 'vm-web-nginx',
   consolePort: 5901,
-  containerId: 'deadbeef',
+  containerId: 'deadbeef'
 } as WorkloadDefinition
 
 let mockUserRole: UserRole = 'admin'
@@ -70,7 +70,7 @@ async function buildApp(opts: { tier?: string; aclStore?: unknown } = {}) {
   fastify.decorateRequest('username', undefined)
   fastify.setValidatorCompiler(validatorCompiler)
   fastify.setSerializerCompiler(serializerCompiler)
-  fastify.addHook('onRequest', async (request) => {
+  fastify.addHook('onRequest', async request => {
     request.userRole = mockUserRole
     request.userId = mockUserId
     request.username = 'test-user'
@@ -78,7 +78,7 @@ async function buildApp(opts: { tier?: string; aclStore?: unknown } = {}) {
   await fastify.register(workloadsRoutes, {
     prefix: '/api/workload',
     config: { tier: opts.tier ?? 'solo', bridgeGateway: '10.10.0.1' } as unknown as DashboardConfig,
-    aclStore: opts.aclStore as never,
+    aclStore: opts.aclStore as never
   })
   await fastify.ready()
   return fastify
@@ -91,7 +91,9 @@ describe('workload export', () => {
     mockUserId = 'test-user-id'
     mockGetDefs.mockResolvedValue({ 'web-nginx': FULL })
   })
-  afterEach(() => { vi.resetAllMocks() })
+  afterEach(() => {
+    vi.resetAllMocks()
+  })
 
   describe('route shadowing — /export must not be read as a workload named "export"', () => {
     it('serves the collection endpoint, not a 404 for a missing workload', async () => {
@@ -107,14 +109,17 @@ describe('workload export', () => {
       // and return 200 with a plausible body. Only the SHAPE distinguishes them.
       mockGetDefs.mockResolvedValue({
         'web-nginx': FULL,
-        export: { ...FULL, name: 'export', ip: '10.10.0.77' } as WorkloadDefinition,
+        export: { ...FULL, name: 'export', ip: '10.10.0.77' } as WorkloadDefinition
       })
       const app = await buildApp()
       const res = await app.inject({ method: 'GET', url: '/api/workload/export' })
       expect(res.statusCode).toBe(200)
       // The collection contains BOTH workloads. A shadowed route would return only the one
       // named "export", which is a single-element array and could pass a sloppier assertion.
-      const names = res.json().workloads.map((w: { name: string }) => w.name).sort()
+      const names = res
+        .json()
+        .workloads.map((w: { name: string }) => w.name)
+        .sort()
       expect(names).toEqual(['export', 'web-nginx'])
       await app.close()
     })
@@ -145,7 +150,13 @@ describe('workload export', () => {
       const app = await buildApp()
       const res = await app.inject({ method: 'GET', url: '/api/workload/web-nginx/export' })
       const [exported] = res.json().workloads
-      for (const key of ['provisioningState', 'provisioningError', 'tapInterface', 'consolePort', 'containerId']) {
+      for (const key of [
+        'provisioningState',
+        'provisioningError',
+        'tapInterface',
+        'consolePort',
+        'containerId'
+      ]) {
         expect(key in exported, `${key} is runtime state and must not be exported`).toBe(false)
       }
       await app.close()
@@ -177,7 +188,9 @@ describe('workload export', () => {
     it('offers the document as a download', async () => {
       const app = await buildApp()
       const res = await app.inject({ method: 'GET', url: '/api/workload/export' })
-      expect(res.headers['content-disposition']).toMatch(/^attachment; filename="weaver-export-\d{4}-\d{2}-\d{2}\.json"$/)
+      expect(res.headers['content-disposition']).toMatch(
+        /^attachment; filename="weaver-export-\d{4}-\d{2}-\d{2}\.json"$/
+      )
       await app.close()
     })
   })
@@ -202,11 +215,13 @@ describe('workload export', () => {
     it('applies Fabrick per-VM ACLs, so export is not a way around them', async () => {
       mockGetDefs.mockResolvedValue({
         'web-nginx': FULL,
-        secret: { ...FULL, name: 'secret' } as WorkloadDefinition,
+        secret: { ...FULL, name: 'secret' } as WorkloadDefinition
       })
       mockUserRole = 'operator'
       const aclStore = {
-        filterVms: vi.fn((_userId: string, vms: { name: string }[]) => vms.filter(v => v.name !== 'secret')),
+        filterVms: vi.fn((_userId: string, vms: { name: string }[]) =>
+          vms.filter(v => v.name !== 'secret')
+        )
       }
       const app = await buildApp({ tier: 'fabrick', aclStore })
       const res = await app.inject({ method: 'GET', url: '/api/workload/export' })
@@ -219,7 +234,7 @@ describe('workload export', () => {
     it('does not filter for an admin', async () => {
       mockGetDefs.mockResolvedValue({
         'web-nginx': FULL,
-        secret: { ...FULL, name: 'secret' } as WorkloadDefinition,
+        secret: { ...FULL, name: 'secret' } as WorkloadDefinition
       })
       mockUserRole = 'admin'
       const aclStore = { filterVms: vi.fn() }

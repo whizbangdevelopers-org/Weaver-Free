@@ -76,7 +76,12 @@ const RULES_DIR = resolve(ROOT, 'scripts', 'semgrep-rules')
  */
 const SEMGREP_SCAN_ROOTS = ['backend/src/']
 
-const GREEN = '\x1b[32m', RED = '\x1b[31m', YELLOW = '\x1b[33m', DIM = '\x1b[2m', BOLD = '\x1b[1m', RESET = '\x1b[0m'
+const GREEN = '\x1b[32m',
+  RED = '\x1b[31m',
+  YELLOW = '\x1b[33m',
+  DIM = '\x1b[2m',
+  BOLD = '\x1b[1m',
+  RESET = '\x1b[0m'
 
 interface RuleEntry {
   status: string
@@ -93,7 +98,12 @@ interface Alert {
 }
 
 export type Verdict =
-  | 'confirmed' | 'insufficient' | 'expected-gap' | 'unverifiable' | 'undocumented-hedge' | 'fixed-pending-rescan'
+  | 'confirmed'
+  | 'insufficient'
+  | 'expected-gap'
+  | 'unverifiable'
+  | 'undocumented-hedge'
+  | 'fixed-pending-rescan'
 
 export interface Assessment {
   alert: Alert
@@ -125,7 +135,7 @@ export function documentsAGap(notes: string | undefined): boolean {
 export function assess(opts: {
   alert: Alert
   entry: RuleEntry
-  semgrepFired: boolean | null   // null = not run, because the file is out of scope
+  semgrepFired: boolean | null // null = not run, because the file is out of scope
   // The rule run against the file AS CODEQL SCANNED IT. null = not run or could not be read.
   firedAtAlertCommit?: boolean | null
 }): Assessment {
@@ -134,46 +144,68 @@ export function assess(opts: {
 
   if (semgrepFired === null) {
     return {
-      alert, semgrepRuleId, status: entry.status, verdict: 'unverifiable',
-      detail: `${alert.path} is outside the Semgrep scan universe (${SEMGREP_SCAN_ROOTS.join(', ')}), ` +
-        `so ${semgrepRuleId} never examines it. CodeQL reads the whole published tree.`,
+      alert,
+      semgrepRuleId,
+      status: entry.status,
+      verdict: 'unverifiable',
+      detail:
+        `${alert.path} is outside the Semgrep scan universe (${SEMGREP_SCAN_ROOTS.join(', ')}), ` +
+        `so ${semgrepRuleId} never examines it. CodeQL reads the whole published tree.`
     }
   }
 
   if (semgrepFired) {
     return {
-      alert, semgrepRuleId, status: entry.status, verdict: 'confirmed',
-      detail: `${semgrepRuleId} fires on ${alert.path} — the coverage claim holds where CodeQL found the problem.`,
+      alert,
+      semgrepRuleId,
+      status: entry.status,
+      verdict: 'confirmed',
+      detail: `${semgrepRuleId} fires on ${alert.path} — the coverage claim holds where CodeQL found the problem.`
     }
   }
 
   if (entry.status === 'covered' && firedAtAlertCommit === true) {
     return {
-      alert, semgrepRuleId, status: entry.status, verdict: 'fixed-pending-rescan',
-      detail: `${semgrepRuleId} fires on ${alert.path} at the alerted commit and not on the current file — ` +
-        `the rule is proven and the code is fixed; the alert closes on the next CodeQL scan.`,
+      alert,
+      semgrepRuleId,
+      status: entry.status,
+      verdict: 'fixed-pending-rescan',
+      detail:
+        `${semgrepRuleId} fires on ${alert.path} at the alerted commit and not on the current file — ` +
+        `the rule is proven and the code is fixed; the alert closes on the next CodeQL scan.`
     }
   }
 
   if (entry.status === 'covered') {
     return {
-      alert, semgrepRuleId, status: entry.status, verdict: 'insufficient',
-      detail: `map says COVERED, but ${semgrepRuleId} finds nothing at ${alert.path}:${alert.line}. ` +
-        `Either the rule needs widening or the status is wrong.`,
+      alert,
+      semgrepRuleId,
+      status: entry.status,
+      verdict: 'insufficient',
+      detail:
+        `map says COVERED, but ${semgrepRuleId} finds nothing at ${alert.path}:${alert.line}. ` +
+        `Either the rule needs widening or the status is wrong.`
     }
   }
 
   if (documentsAGap(entry.notes)) {
     return {
-      alert, semgrepRuleId, status: entry.status, verdict: 'expected-gap',
-      detail: `partially-covered, and the notes name the gap this alert falls into. Miss is expected.`,
+      alert,
+      semgrepRuleId,
+      status: entry.status,
+      verdict: 'expected-gap',
+      detail: `partially-covered, and the notes name the gap this alert falls into. Miss is expected.`
     }
   }
 
   return {
-    alert, semgrepRuleId, status: entry.status, verdict: 'undocumented-hedge',
-    detail: `status is '${entry.status}' but the notes do not describe what is uncovered — ` +
-      `a hedge nobody can check. Say what the rule misses, or fix the status.`,
+    alert,
+    semgrepRuleId,
+    status: entry.status,
+    verdict: 'undocumented-hedge',
+    detail:
+      `status is '${entry.status}' but the notes do not describe what is uncovered — ` +
+      `a hedge nobody can check. Say what the rule misses, or fix the status.`
   }
 }
 
@@ -187,9 +219,11 @@ function fetchAlerts(alertsFile?: string): Alert[] | null {
   try {
     // execFile with an argument array, never a shell string — the repo slug crosses a config
     // boundary and this script is published.
-    const out = execFileSync('gh', [
-      'api', 'repos/whizbangdevelopers-org/Weaver-Free/code-scanning/alerts', '--paginate',
-    ], { encoding: 'utf-8', maxBuffer: 32 * 1024 * 1024, stdio: ['ignore', 'pipe', 'ignore'] })
+    const out = execFileSync(
+      'gh',
+      ['api', 'repos/whizbangdevelopers-org/Weaver-Free/code-scanning/alerts', '--paginate'],
+      { encoding: 'utf-8', maxBuffer: 32 * 1024 * 1024, stdio: ['ignore', 'pipe', 'ignore'] }
+    )
     return normaliseAlerts(JSON.parse(out))
   } catch {
     return null
@@ -207,7 +241,7 @@ function normaliseAlerts(raw: unknown): Alert[] {
         ruleId: String((a.rule as Record<string, unknown>)?.id ?? ''),
         path: String(loc.path ?? ''),
         line: Number(loc.start_line ?? 0),
-        commitSha: typeof inst.commit_sha === 'string' ? inst.commit_sha : undefined,
+        commitSha: typeof inst.commit_sha === 'string' ? inst.commit_sha : undefined
       }
     })
     .filter(a => a.ruleId && a.path && !a.path.startsWith('no file'))
@@ -215,10 +249,18 @@ function normaliseAlerts(raw: unknown): Alert[] {
 
 function runSemgrep(ruleId: string, filePath: string): boolean {
   const ruleFile = resolve(RULES_DIR, `${ruleId}.yaml`)
-  if (!existsSync(ruleFile)) throw new Error(`no rule file for ${ruleId} at ${relative(ROOT, ruleFile)}`)
-  const out = execFileSync('semgrep', [
-    'scan', '--config', ruleFile, filePath, '--quiet', '--json',
-  ], { encoding: 'utf-8', cwd: ROOT, maxBuffer: 32 * 1024 * 1024, stdio: ['ignore', 'pipe', 'ignore'] })
+  if (!existsSync(ruleFile))
+    throw new Error(`no rule file for ${ruleId} at ${relative(ROOT, ruleFile)}`)
+  const out = execFileSync(
+    'semgrep',
+    ['scan', '--config', ruleFile, filePath, '--quiet', '--json'],
+    {
+      encoding: 'utf-8',
+      cwd: ROOT,
+      maxBuffer: 32 * 1024 * 1024,
+      stdio: ['ignore', 'pipe', 'ignore']
+    }
+  )
   return (JSON.parse(out).results ?? []).length > 0
 }
 
@@ -230,10 +272,16 @@ function runSemgrepAtAlertCommit(ruleId: string, alert: Alert): boolean | null {
   if (!alert.commitSha) return null
   let dir: string | null = null
   try {
-    const body = execFileSync('gh', [
-      'api', '-H', 'Accept: application/vnd.github.raw',
-      `repos/whizbangdevelopers-org/Weaver-Free/contents/${alert.path}?ref=${alert.commitSha}`,
-    ], { encoding: 'utf-8', maxBuffer: 32 * 1024 * 1024, stdio: ['ignore', 'pipe', 'ignore'] })
+    const body = execFileSync(
+      'gh',
+      [
+        'api',
+        '-H',
+        'Accept: application/vnd.github.raw',
+        `repos/whizbangdevelopers-org/Weaver-Free/contents/${alert.path}?ref=${alert.commitSha}`
+      ],
+      { encoding: 'utf-8', maxBuffer: 32 * 1024 * 1024, stdio: ['ignore', 'pipe', 'ignore'] }
+    )
     dir = mkdtempSync(join(tmpdir(), 'semgrep-at-commit-'))
     const file = join(dir, basename(alert.path))
     writeFileSync(file, body)
@@ -252,7 +300,8 @@ function selfTest(): boolean {
   // Counted, not eyeballed. CATCH = the checker must report the bad condition; IGNORE = it must
   // stay quiet on legitimate input. The contract manifest requires both halves non-empty, because
   // a checker with no IGNORE cases is one nobody has shown will hold its fire.
-  let catches = 0, ignores = 0
+  let catches = 0,
+    ignores = 0
   const check = (label: string, cond: boolean, kind: 'catch' | 'ignore' = 'catch') => {
     if (kind === 'catch') catches++
     else ignores++
@@ -267,58 +316,127 @@ function selfTest(): boolean {
   check('a lookalike prefix does not count', !inScanUniverse('backend/srcfoo/a.ts'))
 
   // CATCH — a covered claim that Semgrep disproves is the failure this tier exists for.
-  check('covered + miss = insufficient',
-    assess({ alert, entry: { status: 'covered', semgrepRuleId: 'r' }, semgrepFired: false }).verdict === 'insufficient')
+  check(
+    'covered + miss = insufficient',
+    assess({ alert, entry: { status: 'covered', semgrepRuleId: 'r' }, semgrepFired: false })
+      .verdict === 'insufficient'
+  )
 
   // IGNORE — the code was fixed after the scan; the rule fires on the alerted version.
-  check('covered + miss now + hit at the alerted commit = fixed-pending-rescan',
-    assess({ alert, entry: { status: 'covered', semgrepRuleId: 'r' }, semgrepFired: false, firedAtAlertCommit: true })
-      .verdict === 'fixed-pending-rescan', 'ignore')
+  check(
+    'covered + miss now + hit at the alerted commit = fixed-pending-rescan',
+    assess({
+      alert,
+      entry: { status: 'covered', semgrepRuleId: 'r' },
+      semgrepFired: false,
+      firedAtAlertCommit: true
+    }).verdict === 'fixed-pending-rescan',
+    'ignore'
+  )
   // CATCH — missing at the alerted commit too: the claim really is disproven.
-  check('covered + miss now + miss at the alerted commit = insufficient',
-    assess({ alert, entry: { status: 'covered', semgrepRuleId: 'r' }, semgrepFired: false, firedAtAlertCommit: false })
-      .verdict === 'insufficient')
+  check(
+    'covered + miss now + miss at the alerted commit = insufficient',
+    assess({
+      alert,
+      entry: { status: 'covered', semgrepRuleId: 'r' },
+      semgrepFired: false,
+      firedAtAlertCommit: false
+    }).verdict === 'insufficient'
+  )
   // CATCH — the alerted version could not be read: an unread file proves nothing.
-  check('covered + miss now + alerted commit unreadable = insufficient',
-    assess({ alert, entry: { status: 'covered', semgrepRuleId: 'r' }, semgrepFired: false, firedAtAlertCommit: null })
-      .verdict === 'insufficient')
+  check(
+    'covered + miss now + alerted commit unreadable = insufficient',
+    assess({
+      alert,
+      entry: { status: 'covered', semgrepRuleId: 'r' },
+      semgrepFired: false,
+      firedAtAlertCommit: null
+    }).verdict === 'insufficient'
+  )
 
   // IGNORE — a covered claim Semgrep confirms must not be flagged.
-  check('covered + hit = confirmed',
-    assess({ alert, entry: { status: 'covered', semgrepRuleId: 'r' }, semgrepFired: true }).verdict === 'confirmed', 'ignore')
+  check(
+    'covered + hit = confirmed',
+    assess({ alert, entry: { status: 'covered', semgrepRuleId: 'r' }, semgrepFired: true })
+      .verdict === 'confirmed',
+    'ignore'
+  )
 
   // IGNORE — a documented partial gap is the map working as designed.
-  check('partially-covered with a documented gap = expected-gap',
+  check(
+    'partially-covered with a documented gap = expected-gap',
     assess({
-      alert, semgrepFired: false,
-      entry: { status: 'partially-covered', semgrepRuleId: 'r', notes: 'Gap: process.env.* sources are not covered.' },
-    }).verdict === 'expected-gap', 'ignore')
+      alert,
+      semgrepFired: false,
+      entry: {
+        status: 'partially-covered',
+        semgrepRuleId: 'r',
+        notes: 'Gap: process.env.* sources are not covered.'
+      }
+    }).verdict === 'expected-gap',
+    'ignore'
+  )
 
   // CATCH — the same hedge with nothing behind it is an unexamined claim.
-  check('partially-covered with empty notes = undocumented-hedge',
-    assess({ alert, entry: { status: 'partially-covered', semgrepRuleId: 'r', notes: 'Medium severity.' }, semgrepFired: false })
-      .verdict === 'undocumented-hedge')
-  check('partially-covered with NO notes = undocumented-hedge',
-    assess({ alert, entry: { status: 'partially-covered', semgrepRuleId: 'r' }, semgrepFired: false })
-      .verdict === 'undocumented-hedge')
+  check(
+    'partially-covered with empty notes = undocumented-hedge',
+    assess({
+      alert,
+      entry: { status: 'partially-covered', semgrepRuleId: 'r', notes: 'Medium severity.' },
+      semgrepFired: false
+    }).verdict === 'undocumented-hedge'
+  )
+  check(
+    'partially-covered with NO notes = undocumented-hedge',
+    assess({
+      alert,
+      entry: { status: 'partially-covered', semgrepRuleId: 'r' },
+      semgrepFired: false
+    }).verdict === 'undocumented-hedge'
+  )
 
   // CATCH — out of scope is its own verdict, never "insufficient". A rule that never reads the
   // file has not been shown to be inadequate; the SCAN has been shown to be too narrow.
-  check('out-of-scope = unverifiable, even when the map says covered',
-    assess({ alert: outside, entry: { status: 'covered', semgrepRuleId: 'r' }, semgrepFired: null }).verdict === 'unverifiable')
+  check(
+    'out-of-scope = unverifiable, even when the map says covered',
+    assess({ alert: outside, entry: { status: 'covered', semgrepRuleId: 'r' }, semgrepFired: null })
+      .verdict === 'unverifiable'
+  )
 
   // documentsAGap wording
   check('notes naming a gap count', documentsAGap('Gap: env sources not covered'), 'ignore')
-  check('notes saying "not covered" count', documentsAGap('process.env.* is not covered by our rule'), 'ignore')
+  check(
+    'notes saying "not covered" count',
+    documentsAGap('process.env.* is not covered by our rule'),
+    'ignore'
+  )
   check('generic prose does not count', !documentsAGap('High severity, proactive coverage.'))
 
   // Alert normalisation drops the metadata rows GitHub returns with no file.
   const normalised = normaliseAlerts([
-    { state: 'open', rule: { id: 'js/a' }, most_recent_instance: { location: { path: 'backend/src/a.ts', start_line: 3 } } },
-    { state: 'open', rule: { id: 'CodeReviewID' }, most_recent_instance: { location: { path: 'no file associated with this alert', start_line: 1 } } },
-    { state: 'fixed', rule: { id: 'js/b' }, most_recent_instance: { location: { path: 'backend/src/b.ts', start_line: 4 } } },
+    {
+      state: 'open',
+      rule: { id: 'js/a' },
+      most_recent_instance: { location: { path: 'backend/src/a.ts', start_line: 3 } }
+    },
+    {
+      state: 'open',
+      rule: { id: 'CodeReviewID' },
+      most_recent_instance: {
+        location: { path: 'no file associated with this alert', start_line: 1 }
+      }
+    },
+    {
+      state: 'fixed',
+      rule: { id: 'js/b' },
+      most_recent_instance: { location: { path: 'backend/src/b.ts', start_line: 4 } }
+    }
   ])
-  check('normalise keeps only open alerts with a real file', normalised.length === 1 && normalised[0].ruleId === 'js/a', 'ignore')
+  check(
+    'normalise keeps only open alerts with a real file',
+    normalised.length === 1 && normalised[0].ruleId === 'js/a',
+    'ignore'
+  )
 
   if (failures.length) {
     console.log(`  ${RED}✗${RESET} self-test FAILED (${failures.length}):`)
@@ -344,14 +462,18 @@ const alerts = fetchAlerts(alertsFlag > -1 ? process.argv[alertsFlag + 1] : unde
 if (alerts === null) {
   // Skip, never fail: the Free repo's alerts need a PAT this checker should not require of a
   // contributor, and `audit:taint` sets the precedent of exiting 0 when its tool is absent.
-  console.log(`  ${YELLOW}⚠${RESET} could not read CodeQL alerts (gh unavailable or unauthorised) — skipped`)
+  console.log(
+    `  ${YELLOW}⚠${RESET} could not read CodeQL alerts (gh unavailable or unauthorised) — skipped`
+  )
   process.exit(0)
 }
 
 const map = JSON.parse(readFileSync(MAP_PATH, 'utf-8')) as { rules: Record<string, RuleEntry> }
 const mapped = alerts.filter(a => map.rules[a.ruleId]?.semgrepRuleId)
 
-console.log(`  ${DIM}${alerts.length} open alert(s), ${mapped.length} with a Semgrep mapping${RESET}\n`)
+console.log(
+  `  ${DIM}${alerts.length} open alert(s), ${mapped.length} with a Semgrep mapping${RESET}\n`
+)
 
 const assessments: Assessment[] = []
 for (const alert of mapped) {
@@ -361,13 +483,17 @@ for (const alert of mapped) {
     try {
       fired = runSemgrep(entry.semgrepRuleId!, alert.path)
     } catch (err) {
-      console.log(`  ${YELLOW}⚠${RESET} ${alert.ruleId}: semgrep could not run — ${(err as Error).message}`)
+      console.log(
+        `  ${YELLOW}⚠${RESET} ${alert.ruleId}: semgrep could not run — ${(err as Error).message}`
+      )
       continue
     }
   }
   // Only a covered miss needs the alerted version; every other verdict is decided without it.
-  const atCommit = fired === false && entry.status === 'covered'
-    ? runSemgrepAtAlertCommit(entry.semgrepRuleId!, alert) : null
+  const atCommit =
+    fired === false && entry.status === 'covered'
+      ? runSemgrepAtAlertCommit(entry.semgrepRuleId!, alert)
+      : null
   assessments.push(assess({ alert, entry, semgrepFired: fired, firedAtAlertCommit: atCommit }))
 }
 
@@ -377,7 +503,7 @@ const icon: Record<Verdict, string> = {
   'undocumented-hedge': `${RED}✗${RESET}`,
   'expected-gap': `${DIM}·${RESET}`,
   'fixed-pending-rescan': `${GREEN}✓${RESET}`,
-  unverifiable: `${YELLOW}⚠${RESET}`,
+  unverifiable: `${YELLOW}⚠${RESET}`
 }
 
 for (const a of assessments) {
@@ -385,16 +511,22 @@ for (const a of assessments) {
   console.log(`      ${DIM}${a.detail}${RESET}`)
 }
 
-const failing = assessments.filter(a => a.verdict === 'insufficient' || a.verdict === 'undocumented-hedge')
+const failing = assessments.filter(
+  a => a.verdict === 'insufficient' || a.verdict === 'undocumented-hedge'
+)
 const unverifiable = assessments.filter(a => a.verdict === 'unverifiable')
 
 console.log()
 if (failing.length) {
-  console.log(`${RED}${BOLD}RESULT: FAIL${RESET} — ${failing.length} coverage claim(s) the evidence does not support`)
+  console.log(
+    `${RED}${BOLD}RESULT: FAIL${RESET} — ${failing.length} coverage claim(s) the evidence does not support`
+  )
   process.exit(1)
 }
 if (unverifiable.length) {
-  console.log(`${GREEN}${BOLD}RESULT: PASS${RESET} ${DIM}(${unverifiable.length} unverifiable — CodeQL found them where Semgrep does not look)${RESET}`)
+  console.log(
+    `${GREEN}${BOLD}RESULT: PASS${RESET} ${DIM}(${unverifiable.length} unverifiable — CodeQL found them where Semgrep does not look)${RESET}`
+  )
   process.exit(0)
 }
 console.log(`${GREEN}${BOLD}RESULT: PASS${RESET} — every checkable coverage claim holds`)

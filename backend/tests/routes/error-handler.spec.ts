@@ -18,11 +18,11 @@ import { join } from 'node:path'
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import type { DashboardConfig } from '../../src/config.js'
 
-vi.mock('../../src/services/microvm.js', async (importOriginal) => ({
+vi.mock('../../src/services/microvm.js', async importOriginal => ({
   ...(await importOriginal<typeof import('../../src/services/microvm.js')>()),
   getWorkloadDefinitions: vi.fn(async () => ({})),
   getVm: vi.fn(async () => null),
-  createVm: vi.fn(),
+  createVm: vi.fn()
 }))
 
 import Fastify from 'fastify'
@@ -32,14 +32,14 @@ import {
   apiErrorHandler,
   FALLBACK_VALIDATION_DETAIL,
   MAX_DETAIL_LENGTH,
-  MAX_VALIDATION_DETAILS,
+  MAX_VALIDATION_DETAILS
 } from '../../src/error-handler.js'
 import { workloadsRoutes } from '../../src/routes/workloads.js'
 
 /** As index.ts wires it; `log` reads its lines. */
 async function buildApp(log?: { write: (line: string) => void }) {
   const fastify = Fastify({
-    logger: log ? { level: 'info', stream: log } : false,
+    logger: log ? { level: 'info', stream: log } : false
   }).withTypeProvider<ZodTypeProvider>()
   fastify.decorateRequest('userId', undefined)
   fastify.decorateRequest('userRole', undefined)
@@ -47,7 +47,7 @@ async function buildApp(log?: { write: (line: string) => void }) {
   fastify.setValidatorCompiler(validatorCompiler)
   fastify.setSerializerCompiler(serializerCompiler)
   fastify.setErrorHandler(apiErrorHandler)
-  fastify.addHook('onRequest', async (request) => {
+  fastify.addHook('onRequest', async request => {
     request.userRole = 'admin'
     request.userId = 'test-user-id'
     request.username = 'test-user'
@@ -55,29 +55,34 @@ async function buildApp(log?: { write: (line: string) => void }) {
   fastify.post(
     '/things',
     { schema: { body: z.object({ name: z.string().min(1).max(64) }) } },
-    async () => ({ ok: true }),
+    async () => ({ ok: true })
   )
   // No bound on its array, so every failing element is a problem: what the handler's cap is for.
   fastify.post(
     '/unbounded',
     { schema: { body: z.object({ ids: z.array(z.string()) }) } },
-    async () => ({ ok: true }),
+    async () => ({ ok: true })
   )
   // A strict object refuses unknown keys in ONE problem whose message names every key.
   fastify.post(
     '/strict',
     { schema: { body: z.object({ name: z.string().optional() }).strict() } },
-    async () => ({ ok: true }),
+    async () => ({ ok: true })
   )
   fastify.get('/boom', async () => {
     throw new Error('ENOENT: /run/secret/path/that/must/not/leak')
   })
   await fastify.register(workloadsRoutes, {
     prefix: '/api/workload',
-    config: { tier: 'solo', bridgeGateway: '10.10.0.1', bridgeInterface: 'br-microvm', provisioningEnabled: false } as unknown as DashboardConfig,
+    config: {
+      tier: 'solo',
+      bridgeGateway: '10.10.0.1',
+      bridgeInterface: 'br-microvm',
+      provisioningEnabled: false
+    } as unknown as DashboardConfig,
     networkManager: null,
     provisioner: null,
-    auditService: undefined as never,
+    auditService: undefined as never
   })
   await fastify.ready()
   return fastify
@@ -85,7 +90,9 @@ async function buildApp(log?: { write: (line: string) => void }) {
 
 describe('apiErrorHandler', () => {
   const env = process.env.NODE_ENV
-  afterEach(() => { process.env.NODE_ENV = env })
+  afterEach(() => {
+    process.env.NODE_ENV = env
+  })
 
   it('a validation failure answers 400 with the specific message, not the fallback', async () => {
     const app = await buildApp()
@@ -119,7 +126,7 @@ describe('apiErrorHandler', () => {
     const res = await app.inject({
       method: 'POST',
       url: '/unbounded',
-      payload: { ids: Array.from({ length: 5000 }, () => 0) },
+      payload: { ids: Array.from({ length: 5000 }, () => 0) }
     })
     expect(res.statusCode).toBe(400)
     const body = res.json() as { message: string; details: string[] }
@@ -148,7 +155,7 @@ describe('apiErrorHandler', () => {
     await app.inject({
       method: 'POST',
       url: '/unbounded',
-      payload: { ids: Array.from({ length: 5000 }, () => 0) },
+      payload: { ids: Array.from({ length: 5000 }, () => 0) }
     })
     const failure = lines
       .map(l => JSON.parse(l) as Record<string, unknown>)
@@ -165,7 +172,7 @@ describe('apiErrorHandler', () => {
     const res = await app.inject({
       method: 'POST',
       url: '/api/workload/web-nginx/clone',
-      payload: { name: 'x'.repeat(65) },
+      payload: { name: 'x'.repeat(65) }
     })
     expect(res.statusCode).toBe(400)
     const body = res.json() as { error: string; message?: string; details?: string[] }

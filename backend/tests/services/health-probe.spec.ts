@@ -17,7 +17,7 @@ import {
   isProbeableUrl,
   checkTcp,
   checkHttp,
-  runProbes,
+  runProbes
 } from '../../src/services/health-probe.js'
 
 describe('isPrivateIpv4', () => {
@@ -27,7 +27,7 @@ describe('isPrivateIpv4', () => {
     ['172.16.0.1', '172.16/12 lower bound'],
     ['172.31.255.254', '172.16/12 upper bound'],
     ['192.168.1.50', 'home LAN'],
-    ['127.0.0.1', 'loopback — a container published on the host'],
+    ['127.0.0.1', 'loopback — a container published on the host']
   ])('accepts %s (%s)', ip => {
     expect(isPrivateIpv4(ip)).toBe(true)
   })
@@ -42,27 +42,26 @@ describe('isPrivateIpv4', () => {
     ['192.169.0.1', 'adjacent to 192.168/16 but outside it'],
     ['999.1.1.1', 'octet out of range'],
     ['not-an-ip', 'not an address at all'],
-    ['', 'empty'],
+    ['', 'empty']
   ])('refuses %s (%s)', ip => {
     expect(isPrivateIpv4(ip)).toBe(false)
   })
 })
 
 describe('isProbeableUrl', () => {
-  it.each([
-    'http://10.10.0.10',
-    'http://10.10.0.10:8080/health',
-    'https://192.168.1.5:8443/',
-  ])('accepts %s', url => {
-    expect(isProbeableUrl(url)).toBe(true)
-  })
+  it.each(['http://10.10.0.10', 'http://10.10.0.10:8080/health', 'https://192.168.1.5:8443/'])(
+    'accepts %s',
+    url => {
+      expect(isProbeableUrl(url)).toBe(true)
+    }
+  )
 
   it.each([
     ['http://169.254.169.254/latest/meta-data/', 'metadata endpoint'],
     ['http://example.com', 'public host'],
     ['file:///etc/passwd', 'non-http scheme'],
     ['ftp://10.10.0.10', 'non-http scheme, private host'],
-    ['not a url', 'unparseable'],
+    ['not a url', 'unparseable']
   ])('refuses %s (%s)', url => {
     expect(isProbeableUrl(url)).toBe(false)
   })
@@ -103,7 +102,7 @@ describe('checkHttp', () => {
     const port = (srv.address() as { port: number }).port
     return {
       url: `http://127.0.0.1:${port}/`,
-      close: () => new Promise<void>(r => srv.close(() => r())),
+      close: () => new Promise<void>(r => srv.close(() => r()))
     }
   }
 
@@ -147,7 +146,7 @@ describe('runProbes', () => {
 
   it('refuses a metadata-endpoint HTTP probe as unreachable', async () => {
     const out = await runProbes('10.10.0.10', 'running', [
-      { port: 80, type: 'http', url: 'http://169.254.169.254/latest/meta-data/' },
+      { port: 80, type: 'http', url: 'http://169.254.169.254/latest/meta-data/' }
     ])
     expect(out[0]!.health).toBe('unreachable')
   })
@@ -161,7 +160,7 @@ describe('runProbes', () => {
     const port = (srv.address() as { port: number }).port
 
     const out = await runProbes('127.0.0.1', 'running', [
-      { port, type: 'http', url: `http://127.0.0.1:${port}/`, label: 'Nginx' },
+      { port, type: 'http', url: `http://127.0.0.1:${port}/`, label: 'Nginx' }
     ])
     expect(out[0]).toMatchObject({ health: 'healthy', label: 'Nginx', port })
     await new Promise<void>(r => srv.close(() => r()))
@@ -183,7 +182,7 @@ describe('runProbes', () => {
   it('preserves label and url, and returns one result per probe in order', async () => {
     const out = await runProbes('8.8.8.8', 'running', [
       { port: 1, type: 'tcp', label: 'one' },
-      { port: 2, type: 'tcp', label: 'two' },
+      { port: 2, type: 'tcp', label: 'two' }
     ])
     expect(out.map(p => p.label)).toEqual(['one', 'two'])
   })

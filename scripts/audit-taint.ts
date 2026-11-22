@@ -44,7 +44,7 @@ const RULES = [
   'no-user-input-in-path.yaml',
   'no-unvalidated-jwt-claim.yaml',
   'no-ssrf-in-fetch.yaml',
-  'no-interpolated-console-format.yaml',
+  'no-interpolated-console-format.yaml'
 ]
 
 interface SemgrepResult {
@@ -93,7 +93,10 @@ type ScanOutcome =
 function scanOnce(args: string[]): ScanOutcome {
   let rawOutput: string
   try {
-    rawOutput = execFileSync('semgrep', args, { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] })
+    rawOutput = execFileSync('semgrep', args, {
+      encoding: 'utf-8',
+      stdio: ['pipe', 'pipe', 'pipe']
+    })
   } catch (err: unknown) {
     const e = err as { stdout?: string; stderr?: string; status?: number }
     // Exit 1 WITH a JSON body on stdout is semgrep's "findings exist" signal —
@@ -103,7 +106,10 @@ function scanOnce(args: string[]): ScanOutcome {
       rawOutput = e.stdout
     } else {
       const stderr = e.stderr?.trim()
-      return { kind: 'infra', detail: `semgrep exited ${e.status ?? '?'}${stderr ? `\n${stderr}` : ' (no stderr)'}` }
+      return {
+        kind: 'infra',
+        detail: `semgrep exited ${e.status ?? '?'}${stderr ? `\n${stderr}` : ' (no stderr)'}`
+      }
     }
   }
 
@@ -127,7 +133,10 @@ function scanOnce(args: string[]): ScanOutcome {
     const detail = errors
       .map(e => `${e.type ?? 'error'}: ${e.long_msg ?? e.message ?? JSON.stringify(e)}`)
       .join('\n  ')
-    return { kind: 'infra', detail: `semgrep reported ${errors.length} analysis error(s):\n  ${detail}` }
+    return {
+      kind: 'infra',
+      detail: `semgrep reported ${errors.length} analysis error(s):\n  ${detail}`
+    }
   }
 
   if (results.length === 0) return { kind: 'clean' }
@@ -182,7 +191,9 @@ function selfTest(args: (target: string) => string[]): void {
     process.exit(1)
   }
   if (files.length === 0) {
-    console.error('\x1b[31m✗ taint self-test corpus is empty: scripts/fixtures/taint-corpus/\x1b[0m')
+    console.error(
+      '\x1b[31m✗ taint self-test corpus is empty: scripts/fixtures/taint-corpus/\x1b[0m'
+    )
     console.error('  The taint rules are unverified — refusing to report a clean scan.')
     process.exit(1)
   }
@@ -212,7 +223,9 @@ function selfTest(args: (target: string) => string[]): void {
   if (outcome.kind === 'infra') {
     console.error('\x1b[31m✗ taint self-test could not complete\x1b[0m')
     console.error(`  ${outcome.detail.replace(/\n/g, '\n  ')}`)
-    console.error('  A rule parse error lands here — the rules are unverified, so this is not a pass.')
+    console.error(
+      '  A rule parse error lands here — the rules are unverified, so this is not a pass.'
+    )
     process.exit(1)
   }
 
@@ -228,18 +241,20 @@ function selfTest(args: (target: string) => string[]): void {
 
   if (missed.length > 0 || extra.length > 0) {
     console.error(
-      `\x1b[31m✗ taint rules FAILED their own regression corpus (${missed.length} missed, ${extra.length} false positive)\x1b[0m\n`,
+      `\x1b[31m✗ taint rules FAILED their own regression corpus (${missed.length} missed, ${extra.length} false positive)\x1b[0m\n`
     )
     for (const m of missed) console.error(`    MISSED (must catch):  ${m}`)
     for (const e of extra) console.error(`    FALSE POSITIVE:       ${e}`)
-    console.error('\n  The taint rules are broken. Fix scripts/semgrep-rules/ — do not weaken the corpus.')
+    console.error(
+      '\n  The taint rules are broken. Fix scripts/semgrep-rules/ — do not weaken the corpus.'
+    )
     console.error('  A false positive is not the lesser failure: a rule that flags correct code')
     console.error('  gets switched off, and then it catches nothing at all.\n')
     process.exit(1)
   }
 
   console.log(
-    `\x1b[2m  self-test: ${expected.size} expectations across ${files.length} corpus files — rules verified\x1b[0m`,
+    `\x1b[2m  self-test: ${expected.size} expectations across ${files.length} corpus files — rules verified\x1b[0m`
   )
 }
 
@@ -265,7 +280,9 @@ function run(): void {
       process.exit(0)
     }
     console.log(`\x1b[31m✗ ${unavailable}\x1b[0m`)
-    console.log('  Taint analysis cannot run. This fails rather than passing: a check that cannot look')
+    console.log(
+      '  Taint analysis cannot run. This fails rather than passing: a check that cannot look'
+    )
     console.log('  must not report clean.')
     if (unavailable.endsWith('not found in PATH')) {
       console.log('  Fix:  nix develop   (semgrep is in the devShell)')
@@ -288,11 +305,12 @@ function run(): void {
     // not enough under sustained contention). One job = one ring = fits the memlock, every time.
     // backend/src/ is ~100 files / 4 rules, so the serial scan is a couple of seconds — a cheap
     // price for a green that means "clean", not "got lucky". (Root-cause the flake, don't re-push.)
-    '--jobs', '1',
+    '--jobs',
+    '1',
     ...RULES.flatMap(r => ['--config', join(RULES_DIR, r)]),
     '--metrics=off',
     '--json',
-    target,
+    target
   ]
 
   selfTest(buildArgs)
@@ -318,7 +336,7 @@ function run(): void {
     if (outcome.kind !== 'infra') break
     if (attempt < MAX_ATTEMPTS) {
       console.error(
-        `\x1b[33m⚠ taint analysis did not complete (attempt ${attempt}/${MAX_ATTEMPTS}) — transient infra failure, retrying:\x1b[0m`,
+        `\x1b[33m⚠ taint analysis did not complete (attempt ${attempt}/${MAX_ATTEMPTS}) — transient infra failure, retrying:\x1b[0m`
       )
       console.error(`  ${outcome.detail.replace(/\n/g, '\n  ')}`)
       sleepMs(2000 * attempt)
@@ -326,9 +344,13 @@ function run(): void {
   }
 
   if (outcome.kind === 'infra') {
-    console.error(`\x1b[31m✗ semgrep taint analysis could not complete after ${MAX_ATTEMPTS} attempts\x1b[0m`)
+    console.error(
+      `\x1b[31m✗ semgrep taint analysis could not complete after ${MAX_ATTEMPTS} attempts\x1b[0m`
+    )
     console.error(`  ${outcome.detail.replace(/\n/g, '\n  ')}`)
-    console.error('  This is an ANALYSIS FAILURE, not a clean result — it is not safe to treat as pass.')
+    console.error(
+      '  This is an ANALYSIS FAILURE, not a clean result — it is not safe to treat as pass.'
+    )
     process.exit(1)
   }
 

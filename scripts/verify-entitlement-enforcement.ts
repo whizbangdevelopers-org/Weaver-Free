@@ -41,8 +41,12 @@ const PKG = resolve(HERE, '..')
 const VERIFIER = join(PKG, 'backend/src/entitlement/verify/verifier.ts')
 const REGISTRY = join(HERE, 'baselines/entitlement-enforcement.json')
 
-const RED = '\x1b[31m'; const GREEN = '\x1b[32m'; const DIM = '\x1b[2m'
-const BOLD = '\x1b[1m'; const YELLOW = '\x1b[33m'; const RESET = '\x1b[0m'
+const RED = '\x1b[31m'
+const GREEN = '\x1b[32m'
+const DIM = '\x1b[2m'
+const BOLD = '\x1b[1m'
+const YELLOW = '\x1b[33m'
+const RESET = '\x1b[0m'
 
 interface Row {
   status?: 'enforced' | 'unenforced'
@@ -91,7 +95,9 @@ export function validateRow(row: Row | undefined): string[] {
     }
   } else {
     if (!row.reason || row.reason.trim().length < 25) {
-      problems.push('unenforced requires a reason — an unexplained one is an oversight wearing a label')
+      problems.push(
+        'unenforced requires a reason — an unexplained one is an oversight wearing a label'
+      )
     }
     if (!row.reviewBy) problems.push('unenforced requires a reviewBy')
   }
@@ -115,7 +121,7 @@ export interface LicenseResult<TTier extends string> {
 `
 
 const EXTRACT_CATCH: [string, string, string[]][] = [
-  ['every declared field', IFACE, ['tier', 'expiry', 'graceMode', 'quantity', 'optional']],
+  ['every declared field', IFACE, ['tier', 'expiry', 'graceMode', 'quantity', 'optional']]
 ]
 
 const ROW_CATCH: [string, Row | undefined][] = [
@@ -124,30 +130,54 @@ const ROW_CATCH: [string, Row | undefined][] = [
   ['enforced with no enforcedBy', { status: 'enforced' }],
   ['enforced with a token enforcedBy', { status: 'enforced', enforcedBy: 'yes' }],
   ['unenforced with no reason', { status: 'unenforced', reviewBy: '2030-01-01' }],
-  ['unenforced with a placeholder reason', { status: 'unenforced', reason: 'n/a', reviewBy: '2030-01-01' }],
-  ['unenforced with no reviewBy', { status: 'unenforced', reason: 'a perfectly adequate justification goes here' }],
+  [
+    'unenforced with a placeholder reason',
+    { status: 'unenforced', reason: 'n/a', reviewBy: '2030-01-01' }
+  ],
+  [
+    'unenforced with no reviewBy',
+    { status: 'unenforced', reason: 'a perfectly adequate justification goes here' }
+  ]
 ]
 const ROW_IGNORE: [string, Row][] = [
-  ['a complete enforced row', { status: 'enforced', enforcedBy: 'requireTier() in backend/src/license.ts' }],
-  ['a complete unenforced row', { status: 'unenforced', reason: 'traceability only; it grants nothing so there is nothing to enforce', reviewBy: '2030-01-01' }],
+  [
+    'a complete enforced row',
+    { status: 'enforced', enforcedBy: 'requireTier() in backend/src/license.ts' }
+  ],
+  [
+    'a complete unenforced row',
+    {
+      status: 'unenforced',
+      reason: 'traceability only; it grants nothing so there is nothing to enforce',
+      reviewBy: '2030-01-01'
+    }
+  ]
 ]
 
 const EXPIRY_CATCH: [string, string | undefined][] = [
-  ['a past date', '2020-01-01'], ['an unparseable date', 'soon'], ['no date', undefined],
+  ['a past date', '2020-01-01'],
+  ['an unparseable date', 'soon'],
+  ['no date', undefined]
 ]
-const EXPIRY_IGNORE: [string, string][] = [['today', '2026-08-20'], ['a future date', '2030-01-01']]
+const EXPIRY_IGNORE: [string, string][] = [
+  ['today', '2026-08-20'],
+  ['a future date', '2030-01-01']
+]
 
 function selfTest(): boolean {
   const failures: string[] = []
   for (const [name, src, want] of EXTRACT_CATCH) {
     const got = extractFields(src)
     if (JSON.stringify(got) !== JSON.stringify(want)) {
-      failures.push(`CATCH mis-extracted: ${name}\n    want ${JSON.stringify(want)}\n    got  ${JSON.stringify(got)}`)
+      failures.push(
+        `CATCH mis-extracted: ${name}\n    want ${JSON.stringify(want)}\n    got  ${JSON.stringify(got)}`
+      )
     }
   }
   // A source with no LicenseResult must yield nothing rather than throwing — but the live run
   // treats an empty extraction as fatal, so this cannot silently pass over a moved interface.
-  if (extractFields('export const x = 1').length !== 0) failures.push('IGNORE wrongly extracted from unrelated source')
+  if (extractFields('export const x = 1').length !== 0)
+    failures.push('IGNORE wrongly extracted from unrelated source')
 
   for (const [name, row] of ROW_CATCH) {
     if (validateRow(row).length === 0) failures.push(`CATCH missed (row): ${name}`)
@@ -157,8 +187,10 @@ function selfTest(): boolean {
     if (p.length > 0) failures.push(`IGNORE wrongly rejected (row): ${name} — ${p.join('; ')}`)
   }
   const today = new Date('2026-08-20')
-  for (const [name, d] of EXPIRY_CATCH) if (!isExpired(d, today)) failures.push(`CATCH missed (expiry): ${name}`)
-  for (const [name, d] of EXPIRY_IGNORE) if (isExpired(d, today)) failures.push(`IGNORE wrongly expired: ${name}`)
+  for (const [name, d] of EXPIRY_CATCH)
+    if (!isExpired(d, today)) failures.push(`CATCH missed (expiry): ${name}`)
+  for (const [name, d] of EXPIRY_IGNORE)
+    if (isExpired(d, today)) failures.push(`IGNORE wrongly expired: ${name}`)
 
   const c = EXTRACT_CATCH.length + ROW_CATCH.length + EXPIRY_CATCH.length
   const i = 1 + ROW_IGNORE.length + EXPIRY_IGNORE.length
@@ -177,7 +209,9 @@ function main(): void {
   const selfTestOnly = process.argv.includes('--self-test')
 
   console.log(`${BOLD}Entitlement Enforcement${RESET}`)
-  console.log(`${DIM}every signed licence field is enforced, or a written decision not to be${RESET}\n`)
+  console.log(
+    `${DIM}every signed licence field is enforced, or a written decision not to be${RESET}\n`
+  )
 
   if (!selfTest()) {
     console.error(`\n${RED}${BOLD}RESULT: FAIL${RESET} — refusing to scan on a failed self-test`)
@@ -189,15 +223,17 @@ function main(): void {
   }
 
   if (!existsSync(VERIFIER)) {
-    console.error(`${RED}✗${RESET} verifier not found at ${VERIFIER} — refusing to report over an empty payload`)
+    console.error(
+      `${RED}✗${RESET} verifier not found at ${VERIFIER} — refusing to report over an empty payload`
+    )
     process.exit(1)
   }
   const fields = extractFields(readFileSync(VERIFIER, 'utf-8'))
   if (fields.length === 0) {
     console.error(
       `${RED}✗${RESET} no fields extracted from LicenseResult.\n` +
-      `${DIM}  The interface moved or changed shape. Refusing to report: an empty payload would pass\n` +
-      `  this auditor silently, which is the exact failure it exists to prevent.${RESET}`,
+        `${DIM}  The interface moved or changed shape. Refusing to report: an empty payload would pass\n` +
+        `  this auditor silently, which is the exact failure it exists to prevent.${RESET}`
     )
     process.exit(1)
   }
@@ -216,7 +252,7 @@ function main(): void {
     if (row!.status === 'unenforced' && isExpired(row!.reviewBy, today)) {
       problems.push(
         `\`${field}\` — unenforced, and the review lapsed on ${row!.reviewBy}\n` +
-        `      ${DIM}${row!.reason}${RESET}`,
+          `      ${DIM}${row!.reason}${RESET}`
       )
     }
   }
@@ -227,22 +263,30 @@ function main(): void {
   }
 
   const enforced = fields.filter(f => registry.fields?.[f]?.status === 'enforced').length
-  console.log(`${DIM}  ${fields.length} signed field(s) · ${enforced} enforced · ${fields.length - enforced} deliberately not${RESET}`)
+  console.log(
+    `${DIM}  ${fields.length} signed field(s) · ${enforced} enforced · ${fields.length - enforced} deliberately not${RESET}`
+  )
 
   const unenforced = fields.filter(f => registry.fields?.[f]?.status === 'unenforced')
   if (unenforced.length > 0 && problems.length === 0) {
     console.log(`${YELLOW}  unenforced by decision: ${unenforced.join(', ')}${RESET}`)
-    console.log(`${DIM}  Settle these before the production key ceremony — issued keys encode them permanently.${RESET}`)
+    console.log(
+      `${DIM}  Settle these before the production key ceremony — issued keys encode them permanently.${RESET}`
+    )
   }
 
   if (problems.length > 0) {
     console.error('')
     for (const p of problems) console.error(`  ${RED}✗${RESET} ${p}`)
-    console.error(`\n${RED}${BOLD}RESULT: FAIL${RESET} — ${problems.length} signed field(s) without a current decision`)
+    console.error(
+      `\n${RED}${BOLD}RESULT: FAIL${RESET} — ${problems.length} signed field(s) without a current decision`
+    )
     process.exit(1)
   }
 
-  console.log(`\n${GREEN}${BOLD}RESULT: PASS${RESET} — every signed licence field carries a current decision`)
+  console.log(
+    `\n${GREEN}${BOLD}RESULT: PASS${RESET} — every signed licence field carries a current decision`
+  )
 }
 
 main()

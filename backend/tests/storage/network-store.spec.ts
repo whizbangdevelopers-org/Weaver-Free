@@ -26,14 +26,26 @@ describe('NetworkStore', () => {
     })
 
     it('should add a bridge', async () => {
-      const added = await store.addBridge({ name: 'br-test', subnet: '10.20.0.0/24', gateway: '10.20.0.1' })
+      const added = await store.addBridge({
+        name: 'br-test',
+        subnet: '10.20.0.0/24',
+        gateway: '10.20.0.1'
+      })
       expect(added).toBe(true)
-      expect(store.getBridge('br-test')).toEqual({ name: 'br-test', subnet: '10.20.0.0/24', gateway: '10.20.0.1' })
+      expect(store.getBridge('br-test')).toEqual({
+        name: 'br-test',
+        subnet: '10.20.0.0/24',
+        gateway: '10.20.0.1'
+      })
     })
 
     it('should reject duplicate bridge', async () => {
       await store.addBridge({ name: 'br-test', subnet: '10.20.0.0/24', gateway: '10.20.0.1' })
-      const dup = await store.addBridge({ name: 'br-test', subnet: '10.30.0.0/24', gateway: '10.30.0.1' })
+      const dup = await store.addBridge({
+        name: 'br-test',
+        subnet: '10.30.0.0/24',
+        gateway: '10.30.0.1'
+      })
       expect(dup).toBe(false)
     })
 
@@ -67,7 +79,14 @@ describe('NetworkStore', () => {
     })
 
     it('should add a firewall rule', async () => {
-      const rule = { id: 'r1', source: '10.10.0.10', destination: '10.10.0.20', port: 80, protocol: 'tcp' as const, action: 'allow' as const }
+      const rule = {
+        id: 'r1',
+        source: '10.10.0.10',
+        destination: '10.10.0.20',
+        port: 80,
+        protocol: 'tcp' as const,
+        action: 'allow' as const
+      }
       await store.addFirewallRule(rule)
       const rules = store.getFirewallRules()
       expect(rules).toHaveLength(1)
@@ -75,7 +94,14 @@ describe('NetworkStore', () => {
     })
 
     it('should remove a firewall rule', async () => {
-      await store.addFirewallRule({ id: 'r1', source: '10.10.0.10', destination: '10.10.0.20', port: 80, protocol: 'tcp', action: 'allow' })
+      await store.addFirewallRule({
+        id: 'r1',
+        source: '10.10.0.10',
+        destination: '10.10.0.20',
+        port: 80,
+        protocol: 'tcp',
+        action: 'allow'
+      })
       const removed = await store.removeFirewallRule('r1')
       expect(removed).toBe(true)
       expect(store.getFirewallRules()).toEqual([])
@@ -90,14 +116,29 @@ describe('NetworkStore', () => {
     it('should persist and reload data', async () => {
       await store.addBridge({ name: 'br-persist', subnet: '10.30.0.0/24', gateway: '10.30.0.1' })
       await store.setIpPool('br-persist', { start: '10.30.0.10', end: '10.30.0.50', allocated: [] })
-      await store.addFirewallRule({ id: 'r2', source: '10.30.0.10', destination: '10.30.0.20', port: 443, protocol: 'tcp', action: 'deny' })
+      await store.addFirewallRule({
+        id: 'r2',
+        source: '10.30.0.10',
+        destination: '10.30.0.20',
+        port: 443,
+        protocol: 'tcp',
+        action: 'deny'
+      })
 
       // Create a new store instance reading the same file
       const store2 = new NetworkStore(join(tempDir, 'network-config.json'))
       await store2.init()
 
-      expect(store2.getBridge('br-persist')).toEqual({ name: 'br-persist', subnet: '10.30.0.0/24', gateway: '10.30.0.1' })
-      expect(store2.getIpPool('br-persist')).toEqual({ start: '10.30.0.10', end: '10.30.0.50', allocated: [] })
+      expect(store2.getBridge('br-persist')).toEqual({
+        name: 'br-persist',
+        subnet: '10.30.0.0/24',
+        gateway: '10.30.0.1'
+      })
+      expect(store2.getIpPool('br-persist')).toEqual({
+        start: '10.30.0.10',
+        end: '10.30.0.50',
+        allocated: []
+      })
       expect(store2.getFirewallRules()).toHaveLength(1)
     })
   })

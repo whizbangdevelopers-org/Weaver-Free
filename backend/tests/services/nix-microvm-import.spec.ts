@@ -56,7 +56,13 @@ describe('parseMicrovmDeclarations', () => {
 
   it('reads the specs that are stated on their own line', () => {
     const web = parseMicrovmDeclarations(CONFIG).find(d => d.name === 'web-nginx')!
-    expect(web).toEqual({ name: 'web-nginx', mem: 256, vcpu: 1, hypervisor: 'qemu', ip: '10.10.0.10' })
+    expect(web).toEqual({
+      name: 'web-nginx',
+      mem: 256,
+      vcpu: 1,
+      hypervisor: 'qemu',
+      ip: '10.10.0.10'
+    })
   })
 
   it('omits the IP when the declaration states none', () => {
@@ -130,7 +136,8 @@ describe('parseMicrovmDeclarations', () => {
     })
 
     it.each(['qemu', 'cloud-hypervisor', 'crosvm', 'kvmtool', 'firecracker'])(
-      'accepts the real hypervisor %s', (hv) => {
+      'accepts the real hypervisor %s',
+      hv => {
         const d = parseMicrovmDeclarations(`
           microvm.vms.g = {
             config = {
@@ -139,7 +146,8 @@ describe('parseMicrovmDeclarations', () => {
           };
         `)[0]!
         expect(d.hypervisor).toBe(hv)
-      })
+      }
+    )
 
     it('reads a guest declared entirely on ONE line', () => {
       // extractBlocks treats this as a one-line block. The first version of the parser anchored
@@ -166,7 +174,7 @@ describe('parseMicrovmDeclarations', () => {
       expect(d.ip).toBe('10.10.0.10')
     })
 
-    it('does not read a neighbouring guest\'s values into this one', () => {
+    it("does not read a neighbouring guest's values into this one", () => {
       // The failure a naive whole-file regex would produce: every guest inherits the first one's
       // memory. Block boundaries are what prevent it, so they are asserted.
       const found = parseMicrovmDeclarations(CONFIG)
@@ -176,7 +184,6 @@ describe('parseMicrovmDeclarations', () => {
   })
 })
 
-
 // ── Adoption ────────────────────────────────────────────────────────────────────────────────────
 
 function makeRegistry(initial: Record<string, WorkloadDefinition> = {}): WorkloadRegistry {
@@ -184,11 +191,23 @@ function makeRegistry(initial: Record<string, WorkloadDefinition> = {}): Workloa
   return {
     init: async () => {},
     getAll: async () => ({ ...vms }),
-    get: async (n) => vms[n] ?? null,
-    has: async (n) => n in vms,
-    add: async (vm) => { if (vms[vm.name]) return false; vms[vm.name] = vm; return true },
-    remove: async (n) => { if (!vms[n]) return false; delete vms[n]; return true },
-    update: async (n, f) => { if (!vms[n]) return false; vms[n] = { ...vms[n]!, ...f }; return true },
+    get: async n => vms[n] ?? null,
+    has: async n => n in vms,
+    add: async vm => {
+      if (vms[vm.name]) return false
+      vms[vm.name] = vm
+      return true
+    },
+    remove: async n => {
+      if (!vms[n]) return false
+      delete vms[n]
+      return true
+    },
+    update: async (n, f) => {
+      if (!vms[n]) return false
+      vms[n] = { ...vms[n]!, ...f }
+      return true
+    }
   }
 }
 
@@ -201,7 +220,9 @@ describe('scanNixDeclarations', () => {
     nixPath = join(dir, 'configuration.nix')
     setConfig({ nixConfigPath: nixPath } as unknown as DashboardConfig)
   })
-  afterEach(async () => { await rm(dir, { recursive: true, force: true }) })
+  afterEach(async () => {
+    await rm(dir, { recursive: true, force: true })
+  })
 
   it('adopts a guest that is declared but has no systemd unit yet', async () => {
     // The whole point: this guest has never been built, so scanMicrovms() cannot see it.
@@ -212,7 +233,11 @@ describe('scanNixDeclarations', () => {
     const r = await scanNixDeclarations()
     expect(r.added.sort()).toEqual(['svc-postgres', 'web-nginx'])
     expect(await reg.get('web-nginx')).toMatchObject({
-      name: 'web-nginx', ip: '10.10.0.10', mem: 256, vcpu: 1, hypervisor: 'qemu',
+      name: 'web-nginx',
+      ip: '10.10.0.10',
+      mem: 256,
+      vcpu: 1,
+      hypervisor: 'qemu'
     })
   })
 
@@ -232,28 +257,41 @@ describe('scanNixDeclarations', () => {
     // nothing. Without this, a stale declaration would silently rewrite live specs on every scan.
     await writeFile(nixPath, CONFIG)
     const reg = makeRegistry({
-      'web-nginx': { name: 'web-nginx', ip: '10.10.0.99', mem: 9999, vcpu: 8, hypervisor: 'crosvm' },
+      'web-nginx': { name: 'web-nginx', ip: '10.10.0.99', mem: 9999, vcpu: 8, hypervisor: 'crosvm' }
     })
     setRegistry(reg)
 
     const r = await scanNixDeclarations()
     expect(r.existing).toContain('web-nginx')
     expect(r.added).not.toContain('web-nginx')
-    expect(await reg.get('web-nginx')).toMatchObject({ mem: 9999, vcpu: 8, hypervisor: 'crosvm', ip: '10.10.0.99' })
+    expect(await reg.get('web-nginx')).toMatchObject({
+      mem: 9999,
+      vcpu: 8,
+      hypervisor: 'crosvm',
+      ip: '10.10.0.99'
+    })
   })
 
   it('records unreadable specs as the UNKNOWN sentinel, not as invented numbers', async () => {
-    await writeFile(nixPath, `
+    await writeFile(
+      nixPath,
+      `
       microvm.vms.indirect = {
         config = {
           microvm.mem = memSize;
         };
       };
-    `)
+    `
+    )
     const reg = makeRegistry()
     setRegistry(reg)
     await scanNixDeclarations()
-    expect(await reg.get('indirect')).toMatchObject({ mem: 0, vcpu: 0, hypervisor: 'unknown', ip: '' })
+    expect(await reg.get('indirect')).toMatchObject({
+      mem: 0,
+      vcpu: 0,
+      hypervisor: 'unknown',
+      ip: ''
+    })
   })
 
   it('returns an empty result when configuration.nix does not exist', async () => {
@@ -261,13 +299,21 @@ describe('scanNixDeclarations', () => {
     // container binary — a scan that threw here would take the other scans down with it.
     setConfig({ nixConfigPath: join(dir, 'nope.nix') } as unknown as DashboardConfig)
     setRegistry(makeRegistry())
-    await expect(scanNixDeclarations()).resolves.toEqual({ discovered: [], added: [], existing: [] })
+    await expect(scanNixDeclarations()).resolves.toEqual({
+      discovered: [],
+      added: [],
+      existing: []
+    })
   })
 
   it('returns an empty result when no path is configured at all', async () => {
     setConfig({} as unknown as DashboardConfig)
     setRegistry(makeRegistry())
-    await expect(scanNixDeclarations()).resolves.toEqual({ discovered: [], added: [], existing: [] })
+    await expect(scanNixDeclarations()).resolves.toEqual({
+      discovered: [],
+      added: [],
+      existing: []
+    })
   })
 
   it('is idempotent — a second scan adds nothing', async () => {

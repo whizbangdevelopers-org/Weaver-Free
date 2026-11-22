@@ -71,10 +71,9 @@ function parseArgs(): { repo: string; mapPath: string } {
 }
 
 function fetchAlerts(repo: string): CodeQLAlert[] {
-  const raw = execSync(
-    `gh api repos/${repo}/code-scanning/alerts --paginate`,
-    { encoding: 'utf-8' }
-  )
+  const raw = execSync(`gh api repos/${repo}/code-scanning/alerts --paginate`, {
+    encoding: 'utf-8'
+  })
   return JSON.parse(raw) as CodeQLAlert[]
 }
 
@@ -94,13 +93,16 @@ function selfTest(): void {
     ['CATCH a never-fired rule that fires is recorded', 'never-fired', '2026-09-25'],
     ['CATCH a stale date moves to today', '2026-09-24', '2026-09-25'],
     ['CATCH a rule with no lastSeen gets one', undefined, '2026-09-25'],
-    ['IGNORE a rule already seen today is unchanged', '2026-09-25', null],
+    ['IGNORE a rule already seen today is unchanged', '2026-09-25', null]
   ]
   let failed = 0
   for (const [name, current, want] of cases) {
     const got = nextLastSeen(current, '2026-09-25')
     if (got === want) console.log(`  ok   ${name}`)
-    else { failed++; console.log(`  FAIL ${name} (got ${got}, want ${want})`) }
+    else {
+      failed++
+      console.log(`  FAIL ${name} (got ${got}, want ${want})`)
+    }
   }
   console.log(`auditor-contract: catch=3 ignore=1`)
   process.exit(failed ? 1 : 0)
@@ -125,7 +127,7 @@ function run(): void {
     if (!seen.has(id)) {
       seen.set(id, {
         severity: alert.rule.security_severity_level ?? '',
-        description: alert.rule.description ?? '',
+        description: alert.rule.description ?? ''
       })
     }
   }
@@ -148,7 +150,7 @@ function run(): void {
         status: 'unknown',
         severity: severity || undefined,
         lastSeen: today,
-        notes: description || undefined,
+        notes: description || undefined
       }
       changed = true
       newCount++

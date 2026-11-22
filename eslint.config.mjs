@@ -32,8 +32,8 @@ export default [
       'mcp-server/',
       'backend/',
       'tui/dist/',
-      'scripts/',
-    ],
+      'scripts/'
+    ]
   },
 
   // TypeScript recommended rules (before Vue so Vue config can override parser)
@@ -50,9 +50,9 @@ export default [
       parserOptions: {
         parser: tsParser,
         ecmaVersion: 2021,
-        sourceType: 'module',
-      },
-    },
+        sourceType: 'module'
+      }
+    }
   },
 
   // Prettier (must be last to override formatting rules)
@@ -85,27 +85,30 @@ export default [
         __QUASAR_SSR_CLIENT__: 'readonly',
         __QUASAR_SSR_PWA__: 'readonly',
         Capacitor: 'readonly',
-        chrome: 'readonly',
-      },
+        chrome: 'readonly'
+      }
     },
     rules: {
       'prefer-promise-reject-errors': 'off',
       'no-debugger': process.env.NODE_ENV === 'production' ? 'error' : 'off',
-      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' }],
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' }
+      ],
       'prefer-const': 'error',
       '@typescript-eslint/explicit-function-return-type': 'off',
       '@typescript-eslint/explicit-module-boundary-types': 'off',
       // Allow {} type in declaration files and type params (common in Vue/Quasar generics)
-      '@typescript-eslint/no-empty-object-type': 'off',
-    },
+      '@typescript-eslint/no-empty-object-type': 'off'
+    }
   },
 
   // TUI (React/Ink) — allow explicit any in hook types, suppress missing react-hooks plugin
   {
     files: ['tui/src/**/*.tsx', 'tui/src/**/*.ts'],
     rules: {
-      '@typescript-eslint/no-explicit-any': 'off',
-    },
+      '@typescript-eslint/no-explicit-any': 'off'
+    }
   },
 
   // k6 test files — k6 globals
@@ -115,32 +118,32 @@ export default [
       globals: {
         __ENV: 'readonly',
         __VU: 'readonly',
-        __ITER: 'readonly',
-      },
-    },
+        __ITER: 'readonly'
+      }
+    }
   },
 
   // CJS config files — require() is expected
   {
     files: ['**/*.cjs'],
     rules: {
-      '@typescript-eslint/no-require-imports': 'off',
-    },
+      '@typescript-eslint/no-require-imports': 'off'
+    }
   },
 
   // Coverage instrumentation scripts
   {
     files: ['coverage/**/*.js'],
     linterOptions: {
-      reportUnusedDisableDirectives: 'off',
-    },
+      reportUnusedDisableDirectives: 'off'
+    }
   },
 
   // Load test files — allow unused vars for benchmarking scaffolds
   {
     files: ['testing/load/**/*.ts', 'testing/load/**/*.js'],
     rules: {
-      '@typescript-eslint/no-unused-vars': 'off',
-    },
-  },
+      '@typescript-eslint/no-unused-vars': 'off'
+    }
+  }
 ]

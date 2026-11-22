@@ -12,7 +12,13 @@ interface UpgradeNagProps {
   onBack: () => void
 }
 
-export function UpgradeNag({ featureName, featureDescription, requiredTier, features, onBack }: UpgradeNagProps) {
+export function UpgradeNag({
+  featureName,
+  featureDescription,
+  requiredTier,
+  features,
+  onBack
+}: UpgradeNagProps) {
   useInput((input, key) => {
     if (key.escape || key.return || input === 'b') onBack()
   })
@@ -22,7 +28,9 @@ export function UpgradeNag({ featureName, featureDescription, requiredTier, feat
 
   return (
     <Box flexDirection="column" paddingX={2} paddingY={1}>
-      <Text bold color={tierColor}>Upgrade to {tierLabel}</Text>
+      <Text bold color={tierColor}>
+        Upgrade to {tierLabel}
+      </Text>
 
       <Box marginTop={1} flexDirection="column">
         <Text bold>{featureName}</Text>
@@ -34,7 +42,10 @@ export function UpgradeNag({ featureName, featureDescription, requiredTier, feat
       {features && features.length > 0 && (
         <Box marginTop={1} flexDirection="column">
           {features.map(f => (
-            <Text key={f}>  <Text color="green">+</Text> {f}</Text>
+            <Text key={f}>
+              {' '}
+              <Text color="green">+</Text> {f}
+            </Text>
           ))}
         </Box>
       )}

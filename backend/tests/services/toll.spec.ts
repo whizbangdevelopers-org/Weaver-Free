@@ -26,7 +26,7 @@ import {
   selectToll,
   type TollAllocation,
   type TollRecord,
-  type TollRequest,
+  type TollRequest
 } from '../../src/services/toll.js'
 
 const NOW = new Date('2026-08-26T12:00:00.000Z')
@@ -37,7 +37,7 @@ function toll(over: Partial<TollRecord> & Pick<TollRecord, 'id'>): TollRecord {
     product: 'Windows 11 Pro',
     model: 'per-device',
     seatsTotal: 5,
-    ...over,
+    ...over
   }
 }
 
@@ -46,7 +46,7 @@ function alloc(over: Partial<TollAllocation> & Pick<TollAllocation, 'tollId'>): 
     workloadName: 'w1',
     allocatedAt: '2026-08-01T00:00:00.000Z',
     allocatedBy: 'admin',
-    ...over,
+    ...over
   }
 }
 
@@ -56,7 +56,7 @@ function req(over: Partial<TollRequest> = {}): TollRequest {
     workloadName: 'win-app',
     requestedBy: 'admin',
     stamp: { receivedAt: NOW.toISOString(), seq: 1n, allocatorId: 'a', requestId: 'r1' },
-    ...over,
+    ...over
   }
 }
 
@@ -66,10 +66,10 @@ describe('seat accounting is a projection of the append-only log', () => {
       alloc({ tollId: 't1', workloadName: 'w1' }),
       alloc({ tollId: 't1', workloadName: 'w2', releasedAt: '2026-08-10T00:00:00.000Z' }),
       alloc({ tollId: 't1', workloadName: 'w3' }),
-      alloc({ tollId: 't2', workloadName: 'w4' }),
+      alloc({ tollId: 't2', workloadName: 'w4' })
     ]
     expect(seatsUsed(a, 't1')).toBe(2)
-    expect(activeAllocations(a, 't1').map((x) => x.workloadName)).toEqual(['w1', 'w3'])
+    expect(activeAllocations(a, 't1').map(x => x.workloadName)).toEqual(['w1', 'w3'])
   })
 
   it('a released allocation stays in the log — history is the compliance artifact', () => {
@@ -90,7 +90,10 @@ describe('seat accounting is a projection of the append-only log', () => {
 
   it('never reports negative seats free', () => {
     const t = toll({ id: 't1', seatsTotal: 1 })
-    const a = [alloc({ tollId: 't1', workloadName: 'w1' }), alloc({ tollId: 't1', workloadName: 'w2' })]
+    const a = [
+      alloc({ tollId: 't1', workloadName: 'w1' }),
+      alloc({ tollId: 't1', workloadName: 'w2' })
+    ]
     expect(seatsFree(t, a)).toBe(0)
   })
 })
@@ -121,7 +124,7 @@ describe('a lapsed allocation warns — it never stops a workload or frees a sea
   it('is reported as lapsed', () => {
     const t = [toll({ id: 't1', expiresAt: '2026-08-01T00:00:00Z' })]
     const a = [alloc({ tollId: 't1', workloadName: 'prod-db' })]
-    expect(lapsedAllocations(t, a, NOW).map((x) => x.workloadName)).toEqual(['prod-db'])
+    expect(lapsedAllocations(t, a, NOW).map(x => x.workloadName)).toEqual(['prod-db'])
   })
 
   it('KEEPS its seat — the workload is still consuming the entitlement', () => {
@@ -142,12 +145,15 @@ describe('a lapsed allocation warns — it never stops a workload or frees a sea
 
 describe('eligibility', () => {
   it('rejects a product mismatch, a hold, an expiry and a full Toll — each with its own reason', () => {
-    expect(ineligibleReason(toll({ id: 't', product: 'RHEL 9' }), [], req(), NOW))
-      .toMatch(/product mismatch/)
-    expect(ineligibleReason(toll({ id: 't', held: true }), [], req(), NOW))
-      .toMatch(/administratively held/)
-    expect(ineligibleReason(toll({ id: 't', expiresAt: '2026-01-01T00:00:00Z' }), [], req(), NOW))
-      .toMatch(/expired/)
+    expect(ineligibleReason(toll({ id: 't', product: 'RHEL 9' }), [], req(), NOW)).toMatch(
+      /product mismatch/
+    )
+    expect(ineligibleReason(toll({ id: 't', held: true }), [], req(), NOW)).toMatch(
+      /administratively held/
+    )
+    expect(
+      ineligibleReason(toll({ id: 't', expiresAt: '2026-01-01T00:00:00Z' }), [], req(), NOW)
+    ).toMatch(/expired/)
     const full = toll({ id: 't', seatsTotal: 1 })
     expect(ineligibleReason(full, [alloc({ tollId: 't' })], req(), NOW)).toMatch(/no seats free/)
   })
@@ -161,20 +167,23 @@ describe('selection prefers the SOONEST expiry', () => {
   it('takes the one expiring first, so value is not lost to waiting', () => {
     const tolls = [
       toll({ id: 'later', expiresAt: '2027-01-01T00:00:00Z' }),
-      toll({ id: 'sooner', expiresAt: '2026-09-01T00:00:00Z' }),
+      toll({ id: 'sooner', expiresAt: '2026-09-01T00:00:00Z' })
     ]
     expect(selectToll(tolls, [], req(), NOW)?.id).toBe('sooner')
   })
 
   it('sorts a perpetual Toll LAST — it cannot be wasted by waiting', () => {
-    const tolls = [toll({ id: 'perpetual' }), toll({ id: 'dated', expiresAt: '2026-12-01T00:00:00Z' })]
+    const tolls = [
+      toll({ id: 'perpetual' }),
+      toll({ id: 'dated', expiresAt: '2026-12-01T00:00:00Z' })
+    ]
     expect(selectToll(tolls, [], req(), NOW)?.id).toBe('dated')
   })
 
   it('breaks a true tie deterministically, so a replay yields the same result', () => {
     const tolls = [
       toll({ id: 'b', expiresAt: '2026-12-01T00:00:00Z' }),
-      toll({ id: 'a', expiresAt: '2026-12-01T00:00:00Z' }),
+      toll({ id: 'a', expiresAt: '2026-12-01T00:00:00Z' })
     ]
     expect(selectToll(tolls, [], req(), NOW)?.id).toBe('a')
     expect(selectToll([...tolls].reverse(), [], req(), NOW)?.id).toBe('a')
@@ -183,7 +192,7 @@ describe('selection prefers the SOONEST expiry', () => {
   it('skips a sooner-expiring Toll that has no seats and takes the next', () => {
     const tolls = [
       toll({ id: 'full', seatsTotal: 1, expiresAt: '2026-09-01T00:00:00Z' }),
-      toll({ id: 'open', seatsTotal: 1, expiresAt: '2027-01-01T00:00:00Z' }),
+      toll({ id: 'open', seatsTotal: 1, expiresAt: '2027-01-01T00:00:00Z' })
     ]
     expect(selectToll(tolls, [alloc({ tollId: 'full' })], req(), NOW)?.id).toBe('open')
   })
@@ -198,9 +207,9 @@ describe('FCFS ordering', () => {
     const rs = [
       req({ stamp: { receivedAt: 'x', seq: 30n, allocatorId: 'a', requestId: 'r3' } }),
       req({ stamp: { receivedAt: 'x', seq: 10n, allocatorId: 'a', requestId: 'r1' } }),
-      req({ stamp: { receivedAt: 'x', seq: 20n, allocatorId: 'a', requestId: 'r2' } }),
+      req({ stamp: { receivedAt: 'x', seq: 20n, allocatorId: 'a', requestId: 'r2' } })
     ]
-    expect(fcfsOrder(rs).map((r) => r.stamp.requestId)).toEqual(['r1', 'r2', 'r3'])
+    expect(fcfsOrder(rs).map(r => r.stamp.requestId)).toEqual(['r1', 'r2', 'r3'])
   })
 
   it('handles bigints a Number() cast would COLLAPSE — hrtime values are large', () => {
@@ -211,30 +220,35 @@ describe('FCFS ordering', () => {
     // not a guard at all. Found by negative-testing, not by reading.
     const collapsing = 2n ** 53n
     const rs = [
-      req({ stamp: { receivedAt: 'x', seq: collapsing + 1n, allocatorId: 'a', requestId: 'second' } }),
-      req({ stamp: { receivedAt: 'x', seq: collapsing, allocatorId: 'a', requestId: 'first' } }),
+      req({
+        stamp: { receivedAt: 'x', seq: collapsing + 1n, allocatorId: 'a', requestId: 'second' }
+      }),
+      req({ stamp: { receivedAt: 'x', seq: collapsing, allocatorId: 'a', requestId: 'first' } })
     ]
     expect(Number(collapsing)).toBe(Number(collapsing + 1n)) // the premise, asserted
-    expect(fcfsOrder(rs).map((r) => r.stamp.requestId)).toEqual(['first', 'second'])
+    expect(fcfsOrder(rs).map(r => r.stamp.requestId)).toEqual(['first', 'second'])
   })
 
   it('total-orders a tie by allocatorId then requestId', () => {
     const rs = [
       req({ stamp: { receivedAt: 'x', seq: 1n, allocatorId: 'b', requestId: 'r1' } }),
       req({ stamp: { receivedAt: 'x', seq: 1n, allocatorId: 'a', requestId: 'r2' } }),
-      req({ stamp: { receivedAt: 'x', seq: 1n, allocatorId: 'a', requestId: 'r1' } }),
+      req({ stamp: { receivedAt: 'x', seq: 1n, allocatorId: 'a', requestId: 'r1' } })
     ]
-    expect(fcfsOrder(rs).map((r) => `${r.stamp.allocatorId}/${r.stamp.requestId}`))
-      .toEqual(['a/r1', 'a/r2', 'b/r1'])
+    expect(fcfsOrder(rs).map(r => `${r.stamp.allocatorId}/${r.stamp.requestId}`)).toEqual([
+      'a/r1',
+      'a/r2',
+      'b/r1'
+    ])
   })
 
   it('does not mutate its input', () => {
     const rs = [
       req({ stamp: { receivedAt: 'x', seq: 2n, allocatorId: 'a', requestId: 'r2' } }),
-      req({ stamp: { receivedAt: 'x', seq: 1n, allocatorId: 'a', requestId: 'r1' } }),
+      req({ stamp: { receivedAt: 'x', seq: 1n, allocatorId: 'a', requestId: 'r1' } })
     ]
     fcfsOrder(rs)
-    expect(rs.map((r) => r.stamp.requestId)).toEqual(['r2', 'r1'])
+    expect(rs.map(r => r.stamp.requestId)).toEqual(['r2', 'r1'])
   })
 })
 
@@ -249,7 +263,7 @@ describe('the guard fails CLOSED', () => {
     // from a hold — three different purchases.
     const tolls = [
       toll({ id: 'expired-one', expiresAt: '2026-01-01T00:00:00Z' }),
-      toll({ id: 'full-one', seatsTotal: 1 }),
+      toll({ id: 'full-one', seatsTotal: 1 })
     ]
     const why = allocationRejectionReason(tolls, [alloc({ tollId: 'full-one' })], req(), NOW)
     expect(why).toMatch(/expired-one: expired/)

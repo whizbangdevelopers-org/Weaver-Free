@@ -38,14 +38,19 @@ const NIX_SURFACE = 'nixos/package.nix'
 /** `package.json` is the source; everything else must equal it. */
 const SOURCE = 'package.json'
 
-interface Reading { file: string; version: string | null; detail?: string }
+interface Reading {
+  file: string
+  version: string | null
+  detail?: string
+}
 
 function readJsonVersion(rel: string): Reading {
   const abs = resolve(CODE_ROOT, rel)
   if (!existsSync(abs)) return { file: rel, version: null, detail: 'file missing' }
   try {
     const v = (JSON.parse(readFileSync(abs, 'utf8')) as { version?: unknown }).version
-    if (typeof v !== 'string' || !v) return { file: rel, version: null, detail: 'no string "version" field' }
+    if (typeof v !== 'string' || !v)
+      return { file: rel, version: null, detail: 'no string "version" field' }
     return { file: rel, version: v }
   } catch (e) {
     return { file: rel, version: null, detail: `unparseable: ${(e as Error).message}` }
@@ -63,35 +68,35 @@ function readNixVersion(rel: string): Reading {
   return { file: rel, version: m[1]! }
 }
 
-const readings: Reading[] = [
-  ...JSON_SURFACES.map(readJsonVersion),
-  readNixVersion(NIX_SURFACE),
-]
+const readings: Reading[] = [...JSON_SURFACES.map(readJsonVersion), readNixVersion(NIX_SURFACE)]
 
 // An unreadable surface is a FAILURE, not a skip. A parity check that quietly drops a file it
 // could not read reports agreement among whatever is left — the shape this auditor exists to end.
-const unreadable = readings.filter((r) => r.version === null)
+const unreadable = readings.filter(r => r.version === null)
 if (unreadable.length > 0) {
   console.error('audit:version-parity FAIL — could not read the version from:')
   for (const r of unreadable) console.error(`  ${r.file} — ${r.detail}`)
   process.exit(1)
 }
 
-const source = readings.find((r) => r.file === SOURCE)!
-const mismatched = readings.filter((r) => r.version !== source.version)
+const source = readings.find(r => r.file === SOURCE)!
+const mismatched = readings.filter(r => r.version !== source.version)
 
 if (mismatched.length === 0) {
   console.log(
-    `audit:version-parity PASS — all ${readings.length} shipped version surfaces read ${source.version}`,
+    `audit:version-parity PASS — all ${readings.length} shipped version surfaces read ${source.version}`
   )
   process.exit(0)
 }
 
-console.error(`audit:version-parity FAIL — ${mismatched.length} surface(s) disagree with ${SOURCE} (${source.version}):`)
-for (const r of mismatched) console.error(`  ${r.file}  ${r.version}   (expected ${source.version})`)
+console.error(
+  `audit:version-parity FAIL — ${mismatched.length} surface(s) disagree with ${SOURCE} (${source.version}):`
+)
+for (const r of mismatched)
+  console.error(`  ${r.file}  ${r.version}   (expected ${source.version})`)
 console.error(
   '\n  Release checklist step 1 updates all of these together. If a surface is meant to version' +
     '\n  independently, exclude it BY NAME in scripts/verify-version-parity.ts with the reason —' +
-    '\n  never by widening a pattern.',
+    '\n  never by widening a pattern.'
 )
 process.exit(1)

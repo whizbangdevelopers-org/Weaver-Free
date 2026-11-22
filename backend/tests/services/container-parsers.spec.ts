@@ -23,10 +23,7 @@
 //   - A fixture invented from documentation does not fail when it is wrong. It inverts the
 //     contract, and the implementation is then written to match the invention.
 import { describe, it, expect } from 'vitest'
-import {
-  parseDockerPsLine,
-  parseApptainerInstances,
-} from '../../src/services/microvm.js'
+import { parseDockerPsLine, parseApptainerInstances } from '../../src/services/microvm.js'
 
 // ── Real capture: `docker ps -a --format '{{json .}}'`, 2026-07-31 ────────────────────────────
 // One object per line. Note `Names` has NO leading slash in this format (the existing inline
@@ -55,8 +52,11 @@ describe('parseDockerPsLine', () => {
 
   it('splits a multi-port mapping and trims each entry', () => {
     const line = JSON.stringify({
-      Names: 'web', ID: 'abc123', Image: 'nginx:alpine', State: 'running',
-      Ports: '0.0.0.0:80->80/tcp, 0.0.0.0:443->443/tcp',
+      Names: 'web',
+      ID: 'abc123',
+      Image: 'nginx:alpine',
+      State: 'running',
+      Ports: '0.0.0.0:80->80/tcp, 0.0.0.0:443->443/tcp'
     })
     expect(parseDockerPsLine(line)!.ports).toEqual(['0.0.0.0:80->80/tcp', '0.0.0.0:443->443/tcp'])
   })
@@ -74,7 +74,14 @@ describe('parseDockerPsLine', () => {
     // The Ports precedent. A [''] would make an unnetworked container look like one attached to
     // a network literally named "" — and would then be compared against bridgeInterface as a
     // real value rather than treated as unknown.
-    const line = JSON.stringify({ Names: 'n', ID: 'i', Image: 'x', State: 'running', Ports: '', Networks: '' })
+    const line = JSON.stringify({
+      Names: 'n',
+      ID: 'i',
+      Image: 'x',
+      State: 'running',
+      Ports: '',
+      Networks: ''
+    })
     expect(parseDockerPsLine(line)!.networks).toEqual([])
   })
 
@@ -86,21 +93,40 @@ describe('parseDockerPsLine', () => {
 
   it('splits and trims a multi-network value', () => {
     const line = JSON.stringify({
-      Names: 'web', ID: 'abc123', Image: 'nginx:alpine', State: 'running',
-      Ports: '', Networks: 'br-microvm, frontend ,backend',
+      Names: 'web',
+      ID: 'abc123',
+      Image: 'nginx:alpine',
+      State: 'running',
+      Ports: '',
+      Networks: 'br-microvm, frontend ,backend'
     })
     expect(parseDockerPsLine(line)!.networks).toEqual(['br-microvm', 'frontend', 'backend'])
   })
 
   // Podman prefixes names with '/' in some versions; docker's {{json .}} does not. Accept both.
   it('strips a leading slash when one is present', () => {
-    const line = JSON.stringify({ Names: '/legacy', ID: 'd1', Image: 'x', State: 'running', Ports: '' })
+    const line = JSON.stringify({
+      Names: '/legacy',
+      ID: 'd1',
+      Image: 'x',
+      State: 'running',
+      Ports: ''
+    })
     expect(parseDockerPsLine(line)!.name).toBe('legacy')
   })
 
   // A parser that throws inside a scan loop aborts the whole scan and loses every other container.
   it('returns null instead of throwing on junk, and never invents a nameless record', () => {
-    for (const bad of ['', '   ', 'not json', '{ truncated', '{}', '{"ID":"x"}', '{"Names":""}', '{"Names":"/"}']) {
+    for (const bad of [
+      '',
+      '   ',
+      'not json',
+      '{ truncated',
+      '{}',
+      '{"ID":"x"}',
+      '{"Names":""}',
+      '{"Names":"/"}'
+    ]) {
       expect(parseDockerPsLine(bad), bad).toBeNull()
     }
   })
@@ -133,7 +159,9 @@ describe('parseApptainerInstances', () => {
     const r = parseApptainerInstances(APPTAINER_LIST)
     expect(r).toHaveLength(1)
     expect(r[0]!.name).toBe('logtest')
-    expect(r[0]!.image).toBe('/root/.apptainer/cache/oci-tmp/6dfa7c8a3a99172fc36e13d2e17d1f73fb8cc5fe0cc2540c1027a8c134329184')
+    expect(r[0]!.image).toBe(
+      '/root/.apptainer/cache/oci-tmp/6dfa7c8a3a99172fc36e13d2e17d1f73fb8cc5fe0cc2540c1027a8c134329184'
+    )
     expect(r[0]!.pid).toBe(6554)
   })
 
@@ -153,7 +181,15 @@ describe('parseApptainerInstances', () => {
   // A missing binary, a permission error and a FATAL all surface as unusable stdout. None may
   // throw: scanContainers treats "cannot scan" as an empty result, never an error (spec, Design).
   it('returns [] rather than throwing on unusable output', () => {
-    for (const bad of ['', '   ', 'FATAL:   Unknown command', '{ not json', 'null', '[]', '{"instances":"x"}']) {
+    for (const bad of [
+      '',
+      '   ',
+      'FATAL:   Unknown command',
+      '{ not json',
+      'null',
+      '[]',
+      '{"instances":"x"}'
+    ]) {
       expect(parseApptainerInstances(bad), bad).toEqual([])
     }
   })
@@ -166,8 +202,8 @@ describe('parseApptainerInstances', () => {
       instances: [
         { pid: 1, img: 'a' },
         { instance: 'good', pid: 2, img: 'b' },
-        { instance: '', pid: 3, img: 'c' },
-      ],
+        { instance: '', pid: 3, img: 'c' }
+      ]
     })
     expect(parseApptainerInstances(mixed).map(r => r.name)).toEqual(['good'])
   })
@@ -175,14 +211,15 @@ describe('parseApptainerInstances', () => {
   it('tolerates unknown extra fields rather than being tuned to a trimmed shape', () => {
     const future = JSON.stringify({
       instances: [{ instance: 'x', pid: 9, img: 'i', ip: '', someNewField: true }],
-      someNewTopLevel: 1,
+      someNewTopLevel: 1
     })
     expect(parseApptainerInstances(future).map(r => r.name)).toEqual(['x'])
   })
 
   it('is pure — same input, same output, no I/O', () => {
-    expect(JSON.stringify(parseApptainerInstances(APPTAINER_LIST)))
-      .toBe(JSON.stringify(parseApptainerInstances(APPTAINER_LIST)))
+    expect(JSON.stringify(parseApptainerInstances(APPTAINER_LIST))).toBe(
+      JSON.stringify(parseApptainerInstances(APPTAINER_LIST))
+    )
   })
 })
 
@@ -194,17 +231,23 @@ describe('parseApptainerInstances', () => {
 // indistinguishable from an injection, and the `|` inside a quoted type union looks like a pipe.
 // Contract assertions belong in the contract, where they can say what they mean.
 describe('slice discipline', () => {
-  const read = () => import('node:fs/promises')
-    .then(fs => fs.readFile(new URL('../../src/services/microvm.ts', import.meta.url), 'utf-8'))
+  const read = () =>
+    import('node:fs/promises').then(fs =>
+      fs.readFile(new URL('../../src/services/microvm.ts', import.meta.url), 'utf-8')
+    )
 
   it('scanContainers CALLS parseDockerPsLine rather than keeping a private copy of the parsing', async () => {
     const src = await read()
     const scan = src.slice(src.indexOf('export async function scanContainers'))
     const body = scan.slice(0, scan.indexOf('\nexport ', 1))
-    expect(body, 'scanContainers must delegate to the extracted parser').toContain('parseDockerPsLine')
+    expect(body, 'scanContainers must delegate to the extracted parser').toContain(
+      'parseDockerPsLine'
+    )
     // The tell-tale of the inline version: reaching into the raw docker record by key.
-    expect(body, 'inline docker parsing must be GONE from scanContainers, not duplicated')
-      .not.toMatch(/parsed\[['"]Names['"]\]/)
+    expect(
+      body,
+      'inline docker parsing must be GONE from scanContainers, not duplicated'
+    ).not.toMatch(/parsed\[['"]Names['"]\]/)
   })
 
   // SUPERSEDED 2026-08-04 — this assertion was the inverse of what follows: "ContainerRuntime must
@@ -221,11 +264,15 @@ describe('slice discipline', () => {
   // both directions — a guard that cannot fail is not a guard.
   it('widens ContainerRuntime and isContainerDef to apptainer — slice 2 landed', async () => {
     const src = await read()
-    expect(src, 'ContainerRuntime must carry all three runtimes, anchored so a fourth is visible')
-      .toMatch(/^type ContainerRuntime = 'docker' \| 'podman' \| 'apptainer'$/m)
+    expect(
+      src,
+      'ContainerRuntime must carry all three runtimes, anchored so a fourth is visible'
+    ).toMatch(/^type ContainerRuntime = 'docker' \| 'podman' \| 'apptainer'$/m)
     const guard = src.slice(src.indexOf('function isContainerDef'))
-    expect(guard.slice(0, guard.indexOf('}')), 'isContainerDef must route apptainer down the container path')
-      .toContain('apptainer')
+    expect(
+      guard.slice(0, guard.indexOf('}')),
+      'isContainerDef must route apptainer down the container path'
+    ).toContain('apptainer')
   })
 
   // The scan branch is the other half of slice 2, and the same delegation property applies: the
@@ -234,8 +281,9 @@ describe('slice discipline', () => {
     const src = await read()
     const scan = src.slice(src.indexOf('export async function scanApptainerInstances'))
     const body = scan.slice(0, scan.indexOf('\nexport ', 1))
-    expect(body, 'the apptainer scan must delegate to the extracted parser')
-      .toMatch(/listApptainerInstances|parseApptainerInstances/)
+    expect(body, 'the apptainer scan must delegate to the extracted parser').toMatch(
+      /listApptainerInstances|parseApptainerInstances/
+    )
     expect(body, 'inline apptainer parsing must never appear').not.toMatch(/JSON\.parse/)
   })
 })

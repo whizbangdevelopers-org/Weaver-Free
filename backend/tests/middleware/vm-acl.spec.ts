@@ -33,16 +33,18 @@ function makeConfig(tier: 'demo' | 'free' | 'solo' | 'fabrick'): DashboardConfig
     jwtSecret: 'test-secret',
     sessionStoreType: 'memory',
     notify: { ntfyUrl: null, ntfyTopic: null, ntfyToken: null },
-    aiApiKey: '',
+    aiApiKey: ''
   })
 }
 
-function makeRequest(overrides: Partial<FastifyRequest & { params: Record<string, string> }> = {}): FastifyRequest {
+function makeRequest(
+  overrides: Partial<FastifyRequest & { params: Record<string, string> }> = {}
+): FastifyRequest {
   return {
     userId: 'user-1',
     userRole: 'operator',
     params: { name: 'web-nginx' },
-    ...overrides,
+    ...overrides
   } as unknown as FastifyRequest
 }
 
@@ -50,7 +52,7 @@ function makeReply(): FastifyReply {
   const reply = {
     statusCode: 200,
     status: vi.fn().mockReturnThis(),
-    send: vi.fn().mockReturnThis(),
+    send: vi.fn().mockReturnThis()
   }
   return reply as unknown as FastifyReply
 }
@@ -110,7 +112,10 @@ describe('createVmAclCheck middleware', () => {
     await aclStore.set('restricted-user', ['dev-node'])
     const check = createVmAclCheck(aclStore, makeConfig('fabrick'))
     const reply = makeReply()
-    await check(makeRequest({ userId: 'restricted-user', params: {} as Record<string, string> }), reply)
+    await check(
+      makeRequest({ userId: 'restricted-user', params: {} as Record<string, string> }),
+      reply
+    )
     expect(reply.status).not.toHaveBeenCalled()
   })
 

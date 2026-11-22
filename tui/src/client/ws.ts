@@ -76,7 +76,7 @@ export class TuiWsClient {
       this.connectHandlers.forEach(fn => fn())
     })
 
-    this.ws.on('message', (data) => {
+    this.ws.on('message', data => {
       try {
         const msg = JSON.parse(data.toString()) as Record<string, unknown>
         if (msg.type === 'vm-status' && Array.isArray(msg.data)) {
@@ -93,7 +93,7 @@ export class TuiWsClient {
       }
     })
 
-    this.ws.on('close', (code) => {
+    this.ws.on('close', code => {
       this.ws = null
       this.disconnectHandlers.forEach(fn => fn())
 

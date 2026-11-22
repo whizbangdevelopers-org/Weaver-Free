@@ -4,9 +4,15 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type { WorkloadDefinition } from '../../src/storage/workload-registry.js'
 
 vi.mock('node:child_process', () => ({
-  execFile: vi.fn((_cmd: string, _args: string[], callback: (err: unknown, result: { stdout: string; stderr: string }) => void) => {
-    callback(null, { stdout: '', stderr: '' })
-  }),
+  execFile: vi.fn(
+    (
+      _cmd: string,
+      _args: string[],
+      callback: (err: unknown, result: { stdout: string; stderr: string }) => void
+    ) => {
+      callback(null, { stdout: '', stderr: '' })
+    }
+  )
 }))
 
 vi.mock('node:fs/promises', () => ({
@@ -14,8 +20,10 @@ vi.mock('node:fs/promises', () => ({
   writeFile: vi.fn(async () => {}),
   rename: vi.fn(async () => {}),
   unlink: vi.fn(async () => {}),
-  access: vi.fn(async () => { throw new Error('ENOENT') }),
-  stat: vi.fn(async () => ({ size: 0 })),
+  access: vi.fn(async () => {
+    throw new Error('ENOENT')
+  }),
+  stat: vi.fn(async () => ({ size: 0 }))
 }))
 
 // Mock the download pipeline — we don't want real HTTP in tests
@@ -25,19 +33,19 @@ vi.mock('node:fs', () => ({
     once: vi.fn(),
     emit: vi.fn(),
     write: vi.fn(),
-    end: vi.fn(),
+    end: vi.fn()
   })),
   createReadStream: vi.fn(() => ({
     on: vi.fn(),
     once: vi.fn(),
     emit: vi.fn(),
     pipe: vi.fn(),
-    read: vi.fn(),
-  })),
+    read: vi.fn()
+  }))
 }))
 
 vi.mock('node:stream/promises', () => ({
-  pipeline: vi.fn(async () => {}),
+  pipeline: vi.fn(async () => {})
 }))
 
 // The https mock records every URL it is asked for, because image integrity made the download a TWO
@@ -64,24 +72,24 @@ vi.mock('node:https', () => ({
     stream.pipe = vi.fn()
     cb(stream)
     return { on: vi.fn() }
-  }),
+  })
 }))
 
 // Integrity itself is covered by image-digest.spec.ts (22 cases, both halves) and was proven end
 // to end against the live CirrOS image. Here it is stubbed so these tests keep testing what they
 // are about — directory creation and path resolution — instead of hashing a file the fs mock
 // never wrote.
-vi.mock('../../src/services/image-digest.js', async (importOriginal) => {
+vi.mock('../../src/services/image-digest.js', async importOriginal => {
   const actual = await importOriginal<typeof import('../../src/services/image-digest.js')>()
   return {
     ...actual,
     // Returns whatever the mocked checksum body declared, so the comparison passes.
-    hashFile: vi.fn(async (_p: string, algo: string) => 'a'.repeat(algo === 'sha512' ? 128 : 64)),
+    hashFile: vi.fn(async (_p: string, algo: string) => 'a'.repeat(algo === 'sha512' ? 128 : 64))
   }
 })
 
 vi.mock('node:http', () => ({
-  get: vi.fn(),
+  get: vi.fn()
 }))
 
 import { mkdir, writeFile, access, stat } from 'node:fs/promises'
@@ -94,7 +102,7 @@ const DEFAULT_CONFIG = {
   dataDir: '/tmp/test-data',
   microvmsDir: '/var/lib/microvms',
   qemuImgBin: '/usr/bin/qemu-img',
-  bridgeGateway: '10.10.0.1',
+  bridgeGateway: '10.10.0.1'
 }
 
 function makeVm(overrides: Partial<WorkloadDefinition> = {}): WorkloadDefinition {
@@ -105,7 +113,7 @@ function makeVm(overrides: Partial<WorkloadDefinition> = {}): WorkloadDefinition
     vcpu: 2,
     hypervisor: 'qemu',
     distro: 'arch',
-    ...overrides,
+    ...overrides
   }
 }
 
@@ -170,7 +178,9 @@ describe('ImageManager', () => {
     })
 
     it('supportedDistros should include custom sources', () => {
-      mgr.setCustomSources({ 'rocky': { url: 'https://example.com/rocky.qcow2', format: 'qcow2', cloudInit: true } })
+      mgr.setCustomSources({
+        rocky: { url: 'https://example.com/rocky.qcow2', format: 'qcow2', cloudInit: true }
+      })
       const distros = mgr.supportedDistros()
       expect(distros).toContain('rocky')
       expect(distros).toContain('arch')
@@ -178,7 +188,9 @@ describe('ImageManager', () => {
     })
 
     it('supportedDistros should include catalog sources', () => {
-      mgr.setCatalogSources({ 'cirros': { url: 'https://example.com/cirros.img', format: 'qcow2', cloudInit: true } })
+      mgr.setCatalogSources({
+        cirros: { url: 'https://example.com/cirros.img', format: 'qcow2', cloudInit: true }
+      })
       const distros = mgr.supportedDistros()
       expect(distros).toContain('cirros')
       expect(distros).toContain('arch')
@@ -186,8 +198,13 @@ describe('ImageManager', () => {
     })
 
     it('three-tier merge: custom overrides catalog overrides built-in', () => {
-      mgr.setCatalogSources({ 'arch': { url: 'https://catalog/arch.qcow2', format: 'qcow2', cloudInit: true }, 'cirros': { url: 'https://catalog/cirros.img', format: 'qcow2', cloudInit: true } })
-      mgr.setCustomSources({ 'cirros': { url: 'https://custom/cirros.img', format: 'qcow2', cloudInit: false } })
+      mgr.setCatalogSources({
+        arch: { url: 'https://catalog/arch.qcow2', format: 'qcow2', cloudInit: true },
+        cirros: { url: 'https://catalog/cirros.img', format: 'qcow2', cloudInit: true }
+      })
+      mgr.setCustomSources({
+        cirros: { url: 'https://custom/cirros.img', format: 'qcow2', cloudInit: false }
+      })
 
       // All three should be supported
       expect(mgr.isCloudDistro('arch')).toBe(true)
@@ -210,19 +227,25 @@ describe('ImageManager', () => {
     })
 
     it('isCloudDistro should return true for custom distros', () => {
-      mgr.setCustomSources({ 'rocky': { url: 'https://example.com/rocky.qcow2', format: 'qcow2', cloudInit: true } })
+      mgr.setCustomSources({
+        rocky: { url: 'https://example.com/rocky.qcow2', format: 'qcow2', cloudInit: true }
+      })
       expect(mgr.isCloudDistro('rocky')).toBe(true)
       mgr.setCustomSources({})
     })
 
     it('isCloudDistro should return true for catalog distros', () => {
-      mgr.setCatalogSources({ 'cirros': { url: 'https://example.com/cirros.img', format: 'qcow2', cloudInit: true } })
+      mgr.setCatalogSources({
+        cirros: { url: 'https://example.com/cirros.img', format: 'qcow2', cloudInit: true }
+      })
       expect(mgr.isCloudDistro('cirros')).toBe(true)
       mgr.setCatalogSources({})
     })
 
     it('isIsoDistro should return true for ISO-format distros', () => {
-      mgr.setCatalogSources({ 'nixos-server': { url: 'https://example.com/nixos.iso', format: 'iso', cloudInit: false } })
+      mgr.setCatalogSources({
+        'nixos-server': { url: 'https://example.com/nixos.iso', format: 'iso', cloudInit: false }
+      })
       expect(mgr.isIsoDistro('nixos-server')).toBe(true)
       mgr.setCatalogSources({})
     })
@@ -267,8 +290,8 @@ describe('ImageManager', () => {
 
       await mgr.ensureImage('ubuntu')
 
-      const checksumAt = httpsRequests.findIndex((u) => u.includes('SHA256SUMS'))
-      const imageAt = httpsRequests.findIndex((u) => u.endsWith('noble-server-cloudimg-amd64.img'))
+      const checksumAt = httpsRequests.findIndex(u => u.includes('SHA256SUMS'))
+      const imageAt = httpsRequests.findIndex(u => u.endsWith('noble-server-cloudimg-amd64.img'))
       expect(checksumAt).toBeGreaterThanOrEqual(0)
       expect(imageAt).toBeGreaterThanOrEqual(0)
       expect(checksumAt).toBeLessThan(imageAt)
@@ -279,9 +302,11 @@ describe('ImageManager', () => {
       // download unverified while every sibling reported a successful verification, and nothing
       // in the output would tell the two apart — so the gap is asserted here rather than trusted
       // to review. `flake` distros never download: microvm.nix builds them.
-      const sources = (mgr as unknown as {
-        getAllSources(): Record<string, { format: string; digest?: unknown }>
-      }).getAllSources()
+      const sources = (
+        mgr as unknown as {
+          getAllSources(): Record<string, { format: string; digest?: unknown }>
+        }
+      ).getAllSources()
       const missing = Object.entries(sources)
         .filter(([, v]) => v.format !== 'flake' && !v.digest)
         .map(([k]) => k)
@@ -289,7 +314,13 @@ describe('ImageManager', () => {
     })
 
     it('should copy local file for file:// URL instead of HTTP download', async () => {
-      mgr.setCustomSources({ 'local-distro': { url: 'file:///var/lib/images/custom.qcow2', format: 'qcow2', cloudInit: true } })
+      mgr.setCustomSources({
+        'local-distro': {
+          url: 'file:///var/lib/images/custom.qcow2',
+          format: 'qcow2',
+          cloudInit: true
+        }
+      })
       ;(access as unknown as ReturnType<typeof vi.fn>)
         .mockRejectedValueOnce(new Error('ENOENT')) // image not cached
         .mockResolvedValueOnce(undefined) // local source file exists
@@ -318,8 +349,14 @@ describe('ImageManager', () => {
       expect(createCall).toBeDefined()
       expect(createCall![0]).toBe('/usr/bin/qemu-img')
       expect(createCall![1]).toEqual([
-        'create', '-f', 'qcow2', '-F', 'qcow2', '-b', '/images/arch-base.qcow2',
-        '/var/lib/microvms/my-vm/disk.qcow2',
+        'create',
+        '-f',
+        'qcow2',
+        '-F',
+        'qcow2',
+        '-b',
+        '/images/arch-base.qcow2',
+        '/var/lib/microvms/my-vm/disk.qcow2'
       ])
     })
 
@@ -328,9 +365,7 @@ describe('ImageManager', () => {
       const calls = (execFile as unknown as ReturnType<typeof vi.fn>).mock.calls
       const resizeCall = calls.find((c: string[][]) => c[1]?.includes('resize'))
       expect(resizeCall).toBeDefined()
-      expect(resizeCall![1]).toEqual([
-        'resize', '/var/lib/microvms/my-vm/disk.qcow2', '10G',
-      ])
+      expect(resizeCall![1]).toEqual(['resize', '/var/lib/microvms/my-vm/disk.qcow2', '10G'])
     })
 
     it('should return overlay path', async () => {
@@ -375,8 +410,11 @@ describe('ImageManager', () => {
       // `c[0]` a string[] compared against a string — always false to any reader, and
       // passing only because the annotation is erased at runtime. Asserting the shape on
       // the array rather than the predicate parameter also types `isoCall[1]` below.
-      const calls = (execFile as unknown as ReturnType<typeof vi.fn>).mock.calls as [string, string[]][]
-      const isoCall = calls.find((c) => c[0] === 'genisoimage')
+      const calls = (execFile as unknown as ReturnType<typeof vi.fn>).mock.calls as [
+        string,
+        string[]
+      ][]
+      const isoCall = calls.find(c => c[0] === 'genisoimage')
       expect(isoCall).toBeDefined()
       expect(isoCall![1]).toContain('-volid')
       expect(isoCall![1]).toContain('cidata')
@@ -390,7 +428,7 @@ describe('ImageManager', () => {
         cloudInitIso: '/ci.iso',
         qemuBin: '/usr/bin/qemu-system-x86_64',
         tapInterface: 'vm-arch-vm',
-        macAddress: '02:aa:bb:cc:dd:ee',
+        macAddress: '02:aa:bb:cc:dd:ee'
       })
       expect(result.bin).toBe('/usr/bin/qemu-system-x86_64')
       expect(result.args).toBeInstanceOf(Array)
@@ -403,7 +441,7 @@ describe('ImageManager', () => {
         cloudInitIso: '/ci.iso',
         qemuBin: '/nix/store/xxx/qemu-system-x86_64',
         tapInterface: 'vm-test-vm',
-        macAddress: '02:aa:bb:cc:dd:ee',
+        macAddress: '02:aa:bb:cc:dd:ee'
       })
       const argsStr = result.args.join(' ')
       expect(argsStr).toContain('-m 2048')
@@ -416,7 +454,7 @@ describe('ImageManager', () => {
         cloudInitIso: '/path/to/ci.iso',
         qemuBin: '/usr/bin/qemu-system-x86_64',
         tapInterface: 'vm-test',
-        macAddress: '02:00:00:00:00:00',
+        macAddress: '02:00:00:00:00:00'
       })
       const argsStr = result.args.join(' ')
       expect(argsStr).toContain('/path/to/disk.qcow2')
@@ -431,7 +469,7 @@ describe('ImageManager', () => {
         cloudInitIso: '/ci.iso',
         qemuBin: '/usr/bin/qemu-system-x86_64',
         tapInterface: 'vm-test',
-        macAddress: '02:00:00:00:00:00',
+        macAddress: '02:00:00:00:00:00'
       })
       const argsStr = result.args.join(' ')
       expect(argsStr).toContain('kvm')
@@ -444,7 +482,7 @@ describe('ImageManager', () => {
         cloudInitIso: '/ci.iso',
         qemuBin: '/usr/bin/qemu-system-x86_64',
         tapInterface: 'vm-test',
-        macAddress: '02:00:00:00:00:00',
+        macAddress: '02:00:00:00:00:00'
       })
       const argsStr = result.args.join(' ')
       expect(argsStr).toContain('-nographic')
@@ -459,7 +497,7 @@ describe('ImageManager', () => {
         cloudInitIso: '/ci.iso',
         qemuBin: '/usr/bin/qemu-system-x86_64',
         tapInterface: 'vm-test',
-        macAddress: '02:00:00:00:00:00',
+        macAddress: '02:00:00:00:00:00'
       })
       const argsStr = result.args.join(' ')
       expect(argsStr).toContain('-vga virtio')
@@ -469,13 +507,16 @@ describe('ImageManager', () => {
     })
 
     it('should use IDE disk and e1000 network for Windows guests', () => {
-      const result = mgr.generateQemuArgs(makeVm({ guestOs: 'windows', vmType: 'desktop', consolePort: 5901 }), {
-        diskPath: '/d.qcow2',
-        bootIso: '/win.iso',
-        qemuBin: '/usr/bin/qemu-system-x86_64',
-        tapInterface: 'vm-test',
-        macAddress: '02:00:00:00:00:00',
-      })
+      const result = mgr.generateQemuArgs(
+        makeVm({ guestOs: 'windows', vmType: 'desktop', consolePort: 5901 }),
+        {
+          diskPath: '/d.qcow2',
+          bootIso: '/win.iso',
+          qemuBin: '/usr/bin/qemu-system-x86_64',
+          tapInterface: 'vm-test',
+          macAddress: '02:00:00:00:00:00'
+        }
+      )
       const argsStr = result.args.join(' ')
       expect(argsStr).toContain('if=ide')
       expect(argsStr).toContain('e1000')
@@ -489,7 +530,7 @@ describe('ImageManager', () => {
         bootIso: '/linux.iso',
         qemuBin: '/usr/bin/qemu-system-x86_64',
         tapInterface: 'vm-test',
-        macAddress: '02:00:00:00:00:00',
+        macAddress: '02:00:00:00:00:00'
       })
       const argsStr = result.args.join(' ')
       expect(argsStr).toContain('virtio')
@@ -503,7 +544,7 @@ describe('ImageManager', () => {
         diskPath: '/d.qcow2',
         qemuBin: '/usr/bin/qemu-system-x86_64',
         tapInterface: 'vm-test',
-        macAddress: '02:00:00:00:00:00',
+        macAddress: '02:00:00:00:00:00'
       })
       const argsStr = result.args.join(' ')
       expect(argsStr).not.toContain('pflash')
@@ -512,26 +553,32 @@ describe('ImageManager', () => {
     })
 
     it('should emit the OVMF pflash pair and smm=on for a UEFI plan', () => {
-      const result = mgr.generateQemuArgs(makeVm({ guestOs: 'windows', vmType: 'desktop', consolePort: 5901 }), {
-        diskPath: '/d.qcow2',
-        bootIso: '/win.iso',
-        qemuBin: '/usr/bin/qemu-system-x86_64',
-        tapInterface: 'vm-test',
-        macAddress: '02:00:00:00:00:00',
-        firmware: {
-          mode: 'uefi',
-          code: '/ovmf/OVMF_CODE.fd',
-          varsTemplate: '/ovmf/OVMF_VARS.fd',
-          vars: '/var/lib/microvms/win11/OVMF_VARS.fd',
-        },
-      })
+      const result = mgr.generateQemuArgs(
+        makeVm({ guestOs: 'windows', vmType: 'desktop', consolePort: 5901 }),
+        {
+          diskPath: '/d.qcow2',
+          bootIso: '/win.iso',
+          qemuBin: '/usr/bin/qemu-system-x86_64',
+          tapInterface: 'vm-test',
+          macAddress: '02:00:00:00:00:00',
+          firmware: {
+            mode: 'uefi',
+            code: '/ovmf/OVMF_CODE.fd',
+            varsTemplate: '/ovmf/OVMF_VARS.fd',
+            vars: '/var/lib/microvms/win11/OVMF_VARS.fd'
+          }
+        }
+      )
       const argsStr = result.args.join(' ')
       expect(argsStr).toContain('smm=on')
       expect(argsStr).toContain('if=pflash,format=raw,unit=0,readonly=on,file=/ovmf/OVMF_CODE.fd')
-      expect(argsStr).toContain('if=pflash,format=raw,unit=1,file=/var/lib/microvms/win11/OVMF_VARS.fd')
+      expect(argsStr).toContain(
+        'if=pflash,format=raw,unit=1,file=/var/lib/microvms/win11/OVMF_VARS.fd'
+      )
       // The pflash pair must precede the data disk — QEMU numbers units by position.
-      expect(result.args.indexOf('if=pflash,format=raw,unit=0,readonly=on,file=/ovmf/OVMF_CODE.fd'))
-        .toBeLessThan(result.args.findIndex(a => a.startsWith('file=/d.qcow2')))
+      expect(
+        result.args.indexOf('if=pflash,format=raw,unit=0,readonly=on,file=/ovmf/OVMF_CODE.fd')
+      ).toBeLessThan(result.args.findIndex(a => a.startsWith('file=/d.qcow2')))
     })
 
     it('should attach the VirtIO driver ISO and switch Windows to virtio, together', () => {
@@ -543,8 +590,8 @@ describe('ImageManager', () => {
           virtioIso: '/images/virtio-win.iso',
           qemuBin: '/usr/bin/qemu-system-x86_64',
           tapInterface: 'vm-test',
-          macAddress: '02:00:00:00:00:00',
-        },
+          macAddress: '02:00:00:00:00:00'
+        }
       )
       const argsStr = result.args.join(' ')
       expect(argsStr).toContain('file=/d.qcow2,format=qcow2,if=virtio')
@@ -558,14 +605,17 @@ describe('ImageManager', () => {
     it('should NOT attach the driver ISO for Windows when the guest did not ask for it', () => {
       // Even with a path configured on the host — otherwise every Windows VM silently gains a
       // second CDROM, shifting drive letters during install.
-      const result = mgr.generateQemuArgs(makeVm({ guestOs: 'windows', vmType: 'desktop', consolePort: 5901 }), {
-        diskPath: '/d.qcow2',
-        bootIso: '/win.iso',
-        virtioIso: '/images/virtio-win.iso',
-        qemuBin: '/usr/bin/qemu-system-x86_64',
-        tapInterface: 'vm-test',
-        macAddress: '02:00:00:00:00:00',
-      })
+      const result = mgr.generateQemuArgs(
+        makeVm({ guestOs: 'windows', vmType: 'desktop', consolePort: 5901 }),
+        {
+          diskPath: '/d.qcow2',
+          bootIso: '/win.iso',
+          virtioIso: '/images/virtio-win.iso',
+          qemuBin: '/usr/bin/qemu-system-x86_64',
+          tapInterface: 'vm-test',
+          macAddress: '02:00:00:00:00:00'
+        }
+      )
       const argsStr = result.args.join(' ')
       expect(argsStr).not.toContain('virtio-win.iso')
       expect(argsStr).toContain('if=ide')
@@ -577,7 +627,7 @@ describe('ImageManager', () => {
         virtioIso: '/images/virtio-win.iso',
         qemuBin: '/usr/bin/qemu-system-x86_64',
         tapInterface: 'vm-test',
-        macAddress: '02:00:00:00:00:00',
+        macAddress: '02:00:00:00:00:00'
       })
       expect(result.args.join(' ')).not.toContain('virtio-win.iso')
     })
@@ -603,7 +653,11 @@ describe('ImageManager', () => {
       ;(access as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce(undefined)
       ;(stat as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce({ size: 512000 })
 
-      const path = await mgr.ensureImageFromUrl('cached-vm', 'https://example.com/img.qcow2', 'qcow2')
+      const path = await mgr.ensureImageFromUrl(
+        'cached-vm',
+        'https://example.com/img.qcow2',
+        'qcow2'
+      )
       expect(path).toBe('/tmp/test-data/images/adhoc-cached-vm-base.qcow2')
     })
   })

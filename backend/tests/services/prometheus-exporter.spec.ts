@@ -11,7 +11,7 @@ import {
   renderExposition,
   collectWorkloadFamilies,
   collectHostFamilies,
-  type MetricFamily,
+  type MetricFamily
 } from '../../src/services/prometheus-exporter.js'
 import { isLoopback } from '../../src/routes/metrics.js'
 import { cgroupPathFor } from '../../src/services/metrics.js'
@@ -48,17 +48,22 @@ describe('renderFamily', () => {
       name: 'weaver_test_total',
       help: 'A test counter.',
       type: 'counter',
-      samples: [{ labels: { workload: 'web' }, value: 4 }],
+      samples: [{ labels: { workload: 'web' }, value: 4 }]
     })
     expect(out).toBe(
       '# HELP weaver_test_total A test counter.\n' +
-      '# TYPE weaver_test_total counter\n' +
-      'weaver_test_total{workload="web"} 4',
+        '# TYPE weaver_test_total counter\n' +
+        'weaver_test_total{workload="web"} 4'
     )
   })
 
   it('omits the brace block entirely when there are no labels', () => {
-    const out = renderFamily({ name: 'g', help: 'h', type: 'gauge', samples: [{ labels: {}, value: 1 }] })
+    const out = renderFamily({
+      name: 'g',
+      help: 'h',
+      type: 'gauge',
+      samples: [{ labels: {}, value: 1 }]
+    })
     expect(out.split('\n')[2]).toBe('g 1')
   })
 
@@ -73,7 +78,7 @@ describe('renderExposition', () => {
   it('drops empty families and ends with a newline', () => {
     const families: MetricFamily[] = [
       { name: 'a', help: 'h', type: 'gauge', samples: [{ labels: {}, value: 1 }] },
-      { name: 'b', help: 'h', type: 'gauge', samples: [] },
+      { name: 'b', help: 'h', type: 'gauge', samples: [] }
     ]
     const out = renderExposition(families)
     expect(out).toContain('a 1')
@@ -96,10 +101,10 @@ describe('collectWorkloadFamilies', () => {
       read: fakeFs({
         [cg('web', 'cpu.stat')]: 'usage_usec 2500000',
         [cg('web', 'memory.current')]: '1048576',
-        [cg('web', 'io.stat')]: '8:0 rbytes=4096 wbytes=512',
+        [cg('web', 'io.stat')]: '8:0 rbytes=4096 wbytes=512'
       }),
       workloads,
-      cgroupRoot: ROOT,
+      cgroupRoot: ROOT
     }).then(families => {
       const by = (n: string) => families.find(f => f.name === n)!
       expect(by('weaver_workload_cpu_usage_seconds_total').samples[0]!.value).toBe(2.5)
@@ -115,7 +120,7 @@ describe('collectWorkloadFamilies', () => {
     const families = await collectWorkloadFamilies({
       read: fakeFs({ [cg('web', 'cpu.stat')]: 'usage_usec 1' }),
       workloads,
-      cgroupRoot: ROOT,
+      cgroupRoot: ROOT
     })
     expect(families.find(f => f.name === 'weaver_workload_vcpus')!.samples[0]!.value).toBe(4)
   })
@@ -126,12 +131,12 @@ describe('collectWorkloadFamilies', () => {
     const families = await collectWorkloadFamilies({
       read: fakeFs({}),
       workloads,
-      cgroupRoot: ROOT,
+      cgroupRoot: ROOT
     })
     for (const name of [
       'weaver_workload_cpu_usage_seconds_total',
       'weaver_workload_memory_bytes',
-      'weaver_workload_disk_read_bytes_total',
+      'weaver_workload_disk_read_bytes_total'
     ]) {
       expect(families.find(f => f.name === name)!.samples).toEqual([])
     }
@@ -140,15 +145,22 @@ describe('collectWorkloadFamilies', () => {
   it('still publishes vCPUs for a stopped workload', async () => {
     // The allocation is a fact about the DEFINITION, not a measurement of the process. A consumer
     // normalising CPU needs the divisor whether or not the workload happens to be running.
-    const families = await collectWorkloadFamilies({ read: fakeFs({}), workloads, cgroupRoot: ROOT })
+    const families = await collectWorkloadFamilies({
+      read: fakeFs({}),
+      workloads,
+      cgroupRoot: ROOT
+    })
     expect(families.find(f => f.name === 'weaver_workload_vcpus')!.samples).toHaveLength(1)
   })
 
   it('reports each workload independently — one unreadable cgroup does not hide the others', async () => {
     const families = await collectWorkloadFamilies({
       read: fakeFs({ [cg('b', 'memory.current')]: '2048' }),
-      workloads: [{ name: 'a', vcpu: 1 }, { name: 'b', vcpu: 1 }],
-      cgroupRoot: ROOT,
+      workloads: [
+        { name: 'a', vcpu: 1 },
+        { name: 'b', vcpu: 1 }
+      ],
+      cgroupRoot: ROOT
     })
     const mem = families.find(f => f.name === 'weaver_workload_memory_bytes')!
     expect(mem.samples).toHaveLength(1)
@@ -183,7 +195,14 @@ describe('isLoopback — the boundary that makes an unauthenticated /metrics saf
   })
 
   it('refuses every remote address, including RFC1918 and the mapped form', () => {
-    for (const addr of ['192.168.1.10', '10.0.0.5', '172.16.0.1', '::ffff:192.168.1.10', '8.8.8.8', '::ffff:10.0.0.1']) {
+    for (const addr of [
+      '192.168.1.10',
+      '10.0.0.5',
+      '172.16.0.1',
+      '::ffff:192.168.1.10',
+      '8.8.8.8',
+      '::ffff:10.0.0.1'
+    ]) {
       expect(isLoopback(addr)).toBe(false)
     }
   })
@@ -202,7 +221,10 @@ describe('isLoopback — the boundary that makes an unauthenticated /metrics saf
 })
 
 describe('collectWorkloadFamilies — the all-unreadable signal', () => {
-  const targets = [{ name: 'a', vcpu: 1 }, { name: 'b', vcpu: 2 }]
+  const targets = [
+    { name: 'a', vcpu: 1 },
+    { name: 'b', vcpu: 2 }
+  ]
 
   it('reports when NOT ONE workload cgroup could be read', async () => {
     // The condition that hid a wrong base path on every real host. Per workload an unreadable
@@ -213,7 +235,9 @@ describe('collectWorkloadFamilies — the all-unreadable signal', () => {
       read: async () => null,
       workloads: targets,
       cgroupRoot: '/fake',
-      onNoneReadable: info => { seen.push(info) },
+      onNoneReadable: info => {
+        seen.push(info)
+      }
     })
 
     expect(seen).toHaveLength(1)
@@ -229,7 +253,9 @@ describe('collectWorkloadFamilies — the all-unreadable signal', () => {
       read: async (p: string) => (p.includes('/microvm@a.service/') ? '0' : null),
       workloads: targets,
       cgroupRoot: '/fake',
-      onNoneReadable: info => { seen.push(info) },
+      onNoneReadable: info => {
+        seen.push(info)
+      }
     })
     expect(seen).toHaveLength(0)
   })
@@ -241,7 +267,9 @@ describe('collectWorkloadFamilies — the all-unreadable signal', () => {
       read: async () => null,
       workloads: [],
       cgroupRoot: '/fake',
-      onNoneReadable: info => { seen.push(info) },
+      onNoneReadable: info => {
+        seen.push(info)
+      }
     })
     expect(seen).toHaveLength(0)
   })

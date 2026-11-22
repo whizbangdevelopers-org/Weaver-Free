@@ -1,6 +1,6 @@
 {
   "_doc": "Dynamic security-advisory whitelist (Decision: dynamic whitelist, 2026-06-17). SINGLE SOURCE for scripts/audit-security.ts, and through it for .github/workflows/security-advisory-watch.yml — do not duplicate the list anywhere else. Until 2026-09-16 this line also named dependabot-labeler.yml as a reader. It never was one: the labeler keeps its own QUASAR_BLOCKED list, and converging the advisory surfaces is an open consolidation item (security-advisory-watch.yml header). Each entry is a PACKAGE whose high/critical advisories are ACKNOWLEDGED (not auto-failed) with a documented, dated reason. The auditor AUTO-DERIVES transitives: a vulnerable package whose every dependency path to root passes through an acknowledged package is acknowledged automatically (no entry needed) — so esbuild/ajv/minimatch/etc. need no explicit row. Auto-derivation is FAIL-CLOSED: if the auditor cannot prove every path runs through an acknowledged package, the advisory FAILS. A package that is independently fixable within its semver constraint must be FIXED, never whitelisted (fixing > acknowledging). Refresh/review with: npm run refresh:security-allowlist.",
-  "_lastReviewed": "2026-08-23",
+  "_lastReviewed": "2026-11-21",
   "_categories": {
     "dev-test-only": "Pulled only by a dev/test dependency — never present in the production runtime artifact.",
     "build-time-only": "Pulled only by the build toolchain (PWA/workbox/bundler) — runs at build time, not shipped in the bundle.",
@@ -9,41 +9,6 @@
     "peer-blocked": "A newer major exists but an INSTALLED peer constraint rejects it — and the blocker is named, because “a framework pins it” was assumed here for 11 entries and was true for none. `npm run check:peer-constraints -- --package <p> --candidate <v> --check-upstream` names every blocker and reports STILL BLOCKS / WOULD ADMIT / UNKNOWN against the registry; UNKNOWN never folds into “still blocked”. Clear the entry when the trigger fires."
   },
   "acknowledged": {
-    "vue": {
-      "category": "awaiting-upstream",
-      "reason": "Already on the newest published major (3.5.41 = latest); there is no Vue 4 to move to. Re-measured 2026-08-23 against the registry. Previously filed as framework-pinned, which was never true — its own reason said “NOT blocked by Quasar”.",
-      "addedAt": "2026-06-17",
-      "reviewBy": "2026-11-21",
-      "reviewedAt": "2026-08-23"
-    },
-    "vue-router": {
-      "category": "awaiting-upstream",
-      "reason": "Already on the newest published major (5.2.0 = latest). @quasar/app-vite peers `^4.0.12 || ^5.0.0`, so v5 was admitted all along; nothing is held back. Re-measured 2026-08-23.",
-      "addedAt": "2026-06-17",
-      "reviewBy": "2026-11-21",
-      "reviewedAt": "2026-08-23"
-    },
-    "pinia": {
-      "category": "awaiting-upstream",
-      "reason": "Already on the newest published major (4.0.3 = latest). Re-measured 2026-08-23; the earlier reason described a pinia-3-vs-4 gate that no longer exists, and noted no advisory attaches to pinia at all.",
-      "addedAt": "2026-06-17",
-      "reviewBy": "2026-11-21",
-      "reviewedAt": "2026-08-23"
-    },
-    "@vitejs/plugin-vue": {
-      "category": "awaiting-upstream",
-      "reason": "Already on the newest published major (6.0.8 = latest). A real direct dep — vitest.config.ts imports it, and vitest sits outside Quasar's build chain. Re-measured 2026-08-23.",
-      "addedAt": "2026-06-17",
-      "reviewBy": "2026-11-21",
-      "reviewedAt": "2026-08-23"
-    },
-    "typescript": {
-      "category": "peer-blocked",
-      "reason": "Genuinely blocked, and NOT by a framework: typescript@7.0.2 is rejected by 8 of 15 installed peer constraints, every one of them `@typescript-eslint/*` capping at `<6.1.0`. Quasar peers `>= 5.4` and accepts 7 — asking Quasar alone is what produced the original false UNBLOCKED. Verify with: `npm run check:peer-constraints -- --package typescript --candidate 7.0.2 --check-upstream`. Re-measured 2026-08-23.",
-      "addedAt": "2026-06-17",
-      "reviewBy": "2026-11-21",
-      "reviewedAt": "2026-08-23"
-    },
     "@vue/test-utils": {
       "category": "dev-test-only",
       "reason": "unit-test harness only (pulls js-beautify → js-cookie); never in the production runtime",

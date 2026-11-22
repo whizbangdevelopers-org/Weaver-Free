@@ -10,7 +10,7 @@
 // audit:authority-binding, not merely asserted by this comment.
 
 /** The channel this artifact was built for. */
-export const CHANNEL = "release" as const
+export const CHANNEL = 'release' as const
 
 /** Whether this artifact is customer-facing. Release builds never trust a test authority. */
 export const IS_RELEASE = true

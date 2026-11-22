@@ -171,8 +171,11 @@ describe('parseIpLink', () => {
 
 describe('HostInfoService (demo mode)', () => {
   const demoService = new HostInfoService({
-    lscpuBin: '', dfBin: '', ipBin: '', nixosVersionBin: '',
-    isDemo: true,
+    lscpuBin: '',
+    dfBin: '',
+    ipBin: '',
+    nixosVersionBin: '',
+    isDemo: true
   })
 
   it('should return mock basic info', async () => {
@@ -197,8 +200,11 @@ describe('HostInfoService (demo mode)', () => {
 
 describe('HostInfoService (real mode)', () => {
   const realService = new HostInfoService({
-    lscpuBin: 'lscpu', dfBin: 'df', ipBin: 'ip', nixosVersionBin: 'nixos-version',
-    isDemo: false,
+    lscpuBin: 'lscpu',
+    dfBin: 'df',
+    ipBin: 'ip',
+    nixosVersionBin: 'nixos-version',
+    isDemo: false
   })
 
   it('should return basic host info from os module', async () => {

@@ -34,7 +34,7 @@ describe('AuditService', () => {
         resource: 'web-nginx',
         details: { reason: 'manual' },
         ip: '192.168.1.1',
-        success: true,
+        success: true
       })
 
       expect(entry.id).toBeDefined()
@@ -54,7 +54,7 @@ describe('AuditService', () => {
         username: 'baduser',
         action: 'user.login',
         ip: '10.0.0.1',
-        success: false,
+        success: false
       })
 
       expect(entry.userId).toBeNull()
@@ -66,14 +66,14 @@ describe('AuditService', () => {
         userId: 'user-1',
         username: 'admin',
         action: 'vm.start',
-        success: true,
+        success: true
       })
 
       const entry2 = await auditService.log({
         userId: 'user-1',
         username: 'admin',
         action: 'vm.stop',
-        success: true,
+        success: true
       })
 
       expect(entry1.id).not.toBe(entry2.id)
@@ -84,7 +84,7 @@ describe('AuditService', () => {
         userId: 'user-1',
         username: 'admin',
         action: 'vm.start',
-        success: true,
+        success: true
       })
 
       // Should be valid ISO 8601
@@ -97,7 +97,7 @@ describe('AuditService', () => {
         userId: 'user-1',
         username: 'admin',
         action: 'vm.start',
-        success: true,
+        success: true
       })
 
       expect(auditStore.count()).toBe(1)
@@ -111,7 +111,7 @@ describe('AuditService', () => {
         username: 'admin',
         action: 'vm.start',
         resource: 'web-nginx',
-        success: true,
+        success: true
       })
 
       await auditService.log({
@@ -119,7 +119,7 @@ describe('AuditService', () => {
         username: 'operator',
         action: 'vm.stop',
         resource: 'dev-node',
-        success: true,
+        success: true
       })
 
       const result = auditService.query({ userId: 'user-1' })
@@ -133,7 +133,7 @@ describe('AuditService', () => {
           userId: 'user-1',
           username: 'admin',
           action: 'vm.start',
-          success: true,
+          success: true
         })
       }
 

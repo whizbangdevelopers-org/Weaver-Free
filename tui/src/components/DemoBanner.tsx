@@ -18,12 +18,17 @@ export function DemoBanner({ tier, version }: DemoBannerProps) {
         <Text backgroundColor="yellow" color="black" bold>
           {' DEMO MODE '}
         </Text>
-        <Text color="cyan" bold> {label} </Text>
+        <Text color="cyan" bold>
+          {' '}
+          {label}{' '}
+        </Text>
         <Text dimColor>| </Text>
-        <Text color="magenta" bold>v{version}</Text>
+        <Text color="magenta" bold>
+          v{version}
+        </Text>
         <Text dimColor> {vInfo?.headline ?? ''} </Text>
         <Text dimColor>| </Text>
-        <Text dimColor>[Tab] tier  [←/→] version</Text>
+        <Text dimColor>[Tab] tier [←/→] version</Text>
       </Box>
     </Box>
   )

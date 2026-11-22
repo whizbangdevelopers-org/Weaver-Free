@@ -3,34 +3,38 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 vi.mock('node:fs/promises', () => ({
-  readFile: vi.fn(async () => { throw new Error('ENOENT') }),
+  readFile: vi.fn(async () => {
+    throw new Error('ENOENT')
+  }),
   writeFile: vi.fn(async () => {}),
   rename: vi.fn(async () => {}),
   unlink: vi.fn(async () => {}),
   mkdir: vi.fn(async () => {}),
   access: vi.fn(async () => {}),
-  stat: vi.fn(async () => ({ size: 1024 })),
+  stat: vi.fn(async () => ({ size: 1024 }))
 }))
 
 // Mock http/https modules
 const mockRequest = vi.fn()
 
 vi.mock('node:https', () => ({
-  get: (...args: unknown[]) => mockRequest('https', ...args),
+  get: (...args: unknown[]) => mockRequest('https', ...args)
 }))
 
 vi.mock('node:http', () => ({
-  get: (...args: unknown[]) => mockRequest('http', ...args),
+  get: (...args: unknown[]) => mockRequest('http', ...args)
 }))
 
 import { access, stat } from 'node:fs/promises'
 import { UrlValidationService } from '../../src/services/url-validator.js'
 import type { ImageManager } from '../../src/services/image-manager.js'
 
-function createMockImageManager(sources: Record<string, { url: string; format: string; cloudInit: boolean }>): ImageManager {
+function createMockImageManager(
+  sources: Record<string, { url: string; format: string; cloudInit: boolean }>
+): ImageManager {
   return {
     getAllSources: vi.fn(() => sources),
-    getDistroSource: vi.fn((name: string) => sources[name] ?? null),
+    getDistroSource: vi.fn((name: string) => sources[name] ?? null)
   } as unknown as ImageManager
 }
 
@@ -44,15 +48,17 @@ function simulateResponse(statusCode: number, headers: Record<string, string> = 
   const res: MockHttpResponse = {
     statusCode,
     headers,
-    resume: vi.fn(),
+    resume: vi.fn()
   }
 
   // Named rather than `typeof res`: the callback is part of `res`'s own initialiser, so
   // `typeof res` referred to the binding being defined.
-  mockRequest.mockImplementation((_proto: string, _url: string, _opts: unknown, cb: (res: MockHttpResponse) => void) => {
-    cb(res)
-    return { on: vi.fn().mockReturnThis(), destroy: vi.fn() }
-  })
+  mockRequest.mockImplementation(
+    (_proto: string, _url: string, _opts: unknown, cb: (res: MockHttpResponse) => void) => {
+      cb(res)
+      return { on: vi.fn().mockReturnThis(), destroy: vi.fn() }
+    }
+  )
 }
 
 function simulateError(errorMessage: string) {
@@ -63,7 +69,7 @@ function simulateError(errorMessage: string) {
         handlers[event] = handler
         return req
       }),
-      destroy: vi.fn(),
+      destroy: vi.fn()
     }
     setTimeout(() => handlers['error']?.(new Error(errorMessage)), 0)
     return req
@@ -88,7 +94,7 @@ describe('UrlValidationService', () => {
   it('should validate all URLs and return results', async () => {
     const imageManager = createMockImageManager({
       arch: { url: 'https://example.com/arch.qcow2', format: 'qcow2', cloudInit: true },
-      ubuntu: { url: 'https://example.com/ubuntu.qcow2', format: 'qcow2', cloudInit: true },
+      ubuntu: { url: 'https://example.com/ubuntu.qcow2', format: 'qcow2', cloudInit: true }
     })
 
     simulateResponse(200)
@@ -105,7 +111,7 @@ describe('UrlValidationService', () => {
 
   it('should mark 404 as invalid', async () => {
     const imageManager = createMockImageManager({
-      broken: { url: 'https://example.com/broken.qcow2', format: 'qcow2', cloudInit: true },
+      broken: { url: 'https://example.com/broken.qcow2', format: 'qcow2', cloudInit: true }
     })
 
     simulateResponse(404)
@@ -120,7 +126,7 @@ describe('UrlValidationService', () => {
 
   it('should mark network errors as invalid with error message', async () => {
     const imageManager = createMockImageManager({
-      timeout: { url: 'https://example.com/timeout.qcow2', format: 'qcow2', cloudInit: true },
+      timeout: { url: 'https://example.com/timeout.qcow2', format: 'qcow2', cloudInit: true }
     })
 
     simulateError('ECONNREFUSED')
@@ -136,7 +142,7 @@ describe('UrlValidationService', () => {
   it('should skip flake-based distros', async () => {
     const imageManager = createMockImageManager({
       nixos: { url: '', format: 'flake', cloudInit: false },
-      arch: { url: 'https://example.com/arch.qcow2', format: 'qcow2', cloudInit: true },
+      arch: { url: 'https://example.com/arch.qcow2', format: 'qcow2', cloudInit: true }
     })
 
     simulateResponse(200)
@@ -152,7 +158,7 @@ describe('UrlValidationService', () => {
 
   it('should validate a single distro', async () => {
     const imageManager = createMockImageManager({
-      arch: { url: 'https://example.com/arch.qcow2', format: 'qcow2', cloudInit: true },
+      arch: { url: 'https://example.com/arch.qcow2', format: 'qcow2', cloudInit: true }
     })
 
     simulateResponse(200)
@@ -178,7 +184,7 @@ describe('UrlValidationService', () => {
   describe('file:// URL validation', () => {
     it('should mark file:// URL as valid when file exists with non-zero size', async () => {
       const imageManager = createMockImageManager({
-        local: { url: 'file:///var/lib/images/custom.qcow2', format: 'qcow2', cloudInit: true },
+        local: { url: 'file:///var/lib/images/custom.qcow2', format: 'qcow2', cloudInit: true }
       })
 
       ;(access as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce(undefined)
@@ -196,7 +202,7 @@ describe('UrlValidationService', () => {
 
     it('should mark file:// URL as invalid when file is empty', async () => {
       const imageManager = createMockImageManager({
-        empty: { url: 'file:///var/lib/images/empty.qcow2', format: 'qcow2', cloudInit: true },
+        empty: { url: 'file:///var/lib/images/empty.qcow2', format: 'qcow2', cloudInit: true }
       })
 
       ;(access as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce(undefined)
@@ -212,7 +218,7 @@ describe('UrlValidationService', () => {
 
     it('should mark file:// URL as invalid when file does not exist', async () => {
       const imageManager = createMockImageManager({
-        missing: { url: 'file:///var/lib/images/missing.qcow2', format: 'qcow2', cloudInit: true },
+        missing: { url: 'file:///var/lib/images/missing.qcow2', format: 'qcow2', cloudInit: true }
       })
 
       ;(access as unknown as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('ENOENT'))
@@ -227,7 +233,7 @@ describe('UrlValidationService', () => {
 
     it('should validate a single file:// distro', async () => {
       const imageManager = createMockImageManager({
-        local: { url: 'file:///var/lib/images/custom.qcow2', format: 'qcow2', cloudInit: true },
+        local: { url: 'file:///var/lib/images/custom.qcow2', format: 'qcow2', cloudInit: true }
       })
 
       ;(access as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce(undefined)
@@ -244,7 +250,7 @@ describe('UrlValidationService', () => {
 
   it('should not run concurrent validations', async () => {
     const imageManager = createMockImageManager({
-      arch: { url: 'https://example.com/arch.qcow2', format: 'qcow2', cloudInit: true },
+      arch: { url: 'https://example.com/arch.qcow2', format: 'qcow2', cloudInit: true }
     })
 
     simulateResponse(200)
@@ -253,10 +259,7 @@ describe('UrlValidationService', () => {
     await service.init()
 
     // Start two validations concurrently
-    const [data1, data2] = await Promise.all([
-      service.validateAll(),
-      service.validateAll(),
-    ])
+    const [data1, data2] = await Promise.all([service.validateAll(), service.validateAll()])
 
     // Both should return results, second gets cached results since first is running
     expect(data1.lastRunAt).toBeDefined()

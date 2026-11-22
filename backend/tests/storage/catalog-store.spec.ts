@@ -14,9 +14,22 @@ describe('CatalogStore', () => {
   const sampleCatalog = {
     version: 1,
     entries: [
-      { name: 'cirros', label: 'CirrOS 0.6.3', description: 'Test image', url: 'https://example.com/cirros.qcow2', format: 'qcow2' as const, cloudInit: true },
-      { name: 'rocky', label: 'Rocky Linux 9', url: 'https://example.com/rocky.qcow2', format: 'qcow2' as const, cloudInit: true },
-    ],
+      {
+        name: 'cirros',
+        label: 'CirrOS 0.6.3',
+        description: 'Test image',
+        url: 'https://example.com/cirros.qcow2',
+        format: 'qcow2' as const,
+        cloudInit: true
+      },
+      {
+        name: 'rocky',
+        label: 'Rocky Linux 9',
+        url: 'https://example.com/rocky.qcow2',
+        format: 'qcow2' as const,
+        cloudInit: true
+      }
+    ]
   }
 
   beforeEach(async () => {
@@ -88,10 +101,22 @@ describe('CatalogStore', () => {
       const catalog = {
         version: 1,
         entries: [
-          { name: 'valid', label: 'Valid', url: 'https://example.com/valid.qcow2', format: 'qcow2', cloudInit: true },
-          { name: '', label: 'No Name', url: 'https://example.com/noname.qcow2', format: 'qcow2', cloudInit: true },
-          { name: 'no-url', label: 'No URL', url: '', format: 'qcow2', cloudInit: true },
-        ],
+          {
+            name: 'valid',
+            label: 'Valid',
+            url: 'https://example.com/valid.qcow2',
+            format: 'qcow2',
+            cloudInit: true
+          },
+          {
+            name: '',
+            label: 'No Name',
+            url: 'https://example.com/noname.qcow2',
+            format: 'qcow2',
+            cloudInit: true
+          },
+          { name: 'no-url', label: 'No URL', url: '', format: 'qcow2', cloudInit: true }
+        ]
       }
       await mkdir(join(testDir, 'persist'), { recursive: true })
       await writeFile(persistPath, JSON.stringify(catalog), 'utf-8')
@@ -107,9 +132,20 @@ describe('CatalogStore', () => {
       const catalog = {
         version: 1,
         entries: [
-          { name: 'nixos-microvm', label: 'NixOS 25.11 (microvm.nix)', format: 'flake', cloudInit: false },
-          { name: 'cirros', label: 'CirrOS', url: 'https://example.com/cirros.qcow2', format: 'qcow2', cloudInit: true },
-        ],
+          {
+            name: 'nixos-microvm',
+            label: 'NixOS 25.11 (microvm.nix)',
+            format: 'flake',
+            cloudInit: false
+          },
+          {
+            name: 'cirros',
+            label: 'CirrOS',
+            url: 'https://example.com/cirros.qcow2',
+            format: 'qcow2',
+            cloudInit: true
+          }
+        ]
       }
       await mkdir(join(testDir, 'persist'), { recursive: true })
       await writeFile(persistPath, JSON.stringify(catalog), 'utf-8')
@@ -178,7 +214,7 @@ describe('CatalogStore', () => {
       expect(sources['cirros']).toEqual({
         url: 'https://example.com/cirros.qcow2',
         format: 'qcow2',
-        cloudInit: true,
+        cloudInit: true
       })
       expect(sources['rocky']).toBeDefined()
     })
@@ -207,13 +243,16 @@ describe('CatalogStore', () => {
 
   // js/remote-property-injection (2026-09-24): `name in this.distros` walked the prototype chain.
   describe('names that are Object.prototype members', () => {
-    it.each(['constructor', 'toString', '__proto__'])('%j is absent from a loaded catalog', async (name) => {
-      await mkdir(join(testDir, 'persist'), { recursive: true })
-      await writeFile(persistPath, JSON.stringify(sampleCatalog), 'utf-8')
-      const store = new CatalogStore(persistPath, defaultPath)
-      await store.init()
-      expect(store.has(name)).toBe(false)
-      expect(store.get(name)).toBeNull()
-    })
+    it.each(['constructor', 'toString', '__proto__'])(
+      '%j is absent from a loaded catalog',
+      async name => {
+        await mkdir(join(testDir, 'persist'), { recursive: true })
+        await writeFile(persistPath, JSON.stringify(sampleCatalog), 'utf-8')
+        const store = new CatalogStore(persistPath, defaultPath)
+        await store.init()
+        expect(store.has(name)).toBe(false)
+        expect(store.get(name)).toBeNull()
+      }
+    )
   })
 })

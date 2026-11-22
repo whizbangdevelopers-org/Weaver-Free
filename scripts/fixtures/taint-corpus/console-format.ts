@@ -42,6 +42,10 @@ export function staticTemplate(err: unknown) {
 }
 
 // Not console: another logger's contract is its own.
-export function otherLogger(logger: { error: (...a: unknown[]) => void }, echo: string, err: unknown) {
+export function otherLogger(
+  logger: { error: (...a: unknown[]) => void },
+  echo: string,
+  err: unknown
+) {
   logger.error(`${echo} failed`, err)
 }

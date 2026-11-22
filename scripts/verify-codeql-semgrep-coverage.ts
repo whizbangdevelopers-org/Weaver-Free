@@ -24,7 +24,14 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 const MAP_PATH = join(__dirname, 'data', 'codeql-semgrep-map.json')
 
 interface RuleEntry {
-  status: 'covered' | 'partially-covered' | 'known-missing' | 'tool-handled' | 'not-applicable' | 'scorecard' | 'unknown'
+  status:
+    | 'covered'
+    | 'partially-covered'
+    | 'known-missing'
+    | 'tool-handled'
+    | 'not-applicable'
+    | 'scorecard'
+    | 'unknown'
   severity?: string
   semgrepRuleId?: string
   tool?: string
@@ -51,7 +58,9 @@ function pct(n: number): string {
 
 function run(): void {
   console.log('\x1b[1mCodeQL ↔ Semgrep Coverage Audit\x1b[0m')
-  console.log('\x1b[2mChecks coverage % and flags unknown rules in codeql-semgrep-map.json\x1b[0m\n')
+  console.log(
+    '\x1b[2mChecks coverage % and flags unknown rules in codeql-semgrep-map.json\x1b[0m\n'
+  )
 
   let map: CoverageMap
   try {
@@ -72,10 +81,18 @@ function run(): void {
   for (const [ruleId, entry] of Object.entries(rules)) {
     if (excludes.has(entry.status)) continue
     switch (entry.status) {
-      case 'covered':         covered.push(ruleId); break
-      case 'partially-covered': partiallyCovered.push(ruleId); break
-      case 'known-missing':   knownMissing.push(ruleId); break
-      case 'unknown':         unknown.push(ruleId); break
+      case 'covered':
+        covered.push(ruleId)
+        break
+      case 'partially-covered':
+        partiallyCovered.push(ruleId)
+        break
+      case 'known-missing':
+        knownMissing.push(ruleId)
+        break
+      case 'unknown':
+        unknown.push(ruleId)
+        break
     }
   }
 
@@ -95,8 +112,12 @@ function run(): void {
   for (const r of knownMissing.filter(id => (rules[id].severity ?? '') === 'high')) {
     console.log(`    \x1b[33m⚠ high: ${r}\x1b[0m`)
   }
-  console.log(`  Tool-handled:      ${Object.values(rules).filter(e => e.status === 'tool-handled').length} rules`)
-  console.log(`  Not applicable:    ${Object.values(rules).filter(e => e.status === 'not-applicable').length} rules`)
+  console.log(
+    `  Tool-handled:      ${Object.values(rules).filter(e => e.status === 'tool-handled').length} rules`
+  )
+  console.log(
+    `  Not applicable:    ${Object.values(rules).filter(e => e.status === 'not-applicable').length} rules`
+  )
   console.log()
 
   // Coverage line
@@ -127,14 +148,20 @@ function run(): void {
   }
 
   if (coverage < baseline - 0.01) {
-    console.error(`\x1b[31m✗ Coverage dropped below baseline: ${coverageStr} < ${baselineStr}\x1b[0m`)
-    console.error(`\x1b[2mA previously-covered rule may have been reclassified. Update the map or refresh the baseline.\x1b[0m`)
+    console.error(
+      `\x1b[31m✗ Coverage dropped below baseline: ${coverageStr} < ${baselineStr}\x1b[0m`
+    )
+    console.error(
+      `\x1b[2mA previously-covered rule may have been reclassified. Update the map or refresh the baseline.\x1b[0m`
+    )
     process.exit(1)
   }
 
   if (coverage > baseline + 0.05) {
     console.log(`\x1b[32m✓\x1b[0m ${coverageLine}`)
-    console.log(`\x1b[2m  Coverage exceeds baseline by >5% — consider refreshing coverageBaseline in the map.\x1b[0m`)
+    console.log(
+      `\x1b[2m  Coverage exceeds baseline by >5% — consider refreshing coverageBaseline in the map.\x1b[0m`
+    )
   } else {
     console.log(`\x1b[32m✓\x1b[0m ${coverageLine}`)
   }

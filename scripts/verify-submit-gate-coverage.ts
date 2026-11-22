@@ -37,22 +37,39 @@ const BASELINE_PATH = join(__dirname, 'data', 'form-testid-baseline.json')
 
 // Tags that indicate an interactive form element.
 const INTERACTIVE_TAGS = new Set([
-  'q-input', 'q-select', 'q-checkbox', 'q-radio', 'q-toggle',
-  'q-btn', 'q-file',
-  'input', 'select', 'textarea', 'button', 'a',
+  'q-input',
+  'q-select',
+  'q-checkbox',
+  'q-radio',
+  'q-toggle',
+  'q-btn',
+  'q-file',
+  'input',
+  'select',
+  'textarea',
+  'button',
+  'a'
 ])
 
 // Testid suffixes that are definitively non-interactive (display/layout).
 const NON_INTERACTIVE_SUFFIXES = [
-  '-table', '-area', '-sentinel', '-container', '-card',
-  '-list', '-section', '-panel', '-badge', '-tooltip',
+  '-table',
+  '-area',
+  '-sentinel',
+  '-container',
+  '-card',
+  '-list',
+  '-section',
+  '-panel',
+  '-badge',
+  '-tooltip'
 ]
 
 // Setup-mode indicators: spec exercises a fresh/registration flow.
 const SETUP_MODE_PATTERNS = [
   /setupRequired.*true/,
   /storageState:\s*\{\s*cookies:\s*\[\]/,
-  /acceptTos\s*\(/,
+  /acceptTos\s*\(/
 ]
 
 interface BaselineEntry {
@@ -69,7 +86,7 @@ interface Baseline {
 interface TestidInfo {
   testid: string
   interactive: boolean
-  dynamic: boolean  // true if testid is a template literal — covered by prefix selectors
+  dynamic: boolean // true if testid is a template literal — covered by prefix selectors
   /**
    * The element's static `label="..."`, when it has one. This is the element's accessible name
    * at runtime, so a spec may cover it with `getByRole(…, { name: '<label>' })` instead of a
@@ -120,10 +137,17 @@ function isInteractiveTestid(testid: string, tag: string): boolean {
   // Interactive by element tag
   if (INTERACTIVE_TAGS.has(tag)) return true
   // Suffix heuristics for well-named testids when tag resolution fails
-  if (testid.endsWith('-input') || testid.endsWith('-select') ||
-      testid.endsWith('-btn') || testid.endsWith('-checkbox') ||
-      testid.endsWith('-radio') || testid.endsWith('-link') ||
-      testid.endsWith('-submit') || testid.endsWith('-toggle')) return true
+  if (
+    testid.endsWith('-input') ||
+    testid.endsWith('-select') ||
+    testid.endsWith('-btn') ||
+    testid.endsWith('-checkbox') ||
+    testid.endsWith('-radio') ||
+    testid.endsWith('-link') ||
+    testid.endsWith('-submit') ||
+    testid.endsWith('-toggle')
+  )
+    return true
   return false
 }
 
@@ -155,11 +179,11 @@ function loadPages(): PageInfo[] {
 function loadSpecs(): SpecFile[] {
   const files = [
     ...globSync('testing/e2e/*.spec.ts', { cwd: CODE_ROOT }),
-    ...globSync('testing/e2e/helpers/**/*.ts', { cwd: CODE_ROOT }),
+    ...globSync('testing/e2e/helpers/**/*.ts', { cwd: CODE_ROOT })
   ]
   return files.map(rel => ({
     relPath: rel,
-    content: readFileSync(join(CODE_ROOT, rel), 'utf-8'),
+    content: readFileSync(join(CODE_ROOT, rel), 'utf-8')
   }))
 }
 
@@ -179,17 +203,17 @@ function loadSpecs(): SpecFile[] {
  * a test-only attribute.
  */
 function specCoversTestid(specs: SpecFile[], testid: string, label?: string): boolean {
-  const byTestid = specs.some(s =>
-    s.content.includes(`getByTestId('${testid}')`) ||
-    s.content.includes(`getByTestId("${testid}")`) ||
-    s.content.includes(`data-testid="${testid}"`)
+  const byTestid = specs.some(
+    s =>
+      s.content.includes(`getByTestId('${testid}')`) ||
+      s.content.includes(`getByTestId("${testid}")`) ||
+      s.content.includes(`data-testid="${testid}"`)
   )
   if (byTestid || label === undefined) return byTestid
 
   // `getByRole('combobox', { name: 'Allowed VMs' })` — quote style varies, the name does not.
-  return specs.some(s =>
-    s.content.includes(`name: '${label}'`) ||
-    s.content.includes(`name: "${label}"`)
+  return specs.some(
+    s => s.content.includes(`name: '${label}'`) || s.content.includes(`name: "${label}"`)
   )
 }
 
@@ -199,24 +223,25 @@ function pageHasAnyCoverage(specs: SpecFile[], page: PageInfo): boolean {
 
 function setupModeSpecsForTestid(specs: SpecFile[], testid: string): string[] {
   return specs
-    .filter(s =>
-      (s.content.includes(`getByTestId('${testid}')`) ||
-        s.content.includes(`getByTestId("${testid}")`)) &&
-      SETUP_MODE_PATTERNS.some(p => p.test(s.content))
+    .filter(
+      s =>
+        (s.content.includes(`getByTestId('${testid}')`) ||
+          s.content.includes(`getByTestId("${testid}")`)) &&
+        SETUP_MODE_PATTERNS.some(p => p.test(s.content))
     )
     .map(s => s.relPath)
 }
 
 function run(): void {
   console.log('\x1b[1mForm Testid Coverage Audit\x1b[0m')
-  console.log('\x1b[2mChecks that interactive form element testids in specced pages have E2E coverage\x1b[0m\n')
+  console.log(
+    '\x1b[2mChecks that interactive form element testids in specced pages have E2E coverage\x1b[0m\n'
+  )
 
   const pages = loadPages()
   const specs = loadSpecs()
   const baseline = JSON.parse(readFileSync(BASELINE_PATH, 'utf-8')) as Baseline
-  const knownMissing = new Map(
-    baseline.knownMissing.map(e => [`${e.page}::${e.testid}`, e])
-  )
+  const knownMissing = new Map(baseline.knownMissing.map(e => [`${e.page}::${e.testid}`, e]))
 
   let totalInteractive = 0
   let totalUncovered = 0
@@ -240,7 +265,7 @@ function run(): void {
       const key = `${page.relPath}::${testid}`
       if (knownMissing.has(key)) {
         totalBaseline++
-        continue  // acknowledged debt — don't fail
+        continue // acknowledged debt — don't fail
       }
 
       // New gap not in baseline — fail
@@ -259,12 +284,14 @@ function run(): void {
 
     // Submit-gate check: gated submit-btn must have setup-mode spec coverage
     const pageContent = readFileSync(join(CODE_ROOT, page.relPath), 'utf-8')
-    const hasGatedSubmit = page.testids.some(t => t.testid === 'submit-btn') &&
-      pageContent.includes(':disable=')
+    const hasGatedSubmit =
+      page.testids.some(t => t.testid === 'submit-btn') && pageContent.includes(':disable=')
     if (hasGatedSubmit) {
       const coveringSetupSpecs = setupModeSpecsForTestid(specs, 'submit-btn')
       if (coveringSetupSpecs.length === 0) {
-        console.error(`  \x1b[31m⚠ submit-btn has :disable= but no spec exercises setup/registration mode\x1b[0m`)
+        console.error(
+          `  \x1b[31m⚠ submit-btn has :disable= but no spec exercises setup/registration mode\x1b[0m`
+        )
         failures.push(`${page.relPath} → submit-btn (no setup-mode coverage)`)
         totalUncovered++
       }
@@ -274,13 +301,19 @@ function run(): void {
   console.log()
   console.log(`  ${totalPages} specced page(s), ${totalInteractive} interactive testid(s) audited`)
   if (totalBaseline > 0) {
-    console.log(`  \x1b[2m${totalBaseline} acknowledged gap(s) in baseline — add coverage to remove from scripts/data/form-testid-baseline.json\x1b[0m`)
+    console.log(
+      `  \x1b[2m${totalBaseline} acknowledged gap(s) in baseline — add coverage to remove from scripts/data/form-testid-baseline.json\x1b[0m`
+    )
   }
 
   if (failures.length > 0) {
-    console.error(`\n\x1b[31m${totalUncovered} new uncovered testid(s) — add to specs or baseline:\x1b[0m`)
+    console.error(
+      `\n\x1b[31m${totalUncovered} new uncovered testid(s) — add to specs or baseline:\x1b[0m`
+    )
     for (const f of failures) console.error(`  ${f}`)
-    console.error('\x1b[2mSee scripts/data/form-testid-baseline.json for the acknowledged-gap format.\x1b[0m')
+    console.error(
+      '\x1b[2mSee scripts/data/form-testid-baseline.json for the acknowledged-gap format.\x1b[0m'
+    )
     process.exit(1)
   }
 

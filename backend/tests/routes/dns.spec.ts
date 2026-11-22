@@ -21,9 +21,9 @@ const ZONE = buildZone(
   [
     { name: 'web', ip: '10.10.0.10' },
     { name: 'db', ip: '10.10.0.20' },
-    { name: 'ghost' }, // no address — skipped, with a reason
+    { name: 'ghost' } // no address — skipped, with a reason
   ],
-  { serial: 4 },
+  { serial: 4 }
 )
 
 async function buildApp(opts: { tier?: string; zone?: ReturnType<typeof buildZone> | null } = {}) {
@@ -33,7 +33,7 @@ async function buildApp(opts: { tier?: string; zone?: ReturnType<typeof buildZon
   fastify.decorateRequest('username', undefined)
   fastify.setValidatorCompiler(validatorCompiler)
   fastify.setSerializerCompiler(serializerCompiler)
-  fastify.addHook('onRequest', async (request) => {
+  fastify.addHook('onRequest', async request => {
     request.userRole = mockUserRole
     request.userId = 'u'
     request.username = 'u'
@@ -41,7 +41,7 @@ async function buildApp(opts: { tier?: string; zone?: ReturnType<typeof buildZon
   await fastify.register(dnsRoutes, {
     prefix: '/api/dns',
     config: { tier: opts.tier ?? 'solo', dnsDomain: 'vm.internal' } as unknown as DashboardConfig,
-    getZone: () => (opts.zone === undefined ? ZONE : opts.zone),
+    getZone: () => (opts.zone === undefined ? ZONE : opts.zone)
   })
   await fastify.ready()
   return fastify
@@ -51,7 +51,9 @@ const get = (app: Awaited<ReturnType<typeof buildApp>>, url: string) =>
   app.inject({ method: 'GET', url })
 
 describe('GET /api/dns/zone', () => {
-  beforeEach(() => { mockUserRole = 'admin' })
+  beforeEach(() => {
+    mockUserRole = 'admin'
+  })
 
   it('serves the zone at Solo', async () => {
     const app = await buildApp({ tier: 'solo' })
@@ -118,7 +120,9 @@ describe('GET /api/dns/zone', () => {
 })
 
 describe('GET /api/dns/zone/:name', () => {
-  beforeEach(() => { mockUserRole = 'admin' })
+  beforeEach(() => {
+    mockUserRole = 'admin'
+  })
 
   it('returns only that workload records', async () => {
     const app = await buildApp()

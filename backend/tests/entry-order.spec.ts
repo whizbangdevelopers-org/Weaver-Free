@@ -30,14 +30,16 @@ describe("the entry's error handler", () => {
   it('the reading catches a route before the handler, and holds its fire on one after', () => {
     expect(
       handlerOrderProblem(
-        "await fastify.register(healthRoutes, { prefix: '/api/health' })\nfastify.setErrorHandler(apiErrorHandler)\n",
-      ),
+        "await fastify.register(healthRoutes, { prefix: '/api/health' })\nfastify.setErrorHandler(apiErrorHandler)\n"
+      )
     ).toMatch(/line 1, before the error handler on line 2/)
-    expect(handlerOrderProblem('const fastify = Fastify()\n')).toBe('the entry sets no error handler')
+    expect(handlerOrderProblem('const fastify = Fastify()\n')).toBe(
+      'the entry sets no error handler'
+    )
     expect(
       handlerOrderProblem(
-        "fastify.setErrorHandler(apiErrorHandler)\nawait fastify.register(helmet, {})\nawait fastify.register(healthRoutes, { prefix: '/api/health' })\n",
-      ),
+        "fastify.setErrorHandler(apiErrorHandler)\nawait fastify.register(helmet, {})\nawait fastify.register(healthRoutes, { prefix: '/api/health' })\n"
+      )
     ).toBeNull()
   })
 

@@ -69,7 +69,7 @@ const ESBUILD_TARGET_NAME = {
   edge: 'edge',
   firefox: 'firefox',
   safari: 'safari',
-  safari_ios: 'ios',
+  safari_ios: 'ios'
 }
 
 // A bad pin date needs no guard here — the library itself throws ("no browser versions
@@ -78,12 +78,11 @@ const ESBUILD_TARGET_NAME = {
 // dead code, which is worse than no check because it implies a failure mode that cannot occur.
 const BASELINE_VERSIONS = getCompatibleVersions({
   widelyAvailableOnDate: BASELINE_WIDELY_AVAILABLE_ON,
-  includeDownstreamBrowsers: false,
+  includeDownstreamBrowsers: false
 })
 
-const BASELINE_TARGETS = BASELINE_VERSIONS
-  .filter((b) => ESBUILD_TARGET_NAME[b.browser])
-  .map((b) => `${ESBUILD_TARGET_NAME[b.browser]}${b.version}`)
+const BASELINE_TARGETS = BASELINE_VERSIONS.filter(b => ESBUILD_TARGET_NAME[b.browser])
+  .map(b => `${ESBUILD_TARGET_NAME[b.browser]}${b.version}`)
   .sort()
 
 // THIS guard is reachable, and it is the one that matters. If upstream renames a browser id —
@@ -94,8 +93,8 @@ const BASELINE_TARGETS = BASELINE_VERSIONS
 if (BASELINE_TARGETS.length === 0) {
   throw new Error(
     `quasar.config.cjs: Baseline returned ${BASELINE_VERSIONS.length} browser(s) but ESBUILD_TARGET_NAME ` +
-      `matched none of them (saw: ${[...new Set(BASELINE_VERSIONS.map((b) => b.browser))].join(', ')}). ` +
-      'Upstream browser ids have changed. Refusing to build with an unconstrained target.',
+      `matched none of them (saw: ${[...new Set(BASELINE_VERSIONS.map(b => b.browser))].join(', ')}). ` +
+      'Upstream browser ids have changed. Refusing to build with an unconstrained target.'
   )
 }
 
@@ -152,7 +151,11 @@ export default function (/* ctx */) {
         viteConf.build.rollupOptions = {
           output: {
             manualChunks(id) {
-              if (id.includes('@xterm/xterm') || id.includes('@xterm/addon-fit') || id.includes('@xterm/addon-web-links')) {
+              if (
+                id.includes('@xterm/xterm') ||
+                id.includes('@xterm/addon-fit') ||
+                id.includes('@xterm/addon-web-links')
+              ) {
                 return 'xterm'
               }
               if (id.includes('v-network-graph')) {

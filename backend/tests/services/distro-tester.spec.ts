@@ -9,7 +9,7 @@ const mocks = vi.hoisted(() => ({
   createVm: vi.fn().mockResolvedValue({ success: true }),
   deleteVm: vi.fn().mockResolvedValue({ success: true }),
   stopVm: vi.fn().mockResolvedValue({ success: true }),
-  getVmStatus: vi.fn().mockResolvedValue('running'),
+  getVmStatus: vi.fn().mockResolvedValue('running')
 }))
 
 vi.mock('../../src/services/microvm.js', () => mocks)
@@ -26,7 +26,7 @@ function makeRegistry(): WorkloadRegistry {
     has: vi.fn().mockResolvedValue(false),
     add: vi.fn().mockResolvedValue(true),
     remove: vi.fn().mockResolvedValue(true),
-    update: vi.fn().mockResolvedValue(true),
+    update: vi.fn().mockResolvedValue(true)
   } as unknown as WorkloadRegistry
 }
 
@@ -35,7 +35,7 @@ function makeProvisioner(): Provisioner {
     provision: vi.fn().mockResolvedValue(undefined),
     startCloudVm: vi.fn().mockResolvedValue({ success: true }),
     destroy: vi.fn().mockResolvedValue(undefined),
-    isIsoDistro: vi.fn().mockReturnValue(false),
+    isIsoDistro: vi.fn().mockReturnValue(false)
   } as unknown as Provisioner
 }
 
@@ -46,7 +46,7 @@ function makeConfig(): DashboardConfig {
     licenseExpiry: null,
     licenseGraceMode: false,
     dataDir: '/tmp/test',
-    provisioningEnabled: true,
+    provisioningEnabled: true
   } as unknown as DashboardConfig
 }
 

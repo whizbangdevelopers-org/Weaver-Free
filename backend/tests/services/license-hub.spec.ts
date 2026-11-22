@@ -29,16 +29,21 @@ async function post(path: string, body: unknown) {
   const res = await fetch(`${base}${path}`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(body),
+    body: JSON.stringify(body)
   })
-  return { status: res.status, body: await res.json() as Record<string, string> }
+  return { status: res.status, body: (await res.json()) as Record<string, string> }
 }
 
 beforeAll(async () => {
   workDir = mkdtempSync(join(tmpdir(), 'weaver-hub-test-'))
   // Port 0 — the OS assigns a free one. A hardcoded port makes a test suite fail for reasons that
   // have nothing to do with the code under test.
-  hub = await startHub({ port: 0, host: '127.0.0.1', storePath: join(workDir, 'licenses.json'), quiet: true })
+  hub = await startHub({
+    port: 0,
+    host: '127.0.0.1',
+    storePath: join(workDir, 'licenses.json'),
+    quiet: true
+  })
   base = `http://127.0.0.1:${hub.port}`
 })
 
@@ -49,18 +54,33 @@ afterAll(async () => {
 
 describe('substitute licence hub — issuance', () => {
   it('mints a key at checkout that the product accepts against the hub authority', async () => {
-    const { status, body } = await post('/checkout', { tier: 'fabrick', expiresAt: '2027-06-15T00:00:00Z' })
+    const { status, body } = await post('/checkout', {
+      tier: 'fabrick',
+      expiresAt: '2027-06-15T00:00:00Z'
+    })
     expect(status).toBe(200)
 
-    const parsed = createVerifier(WEAVER_PROFILE, [hub.publicKey]).parseLicenseKey(body.key, new Date('2026-08-17T00:00:00Z'))
+    const parsed = createVerifier(WEAVER_PROFILE, [hub.publicKey]).parseLicenseKey(
+      body.key,
+      new Date('2026-08-17T00:00:00Z')
+    )
     expect(parsed.tier).toBe(TIERS.FABRICK)
     expect(parsed.expiry?.toISOString().slice(0, 10)).toBe('2027-06-15')
   })
 
   it('mints every issuable tier', async () => {
-    for (const [name, tier] of [['solo', TIERS.SOLO], ['team', TIERS.TEAM], ['fabrick', TIERS.FABRICK]] as const) {
+    for (const [name, tier] of [
+      ['solo', TIERS.SOLO],
+      ['team', TIERS.TEAM],
+      ['fabrick', TIERS.FABRICK]
+    ] as const) {
       const { body } = await post('/checkout', { tier: name, expiresAt: '2027-06-15T00:00:00Z' })
-      expect(createVerifier(WEAVER_PROFILE, [hub.publicKey]).parseLicenseKey(body.key, new Date('2026-08-17T00:00:00Z')).tier).toBe(tier)
+      expect(
+        createVerifier(WEAVER_PROFILE, [hub.publicKey]).parseLicenseKey(
+          body.key,
+          new Date('2026-08-17T00:00:00Z')
+        ).tier
+      ).toBe(tier)
     }
   })
 
@@ -76,8 +96,15 @@ describe('substitute licence hub — issuance', () => {
 
 describe('substitute licence hub — renewal (shape)', () => {
   it('mints a NEW key for the new period, and both verify', async () => {
-    const first = await post('/checkout', { tier: 'solo', subscriptionId: 'sub_renew', expiresAt: '2026-09-01T00:00:00Z' })
-    const renewed = await post('/renew', { subscriptionId: 'sub_renew', expiresAt: '2027-09-01T00:00:00Z' })
+    const first = await post('/checkout', {
+      tier: 'solo',
+      subscriptionId: 'sub_renew',
+      expiresAt: '2026-09-01T00:00:00Z'
+    })
+    const renewed = await post('/renew', {
+      subscriptionId: 'sub_renew',
+      expiresAt: '2027-09-01T00:00:00Z'
+    })
 
     expect(renewed.status).toBe(200)
     expect(renewed.body.key).not.toBe(first.body.key)
@@ -85,8 +112,16 @@ describe('substitute licence hub — renewal (shape)', () => {
     const now = new Date('2026-08-17T00:00:00Z')
     // The OLD key stays cryptographically valid — renewal supersedes by expiry, not by
     // invalidation. Anything else would need a revocation channel the product does not have.
-    expect(createVerifier(WEAVER_PROFILE, [hub.publicKey]).parseLicenseKey(first.body.key, now).expiry?.getUTCFullYear()).toBe(2026)
-    expect(createVerifier(WEAVER_PROFILE, [hub.publicKey]).parseLicenseKey(renewed.body.key, now).expiry?.getUTCFullYear()).toBe(2027)
+    expect(
+      createVerifier(WEAVER_PROFILE, [hub.publicKey])
+        .parseLicenseKey(first.body.key, now)
+        .expiry?.getUTCFullYear()
+    ).toBe(2026)
+    expect(
+      createVerifier(WEAVER_PROFILE, [hub.publicKey])
+        .parseLicenseKey(renewed.body.key, now)
+        .expiry?.getUTCFullYear()
+    ).toBe(2027)
   })
 
   it('refuses to renew an unknown subscription', async () => {
@@ -103,7 +138,11 @@ describe('substitute licence hub — renewal (shape)', () => {
 
 describe('substitute licence hub — cancellation is hub-side only', () => {
   it('revokes the record while the KEY keeps verifying — the honest model', async () => {
-    const issued = await post('/checkout', { tier: 'fabrick', subscriptionId: 'sub_cancel', expiresAt: '2027-06-15T00:00:00Z' })
+    const issued = await post('/checkout', {
+      tier: 'fabrick',
+      subscriptionId: 'sub_cancel',
+      expiresAt: '2027-06-15T00:00:00Z'
+    })
     const cancelled = await post('/cancel', { subscriptionId: 'sub_cancel' })
     expect(cancelled.status).toBe(200)
 
@@ -112,7 +151,10 @@ describe('substitute licence hub — cancellation is hub-side only', () => {
     // written to a row the host never reads, so a cancelled customer's key still resolves to its
     // paid tier until the key's own expiry. A test hub that pretended otherwise would model a
     // capability the product does not have and hide the exposure.
-    const parsed = createVerifier(WEAVER_PROFILE, [hub.publicKey]).parseLicenseKey(issued.body.key, new Date('2026-08-17T00:00:00Z'))
+    const parsed = createVerifier(WEAVER_PROFILE, [hub.publicKey]).parseLicenseKey(
+      issued.body.key,
+      new Date('2026-08-17T00:00:00Z')
+    )
     expect(parsed.tier).toBe(TIERS.FABRICK)
   })
 })
@@ -128,7 +170,7 @@ describe('substitute licence hub — it is NOT an authority', () => {
 
   it('reports itself as a non-production authority', async () => {
     const res = await fetch(`${base}/authority`)
-    const body = await res.json() as { publicKey: string; isProductionAuthority: boolean }
+    const body = (await res.json()) as { publicKey: string; isProductionAuthority: boolean }
 
     expect(body.isProductionAuthority).toBe(false)
     expect(body.publicKey).toBe(hub.publicKey)

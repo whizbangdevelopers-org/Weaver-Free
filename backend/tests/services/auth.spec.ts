@@ -45,9 +45,7 @@ describe('AuthService', () => {
     it('should reject duplicate username', async () => {
       await authService.register('admin', PWD, 'admin')
 
-      await expect(
-        authService.register('admin', PWD2, 'viewer')
-      ).rejects.toThrow(AuthError)
+      await expect(authService.register('admin', PWD2, 'viewer')).rejects.toThrow(AuthError)
     })
 
     it('should default role to admin', async () => {
@@ -70,9 +68,7 @@ describe('AuthService', () => {
     })
 
     it('should reject wrong password', async () => {
-      await expect(
-        authService.login('admin', 'wrongpassword')
-      ).rejects.toThrow(AuthError)
+      await expect(authService.login('admin', 'wrongpassword')).rejects.toThrow(AuthError)
 
       try {
         await authService.login('admin', 'wrongpassword')
@@ -83,9 +79,7 @@ describe('AuthService', () => {
     })
 
     it('should reject non-existent username', async () => {
-      await expect(
-        authService.login('nonexistent', 'password')
-      ).rejects.toThrow(AuthError)
+      await expect(authService.login('nonexistent', 'password')).rejects.toThrow(AuthError)
     })
   })
 
@@ -118,9 +112,7 @@ describe('AuthService', () => {
     })
 
     it('should reject an invalid token', async () => {
-      await expect(
-        authService.verifyToken('invalid-token')
-      ).rejects.toThrow(AuthError)
+      await expect(authService.verifyToken('invalid-token')).rejects.toThrow(AuthError)
     })
 
     it('should reject a token after session is revoked', async () => {
@@ -148,17 +140,13 @@ describe('AuthService', () => {
     })
 
     it('should reject an invalid refresh token', async () => {
-      await expect(
-        authService.refreshToken('invalid-token')
-      ).rejects.toThrow(AuthError)
+      await expect(authService.refreshToken('invalid-token')).rejects.toThrow(AuthError)
     })
 
     it('should reject an access token used as refresh token', async () => {
       const { token } = await authService.register('admin', PWD, 'admin')
 
-      await expect(
-        authService.refreshToken(token)
-      ).rejects.toThrow(AuthError)
+      await expect(authService.refreshToken(token)).rejects.toThrow(AuthError)
     })
   })
 
@@ -169,9 +157,7 @@ describe('AuthService', () => {
       await authService.changePassword(user.id, PWD, PWD2)
 
       // Old password should no longer work
-      await expect(
-        authService.login('admin', PWD)
-      ).rejects.toThrow(AuthError)
+      await expect(authService.login('admin', PWD)).rejects.toThrow(AuthError)
 
       // New password should work
       const result = await authService.login('admin', PWD2)
@@ -181,9 +167,7 @@ describe('AuthService', () => {
     it('should reject wrong current password', async () => {
       const { user } = await authService.register('admin', PWD, 'admin')
 
-      await expect(
-        authService.changePassword(user.id, 'wrong', PWD2)
-      ).rejects.toThrow(AuthError)
+      await expect(authService.changePassword(user.id, 'wrong', PWD2)).rejects.toThrow(AuthError)
     })
 
     it('should invalidate all sessions after password change', async () => {

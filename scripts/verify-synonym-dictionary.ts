@@ -88,10 +88,10 @@ function audit(): Violation[] {
   const terminology = readSafe(TERMINOLOGY_PATH)
   const navigation = readSafe(NAVIGATION_PATH)
   const vocabSources = terminology + '\n' + navigation
-  const banLines = terminology.split('\n').filter((l) => BAN_KEYWORD.test(l))
+  const banLines = terminology.split('\n').filter(l => BAN_KEYWORD.test(l))
 
   // Declared audience tokens (exclude the _comment doc key).
-  const audiences = new Set(Object.keys(dict.audiences ?? {}).filter((k) => !k.startsWith('_')))
+  const audiences = new Set(Object.keys(dict.audiences ?? {}).filter(k => !k.startsWith('_')))
 
   const seen = new Set<string>()
 
@@ -102,7 +102,10 @@ function audit(): Violation[] {
     if (typeof e.canonical !== 'string' || !e.canonical)
       violations.push({ canonical: id, detail: 'missing/invalid `canonical`' })
     if (e.domain !== 'product' && e.domain !== 'methodology')
-      violations.push({ canonical: id, detail: `domain must be 'product' or 'methodology' (got ${JSON.stringify(e.domain)})` })
+      violations.push({
+        canonical: id,
+        detail: `domain must be 'product' or 'methodology' (got ${JSON.stringify(e.domain)})`
+      })
     if (typeof e.gloss !== 'string' || !e.gloss)
       violations.push({ canonical: id, detail: 'missing `gloss`' })
     if (!Array.isArray(e.industryAnalogs) || e.industryAnalogs.length === 0)
@@ -113,19 +116,26 @@ function audit(): Violation[] {
     }
 
     // 3. No duplicate canonicals
-    if (seen.has(e.canonical)) violations.push({ canonical: id, detail: 'duplicate canonical term' })
+    if (seen.has(e.canonical))
+      violations.push({ canonical: id, detail: 'duplicate canonical term' })
     seen.add(e.canonical)
 
     // 2. Audience tokens valid
     for (const a of [...(e.adoptIn ?? []), ...(e.avoidIn ?? [])]) {
       if (!audiences.has(a))
-        violations.push({ canonical: id, detail: `unknown audience token "${a}" (not declared in audiences)` })
+        violations.push({
+          canonical: id,
+          detail: `unknown audience token "${a}" (not declared in audiences)`
+        })
     }
 
     // 4. adoptIn / avoidIn disjoint
-    const overlap = (e.adoptIn ?? []).filter((a) => (e.avoidIn ?? []).includes(a))
+    const overlap = (e.adoptIn ?? []).filter(a => (e.avoidIn ?? []).includes(a))
     if (overlap.length)
-      violations.push({ canonical: id, detail: `audience(s) in BOTH adoptIn and avoidIn: ${overlap.join(', ')}` })
+      violations.push({
+        canonical: id,
+        detail: `audience(s) in BOTH adoptIn and avoidIn: ${overlap.join(', ')}`
+      })
 
     // 5. Product parity — canonical is a real defined term
     if (e.domain === 'product') {
@@ -133,24 +143,24 @@ function audit(): Violation[] {
       if (!vocabSources.includes(bolded))
         violations.push({
           canonical: id,
-          detail: `domain=product but "${bolded}" is not a defined term in terminology.md or navigation.md (typo or drifted name?)`,
+          detail: `domain=product but "${bolded}" is not a defined term in terminology.md or navigation.md (typo or drifted name?)`
         })
 
       // 6. Translation-not-adoption
       if ((e.adoptIn ?? []).length > 0)
         violations.push({
           canonical: id,
-          detail: `product term has non-empty adoptIn — textile terms are translated, never adopted as our label. If adoption is intended, it is a methodology term, not a product term.`,
+          detail: `product term has non-empty adoptIn — textile terms are translated, never adopted as our label. If adoption is intended, it is a methodology term, not a product term.`
         })
     }
 
     // 7. Anti-term consistency with the vocabulary rule ban lines
     for (const t of e.antiTerms ?? []) {
-      const onBanLine = banLines.some((l) => l.toLowerCase().includes(t.toLowerCase()))
+      const onBanLine = banLines.some(l => l.toLowerCase().includes(t.toLowerCase()))
       if (!onBanLine)
         violations.push({
           canonical: id,
-          detail: `antiTerm "${t}" is not on a ban line (never/retire/relabel/reintroduce) in terminology.md — anti-terms must stay consistent with the Retired Labels`,
+          detail: `antiTerm "${t}" is not on a ban line (never/retire/relabel/reintroduce) in terminology.md — anti-terms must stay consistent with the Retired Labels`
         })
     }
   }
@@ -181,7 +191,9 @@ function main(): void {
 
   if (violations.length === 0) {
     console.log(`${GREEN}✓ audit:synonym-dictionary — PASS${RESET}`)
-    console.log(`${DIM}  synonym-dictionary.json: all canonicals defined, anti-terms consistent, audience scope valid.${RESET}`)
+    console.log(
+      `${DIM}  synonym-dictionary.json: all canonicals defined, anti-terms consistent, audience scope valid.${RESET}`
+    )
     process.exit(0)
   }
 
@@ -192,7 +204,9 @@ function main(): void {
   }
   console.log()
   console.log(`${RED}${violations.length} violation(s)${RESET}`)
-  console.log(`${DIM}Source: code/scripts/data/synonym-dictionary.json — definitions stay authoritative in .claude/rules/core/terminology.md${RESET}`)
+  console.log(
+    `${DIM}Source: code/scripts/data/synonym-dictionary.json — definitions stay authoritative in .claude/rules/core/terminology.md${RESET}`
+  )
   process.exit(1)
 }
 

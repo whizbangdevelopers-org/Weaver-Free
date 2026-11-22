@@ -18,7 +18,7 @@ function makeEntry(overrides: Partial<AuditEntry> = {}): AuditEntry {
     resource: 'web-nginx',
     ip: '127.0.0.1',
     success: true,
-    ...overrides,
+    ...overrides
   }
 }
 
@@ -90,7 +90,9 @@ describe('AuditStore', () => {
         await store.init()
 
         expect(store.count()).toBe(0)
-        const aside = (await readdir(testDir)).filter(f => f.startsWith('audit-log.json.unreadable-'))
+        const aside = (await readdir(testDir)).filter(f =>
+          f.startsWith('audit-log.json.unreadable-')
+        )
         expect(aside).toHaveLength(1)
         expect(await readFile(join(testDir, aside[0]), 'utf-8')).toBe(original)
         expect(JSON.parse(await readFile(filePath, 'utf-8'))).toEqual([])
@@ -109,7 +111,9 @@ describe('AuditStore', () => {
         await store.init()
 
         expect(store.count()).toBe(0)
-        expect((await readdir(testDir)).some(f => f.startsWith('audit-log.json.unreadable-'))).toBe(true)
+        expect((await readdir(testDir)).some(f => f.startsWith('audit-log.json.unreadable-'))).toBe(
+          true
+        )
       } finally {
         spy.mockRestore()
       }
@@ -125,7 +129,9 @@ describe('AuditStore', () => {
         await store.init()
 
         expect(store.count()).toBe(0)
-        expect((await readdir(testDir)).some(f => f.startsWith('audit-log.json.unreadable-'))).toBe(true)
+        expect((await readdir(testDir)).some(f => f.startsWith('audit-log.json.unreadable-'))).toBe(
+          true
+        )
         expect(JSON.parse(await readFile(filePath, 'utf-8'))).toEqual([])
       } finally {
         spy.mockRestore()
@@ -220,8 +226,8 @@ describe('AuditStore', () => {
           store.append(makeEntry({ id })).then(async () => {
             const data = JSON.parse(await readFile(filePath, 'utf-8')) as AuditEntry[]
             expect(data.map(e => e.id)).toContain(id)
-          }),
-        ),
+          })
+        )
       )
       expect(store.count()).toBe(25)
     })
@@ -302,7 +308,7 @@ describe('AuditStore', () => {
 
       const result = store.query({
         since: '2026-01-10T00:00:00.000Z',
-        until: '2026-01-20T00:00:00.000Z',
+        until: '2026-01-20T00:00:00.000Z'
       })
       expect(result.entries).toHaveLength(1)
     })

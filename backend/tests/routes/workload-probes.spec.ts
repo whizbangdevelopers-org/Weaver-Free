@@ -18,9 +18,9 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import type { DashboardConfig } from '../../src/config.js'
 import type { UserRole } from '../../src/models/user.js'
 
-vi.mock('../../src/services/microvm.js', async (importOriginal) => ({
+vi.mock('../../src/services/microvm.js', async importOriginal => ({
   ...(await importOriginal<typeof import('../../src/services/microvm.js')>()),
-  updateVmField: vi.fn(),
+  updateVmField: vi.fn()
 }))
 
 import Fastify from 'fastify'
@@ -33,7 +33,11 @@ const mockUpdate = updateVmField as ReturnType<typeof vi.fn>
 let mockUserRole: UserRole = 'admin'
 
 function makeConfig(tier: string): DashboardConfig {
-  return { tier, bridgeInterface: 'br-microvm', provisioningEnabled: false } as unknown as DashboardConfig
+  return {
+    tier,
+    bridgeInterface: 'br-microvm',
+    provisioningEnabled: false
+  } as unknown as DashboardConfig
 }
 
 async function buildApp(tier = 'solo') {
@@ -43,7 +47,7 @@ async function buildApp(tier = 'solo') {
   fastify.decorateRequest('username', undefined)
   fastify.setValidatorCompiler(validatorCompiler)
   fastify.setSerializerCompiler(serializerCompiler)
-  fastify.addHook('onRequest', async (request) => {
+  fastify.addHook('onRequest', async request => {
     request.userRole = mockUserRole
     request.userId = 'test-user-id'
     request.username = 'test-user'
@@ -53,10 +57,18 @@ async function buildApp(tier = 'solo') {
   return fastify
 }
 
-const put = async (app: Awaited<ReturnType<typeof buildApp>>, payload: unknown, name = 'web-nginx') =>
+const put = async (
+  app: Awaited<ReturnType<typeof buildApp>>,
+  payload: unknown,
+  name = 'web-nginx'
+) =>
   // `await` matters: un-awaited, inject() types as its chainable union and `res.statusCode` fails
   // to resolve.
-  await app.inject({ method: 'PUT', url: `/api/workload/${name}/probes`, payload: payload as never })
+  await app.inject({
+    method: 'PUT',
+    url: `/api/workload/${name}/probes`,
+    payload: payload as never
+  })
 
 describe('PUT /api/workload/:name/probes', () => {
   beforeEach(() => {
@@ -64,7 +76,9 @@ describe('PUT /api/workload/:name/probes', () => {
     mockUserRole = 'admin'
     mockUpdate.mockResolvedValue({ success: true, message: 'ok' })
   })
-  afterEach(() => { vi.resetAllMocks() })
+  afterEach(() => {
+    vi.resetAllMocks()
+  })
 
   describe('tier gate — configuring is Solo, seeing is Free', () => {
     it('403s below Solo', async () => {
@@ -116,7 +130,7 @@ describe('PUT /api/workload/:name/probes', () => {
       // would spread it back out on the next broadcast and the card would go green for a service
       // nobody contacted.
       const res = await put(app, {
-        serviceProbes: [{ port: 80, type: 'tcp', health: 'healthy' }],
+        serviceProbes: [{ port: 80, type: 'tcp', health: 'healthy' }]
       })
       expect(res.statusCode).toBe(200)
       const stored = mockUpdate.mock.calls[0]?.[1] as { serviceProbes?: unknown[] }
@@ -130,7 +144,7 @@ describe('PUT /api/workload/:name/probes', () => {
     it('rejects a public address', async () => {
       const app = await buildApp()
       const res = await put(app, {
-        serviceProbes: [{ port: 80, type: 'http', url: 'http://93.184.216.34/' }],
+        serviceProbes: [{ port: 80, type: 'http', url: 'http://93.184.216.34/' }]
       })
       expect(res.statusCode).toBe(400)
       expect(mockUpdate).not.toHaveBeenCalled()
@@ -140,7 +154,7 @@ describe('PUT /api/workload/:name/probes', () => {
     it('rejects the cloud metadata endpoint specifically', async () => {
       const app = await buildApp()
       const res = await put(app, {
-        serviceProbes: [{ port: 80, type: 'http', url: 'http://169.254.169.254/latest/meta-data/' }],
+        serviceProbes: [{ port: 80, type: 'http', url: 'http://169.254.169.254/latest/meta-data/' }]
       })
       expect(res.statusCode).toBe(400)
       await app.close()
@@ -151,7 +165,7 @@ describe('PUT /api/workload/:name/probes', () => {
       // not the answer at connect. Names are refused outright.
       const app = await buildApp()
       const res = await put(app, {
-        serviceProbes: [{ port: 80, type: 'http', url: 'http://localhost/' }],
+        serviceProbes: [{ port: 80, type: 'http', url: 'http://localhost/' }]
       })
       expect(res.statusCode).toBe(400)
       await app.close()
@@ -160,7 +174,7 @@ describe('PUT /api/workload/:name/probes', () => {
     it('rejects a non-http scheme', async () => {
       const app = await buildApp()
       const res = await put(app, {
-        serviceProbes: [{ port: 80, type: 'http', url: 'file:///etc/passwd' }],
+        serviceProbes: [{ port: 80, type: 'http', url: 'file:///etc/passwd' }]
       })
       expect(res.statusCode).toBe(400)
       await app.close()
@@ -169,7 +183,7 @@ describe('PUT /api/workload/:name/probes', () => {
     it('accepts an RFC1918 literal', async () => {
       const app = await buildApp()
       const res = await put(app, {
-        serviceProbes: [{ port: 8080, type: 'http', url: 'http://10.10.0.10:8080/health' }],
+        serviceProbes: [{ port: 8080, type: 'http', url: 'http://10.10.0.10:8080/health' }]
       })
       expect(res.statusCode).toBe(200)
       await app.close()
@@ -180,7 +194,10 @@ describe('PUT /api/workload/:name/probes', () => {
     it('rejects two probes on one port', async () => {
       const app = await buildApp()
       const res = await put(app, {
-        serviceProbes: [{ port: 8080, type: 'tcp' }, { port: 8080, type: 'http' }],
+        serviceProbes: [
+          { port: 8080, type: 'tcp' },
+          { port: 8080, type: 'http' }
+        ]
       })
       expect(res.statusCode).toBe(400)
       expect(JSON.parse(res.body).error).toContain('8080')
@@ -191,7 +208,9 @@ describe('PUT /api/workload/:name/probes', () => {
     it('rejects a port outside 1–65535', async () => {
       const app = await buildApp()
       expect((await put(app, { serviceProbes: [{ port: 0, type: 'tcp' }] })).statusCode).toBe(400)
-      expect((await put(app, { serviceProbes: [{ port: 70000, type: 'tcp' }] })).statusCode).toBe(400)
+      expect((await put(app, { serviceProbes: [{ port: 70000, type: 'tcp' }] })).statusCode).toBe(
+        400
+      )
       await app.close()
     })
 
@@ -210,7 +229,9 @@ describe('PUT /api/workload/:name/probes', () => {
       const app = await buildApp()
       const res = await put(app, { serviceProbes: [] })
       expect(res.statusCode).toBe(200)
-      expect((mockUpdate.mock.calls[0]?.[1] as { serviceProbes?: unknown }).serviceProbes).toBeUndefined()
+      expect(
+        (mockUpdate.mock.calls[0]?.[1] as { serviceProbes?: unknown }).serviceProbes
+      ).toBeUndefined()
       await app.close()
     })
   })

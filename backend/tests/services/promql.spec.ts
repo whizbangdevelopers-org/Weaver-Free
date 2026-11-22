@@ -25,14 +25,21 @@ import {
   httpRangeQuery,
   PromqlMetricsSource,
   type PromMatrix,
-  type RangeQuery,
+  type RangeQuery
 } from '../../src/services/promql.js'
 import { SAMPLE_INTERVAL_MS } from '../../src/services/metrics.js'
 
 /** A matrix carrying one series built from `[unixSeconds, value]` pairs. */
 const matrix = (pairs: Array<[number, number | string]>): PromMatrix => ({
   resultType: 'matrix',
-  result: pairs.length ? [{ metric: { workload: 'web-nginx' }, values: pairs.map(([t, v]) => [t, String(v)] as [number, string]) }] : [],
+  result: pairs.length
+    ? [
+        {
+          metric: { workload: 'web-nginx' },
+          values: pairs.map(([t, v]) => [t, String(v)] as [number, string])
+        }
+      ]
+    : []
 })
 
 const empty: PromMatrix = { resultType: 'matrix', result: [] }
@@ -74,7 +81,19 @@ describe('buildGrid', () => {
 
 describe('indexSeries', () => {
   it('indexes the first series by rounded unix seconds', () => {
-    expect(indexSeries(matrix([[100, 1.5], [130, 2.5]]))).toEqual(new Map([[100, 1.5], [130, 2.5]]))
+    expect(
+      indexSeries(
+        matrix([
+          [100, 1.5],
+          [130, 2.5]
+        ])
+      )
+    ).toEqual(
+      new Map([
+        [100, 1.5],
+        [130, 2.5]
+      ])
+    )
   })
 
   it('returns an empty map for an empty result rather than throwing', () => {
@@ -86,7 +105,13 @@ describe('indexSeries', () => {
     // Prometheus serialises these as strings. `Number('NaN')` is NaN and `Number('+Inf')` is
     // Infinity — but the trap is that a dropped point becomes a null ("could not be determined",
     // true) while a coerced one becomes 0 (a measurement claim nobody made).
-    const m = indexSeries(matrix([[100, 'NaN'], [130, '+Inf'], [160, 4]]))
+    const m = indexSeries(
+      matrix([
+        [100, 'NaN'],
+        [130, '+Inf'],
+        [160, 4]
+      ])
+    )
     expect(m.has(100)).toBe(false)
     expect(m.has(130)).toBe(false)
     expect(m.get(160)).toBe(4)
@@ -97,8 +122,8 @@ describe('indexSeries', () => {
       resultType: 'matrix',
       result: [
         { metric: { workload: 'a' }, values: [[100, '1']] },
-        { metric: { workload: 'a' }, values: [[100, '99']] },
-      ],
+        { metric: { workload: 'a' }, values: [[100, '99']] }
+      ]
     }
     expect(indexSeries(two).get(100)).toBe(1)
   })
@@ -111,13 +136,16 @@ describe('materialiseSeries — gap materialisation', () => {
     // THE test for this phase. Prometheus returned 2 points; the chart must receive 4.
     const out = materialiseSeries({
       grid,
-      cpu: new Map([[100, 0.5], [190, 0.25]]),
+      cpu: new Map([
+        [100, 0.5],
+        [190, 0.25]
+      ]),
       memoryBytes: new Map(),
       diskReadBps: new Map(),
       diskWriteBps: new Map(),
       cpuResets: noResets,
       diskReadResets: noResets,
-      diskWriteResets: noResets,
+      diskWriteResets: noResets
     })
 
     expect(out).toHaveLength(4)
@@ -130,13 +158,17 @@ describe('materialiseSeries — gap materialisation', () => {
     // the length assertion above. This one pins the hole to the slot it actually belongs in.
     const out = materialiseSeries({
       grid,
-      cpu: new Map([[100, 0.1], [160, 0.2], [190, 0.3]]),
+      cpu: new Map([
+        [100, 0.1],
+        [160, 0.2],
+        [190, 0.3]
+      ]),
       memoryBytes: new Map(),
       diskReadBps: new Map(),
       diskWriteBps: new Map(),
       cpuResets: noResets,
       diskReadResets: noResets,
-      diskWriteResets: noResets,
+      diskWriteResets: noResets
     })
     expect(out[1]).toMatchObject({ timestamp: 130_000, cpuPercent: null })
     expect(out[2]).toMatchObject({ timestamp: 160_000, cpuPercent: 20 })
@@ -146,15 +178,24 @@ describe('materialiseSeries — gap materialisation', () => {
     // The two states the UI separates as `metrics-no-readings` vs a flat idle chart. Collapsing
     // null into 0 anywhere in this path erases the distinction irrecoverably.
     const absent = materialiseSeries({
-      grid, cpu: new Map(), memoryBytes: new Map(), diskReadBps: new Map(), diskWriteBps: new Map(),
-      cpuResets: noResets, diskReadResets: noResets, diskWriteResets: noResets,
+      grid,
+      cpu: new Map(),
+      memoryBytes: new Map(),
+      diskReadBps: new Map(),
+      diskWriteBps: new Map(),
+      cpuResets: noResets,
+      diskReadResets: noResets,
+      diskWriteResets: noResets
     })
     const idle = materialiseSeries({
       grid,
       cpu: new Map(grid.map(t => [t, 0])),
       memoryBytes: new Map(grid.map(t => [t, 0])),
-      diskReadBps: new Map(), diskWriteBps: new Map(),
-      cpuResets: noResets, diskReadResets: noResets, diskWriteResets: noResets,
+      diskReadBps: new Map(),
+      diskWriteBps: new Map(),
+      cpuResets: noResets,
+      diskReadResets: noResets,
+      diskWriteResets: noResets
     })
 
     expect(absent.every(s => s.cpuPercent === null)).toBe(true)
@@ -165,9 +206,16 @@ describe('materialiseSeries — gap materialisation', () => {
   it('normalises a fraction to a percentage and clamps at 100', () => {
     const out = materialiseSeries({
       grid: [100, 130],
-      cpu: new Map([[100, 1.03], [130, 0.4712]]),
-      memoryBytes: new Map(), diskReadBps: new Map(), diskWriteBps: new Map(),
-      cpuResets: noResets, diskReadResets: noResets, diskWriteResets: noResets,
+      cpu: new Map([
+        [100, 1.03],
+        [130, 0.4712]
+      ]),
+      memoryBytes: new Map(),
+      diskReadBps: new Map(),
+      diskWriteBps: new Map(),
+      cpuResets: noResets,
+      diskReadResets: noResets,
+      diskWriteResets: noResets
     })
     expect(out[0]!.cpuPercent).toBe(100)
     expect(out[1]!.cpuPercent).toBe(47.12)
@@ -176,9 +224,13 @@ describe('materialiseSeries — gap materialisation', () => {
   it('rounds memory to whole bytes', () => {
     const out = materialiseSeries({
       grid: [100],
-      cpu: new Map(), memoryBytes: new Map([[100, 1048576.4]]),
-      diskReadBps: new Map(), diskWriteBps: new Map(),
-      cpuResets: noResets, diskReadResets: noResets, diskWriteResets: noResets,
+      cpu: new Map(),
+      memoryBytes: new Map([[100, 1048576.4]]),
+      diskReadBps: new Map(),
+      diskWriteBps: new Map(),
+      cpuResets: noResets,
+      diskReadResets: noResets,
+      diskWriteResets: noResets
     })
     expect(out[0]!.memoryBytes).toBe(1048576)
   })
@@ -192,10 +244,17 @@ describe('materialiseSeries — counter resets', () => {
     // a restart is operationally significant and the gap is how it stays visible.
     const out = materialiseSeries({
       grid,
-      cpu: new Map([[100, 0.2], [130, 0.9], [160, 0.3]]),
-      memoryBytes: new Map(), diskReadBps: new Map(), diskWriteBps: new Map(),
+      cpu: new Map([
+        [100, 0.2],
+        [130, 0.9],
+        [160, 0.3]
+      ]),
+      memoryBytes: new Map(),
+      diskReadBps: new Map(),
+      diskWriteBps: new Map(),
       cpuResets: new Map([[130, 1]]),
-      diskReadResets: noResets, diskWriteResets: noResets,
+      diskReadResets: noResets,
+      diskWriteResets: noResets
     })
     expect(out.map(s => s.cpuPercent)).toEqual([20, null, 30])
   })
@@ -211,7 +270,7 @@ describe('materialiseSeries — counter resets', () => {
       diskWriteBps: new Map([[100, 2000]]),
       cpuResets: noResets,
       diskReadResets: noResets,
-      diskWriteResets: new Map([[100, 1]]),
+      diskWriteResets: new Map([[100, 1]])
     })
     expect(out[0]!.diskReadBps).toBe(1000)
     expect(out[0]!.diskWriteBps).toBeNull()
@@ -224,9 +283,11 @@ describe('materialiseSeries — counter resets', () => {
       grid: [100],
       cpu: new Map([[100, 0.5]]),
       memoryBytes: new Map([[100, 4096]]),
-      diskReadBps: new Map(), diskWriteBps: new Map(),
+      diskReadBps: new Map(),
+      diskWriteBps: new Map(),
       cpuResets: new Map([[100, 2]]),
-      diskReadResets: noResets, diskWriteResets: noResets,
+      diskReadResets: noResets,
+      diskWriteResets: noResets
     })
     expect(out[0]!.cpuPercent).toBeNull()
     expect(out[0]!.memoryBytes).toBe(4096)
@@ -238,9 +299,12 @@ describe('materialiseSeries — counter resets', () => {
     const out = materialiseSeries({
       grid: [100],
       cpu: new Map([[100, 0.5]]),
-      memoryBytes: new Map(), diskReadBps: new Map(), diskWriteBps: new Map(),
+      memoryBytes: new Map(),
+      diskReadBps: new Map(),
+      diskWriteBps: new Map(),
       cpuResets: new Map([[100, 0]]),
-      diskReadResets: new Map([[100, 0]]), diskWriteResets: new Map([[100, 0]]),
+      diskReadResets: new Map([[100, 0]]),
+      diskWriteResets: new Map([[100, 0]])
     })
     expect(out[0]!.cpuPercent).toBe(50)
   })
@@ -296,11 +360,13 @@ describe('PromqlMetricsSource', () => {
       return empty
     }
 
-    return new PromqlMetricsSource(rq).getSamples('web-nginx', 600_000, 1_800_000_000_000).then(() => {
-      expect(seen).toHaveLength(7)
-      expect(new Set(seen.map(s => JSON.stringify(s))).size).toBe(1)
-      expect(seen[0]!.stepSec).toBe(SAMPLE_INTERVAL_MS / 1000)
-    })
+    return new PromqlMetricsSource(rq)
+      .getSamples('web-nginx', 600_000, 1_800_000_000_000)
+      .then(() => {
+        expect(seen).toHaveLength(7)
+        expect(new Set(seen.map(s => JSON.stringify(s))).size).toBe(1)
+        expect(seen[0]!.stepSec).toBe(SAMPLE_INTERVAL_MS / 1000)
+      })
   })
 
   it('returns a full-length series of nulls when Prometheus has nothing', () => {
@@ -318,8 +384,13 @@ describe('PromqlMetricsSource', () => {
     const grid = buildGrid({ nowMs: now, windowMs: 120_000 })
     const rq: RangeQuery = async ({ query }) => {
       if (query.startsWith('resets(')) return empty
-      if (query.includes('cpu_usage')) return matrix([[grid[0]!, 0.25], [grid[2]!, 0.5]])
-      if (query.includes('memory_bytes')) return matrix(grid.map(t => [t, 2048] as [number, number]))
+      if (query.includes('cpu_usage'))
+        return matrix([
+          [grid[0]!, 0.25],
+          [grid[2]!, 0.5]
+        ])
+      if (query.includes('memory_bytes'))
+        return matrix(grid.map(t => [t, 2048] as [number, number]))
       if (query.includes('disk_read')) return matrix([[grid[1]!, 512]])
       if (query.includes('disk_write')) return matrix([[grid[3]!, 1024]])
       return empty
@@ -337,8 +408,12 @@ describe('PromqlMetricsSource', () => {
   it('THROWS when a query fails — it must never look like an empty chart', async () => {
     // The refuse-vs-absorb split: an unreachable Prometheus changes the answer, so it is refused.
     // Returning [] here would render a broken monitoring stack as a normal idle workload.
-    const rq: RangeQuery = async () => { throw new Error('connect ECONNREFUSED') }
-    await expect(new PromqlMetricsSource(rq).getSamples('x', 600_000)).rejects.toThrow(/ECONNREFUSED/)
+    const rq: RangeQuery = async () => {
+      throw new Error('connect ECONNREFUSED')
+    }
+    await expect(new PromqlMetricsSource(rq).getSamples('x', 600_000)).rejects.toThrow(
+      /ECONNREFUSED/
+    )
   })
 })
 
@@ -348,11 +423,18 @@ describe('httpRangeQuery', () => {
   it('sends query/start/end/step as query parameters', async () => {
     // Parameters declared so `mock.calls[0][0]` resolves: `vi.fn(async () => …)` types its
     // calls as a zero-length tuple, and the assertions below read the URL argument.
-    const fetchMock = vi.fn(async (_url: string | URL, _init?: RequestInit) =>
-      new Response(JSON.stringify(okBody), { status: 200 }))
+    const fetchMock = vi.fn(
+      async (_url: string | URL, _init?: RequestInit) =>
+        new Response(JSON.stringify(okBody), { status: 200 })
+    )
     vi.stubGlobal('fetch', fetchMock)
 
-    await httpRangeQuery('http://127.0.0.1:9090')({ query: 'up', startSec: 10, endSec: 40, stepSec: 30 })
+    await httpRangeQuery('http://127.0.0.1:9090')({
+      query: 'up',
+      startSec: 10,
+      endSec: 40,
+      stepSec: 30
+    })
 
     const url = new URL(fetchMock.mock.calls[0]![0] as unknown as string)
     expect(url.pathname).toBe('/api/v1/query_range')
@@ -364,16 +446,28 @@ describe('httpRangeQuery', () => {
   })
 
   it('strips a trailing slash from the base URL', async () => {
-    const fetchMock = vi.fn(async (_url: string | URL, _init?: RequestInit) =>
-      new Response(JSON.stringify(okBody), { status: 200 }))
+    const fetchMock = vi.fn(
+      async (_url: string | URL, _init?: RequestInit) =>
+        new Response(JSON.stringify(okBody), { status: 200 })
+    )
     vi.stubGlobal('fetch', fetchMock)
-    await httpRangeQuery('http://127.0.0.1:9090/')({ query: 'up', startSec: 1, endSec: 2, stepSec: 1 })
-    expect(new URL(fetchMock.mock.calls[0]![0] as unknown as string).pathname).toBe('/api/v1/query_range')
+    await httpRangeQuery('http://127.0.0.1:9090/')({
+      query: 'up',
+      startSec: 1,
+      endSec: 2,
+      stepSec: 1
+    })
+    expect(new URL(fetchMock.mock.calls[0]![0] as unknown as string).pathname).toBe(
+      '/api/v1/query_range'
+    )
     vi.unstubAllGlobals()
   })
 
   it('throws on a non-200', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('nope', { status: 503 })))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response('nope', { status: 503 }))
+    )
     await expect(
       httpRangeQuery('http://x')({ query: 'up', startSec: 1, endSec: 2, stepSec: 1 })
     ).rejects.toThrow(/HTTP 503/)
@@ -385,7 +479,10 @@ describe('httpRangeQuery', () => {
     // return 200 with the same body. Without the body check a typo in an expression would surface
     // as an empty chart rather than as a failure.
     const body = { status: 'error', error: 'parse error: unexpected ")"' }
-    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify(body), { status: 200 })))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(JSON.stringify(body), { status: 200 }))
+    )
     await expect(
       httpRangeQuery('http://x')({ query: 'bad(', startSec: 1, endSec: 2, stepSec: 1 })
     ).rejects.toThrow(/parse error/)

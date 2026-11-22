@@ -36,7 +36,7 @@ import { fileURLToPath } from 'node:url'
 
 const PKG = join(dirname(fileURLToPath(import.meta.url)), '..')
 const REPO = execFileSync('git', ['-C', PKG, 'rev-parse', '--show-toplevel'], {
-  encoding: 'utf-8',
+  encoding: 'utf-8'
 }).trim()
 
 const GREEN = '\x1b[32m'
@@ -90,7 +90,7 @@ function selfTest(): void {
     [{ test: 'echo "no tests"' }, false],
     [{ build: 'vitest run' }, false], // not a test:* script
     [{ 'test:e2e': 'playwright test' }, false], // e2e-docker-only-ignore: fixture; playwright passes on an empty suite
-    [{}, false],
+    [{}, false]
   ]
   const failures = cases
     .filter(([scripts, want]) => Boolean(declaresRunner(scripts)) !== want)
@@ -109,11 +109,11 @@ function main(): number {
   selfTest()
 
   const manifests = execFileSync('git', ['-C', REPO, 'ls-files', '*package.json'], {
-    encoding: 'utf-8',
+    encoding: 'utf-8'
   })
     .split('\n')
     .filter(Boolean)
-    .filter((p) => !p.includes('node_modules'))
+    .filter(p => !p.includes('node_modules'))
 
   const problems: string[] = []
   let checked = 0
@@ -141,7 +141,9 @@ function main(): number {
           '        Write a test. Do not add --passWithNoTests: the report is not the problem.'
       )
     } else {
-      console.log(`  ${GREEN}✓${OFF} ${relative(REPO, dir) || '.'} ${DIM}— ${specs} spec file(s)${OFF}`)
+      console.log(
+        `  ${GREEN}✓${OFF} ${relative(REPO, dir) || '.'} ${DIM}— ${specs} spec file(s)${OFF}`
+      )
     }
   }
 
@@ -150,7 +152,9 @@ function main(): number {
   // finding nothing because it is misconfigured, so assert on the MANIFEST scan instead: if not a
   // single package.json was found, the auditor is broken, not the repo.
   if (!manifests.length) {
-    console.log(`\n${RED}RESULT: FAIL${OFF} — no package.json found at all; the scan is broken, not the repo.\n`)
+    console.log(
+      `\n${RED}RESULT: FAIL${OFF} — no package.json found at all; the scan is broken, not the repo.\n`
+    )
     return 1
   }
   if (!checked) {
@@ -162,10 +166,14 @@ function main(): number {
   if (problems.length) {
     console.log('')
     for (const p of problems) console.log(`${RED}  ✗ ${p}${OFF}`)
-    console.log(`\n${RED}\x1b[1mRESULT: FAIL${OFF} — a package would report "no tests" as a failure.\n`)
+    console.log(
+      `\n${RED}\x1b[1mRESULT: FAIL${OFF} — a package would report "no tests" as a failure.\n`
+    )
     return 1
   }
-  console.log(`\n${GREEN}\x1b[1mRESULT: PASS${OFF} — ${checked} package(s) with a runner, all have specs\n`)
+  console.log(
+    `\n${GREEN}\x1b[1mRESULT: PASS${OFF} — ${checked} package(s) with a runner, all have specs\n`
+  )
   return 0
 }
 

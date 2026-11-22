@@ -29,7 +29,7 @@ describe('LicenseStore', () => {
     createdAt: '2026-04-08T00:00:00.000Z',
     email: 'test@example.com',
     foundingMember: false,
-    ...overrides,
+    ...overrides
   })
 
   it('saves and retrieves a license by key', async () => {
@@ -53,11 +53,13 @@ describe('LicenseStore', () => {
 
   it('finds by customer ID', async () => {
     await store.save(makeRecord())
-    await store.save(makeRecord({
-      key: 'WVR-FAB-XXXX1234YYYY-B2C3',
-      tier: 'fabrick',
-      stripeSubscriptionId: 'sub_fab789',
-    }))
+    await store.save(
+      makeRecord({
+        key: 'WVR-FAB-XXXX1234YYYY-B2C3',
+        tier: 'fabrick',
+        stripeSubscriptionId: 'sub_fab789'
+      })
+    )
     const found = store.findByCustomer('cus_test123')
     expect(found).toHaveLength(2)
   })
@@ -68,7 +70,11 @@ describe('LicenseStore', () => {
   // the end of their first billing period.
   it('replaces the key and the expiry together', async () => {
     await store.save(makeRecord())
-    const renewed = await store.renew('sub_test456', 'WVR-WVS-NEWKEY123456-C3D4', '2028-01-01T00:00:00.000Z')
+    const renewed = await store.renew(
+      'sub_test456',
+      'WVR-WVS-NEWKEY123456-C3D4',
+      '2028-01-01T00:00:00.000Z'
+    )
 
     expect(renewed).toBe(true)
     const found = store.findBySubscription('sub_test456')
@@ -86,7 +92,11 @@ describe('LicenseStore', () => {
   })
 
   it('returns false when renewing a non-existent subscription', async () => {
-    const renewed = await store.renew('sub_nonexistent', 'WVR-WVS-NEWKEY123456-C3D4', '2028-01-01T00:00:00.000Z')
+    const renewed = await store.renew(
+      'sub_nonexistent',
+      'WVR-WVS-NEWKEY123456-C3D4',
+      '2028-01-01T00:00:00.000Z'
+    )
     expect(renewed).toBe(false)
   })
 
@@ -95,7 +105,9 @@ describe('LicenseStore', () => {
     await store.save(makeRecord())
     await store.revoke('sub_test456')
 
-    expect(await store.renew('sub_test456', 'WVR-WVS-NEWKEY123456-C3D4', '2028-01-01T00:00:00.000Z')).toBe(false)
+    expect(
+      await store.renew('sub_test456', 'WVR-WVS-NEWKEY123456-C3D4', '2028-01-01T00:00:00.000Z')
+    ).toBe(false)
     expect(store.findBySubscription('sub_test456')!.key).toBe('WVR-WVS-ABCD1234EFGH-A1B2')
   })
 

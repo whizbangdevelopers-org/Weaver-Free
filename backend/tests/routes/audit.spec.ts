@@ -2,11 +2,7 @@
 // Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE.
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import Fastify from 'fastify'
-import {
-  serializerCompiler,
-  validatorCompiler,
-  ZodTypeProvider
-} from 'fastify-type-provider-zod'
+import { serializerCompiler, validatorCompiler, ZodTypeProvider } from 'fastify-type-provider-zod'
 import { auditRoutes } from '../../src/routes/audit.js'
 import { AuditService } from '../../src/services/audit.js'
 import { AuditStore } from '../../src/storage/audit-store.js'
@@ -59,7 +55,7 @@ describe('Audit Routes', () => {
       action: 'vm.start',
       resource: 'web-nginx',
       ip: '127.0.0.1',
-      success: true,
+      success: true
     })
     await auditService.log({
       userId: 'user-2',
@@ -67,21 +63,25 @@ describe('Audit Routes', () => {
       action: 'vm.stop',
       resource: 'dev-node',
       ip: '10.0.0.1',
-      success: true,
+      success: true
     })
     await auditService.log({
       userId: null,
       username: 'baduser',
       action: 'user.login',
       ip: '10.0.0.2',
-      success: false,
+      success: false
     })
 
     // Register auth middleware
     fastify.addHook('onRequest', createAuthMiddleware(authService))
 
     // Register audit routes (fabrick tier for main test suite)
-    await fastify.register(auditRoutes, { prefix: '/api/audit', auditService, config: makeConfig('fabrick') })
+    await fastify.register(auditRoutes, {
+      prefix: '/api/audit',
+      auditService,
+      config: makeConfig('fabrick')
+    })
     await fastify.ready()
 
     // Create test users and get tokens
@@ -109,7 +109,7 @@ describe('Audit Routes', () => {
       const response = await fastify.inject({
         method: 'GET',
         url: '/api/audit',
-        headers: { authorization: `Bearer ${adminToken}` },
+        headers: { authorization: `Bearer ${adminToken}` }
       })
 
       expect(response.statusCode).toBe(200)
@@ -125,7 +125,7 @@ describe('Audit Routes', () => {
       const response = await fastify.inject({
         method: 'GET',
         url: '/api/audit',
-        headers: { authorization: `Bearer ${operatorToken}` },
+        headers: { authorization: `Bearer ${operatorToken}` }
       })
 
       expect(response.statusCode).toBe(200)
@@ -137,7 +137,7 @@ describe('Audit Routes', () => {
       const response = await fastify.inject({
         method: 'GET',
         url: '/api/audit',
-        headers: { authorization: `Bearer ${viewerToken}` },
+        headers: { authorization: `Bearer ${viewerToken}` }
       })
 
       expect(response.statusCode).toBe(403)
@@ -146,7 +146,7 @@ describe('Audit Routes', () => {
     it('should return 401 without auth', async () => {
       const response = await fastify.inject({
         method: 'GET',
-        url: '/api/audit',
+        url: '/api/audit'
       })
 
       expect(response.statusCode).toBe(401)
@@ -156,7 +156,7 @@ describe('Audit Routes', () => {
       const response = await fastify.inject({
         method: 'GET',
         url: '/api/audit?action=vm.start',
-        headers: { authorization: `Bearer ${adminToken}` },
+        headers: { authorization: `Bearer ${adminToken}` }
       })
 
       expect(response.statusCode).toBe(200)
@@ -168,7 +168,7 @@ describe('Audit Routes', () => {
       const response = await fastify.inject({
         method: 'GET',
         url: '/api/audit?userId=user-1',
-        headers: { authorization: `Bearer ${adminToken}` },
+        headers: { authorization: `Bearer ${adminToken}` }
       })
 
       expect(response.statusCode).toBe(200)
@@ -180,7 +180,7 @@ describe('Audit Routes', () => {
       const response = await fastify.inject({
         method: 'GET',
         url: '/api/audit?resource=web-nginx',
-        headers: { authorization: `Bearer ${adminToken}` },
+        headers: { authorization: `Bearer ${adminToken}` }
       })
 
       expect(response.statusCode).toBe(200)
@@ -192,7 +192,7 @@ describe('Audit Routes', () => {
       const response = await fastify.inject({
         method: 'GET',
         url: '/api/audit?limit=1&offset=0',
-        headers: { authorization: `Bearer ${adminToken}` },
+        headers: { authorization: `Bearer ${adminToken}` }
       })
 
       expect(response.statusCode).toBe(200)
@@ -206,7 +206,7 @@ describe('Audit Routes', () => {
       const response = await fastify.inject({
         method: 'GET',
         url: '/api/audit',
-        headers: { authorization: `Bearer ${adminToken}` },
+        headers: { authorization: `Bearer ${adminToken}` }
       })
 
       expect(response.statusCode).toBe(200)
@@ -240,7 +240,11 @@ describe('Audit Routes — Tier Gating', () => {
     const auditService = new AuditService(auditStore)
 
     premiumFastify.addHook('onRequest', createAuthMiddleware(authService))
-    await premiumFastify.register(auditRoutes, { prefix: '/api/audit', auditService, config: makeConfig('solo') })
+    await premiumFastify.register(auditRoutes, {
+      prefix: '/api/audit',
+      auditService,
+      config: makeConfig('solo')
+    })
     await premiumFastify.ready()
 
     const result = await authService.register('admin', 'T3stP@ssw0rd!X', 'admin')
@@ -255,7 +259,7 @@ describe('Audit Routes — Tier Gating', () => {
     const response = await premiumFastify.inject({
       method: 'GET',
       url: '/api/audit',
-      headers: { authorization: `Bearer ${adminToken}` },
+      headers: { authorization: `Bearer ${adminToken}` }
     })
 
     expect(response.statusCode).toBe(403)

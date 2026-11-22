@@ -35,8 +35,12 @@ const baselinePath = resolve(__dirname, 'baselines', 'mcp-parser.json')
 async function main(): Promise<void> {
   console.log('Measuring current MCP parser output…')
 
-  const lessonsMod = await import(resolve(CODE_ROOT, 'codebase-mcp', 'src', 'tools', 'lessons-learned.ts'))
-  const gotchasMod = await import(resolve(CODE_ROOT, 'codebase-mcp', 'src', 'tools', 'known-gotchas.ts'))
+  const lessonsMod = await import(
+    resolve(CODE_ROOT, 'codebase-mcp', 'src', 'tools', 'lessons-learned.ts')
+  )
+  const gotchasMod = await import(
+    resolve(CODE_ROOT, 'codebase-mcp', 'src', 'tools', 'known-gotchas.ts')
+  )
 
   const lessons = await lessonsMod.getLessonsLearned(CODE_ROOT)
   const gotchas = await gotchasMod.getKnownGotchas(CODE_ROOT)
@@ -68,24 +72,32 @@ async function main(): Promise<void> {
       lessonsSections: lessonsSectionsCount,
       lessonsEntries: lessonsEntriesCount,
       gotchasSections: gotchasSectionsCount,
-      gotchasEntries: gotchasEntriesCount,
+      gotchasEntries: gotchasEntriesCount
     },
     thresholds: {
       minLessonsSections,
       minLessonsEntries,
       minGotchasSections,
-      minGotchasEntries,
-    },
+      minGotchasEntries
+    }
   }
 
   writeFileSync(baselinePath, JSON.stringify(refreshed, null, 2) + '\n')
 
   console.log()
   console.log(`Wrote new thresholds to ${baselinePath}:`)
-  console.log(`  minLessonsSections: ${minLessonsSections} (from ${existing.thresholds.minLessonsSections})`)
-  console.log(`  minLessonsEntries:  ${minLessonsEntries} (from ${existing.thresholds.minLessonsEntries})`)
-  console.log(`  minGotchasSections: ${minGotchasSections} (from ${existing.thresholds.minGotchasSections})`)
-  console.log(`  minGotchasEntries:  ${minGotchasEntries} (from ${existing.thresholds.minGotchasEntries})`)
+  console.log(
+    `  minLessonsSections: ${minLessonsSections} (from ${existing.thresholds.minLessonsSections})`
+  )
+  console.log(
+    `  minLessonsEntries:  ${minLessonsEntries} (from ${existing.thresholds.minLessonsEntries})`
+  )
+  console.log(
+    `  minGotchasSections: ${minGotchasSections} (from ${existing.thresholds.minGotchasSections})`
+  )
+  console.log(
+    `  minGotchasEntries:  ${minGotchasEntries} (from ${existing.thresholds.minGotchasEntries})`
+  )
   console.log()
   console.log('Review the diff, then commit with a message explaining why the baseline moved.')
 }

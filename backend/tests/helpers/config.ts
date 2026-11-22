@@ -88,6 +88,6 @@ export function makeTestConfig(overrides: Partial<DashboardConfig> = {}): Dashbo
 
     prometheusUrl: null,
 
-    ...overrides,
+    ...overrides
   }
 }

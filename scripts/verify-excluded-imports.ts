@@ -68,7 +68,7 @@ const ALIASES: Record<string, string> = {
   'layouts/': 'src/layouts/',
   'boot/': 'src/boot/',
   'css/': 'src/css/',
-  'assets/': 'src/assets/',
+  'assets/': 'src/assets/'
 }
 
 /**
@@ -81,7 +81,7 @@ function resolveImportPath(specifier: string, importerFile: string): string | nu
     !specifier ||
     specifier.startsWith('node:') ||
     specifier.startsWith('virtual:') ||
-    specifier.match(/^[a-z@][\w\-@/]*$/i) && !specifier.includes('/')
+    (specifier.match(/^[a-z@][\w\-@/]*$/i) && !specifier.includes('/'))
   ) {
     // npm bare module (no slash), e.g. 'vue', 'axios'
     if (!specifier.startsWith('.') && !specifier.startsWith('/') && !isAliased(specifier)) {
@@ -118,7 +118,7 @@ function resolveImportPath(specifier: string, importerFile: string): string | nu
 }
 
 function isAliased(specifier: string): boolean {
-  return Object.keys(ALIASES).some((a) => specifier.startsWith(a))
+  return Object.keys(ALIASES).some(a => specifier.startsWith(a))
 }
 
 // ---------------------------------------------------------------------------
@@ -134,7 +134,7 @@ const BASE_CODE_EXCLUDES = [
   'vitest.config.ts',
   '.mcp.json',
   'flake.nix',
-  'flake.lock',
+  'flake.lock'
 ]
 
 function readSyncExcludes(): string[] {
@@ -190,7 +190,15 @@ function isExcluded(codeRelativePath: string, excludes: string[]): boolean {
  */
 const SCAN_DIRS = ['src', 'backend/src', 'tui/src', 'scripts']
 const SCAN_EXTS = ['.ts', '.tsx', '.js', '.jsx', '.vue', '.mjs', '.cjs']
-const SKIP_DIRS = new Set(['node_modules', 'dist', '.quasar', '.q-cache', 'reports', 'coverage', 'test-results'])
+const SKIP_DIRS = new Set([
+  'node_modules',
+  'dist',
+  '.quasar',
+  '.q-cache',
+  'reports',
+  'coverage',
+  'test-results'
+])
 
 function walk(dir: string, acc: string[] = []): string[] {
   if (!existsSync(dir)) return acc
@@ -200,7 +208,7 @@ function walk(dir: string, acc: string[] = []): string[] {
     const st = statSync(full)
     if (st.isDirectory()) {
       walk(full, acc)
-    } else if (SCAN_EXTS.some((e) => full.endsWith(e))) {
+    } else if (SCAN_EXTS.some(e => full.endsWith(e))) {
       acc.push(full)
     }
   }
@@ -270,7 +278,7 @@ function extractImports(content: string): ImportRef[] {
   for (const [re, kind] of [
     [STATIC_IMPORT_RE, 'static'] as const,
     [DYNAMIC_IMPORT_RE, 'dynamic'] as const,
-    [GLOB_IMPORT_RE, 'glob'] as const,
+    [GLOB_IMPORT_RE, 'glob'] as const
   ]) {
     re.lastIndex = 0
     let m: RegExpExecArray | null
@@ -283,7 +291,7 @@ function extractImports(content: string): ImportRef[] {
         col,
         lineText,
         contextBefore: getContextBefore(line),
-        contextAfter: getContextAfter(line),
+        contextAfter: getContextAfter(line)
       })
     }
   }
@@ -383,34 +391,55 @@ function main(): void {
   }
 
   console.log(`${BOLD}Excluded-Imports Audit${RESET}`)
-  console.log(`${DIM}Scanned ${scanned} files, ${importRefs} imports, skipped ${skipExcludedImporter} excluded importers${RESET}`)
+  console.log(
+    `${DIM}Scanned ${scanned} files, ${importRefs} imports, skipped ${skipExcludedImporter} excluded importers${RESET}`
+  )
   console.log()
 
   if (violations.length === 0) {
-    console.log(`${GREEN}${BOLD}RESULT: PASS${RESET} — no unguarded imports of sync-excluded paths.`)
+    console.log(
+      `${GREEN}${BOLD}RESULT: PASS${RESET} — no unguarded imports of sync-excluded paths.`
+    )
     return
   }
 
-  console.log(`${RED}${BOLD}RESULT: FAIL${RESET} — ${violations.length} unguarded import(s) of sync-excluded paths.`)
+  console.log(
+    `${RED}${BOLD}RESULT: FAIL${RESET} — ${violations.length} unguarded import(s) of sync-excluded paths.`
+  )
   console.log()
   for (const v of violations) {
-    const tag = v.reason === 'swallowing'
-      ? `${RED}swallowing catch${RESET}`
-      : `${RED}unguarded${RESET}`
+    const tag =
+      v.reason === 'swallowing' ? `${RED}swallowing catch${RESET}` : `${RED}unguarded${RESET}`
     console.log(`${YELLOW}${v.file}${RESET}:${v.ref.line}:${v.ref.col}  [${tag}]`)
-    console.log(`  ${RED}\u2717${RESET} ${v.ref.kind} import of ${BOLD}${v.ref.specifier}${RESET} \u2192 ${DIM}${v.target}${RESET}`)
+    console.log(
+      `  ${RED}\u2717${RESET} ${v.ref.kind} import of ${BOLD}${v.ref.specifier}${RESET} \u2192 ${DIM}${v.target}${RESET}`
+    )
     if (v.reason === 'swallowing') {
-      console.log(`     ${DIM}try/catch guards the import but the catch ignores the error code \u2014 a real BSL`)
-      console.log(`     load failure would be silently swallowed and mislabeled (cf. F1/F2 2026-06-14).${RESET}`)
+      console.log(
+        `     ${DIM}try/catch guards the import but the catch ignores the error code \u2014 a real BSL`
+      )
+      console.log(
+        `     load failure would be silently swallowed and mislabeled (cf. F1/F2 2026-06-14).${RESET}`
+      )
     }
     if (verbose) console.log(`     ${DIM}${v.ref.lineText.trim()}${RESET}`)
   }
   console.log()
-  console.log(`Fix: either (a) wrap dynamic imports in a \`VITE_FREE_BUILD === 'true' ? [] : [...]\` ternary,`)
-  console.log(`(b) use \`import.meta.glob\` for filesystem-driven collections, (c) restructure so the`)
-  console.log(`reference goes through a helper that is itself sync-excluded, or \u2014 for a try/catch guard \u2014`)
-  console.log(`(d) make the catch inspect the error code (\`ERR_MODULE_NOT_FOUND\` \u21d2 absent on Free = info;`)
-  console.log(`otherwise log at error level), never a bare \`catch {}\`. See G-backend-2026-06-14-01KYSBXCJ6839ZDAHSMJ97EQB1.`)
+  console.log(
+    `Fix: either (a) wrap dynamic imports in a \`VITE_FREE_BUILD === 'true' ? [] : [...]\` ternary,`
+  )
+  console.log(
+    `(b) use \`import.meta.glob\` for filesystem-driven collections, (c) restructure so the`
+  )
+  console.log(
+    `reference goes through a helper that is itself sync-excluded, or \u2014 for a try/catch guard \u2014`
+  )
+  console.log(
+    `(d) make the catch inspect the error code (\`ERR_MODULE_NOT_FOUND\` \u21d2 absent on Free = info;`
+  )
+  console.log(
+    `otherwise log at error level), never a bare \`catch {}\`. See G-backend-2026-06-14-01KYSBXCJ6839ZDAHSMJ97EQB1.`
+  )
   process.exit(1)
 }
 

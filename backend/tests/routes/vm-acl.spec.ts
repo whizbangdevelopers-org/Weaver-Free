@@ -2,11 +2,7 @@
 // Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE.
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest'
 import Fastify from 'fastify'
-import {
-  serializerCompiler,
-  validatorCompiler,
-  ZodTypeProvider
-} from 'fastify-type-provider-zod'
+import { serializerCompiler, validatorCompiler, ZodTypeProvider } from 'fastify-type-provider-zod'
 import { vmAclRoutes } from '../../src/routes/vm-acl.js'
 import { VmAclStore } from '../../src/storage/vm-acl-store.js'
 import { UserStore } from '../../src/storage/user-store.js'
@@ -43,7 +39,7 @@ function makeConfig(tier: 'demo' | 'free' | 'solo' | 'fabrick'): DashboardConfig
     jwtSecret: 'test-secret',
     sessionStoreType: 'memory',
     notify: { ntfyUrl: null, ntfyTopic: null, ntfyToken: null },
-    aiApiKey: '',
+    aiApiKey: ''
   })
 }
 
@@ -90,7 +86,7 @@ describe('VM ACL Routes (fabrick)', () => {
       aclStore,
       config: makeConfig('fabrick'),
       userStore,
-      auditService,
+      auditService
     })
     await fastify.ready()
   })
@@ -109,7 +105,7 @@ describe('VM ACL Routes (fabrick)', () => {
     it('should return empty VM list for user with no ACL', async () => {
       const res = await fastify.inject({
         method: 'GET',
-        url: `/api/users/${testUserId}/vms`,
+        url: `/api/users/${testUserId}/vms`
       })
       expect(res.statusCode).toBe(200)
       expect(res.json()).toEqual({ userId: testUserId, vmNames: [] })
@@ -119,7 +115,7 @@ describe('VM ACL Routes (fabrick)', () => {
       await aclStore.set(testUserId, ['web-nginx', 'dev-node'])
       const res = await fastify.inject({
         method: 'GET',
-        url: `/api/users/${testUserId}/vms`,
+        url: `/api/users/${testUserId}/vms`
       })
       expect(res.statusCode).toBe(200)
       expect(res.json().vmNames).toEqual(['dev-node', 'web-nginx'])
@@ -129,7 +125,7 @@ describe('VM ACL Routes (fabrick)', () => {
       mockUserRole = 'operator'
       const res = await fastify.inject({
         method: 'GET',
-        url: `/api/users/${testUserId}/vms`,
+        url: `/api/users/${testUserId}/vms`
       })
       expect(res.statusCode).toBe(403)
     })
@@ -138,7 +134,7 @@ describe('VM ACL Routes (fabrick)', () => {
       const fakeId = randomUUID()
       const res = await fastify.inject({
         method: 'GET',
-        url: `/api/users/${fakeId}/vms`,
+        url: `/api/users/${fakeId}/vms`
       })
       expect(res.statusCode).toBe(404)
     })
@@ -149,7 +145,7 @@ describe('VM ACL Routes (fabrick)', () => {
       const res = await fastify.inject({
         method: 'PUT',
         url: `/api/users/${testUserId}/vms`,
-        payload: { vmNames: ['svc-postgres', 'web-nginx'] },
+        payload: { vmNames: ['svc-postgres', 'web-nginx'] }
       })
       expect(res.statusCode).toBe(200)
       expect(res.json().vmNames).toEqual(['svc-postgres', 'web-nginx'])
@@ -160,7 +156,7 @@ describe('VM ACL Routes (fabrick)', () => {
       const res = await fastify.inject({
         method: 'PUT',
         url: `/api/users/${testUserId}/vms`,
-        payload: { vmNames: ['web-nginx'] },
+        payload: { vmNames: ['web-nginx'] }
       })
       expect(res.statusCode).toBe(403)
     })
@@ -170,7 +166,7 @@ describe('VM ACL Routes (fabrick)', () => {
       const res = await fastify.inject({
         method: 'PUT',
         url: `/api/users/${fakeId}/vms`,
-        payload: { vmNames: ['web-nginx'] },
+        payload: { vmNames: ['web-nginx'] }
       })
       expect(res.statusCode).toBe(404)
     })
@@ -179,7 +175,7 @@ describe('VM ACL Routes (fabrick)', () => {
       const res = await fastify.inject({
         method: 'PUT',
         url: `/api/users/${testUserId}/vms`,
-        payload: { vmNames: ['INVALID-VM'] },
+        payload: { vmNames: ['INVALID-VM'] }
       })
       expect(res.statusCode).toBe(400)
     })
@@ -189,7 +185,7 @@ describe('VM ACL Routes (fabrick)', () => {
       const res = await fastify.inject({
         method: 'PUT',
         url: `/api/users/${testUserId}/vms`,
-        payload: { vmNames: tooMany },
+        payload: { vmNames: tooMany }
       })
       expect(res.statusCode).toBe(400)
     })
@@ -200,7 +196,7 @@ describe('VM ACL Routes (fabrick)', () => {
       await aclStore.set(testUserId, ['web-nginx'])
       const res = await fastify.inject({
         method: 'DELETE',
-        url: `/api/users/${testUserId}/vms`,
+        url: `/api/users/${testUserId}/vms`
       })
       expect(res.statusCode).toBe(200)
       expect(res.json().success).toBe(true)
@@ -211,7 +207,7 @@ describe('VM ACL Routes (fabrick)', () => {
       mockUserRole = 'operator'
       const res = await fastify.inject({
         method: 'DELETE',
-        url: `/api/users/${testUserId}/vms`,
+        url: `/api/users/${testUserId}/vms`
       })
       expect(res.statusCode).toBe(403)
     })
@@ -220,7 +216,7 @@ describe('VM ACL Routes (fabrick)', () => {
       const fakeId = randomUUID()
       const res = await fastify.inject({
         method: 'DELETE',
-        url: `/api/users/${fakeId}/vms`,
+        url: `/api/users/${fakeId}/vms`
       })
       expect(res.statusCode).toBe(404)
     })
@@ -266,7 +262,7 @@ describe('VM ACL Routes — Tier Gating', () => {
       aclStore,
       config: makeConfig('solo'),
       userStore,
-      auditService,
+      auditService
     })
     await fastify.ready()
   })
@@ -279,7 +275,7 @@ describe('VM ACL Routes — Tier Gating', () => {
   it('should return 403 for GET on non-fabrick tier', async () => {
     const res = await fastify.inject({
       method: 'GET',
-      url: `/api/users/${testUserId}/vms`,
+      url: `/api/users/${testUserId}/vms`
     })
     expect(res.statusCode).toBe(403)
     expect(res.json().error).toContain('fabrick')
@@ -289,7 +285,7 @@ describe('VM ACL Routes — Tier Gating', () => {
     const res = await fastify.inject({
       method: 'PUT',
       url: `/api/users/${testUserId}/vms`,
-      payload: { vmNames: ['web-nginx'] },
+      payload: { vmNames: ['web-nginx'] }
     })
     expect(res.statusCode).toBe(403)
     expect(res.json().error).toContain('fabrick')
@@ -298,7 +294,7 @@ describe('VM ACL Routes — Tier Gating', () => {
   it('should return 403 for DELETE on non-fabrick tier', async () => {
     const res = await fastify.inject({
       method: 'DELETE',
-      url: `/api/users/${testUserId}/vms`,
+      url: `/api/users/${testUserId}/vms`
     })
     expect(res.statusCode).toBe(403)
     expect(res.json().error).toContain('fabrick')

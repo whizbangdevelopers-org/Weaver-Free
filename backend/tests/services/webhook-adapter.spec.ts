@@ -11,7 +11,7 @@ const testEvent: NotificationEvent = {
   vmName: 'web-nginx',
   severity: 'error',
   message: 'web-nginx failed',
-  details: { previousStatus: 'running', newStatus: 'failed' },
+  details: { previousStatus: 'running', newStatus: 'failed' }
 }
 
 describe('WebhookAdapter', () => {
@@ -31,7 +31,7 @@ describe('WebhookAdapter', () => {
       const adapter = new WebhookAdapter({
         url: 'https://webhook.example.com/hook',
         method: 'POST',
-        format: 'json',
+        format: 'json'
       })
 
       await adapter.send(testEvent)
@@ -53,7 +53,7 @@ describe('WebhookAdapter', () => {
         url: 'https://webhook.example.com/hook',
         method: 'POST',
         headers: { 'X-Custom': 'value' },
-        format: 'json',
+        format: 'json'
       })
 
       await adapter.send(testEvent)
@@ -67,7 +67,7 @@ describe('WebhookAdapter', () => {
       const adapter = new WebhookAdapter({
         url: 'https://webhook.example.com/hook',
         method: 'PUT',
-        format: 'json',
+        format: 'json'
       })
 
       await adapter.send(testEvent)
@@ -82,7 +82,7 @@ describe('WebhookAdapter', () => {
       const adapter = new WebhookAdapter({
         url: 'https://hooks.slack.com/services/test',
         method: 'POST',
-        format: 'slack',
+        format: 'slack'
       })
 
       await adapter.send(testEvent)
@@ -100,7 +100,7 @@ describe('WebhookAdapter', () => {
       const adapter = new WebhookAdapter({
         url: 'https://discord.com/api/webhooks/test',
         method: 'POST',
-        format: 'discord',
+        format: 'discord'
       })
 
       await adapter.send(testEvent)
@@ -118,7 +118,7 @@ describe('WebhookAdapter', () => {
         url: 'https://events.pagerduty.com/v2/enqueue',
         method: 'POST',
         headers: { 'X-Routing-Key': 'my-routing-key' },
-        format: 'pagerduty',
+        format: 'pagerduty'
       })
 
       await adapter.send(testEvent)
@@ -134,14 +134,14 @@ describe('WebhookAdapter', () => {
       const adapter = new WebhookAdapter({
         url: 'https://events.pagerduty.com/v2/enqueue',
         method: 'POST',
-        format: 'pagerduty',
+        format: 'pagerduty'
       })
 
       const successEvent: NotificationEvent = {
         ...testEvent,
         event: 'vm:recovered',
         severity: 'success',
-        message: 'web-nginx recovered',
+        message: 'web-nginx recovered'
       }
       await adapter.send(successEvent)
 
@@ -157,7 +157,7 @@ describe('WebhookAdapter', () => {
       const adapter = new WebhookAdapter({
         url: 'https://webhook.example.com/hook',
         method: 'POST',
-        format: 'json',
+        format: 'json'
       })
 
       await expect(adapter.send(testEvent)).rejects.toThrow('Webhook request failed: 500')
@@ -169,7 +169,7 @@ describe('WebhookAdapter', () => {
       const adapter = new WebhookAdapter({
         url: 'https://webhook.example.com/hook',
         method: 'POST',
-        format: 'json',
+        format: 'json'
       })
 
       expect(await adapter.test()).toBe(false)
@@ -179,7 +179,7 @@ describe('WebhookAdapter', () => {
       const adapter = new WebhookAdapter({
         url: 'https://webhook.example.com/hook',
         method: 'POST',
-        format: 'json',
+        format: 'json'
       })
 
       expect(await adapter.test()).toBe(true)
@@ -191,7 +191,7 @@ describe('WebhookAdapter', () => {
       const adapter = new WebhookAdapter({
         url: 'https://webhook.example.com/hook',
         method: 'POST',
-        format: 'json',
+        format: 'json'
       })
 
       const securityEvent: NotificationEvent = {
@@ -199,7 +199,7 @@ describe('WebhookAdapter', () => {
         timestamp: '2024-01-15T10:30:00Z',
         event: 'security:auth-failure',
         severity: 'error',
-        message: 'Authentication failure detected',
+        message: 'Authentication failure detected'
       }
 
       await adapter.send(securityEvent)

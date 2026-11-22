@@ -66,7 +66,7 @@ describe('NotificationConfigStore', () => {
         enabled: true,
         events: ['vm:started', 'vm:failed'],
         url: 'https://ntfy.example.com',
-        topic: 'dashboard',
+        topic: 'dashboard'
       }
       await store.setChannel('ntfy', ntfyConfig)
 
@@ -90,7 +90,7 @@ describe('NotificationConfigStore', () => {
         enabled: true,
         events: ['vm:started'],
         url: 'https://ntfy.example.com',
-        topic: 'dashboard',
+        topic: 'dashboard'
       }
       await store.setChannel('ntfy', ntfyConfig)
       expect(store.getChannel('ntfy')).not.toBeNull()
@@ -123,7 +123,7 @@ describe('NotificationConfigStore', () => {
       await store.updateResourceAlerts({
         cpuThresholdPercent: 75,
         memoryThresholdPercent: 85,
-        checkIntervalSeconds: 60,
+        checkIntervalSeconds: 60
       })
       const alerts = store.getConfig().resourceAlerts
       expect(alerts.cpuThresholdPercent).toBe(75)
@@ -137,7 +137,7 @@ describe('NotificationConfigStore', () => {
       await store.seedFromEnv({
         ntfyUrl: 'https://ntfy.example.com',
         ntfyTopic: 'dashboard',
-        ntfyToken: 'tok123',
+        ntfyToken: 'tok123'
       })
 
       const channel = store.getChannel('ntfy')
@@ -156,7 +156,11 @@ describe('NotificationConfigStore', () => {
     })
 
     it('should not seed if ntfyTopic is missing', async () => {
-      await store.seedFromEnv({ ntfyUrl: 'https://ntfy.example.com', ntfyTopic: null, ntfyToken: null })
+      await store.seedFromEnv({
+        ntfyUrl: 'https://ntfy.example.com',
+        ntfyTopic: null,
+        ntfyToken: null
+      })
       expect(store.getChannel('ntfy')).toBeNull()
     })
 
@@ -166,14 +170,14 @@ describe('NotificationConfigStore', () => {
         enabled: true,
         events: ['vm:started'],
         url: 'https://existing.example.com',
-        topic: 'existing',
+        topic: 'existing'
       }
       await store.setChannel('ntfy', existing)
 
       await store.seedFromEnv({
         ntfyUrl: 'https://ntfy.example.com',
         ntfyTopic: 'new-topic',
-        ntfyToken: null,
+        ntfyToken: null
       })
 
       const channel = store.getChannel('ntfy')
@@ -186,7 +190,7 @@ describe('NotificationConfigStore', () => {
       await store.seedFromEnv({
         ntfyUrl: 'https://ntfy.example.com',
         ntfyTopic: 'dashboard',
-        ntfyToken: null,
+        ntfyToken: null
       })
 
       const channel = store.getChannel('ntfy')
@@ -203,7 +207,7 @@ describe('NotificationConfigStore', () => {
         enabled: true,
         events: ['vm:started', 'vm:failed'],
         url: 'https://ntfy.example.com',
-        topic: 'dashboard',
+        topic: 'dashboard'
       }
       await store.setChannel('ntfy', ntfyConfig)
       await store.updateResourceAlerts({ cpuThresholdPercent: 75 })
@@ -222,7 +226,7 @@ describe('NotificationConfigStore', () => {
         enabled: true,
         events: ['vm:started'],
         url: 'https://test.example.com',
-        topic: 'test',
+        topic: 'test'
       })
 
       const raw = await readFile(join(tempDir, 'notification-config.json'), 'utf-8')

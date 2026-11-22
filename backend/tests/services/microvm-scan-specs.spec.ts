@@ -17,9 +17,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type { WorkloadRegistry, WorkloadDefinition } from '../../src/storage/workload-registry.js'
 
 vi.mock('node:child_process', () => ({ execFile: vi.fn() }))
-vi.mock('node:fs/promises', async (importOriginal) => ({
+vi.mock('node:fs/promises', async importOriginal => ({
   ...(await importOriginal<typeof import('node:fs/promises')>()),
-  readFile: vi.fn(),
+  readFile: vi.fn()
 }))
 
 import { execFile } from 'node:child_process'
@@ -35,13 +35,19 @@ const RUN_SCRIPT = [
   'exec /nix/store/yyy-qemu/bin/qemu-system-x86_64 \\',
   '  -smp 4 \\',
   '  -m 2048 \\',
-  '  -nographic',
+  '  -nographic'
 ].join('\n')
 
 function mockUnitList(names: string[]) {
-  const stdout = names.map(n => `microvm@${n}.service loaded active running MicroVM '${n}'`).join('\n')
+  const stdout = names
+    .map(n => `microvm@${n}.service loaded active running MicroVM '${n}'`)
+    .join('\n')
   ;(execFile as unknown as ReturnType<typeof vi.fn>).mockImplementation(
-    (_cmd: string, _args: string[], callback: (e: unknown, r: { stdout: string; stderr: string }) => void) => {
+    (
+      _cmd: string,
+      _args: string[],
+      callback: (e: unknown, r: { stdout: string; stderr: string }) => void
+    ) => {
       callback(null, { stdout, stderr: '' })
     }
   )
@@ -56,16 +62,21 @@ function makeRegistry(): WorkloadRegistry & { added: WorkloadDefinition[] } {
     getAll: async () => ({ ...vms }),
     get: async (n: string) => vms[n] ?? null,
     has: async (n: string) => n in vms,
-    add: async (vm: WorkloadDefinition) => { vms[vm.name] = vm; added.push(vm); return true },
+    add: async (vm: WorkloadDefinition) => {
+      vms[vm.name] = vm
+      added.push(vm)
+      return true
+    },
     remove: async () => true,
-    update: async () => true,
+    update: async () => true
   } as unknown as WorkloadRegistry & { added: WorkloadDefinition[] }
 }
 
-const configWith = (microvmsDir: string) => ({
-  microvmsDir,
-  systemctlBin: 'systemctl',
-}) as unknown as DashboardConfig
+const configWith = (microvmsDir: string) =>
+  ({
+    microvmsDir,
+    systemctlBin: 'systemctl'
+  }) as unknown as DashboardConfig
 
 describe('scanMicrovms — reading specs from the configured state directory', () => {
   let registry: ReturnType<typeof makeRegistry>
@@ -102,7 +113,10 @@ describe('scanMicrovms — reading specs from the configured state directory', (
     await scanMicrovms()
 
     expect(registry.added[0]).toMatchObject({
-      name: 'probe', vcpu: 4, mem: 2048, hypervisor: 'qemu',
+      name: 'probe',
+      vcpu: 4,
+      mem: 2048,
+      hypervisor: 'qemu'
     })
   })
 
@@ -159,7 +173,9 @@ describe('scanMicrovms — reading specs from the configured state directory', (
 
 describe('scanMicrovms — refreshing specs on an already-known workload', () => {
   /** A registry pre-seeded with a workload, so scan takes the `existing` branch. */
-  function seeded(initial: WorkloadDefinition): WorkloadRegistry & { rows: Record<string, WorkloadDefinition> } {
+  function seeded(
+    initial: WorkloadDefinition
+  ): WorkloadRegistry & { rows: Record<string, WorkloadDefinition> } {
     const rows: Record<string, WorkloadDefinition> = { [initial.name]: { ...initial } }
     return {
       rows,
@@ -167,19 +183,28 @@ describe('scanMicrovms — refreshing specs on an already-known workload', () =>
       getAll: async () => ({ ...rows }),
       get: async (n: string) => rows[n] ?? null,
       has: async (n: string) => n in rows,
-      add: async (vm: WorkloadDefinition) => { rows[vm.name] = vm; return true },
+      add: async (vm: WorkloadDefinition) => {
+        rows[vm.name] = vm
+        return true
+      },
       remove: async () => true,
       update: async (n: string, fields: Partial<WorkloadDefinition>) => {
         if (!rows[n]) return false
         rows[n] = { ...rows[n], ...fields }
         return true
-      },
+      }
     } as unknown as WorkloadRegistry & { rows: Record<string, WorkloadDefinition> }
   }
 
   const STALE = {
-    name: 'probe', ip: '10.0.0.5', mem: 0, vcpu: 0, hypervisor: 'unknown',
-    description: 'set by a human', tags: ['keep-me'], autostart: true,
+    name: 'probe',
+    ip: '10.0.0.5',
+    mem: 0,
+    vcpu: 0,
+    hypervisor: 'unknown',
+    description: 'set by a human',
+    tags: ['keep-me'],
+    autostart: true
   } as unknown as WorkloadDefinition
 
   beforeEach(() => {
@@ -213,7 +238,10 @@ describe('scanMicrovms — refreshing specs on an already-known workload', () =>
     await scanMicrovms()
 
     expect(reg.rows['probe']).toMatchObject({
-      ip: '10.0.0.5', description: 'set by a human', tags: ['keep-me'], autostart: true,
+      ip: '10.0.0.5',
+      description: 'set by a human',
+      tags: ['keep-me'],
+      autostart: true
     })
   })
 

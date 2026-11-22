@@ -6,7 +6,7 @@
  * Mocks the Stripe SDK calls (signature verification, subscription retrieval)
  * but exercises the full route → license store → email service → audit flow.
  */
-import { describe, it, expect, vi, beforeAll, afterAll, beforeEach} from 'vitest'
+import { describe, it, expect, vi, beforeAll, afterAll, beforeEach } from 'vitest'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -17,14 +17,14 @@ import { join } from 'node:path'
 
 const { mockConstructWebhookEvent, mockGenerateLicenseFromSubscription } = vi.hoisted(() => ({
   mockConstructWebhookEvent: vi.fn(),
-  mockGenerateLicenseFromSubscription: vi.fn(),
+  mockGenerateLicenseFromSubscription: vi.fn()
 }))
 
 vi.mock('../../src/services/stripe.js', () => ({
   constructWebhookEvent: mockConstructWebhookEvent,
   generateLicenseFromSubscription: mockGenerateLicenseFromSubscription,
   initStripe: vi.fn(),
-  initProductMap: vi.fn(),
+  initProductMap: vi.fn()
 }))
 
 import Fastify from 'fastify'
@@ -48,9 +48,9 @@ function makeCheckoutEvent(overrides: Record<string, unknown> = {}) {
         customer_email: 'buyer@example.com',
         customer_details: { email: 'buyer@example.com' },
         metadata: { fm: 'false' },
-        ...overrides,
-      },
-    },
+        ...overrides
+      }
+    }
   }
 }
 
@@ -62,9 +62,9 @@ function makeSubscriptionUpdatedEvent(subId: string, periodEnd: number) {
       object: {
         id: subId,
         status: 'active',
-        current_period_end: periodEnd,
-      },
-    },
+        current_period_end: periodEnd
+      }
+    }
   }
 }
 
@@ -72,7 +72,7 @@ function makeSubscriptionDeletedEvent(subId: string) {
   return {
     id: 'evt_test_sub_deleted',
     type: 'customer.subscription.deleted',
-    data: { object: { id: subId } },
+    data: { object: { id: subId } }
   }
 }
 
@@ -83,7 +83,7 @@ const TEST_LICENSE = {
   tier: 'solo' as const,
   customerId: 'cus_test_abc',
   subscriptionId: 'sub_test_123',
-  expiresAt: new Date('2027-04-08T00:00:00Z'),
+  expiresAt: new Date('2027-04-08T00:00:00Z')
 }
 
 // ---------------------------------------------------------------------------
@@ -93,10 +93,7 @@ const TEST_LICENSE = {
 let tmpDir: string
 let licenseStore: LicenseStore
 
-function buildApp(opts: {
-  emailService?: EmailService
-  auditService?: AuditService
-}) {
+function buildApp(opts: { emailService?: EmailService; auditService?: AuditService }) {
   const app = Fastify({ logger: false })
   app.register(stripeWebhookRoutes, {
     prefix: '/webhook',
@@ -108,7 +105,7 @@ function buildApp(opts: {
     licenseStore,
     auditService: opts.auditService,
     emailService: opts.emailService,
-    siteUrl: 'https://whizbangdevelopers.com',
+    siteUrl: 'https://whizbangdevelopers.com'
   })
   return app
 }
@@ -119,9 +116,9 @@ function injectWebhook(app: ReturnType<typeof Fastify>, body = '{}', signature =
     url: '/webhook',
     headers: {
       'content-type': 'application/json',
-      'stripe-signature': signature,
+      'stripe-signature': signature
     },
-    payload: body,
+    payload: body
   })
 }
 
@@ -155,7 +152,7 @@ describe('Stripe Webhook Route', () => {
         method: 'POST',
         url: '/webhook',
         headers: { 'content-type': 'application/json' },
-        payload: '{}',
+        payload: '{}'
       })
 
       expect(res.statusCode).toBe(400)
@@ -226,7 +223,7 @@ describe('Stripe Webhook Route', () => {
 
       const mockEmailService = {
         sendLicenseKey: vi.fn().mockResolvedValue(undefined),
-        verify: vi.fn().mockResolvedValue(true),
+        verify: vi.fn().mockResolvedValue(true)
       } as unknown as EmailService
 
       const app = buildApp({ emailService: mockEmailService })
@@ -243,7 +240,7 @@ describe('Stripe Webhook Route', () => {
         tier: 'solo',
         expiresAt: '2027-04-08T00:00:00.000Z',
         foundingMember: false,
-        siteUrl: 'https://whizbangdevelopers.com',
+        siteUrl: 'https://whizbangdevelopers.com'
       })
       await app.close()
     })
@@ -251,14 +248,14 @@ describe('Stripe Webhook Route', () => {
     it('does not send email when customer has no email', async () => {
       const event = makeCheckoutEvent({
         customer_email: null,
-        customer_details: { email: null },
+        customer_details: { email: null }
       })
       mockConstructWebhookEvent.mockReturnValue(event)
       mockGenerateLicenseFromSubscription.mockResolvedValue(TEST_LICENSE)
 
       const mockEmailService = {
         sendLicenseKey: vi.fn().mockResolvedValue(undefined),
-        verify: vi.fn().mockResolvedValue(true),
+        verify: vi.fn().mockResolvedValue(true)
       } as unknown as EmailService
 
       const app = buildApp({ emailService: mockEmailService })
@@ -291,7 +288,7 @@ describe('Stripe Webhook Route', () => {
 
       const mockEmailService = {
         sendLicenseKey: vi.fn().mockRejectedValue(new Error('SMTP timeout')),
-        verify: vi.fn().mockResolvedValue(true),
+        verify: vi.fn().mockResolvedValue(true)
       } as unknown as EmailService
 
       const app = buildApp({ emailService: mockEmailService })
@@ -314,7 +311,7 @@ describe('Stripe Webhook Route', () => {
       const mockAuditService = { log: vi.fn() } as unknown as AuditService
       const mockEmailService = {
         sendLicenseKey: vi.fn().mockResolvedValue(undefined),
-        verify: vi.fn().mockResolvedValue(true),
+        verify: vi.fn().mockResolvedValue(true)
       } as unknown as EmailService
 
       const app = buildApp({ emailService: mockEmailService, auditService: mockAuditService })
@@ -323,7 +320,7 @@ describe('Stripe Webhook Route', () => {
       await new Promise(resolve => setTimeout(resolve, 50))
 
       const emailAuditCall = (mockAuditService.log as ReturnType<typeof vi.fn>).mock.calls.find(
-        (call) => call[0].action === 'license.email-sent'
+        call => call[0].action === 'license.email-sent'
       )
       expect(emailAuditCall).toBeDefined()
       expect(emailAuditCall![0].details.to).toBe('buyer@example.com')
@@ -338,7 +335,7 @@ describe('Stripe Webhook Route', () => {
       const mockAuditService = { log: vi.fn() } as unknown as AuditService
       const mockEmailService = {
         sendLicenseKey: vi.fn().mockRejectedValue(new Error('SMTP down')),
-        verify: vi.fn().mockResolvedValue(true),
+        verify: vi.fn().mockResolvedValue(true)
       } as unknown as EmailService
 
       const app = buildApp({ emailService: mockEmailService, auditService: mockAuditService })
@@ -347,7 +344,7 @@ describe('Stripe Webhook Route', () => {
       await new Promise(resolve => setTimeout(resolve, 50))
 
       const failAuditCall = (mockAuditService.log as ReturnType<typeof vi.fn>).mock.calls.find(
-        (call) => call[0].action === 'license.email-failed'
+        call => call[0].action === 'license.email-failed'
       )
       expect(failAuditCall).toBeDefined()
       expect(failAuditCall![0].success).toBe(false)
@@ -371,14 +368,14 @@ describe('Stripe Webhook Route', () => {
     it('uses customer_details.email as fallback', async () => {
       const event = makeCheckoutEvent({
         customer_email: null,
-        customer_details: { email: 'fallback@example.com' },
+        customer_details: { email: 'fallback@example.com' }
       })
       mockConstructWebhookEvent.mockReturnValue(event)
       mockGenerateLicenseFromSubscription.mockResolvedValue(TEST_LICENSE)
 
       const mockEmailService = {
         sendLicenseKey: vi.fn().mockResolvedValue(undefined),
-        verify: vi.fn().mockResolvedValue(true),
+        verify: vi.fn().mockResolvedValue(true)
       } as unknown as EmailService
 
       const app = buildApp({ emailService: mockEmailService })
@@ -412,7 +409,7 @@ describe('Stripe Webhook Route', () => {
       tier: 'solo' as const,
       customerId: 'cus_existing',
       subscriptionId: 'sub_renew_123',
-      expiresAt: new Date('2028-01-01T00:00:00Z'),
+      expiresAt: new Date('2028-01-01T00:00:00Z')
     }
 
     async function seedLicense(over: Record<string, unknown> = {}) {
@@ -425,7 +422,7 @@ describe('Stripe Webhook Route', () => {
         createdAt: new Date().toISOString(),
         email: 'user@example.com',
         foundingMember: false,
-        ...over,
+        ...over
       })
     }
 
@@ -433,7 +430,10 @@ describe('Stripe Webhook Route', () => {
       await seedLicense()
       mockGenerateLicenseFromSubscription.mockResolvedValue(RENEWED)
       mockConstructWebhookEvent.mockReturnValue(
-        makeSubscriptionUpdatedEvent('sub_renew_123', Math.floor(RENEWED.expiresAt.getTime() / 1000)),
+        makeSubscriptionUpdatedEvent(
+          'sub_renew_123',
+          Math.floor(RENEWED.expiresAt.getTime() / 1000)
+        )
       )
 
       const app = buildApp({})
@@ -450,7 +450,10 @@ describe('Stripe Webhook Route', () => {
       await seedLicense()
       mockGenerateLicenseFromSubscription.mockResolvedValue(RENEWED)
       mockConstructWebhookEvent.mockReturnValue(
-        makeSubscriptionUpdatedEvent('sub_renew_123', Math.floor(RENEWED.expiresAt.getTime() / 1000)),
+        makeSubscriptionUpdatedEvent(
+          'sub_renew_123',
+          Math.floor(RENEWED.expiresAt.getTime() / 1000)
+        )
       )
 
       const sendLicenseKey = vi.fn().mockResolvedValue(undefined)
@@ -460,7 +463,10 @@ describe('Stripe Webhook Route', () => {
 
       // A stored key nobody is told about is not a push — the customer has to install it.
       expect(sendLicenseKey).toHaveBeenCalledWith(
-        expect.objectContaining({ to: 'user@example.com', licenseKey: 'WVR-WVS-RENEWED123456-B2C3' }),
+        expect.objectContaining({
+          to: 'user@example.com',
+          licenseKey: 'WVR-WVS-RENEWED123456-B2C3'
+        })
       )
       await app.close()
     })
@@ -469,7 +475,10 @@ describe('Stripe Webhook Route', () => {
       await seedLicense({ foundingMember: true })
       mockGenerateLicenseFromSubscription.mockResolvedValue(RENEWED)
       mockConstructWebhookEvent.mockReturnValue(
-        makeSubscriptionUpdatedEvent('sub_renew_123', Math.floor(RENEWED.expiresAt.getTime() / 1000)),
+        makeSubscriptionUpdatedEvent(
+          'sub_renew_123',
+          Math.floor(RENEWED.expiresAt.getTime() / 1000)
+        )
       )
 
       const sendLicenseKey = vi.fn().mockResolvedValue(undefined)
@@ -492,7 +501,9 @@ describe('Stripe Webhook Route', () => {
       expect((await injectWebhook(app)).statusCode).toBe(200)
 
       expect(mockGenerateLicenseFromSubscription).not.toHaveBeenCalled()
-      expect(licenseStore.findBySubscription('sub_renew_123')!.key).toBe('WVR-WVS-EXISTING00000-XXXX')
+      expect(licenseStore.findBySubscription('sub_renew_123')!.key).toBe(
+        'WVR-WVS-EXISTING00000-XXXX'
+      )
       await app.close()
     })
 
@@ -533,7 +544,9 @@ describe('Stripe Webhook Route', () => {
       await app.ready()
       expect((await injectWebhook(app)).statusCode).toBe(200)
 
-      expect(licenseStore.findBySubscription('sub_renew_123')!.key).toBe('WVR-WVS-EXISTING00000-XXXX')
+      expect(licenseStore.findBySubscription('sub_renew_123')!.key).toBe(
+        'WVR-WVS-EXISTING00000-XXXX'
+      )
       await app.close()
     })
 
@@ -543,13 +556,17 @@ describe('Stripe Webhook Route', () => {
       mockConstructWebhookEvent.mockReturnValue(makeSubscriptionUpdatedEvent('sub_renew_123', 0))
 
       const app = buildApp({
-        emailService: { sendLicenseKey: vi.fn().mockRejectedValue(new Error('SMTP down')) } as unknown as EmailService,
+        emailService: {
+          sendLicenseKey: vi.fn().mockRejectedValue(new Error('SMTP down'))
+        } as unknown as EmailService
       })
       await app.ready()
       expect((await injectWebhook(app)).statusCode).toBe(200)
 
       // Persisted regardless — the mail is fire-and-forget precisely so it cannot cost the key.
-      expect(licenseStore.findBySubscription('sub_renew_123')!.key).toBe('WVR-WVS-RENEWED123456-B2C3')
+      expect(licenseStore.findBySubscription('sub_renew_123')!.key).toBe(
+        'WVR-WVS-RENEWED123456-B2C3'
+      )
       await app.close()
     })
   })
@@ -566,7 +583,7 @@ describe('Stripe Webhook Route', () => {
         expiresAt: '2027-06-01T00:00:00Z',
         createdAt: new Date().toISOString(),
         email: 'cancel@example.com',
-        foundingMember: false,
+        foundingMember: false
       })
 
       const event = makeSubscriptionDeletedEvent('sub_cancel_123')
@@ -598,7 +615,7 @@ describe('Stripe Webhook Route', () => {
       mockConstructWebhookEvent.mockReturnValue({
         id: 'evt_unknown',
         type: 'payment_intent.created',
-        data: { object: {} },
+        data: { object: {} }
       })
 
       const app = buildApp({})

@@ -6,7 +6,11 @@ import { TIERS, STATUSES } from '../../src/constants/vocabularies.js'
 import { FREE_TIER_CAPS } from '../../src/constants/tier-limits.js'
 import type { WorkloadInfo } from '../../src/services/microvm.js'
 
-function vm(name: string, mem = 1024, status: WorkloadInfo['status'] = STATUSES.STOPPED): WorkloadInfo {
+function vm(
+  name: string,
+  mem = 1024,
+  status: WorkloadInfo['status'] = STATUSES.STOPPED
+): WorkloadInfo {
   return {
     name,
     status,
@@ -14,7 +18,7 @@ function vm(name: string, mem = 1024, status: WorkloadInfo['status'] = STATUSES.
     mem,
     vcpu: 1,
     hypervisor: 'qemu',
-    uptime: null,
+    uptime: null
   } as WorkloadInfo
 }
 
@@ -26,7 +30,9 @@ describe('checkFreeTierCap', () => {
     })
 
     it('returns null for Fabrick tier regardless of cap', () => {
-      const manyVms = Array.from({ length: 20 }, (_, i) => vm(`vm-${String(i).padStart(2, '0')}`, 32 * 1024))
+      const manyVms = Array.from({ length: 20 }, (_, i) =>
+        vm(`vm-${String(i).padStart(2, '0')}`, 32 * 1024)
+      )
       expect(checkFreeTierCap('vm-19', manyVms, TIERS.FABRICK)).toBeNull()
     })
 
@@ -73,7 +79,7 @@ describe('checkFreeTierCap', () => {
       // 5 running @ 8GB each = 40GB. Target VM @ 8GB = 48GB total. Under 64GB.
       const vms = [
         ...Array.from({ length: 5 }, (_, i) => vm(`running-${i}`, 8 * 1024, STATUSES.RUNNING)),
-        vm('target', 8 * 1024, STATUSES.STOPPED),
+        vm('target', 8 * 1024, STATUSES.STOPPED)
       ]
       expect(checkFreeTierCap('target', vms, TIERS.FREE)).toBeNull()
     })
@@ -82,7 +88,7 @@ describe('checkFreeTierCap', () => {
       // 6 running @ 10GB each = 60GB. Target VM @ 8GB = 68GB total. Over 64GB.
       const vms = [
         ...Array.from({ length: 6 }, (_, i) => vm(`running-${i}`, 10 * 1024, STATUSES.RUNNING)),
-        vm('target', 8 * 1024, STATUSES.STOPPED),
+        vm('target', 8 * 1024, STATUSES.STOPPED)
       ]
       const result = checkFreeTierCap('target', vms, TIERS.FREE)
       expect(result).not.toBeNull()
@@ -96,7 +102,7 @@ describe('checkFreeTierCap', () => {
       // Restart of target: running-excluding-target (32GB) + target (32GB) = 64GB. Exactly at cap.
       const vms = [
         vm('other', 32 * 1024, STATUSES.RUNNING),
-        vm('target', 32 * 1024, STATUSES.RUNNING),
+        vm('target', 32 * 1024, STATUSES.RUNNING)
       ]
       expect(checkFreeTierCap('target', vms, TIERS.FREE)).toBeNull()
     })

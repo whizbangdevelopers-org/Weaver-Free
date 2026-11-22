@@ -48,7 +48,14 @@ describe('JsonWorkloadRegistry', () => {
 
     it('should load existing data when file exists', async () => {
       const existing = {
-        'test-vm': { name: 'test-vm', ip: '10.0.0.1', mem: 256, vcpu: 1, hypervisor: 'qemu', distro: 'arch' }
+        'test-vm': {
+          name: 'test-vm',
+          ip: '10.0.0.1',
+          mem: 256,
+          vcpu: 1,
+          hypervisor: 'qemu',
+          distro: 'arch'
+        }
       }
       await writeFile(filePath, JSON.stringify(existing), 'utf-8')
 
@@ -67,7 +74,12 @@ describe('JsonWorkloadRegistry', () => {
       await registry.init()
 
       const result = await registry.add({
-        name: 'test-new', ip: '10.0.0.99', mem: 1024, vcpu: 2, hypervisor: 'qemu', distro: 'fedora'
+        name: 'test-new',
+        ip: '10.0.0.99',
+        mem: 1024,
+        vcpu: 2,
+        hypervisor: 'qemu',
+        distro: 'fedora'
       })
       expect(result).toBe(true)
 
@@ -80,8 +92,20 @@ describe('JsonWorkloadRegistry', () => {
       const registry = new JsonWorkloadRegistry(filePath)
       await registry.init()
 
-      await registry.add({ name: 'dup-test', ip: '10.0.0.1', mem: 256, vcpu: 1, hypervisor: 'qemu' })
-      const result = await registry.add({ name: 'dup-test', ip: '10.0.0.99', mem: 256, vcpu: 1, hypervisor: 'qemu' })
+      await registry.add({
+        name: 'dup-test',
+        ip: '10.0.0.1',
+        mem: 256,
+        vcpu: 1,
+        hypervisor: 'qemu'
+      })
+      const result = await registry.add({
+        name: 'dup-test',
+        ip: '10.0.0.99',
+        mem: 256,
+        vcpu: 1,
+        hypervisor: 'qemu'
+      })
       expect(result).toBe(false)
     })
   })
@@ -91,7 +115,13 @@ describe('JsonWorkloadRegistry', () => {
       const registry = new JsonWorkloadRegistry(filePath)
       await registry.init()
 
-      await registry.add({ name: 'to-remove', ip: '10.0.0.1', mem: 256, vcpu: 1, hypervisor: 'qemu' })
+      await registry.add({
+        name: 'to-remove',
+        ip: '10.0.0.1',
+        mem: 256,
+        vcpu: 1,
+        hypervisor: 'qemu'
+      })
       const result = await registry.remove('to-remove')
       expect(result).toBe(true)
 
@@ -113,7 +143,13 @@ describe('JsonWorkloadRegistry', () => {
       const registry = new JsonWorkloadRegistry(filePath)
       await registry.init()
 
-      await registry.add({ name: 'has-test', ip: '10.0.0.1', mem: 256, vcpu: 1, hypervisor: 'qemu' })
+      await registry.add({
+        name: 'has-test',
+        ip: '10.0.0.1',
+        mem: 256,
+        vcpu: 1,
+        hypervisor: 'qemu'
+      })
       expect(await registry.has('has-test')).toBe(true)
     })
 
@@ -131,7 +167,11 @@ describe('JsonWorkloadRegistry', () => {
       await registry1.init()
 
       await registry1.add({
-        name: 'persist-test', ip: '10.0.0.50', mem: 256, vcpu: 1, hypervisor: 'qemu'
+        name: 'persist-test',
+        ip: '10.0.0.50',
+        mem: 256,
+        vcpu: 1,
+        hypervisor: 'qemu'
       })
 
       // Create a new instance pointing to the same file
@@ -152,7 +192,7 @@ describe('JsonWorkloadRegistry', () => {
   describe('names that are Object.prototype members', () => {
     const inherited = ['constructor', 'toString', 'valueOf', 'hasOwnProperty', '__proto__']
 
-    it.each(inherited)('%j is not an existing workload in an empty registry', async (name) => {
+    it.each(inherited)('%j is not an existing workload in an empty registry', async name => {
       const registry = new JsonWorkloadRegistry(filePath)
       await registry.init()
       expect(await registry.has(name)).toBe(false)
@@ -161,7 +201,7 @@ describe('JsonWorkloadRegistry', () => {
       expect(await registry.remove(name)).toBe(false)
     })
 
-    it.each(inherited)('%j can be added, read back and survives a reload', async (name) => {
+    it.each(inherited)('%j can be added, read back and survives a reload', async name => {
       const registry = new JsonWorkloadRegistry(filePath)
       await registry.init()
       expect(await registry.add({ ...DEFAULT_VMS[0], name })).toBe(true)

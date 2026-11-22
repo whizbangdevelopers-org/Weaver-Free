@@ -27,13 +27,13 @@ function build(overrides: Partial<Parameters<typeof metricsRoutes>[1]> = {}) {
         const files: Record<string, string> = {
           [cg('web', 'cpu.stat')]: 'usage_usec 3000000',
           [cg('web', 'memory.current')]: '2097152',
-          [cg('web', 'io.stat')]: '8:0 rbytes=1024 wbytes=2048',
+          [cg('web', 'io.stat')]: '8:0 rbytes=1024 wbytes=2048'
         }
         return path in files ? files[path]! : null
       },
       listWorkloads: async () => [{ name: 'web', vcpu: 2 }],
       cgroupRoot: ROOT,
-      ...overrides,
+      ...overrides
     })
     .then(() => fastify)
 }
@@ -75,8 +75,10 @@ describe('GET /metrics', () => {
     // One failing source must not empty the exposition: a scrape returning nothing is
     // indistinguishable from a host with no workloads, and Prometheus records that as fact.
     const fastify = await build({
-      listWorkloads: async () => { throw new Error('registry unavailable') },
-      getHost: async () => ({ loadAvg1: 2.5 }),
+      listWorkloads: async () => {
+        throw new Error('registry unavailable')
+      },
+      getHost: async () => ({ loadAvg1: 2.5 })
     })
     const res = await fastify.inject({ method: 'GET', url: '/metrics', remoteAddress: '127.0.0.1' })
 
@@ -87,7 +89,9 @@ describe('GET /metrics', () => {
 
   it('still serves workload metrics when host collection throws', async () => {
     const fastify = await build({
-      getHost: async () => { throw new Error('host probe failed') },
+      getHost: async () => {
+        throw new Error('host probe failed')
+      }
     })
     const res = await fastify.inject({ method: 'GET', url: '/metrics', remoteAddress: '127.0.0.1' })
 

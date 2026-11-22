@@ -18,7 +18,9 @@ const out = ref('')
 
 useMeta(() => ({ title: pageTitle.value }))
 
-watchEffect(() => { out.value = String(tally.value) })
+watchEffect(() => {
+  out.value = String(tally.value)
+})
 
 const pageTitle = computed(() => 'Weaver')
 const tally = computed(() => 7)

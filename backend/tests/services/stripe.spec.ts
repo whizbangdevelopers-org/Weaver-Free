@@ -10,7 +10,7 @@ describe('Stripe service', () => {
       initProductMap({
         soloProductId: 'prod_solo_test',
         teamProductId: 'prod_team_test',
-        fabrickProductId: 'prod_fabrick_test',
+        fabrickProductId: 'prod_fabrick_test'
       })
     })
 

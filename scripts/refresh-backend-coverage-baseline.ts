@@ -22,7 +22,7 @@ import { resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
-const REPO = resolve(HERE, '..')                       // code/
+const REPO = resolve(HERE, '..') // code/
 const BACKEND = resolve(REPO, 'backend')
 const BASELINE = resolve(HERE, 'baselines/backend-coverage.json')
 const SUMMARY = resolve(BACKEND, 'coverage/coverage-summary.json')
@@ -49,12 +49,18 @@ console.log('Running backend suite with coverage (this takes ~40s)…')
 // A genuine failure (tests broken, vitest missing) is distinguished below by the summary file
 // being absent or unparseable, not by the exit code.
 try {
-  execFileSync('npx', ['vitest', 'run', '--coverage', '--coverage.reporter=json-summary', '--coverage.reporter=text'], {
-    cwd: BACKEND,
-    stdio: 'inherit',
-  })
+  execFileSync(
+    'npx',
+    ['vitest', 'run', '--coverage', '--coverage.reporter=json-summary', '--coverage.reporter=text'],
+    {
+      cwd: BACKEND,
+      stdio: 'inherit'
+    }
+  )
 } catch {
-  console.log('\n(vitest exited non-zero — continuing, since an unmet threshold is a case this script reports)')
+  console.log(
+    '\n(vitest exited non-zero — continuing, since an unmet threshold is a case this script reports)'
+  )
 }
 
 let summary: { total: Record<keyof Metrics, { pct: number }> }
@@ -65,7 +71,7 @@ try {
     `\nNo readable coverage summary at ${SUMMARY}.\n` +
       'That means the run failed for a reason other than the threshold — broken tests, or a\n' +
       'vitest/coverage problem. Fix that first; this script cannot report on a run that did not\n' +
-      'produce a measurement.\n',
+      'produce a measurement.\n'
   )
   process.exit(1)
 }
@@ -74,7 +80,7 @@ const measured: Metrics = {
   statements: pct(summary.total.statements.pct),
   branches: pct(summary.total.branches.pct),
   functions: pct(summary.total.functions.pct),
-  lines: pct(summary.total.lines.pct),
+  lines: pct(summary.total.lines.pct)
 }
 
 const baseline = JSON.parse(readFileSync(BASELINE, 'utf-8')) as {
@@ -88,14 +94,17 @@ const proposed: Metrics = {
   statements: Math.floor(measured.statements) - BUFFER,
   branches: Math.floor(measured.branches) - BUFFER,
   functions: Math.floor(measured.functions) - BUFFER,
-  lines: Math.floor(measured.lines) - BUFFER,
+  lines: Math.floor(measured.lines) - BUFFER
 }
 
 // Refuse to ratchet DOWN. Report every metric so a partial regression is visible, not just the
 // first one hit.
 const regressions = (Object.keys(proposed) as (keyof Metrics)[])
-  .filter((k) => proposed[k] < baseline.thresholds[k])
-  .map((k) => `  ${k}: floor ${baseline.thresholds[k]} → would become ${proposed[k]} (measured ${measured[k]}%)`)
+  .filter(k => proposed[k] < baseline.thresholds[k])
+  .map(
+    k =>
+      `  ${k}: floor ${baseline.thresholds[k]} → would become ${proposed[k]} (measured ${measured[k]}%)`
+  )
 
 if (regressions.length > 0) {
   console.error('\nREFUSING to lower the coverage floor:\n')
@@ -103,19 +112,19 @@ if (regressions.length > 0) {
   console.error(
     '\nThe floor only goes up. Coverage has dropped since the last refresh — restore it rather\n' +
       'than lowering the gate. If the drop is legitimate (code deleted, a module extracted), edit\n' +
-      'scripts/baselines/backend-coverage.json by hand in a commit that says which and why.\n',
+      'scripts/baselines/backend-coverage.json by hand in a commit that says which and why.\n'
   )
   process.exit(1)
 }
 
 const unchanged = (Object.keys(proposed) as (keyof Metrics)[]).every(
-  (k) => proposed[k] === baseline.thresholds[k],
+  k => proposed[k] === baseline.thresholds[k]
 )
 
 baseline.thresholds = proposed
 baseline._currentMeasurements = {
   ...measured,
-  measuredAt: new Date().toISOString().slice(0, 10),
+  measuredAt: new Date().toISOString().slice(0, 10)
 }
 baseline._lastRefreshed = new Date().toISOString().slice(0, 10)
 
@@ -126,5 +135,5 @@ console.log('New floor:', proposed)
 console.log(
   unchanged
     ? '\nFloor unchanged — baseline refreshed with the current measurement.'
-    : '\nFloor RAISED. Commit this with a message saying what coverage was added.',
+    : '\nFloor RAISED. Commit this with a message saying what coverage was added.'
 )

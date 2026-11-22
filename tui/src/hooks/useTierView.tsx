@@ -21,7 +21,11 @@ export interface TierViewResult {
   }
 }
 
-export function useTierView(viewKey: string, config: TierViewConfig, currentTier: string): TierViewResult {
+export function useTierView(
+  viewKey: string,
+  config: TierViewConfig,
+  currentTier: string
+): TierViewResult {
   const [Component, setComponent] = useState<ComponentType<any> | null>(
     () => componentCache.get(viewKey) ?? null
   )
@@ -34,14 +38,20 @@ export function useTierView(viewKey: string, config: TierViewConfig, currentTier
 
   useEffect(() => {
     // Don't attempt import if tier is insufficient, already cached, or already failed
-    if (!tierSufficient || componentCache.has(viewKey) || failedCache.has(viewKey) || attempted.current) {
+    if (
+      !tierSufficient ||
+      componentCache.has(viewKey) ||
+      failedCache.has(viewKey) ||
+      attempted.current
+    ) {
       return
     }
     attempted.current = true
     setLoading(true)
 
-    config.loader()
-      .then((mod) => {
+    config
+      .loader()
+      .then(mod => {
         const comp = (mod as Record<string, ComponentType<any>>)[config.exportName]
         if (comp) {
           componentCache.set(viewKey, comp)
@@ -66,8 +76,8 @@ export function useTierView(viewKey: string, config: TierViewConfig, currentTier
       featureName: config.featureName,
       featureDescription: config.featureDescription,
       requiredTier: config.minimumTier as typeof TIERS.SOLO | typeof TIERS.FABRICK,
-      features: config.features,
-    },
+      features: config.features
+    }
   }
 }
 

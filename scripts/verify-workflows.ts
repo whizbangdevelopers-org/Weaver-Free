@@ -41,7 +41,7 @@ import { load } from 'js-yaml'
 
 const PKG = join(dirname(fileURLToPath(import.meta.url)), '..')
 const REPO = execFileSync('git', ['-C', PKG, 'rev-parse', '--show-toplevel'], {
-  encoding: 'utf-8',
+  encoding: 'utf-8'
 }).trim()
 
 const GREEN = '\x1b[32m'
@@ -155,7 +155,7 @@ function selfTest(): void {
     ['npm ci', 'code', 'code'],
     ['npm ci --prefix backend', 'code', 'code/backend'],
     ['npm run test --prefix backend', '.', 'backend'],
-    ['npm --prefix /abs/path run x', 'code', '/abs/path'],
+    ['npm --prefix /abs/path run x', 'code', '/abs/path']
   ]
   for (const [cmd, wd, want] of dirCases) {
     const got = effectiveDir(cmd, wd)
@@ -167,10 +167,10 @@ function selfTest(): void {
     ['npm run lint', ['lint']],
     ['npm run test:unit:run -- --reporter=json', ['test:unit:run']],
     ['npm --prefix backend run build', ['build']],
-    ['npm run a && npm run b', ['a', 'b']],
+    ['npm run a && npm run b', ['a', 'b']]
   ]
   for (const [cmd, want] of catchCases) {
-    const got = npmRunScripts(cmd).map((s) => s.script)
+    const got = npmRunScripts(cmd).map(s => s.script)
     if (JSON.stringify(got) !== JSON.stringify(want)) {
       failures.push(`npmRunScripts(${cmd}) = [${got}], want [${want}]`)
     }
@@ -193,7 +193,7 @@ function selfTest(): void {
     'Fix it by running npm run refresh:allowlist',
     'and then npm ci',
     'EOF',
-    ')',
+    ')'
   ].join('\n')
   if (npmRunScripts(heredocProse).length) {
     failures.push('npmRunScripts read a heredoc BODY as a command')
@@ -202,7 +202,7 @@ function selfTest(): void {
     failures.push('isInstall read a heredoc BODY as a command')
   }
   const heredocThenReal = heredocProse + '\nnpm run lint'
-  if (!npmRunScripts(heredocThenReal).some((x) => x.script === 'lint')) {
+  if (!npmRunScripts(heredocThenReal).some(x => x.script === 'lint')) {
     failures.push('stripHeredocBodies swallowed a real command after the heredoc')
   }
   if (!isInstall(heredocProse + '\nnpm ci')) {
@@ -238,13 +238,15 @@ function selfTest(): void {
 function actionlint(problems: string[]): void {
   const attempts: [string, string[]][] = [
     ['actionlint', ['-shellcheck=']],
-    ['nix', ['run', 'nixpkgs#actionlint', '--', '-shellcheck=']],
+    ['nix', ['run', 'nixpkgs#actionlint', '--', '-shellcheck=']]
   ]
 
   for (const [bin, args] of attempts) {
     try {
       execFileSync(bin, args, { cwd: REPO, encoding: 'utf-8', stdio: 'pipe' })
-      console.log(`  ${GREEN}✓${OFF} actionlint: no schema or expression errors ${DIM}(via ${bin})${OFF}`)
+      console.log(
+        `  ${GREEN}✓${OFF} actionlint: no schema or expression errors ${DIM}(via ${bin})${OFF}`
+      )
       return
     } catch (e) {
       const err = e as { status?: number; stdout?: string; message?: string }
@@ -270,10 +272,10 @@ function main(): number {
   selfTest()
 
   const files = execFileSync('git', ['-C', REPO, 'ls-files', '.github/workflows'], {
-    encoding: 'utf-8',
+    encoding: 'utf-8'
   })
     .split('\n')
-    .filter((f) => /\.ya?ml$/.test(f))
+    .filter(f => /\.ya?ml$/.test(f))
 
   if (!files.length) {
     console.log(`\n${RED}RESULT: FAIL${OFF} — no workflows found; refusing to pass vacuously.\n`)
@@ -310,7 +312,11 @@ function main(): number {
         // statically, and a checker that answers it anyway is worse than one that abstains.
         const isExpression = (v: string): boolean => v.includes('${{')
 
-        if (workingDir !== '.' && !isExpression(workingDir) && !existsSync(join(REPO, workingDir))) {
+        if (
+          workingDir !== '.' &&
+          !isExpression(workingDir) &&
+          !existsSync(join(REPO, workingDir))
+        ) {
           problems.push(`${where}: working-directory "${workingDir}" does not exist in this repo`)
           continue
         }

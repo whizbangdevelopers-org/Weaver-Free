@@ -52,7 +52,7 @@ function listBothSkills(base: string): string[] {
 function main(): void {
   const args = process.argv.slice(2)
   const check = args.includes('--check')
-  const canonicalArg = args.find((a) => a.startsWith('--canonical'))
+  const canonicalArg = args.find(a => a.startsWith('--canonical'))
   const canonical = canonicalArg
     ? canonicalArg.includes('=')
       ? canonicalArg.split('=')[1]
@@ -97,9 +97,7 @@ function main(): void {
       const srcExists = canonical === 'user' ? userExists : projectExists
 
       if (!srcExists) {
-        console.error(
-          `Cannot sync ${name}: canonical (${canonical}) copy does not exist.`,
-        )
+        console.error(`Cannot sync ${name}: canonical (${canonical}) copy does not exist.`)
         process.exit(1)
       }
 
@@ -121,7 +119,9 @@ function main(): void {
       console.log('All scope: both skills in sync.')
       process.exit(0)
     }
-    console.log(`\n${drift} skill(s) drifted. Run with --canonical user or --canonical project to fix.`)
+    console.log(
+      `\n${drift} skill(s) drifted. Run with --canonical user or --canonical project to fix.`
+    )
     process.exit(1)
   }
 

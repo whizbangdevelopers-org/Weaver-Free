@@ -15,7 +15,7 @@ interface CredentialSchema {
 
 const store = new Conf<CredentialSchema>({
   projectName: 'weaver',
-  defaults: { credentials: null },
+  defaults: { credentials: null }
 })
 
 export function loadCredentials(): StoredCredentials | null {

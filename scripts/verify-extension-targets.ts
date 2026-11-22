@@ -46,9 +46,15 @@ import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const PKG = join(dirname(fileURLToPath(import.meta.url)), '..')
-const REPO = execFileSync('git', ['-C', PKG, 'rev-parse', '--show-toplevel'], { encoding: 'utf-8' }).trim()
+const REPO = execFileSync('git', ['-C', PKG, 'rev-parse', '--show-toplevel'], {
+  encoding: 'utf-8'
+}).trim()
 
-const GREEN = '\x1b[32m', RED = '\x1b[31m', DIM = '\x1b[2m', BOLD = '\x1b[1m', OFF = '\x1b[0m'
+const GREEN = '\x1b[32m',
+  RED = '\x1b[31m',
+  DIM = '\x1b[2m',
+  BOLD = '\x1b[1m',
+  OFF = '\x1b[0m'
 
 export interface Ext {
   id: string
@@ -56,15 +62,23 @@ export interface Ext {
   status: string
   targetVersion?: string
 }
-export interface Finding { rule: 'overdue' | 'impossible'; id: string; detail: string }
+export interface Finding {
+  rule: 'overdue' | 'impossible'
+  id: string
+  detail: string
+}
 
 /** "v2.4.0" | "2.4.0" -> [2,4,0]; non-numeric segments sort as 0 rather than throwing. */
 export function parseVer(v: string): [number, number, number] {
-  const p = v.replace(/^v/, '').split('.').map(n => parseInt(n, 10) || 0)
+  const p = v
+    .replace(/^v/, '')
+    .split('.')
+    .map(n => parseInt(n, 10) || 0)
   return [p[0] ?? 0, p[1] ?? 0, p[2] ?? 0]
 }
 export function cmpVer(a: string, b: string): number {
-  const x = parseVer(a), y = parseVer(b)
+  const x = parseVer(a),
+    y = parseVer(b)
   for (let i = 0; i < 3; i++) if (x[i] !== y[i]) return x[i] < y[i] ? -1 : 1
   return 0
 }
@@ -89,7 +103,7 @@ export function findBadTargets(
       out.push({
         rule: 'overdue',
         id: e.id,
-        detail: `advertises ${e.targetVersion} but the product is already at ${currentVersion}, and it is still coming-soon`,
+        detail: `advertises ${e.targetVersion} but the product is already at ${currentVersion}, and it is still coming-soon`
       })
     }
 
@@ -98,7 +112,7 @@ export function findBadTargets(
       out.push({
         rule: 'impossible',
         id: e.id,
-        detail: `advertises ${e.targetVersion} but its tier '${e.minimumTier}' does not exist until v${first}`,
+        detail: `advertises ${e.targetVersion} but its tier '${e.minimumTier}' does not exist until v${first}`
       })
     }
   }
@@ -109,37 +123,68 @@ export function findBadTargets(
 const TIERS_FIXTURE = { free: '1.0.0', solo: '1.0.0', team: '2.2.0', fabrick: '2.4.0' }
 
 const MUST_CATCH: [string, Ext, string][] = [
-  ['the real dns-fabrick defect',
-    { id: 'dns-fabrick', minimumTier: 'fabrick', status: 'coming-soon', targetVersion: 'v1.1.0' }, '1.0.5'],
-  ['team ext targeted before team exists',
-    { id: 'x', minimumTier: 'team', status: 'coming-soon', targetVersion: 'v2.1.0' }, '1.0.5'],
-  ['overdue — target already shipped',
-    { id: 'y', minimumTier: 'free', status: 'coming-soon', targetVersion: 'v1.0.0' }, '1.0.5'],
-  ['overdue — target equals current',
-    { id: 'z', minimumTier: 'free', status: 'coming-soon', targetVersion: 'v1.0.5' }, '1.0.5'],
+  [
+    'the real dns-fabrick defect',
+    { id: 'dns-fabrick', minimumTier: 'fabrick', status: 'coming-soon', targetVersion: 'v1.1.0' },
+    '1.0.5'
+  ],
+  [
+    'team ext targeted before team exists',
+    { id: 'x', minimumTier: 'team', status: 'coming-soon', targetVersion: 'v2.1.0' },
+    '1.0.5'
+  ],
+  [
+    'overdue — target already shipped',
+    { id: 'y', minimumTier: 'free', status: 'coming-soon', targetVersion: 'v1.0.0' },
+    '1.0.5'
+  ],
+  [
+    'overdue — target equals current',
+    { id: 'z', minimumTier: 'free', status: 'coming-soon', targetVersion: 'v1.0.5' },
+    '1.0.5'
+  ]
 ]
 
 const MUST_IGNORE: [string, Ext, string][] = [
-  ['fabrick ext at its own tier version',
-    { id: 'a', minimumTier: 'fabrick', status: 'coming-soon', targetVersion: 'v2.4.0' }, '1.0.5'],
-  ['fabrick ext after its tier version',
-    { id: 'b', minimumTier: 'fabrick', status: 'coming-soon', targetVersion: 'v3.0.0' }, '1.0.5'],
-  ['future target, tier already exists',
-    { id: 'c', minimumTier: 'solo', status: 'coming-soon', targetVersion: 'v2.0.0' }, '1.0.5'],
+  [
+    'fabrick ext at its own tier version',
+    { id: 'a', minimumTier: 'fabrick', status: 'coming-soon', targetVersion: 'v2.4.0' },
+    '1.0.5'
+  ],
+  [
+    'fabrick ext after its tier version',
+    { id: 'b', minimumTier: 'fabrick', status: 'coming-soon', targetVersion: 'v3.0.0' },
+    '1.0.5'
+  ],
+  [
+    'future target, tier already exists',
+    { id: 'c', minimumTier: 'solo', status: 'coming-soon', targetVersion: 'v2.0.0' },
+    '1.0.5'
+  ],
   // An AVAILABLE extension is not making a promise — a shipped thing whose target is in the past
   // is exactly what shipping looks like, and flagging it would fire on every delivered feature.
-  ['available ext with a past target',
-    { id: 'd', minimumTier: 'solo', status: 'available', targetVersion: 'v1.0.0' }, '1.0.5'],
-  ['coming-soon with no target at all',
-    { id: 'e', minimumTier: 'solo', status: 'coming-soon' }, '1.0.5'],
-  ['unknown tier is skipped, not guessed',
-    { id: 'f', minimumTier: 'mystery', status: 'coming-soon', targetVersion: 'v1.1.0' }, '1.0.5'],
+  [
+    'available ext with a past target',
+    { id: 'd', minimumTier: 'solo', status: 'available', targetVersion: 'v1.0.0' },
+    '1.0.5'
+  ],
+  [
+    'coming-soon with no target at all',
+    { id: 'e', minimumTier: 'solo', status: 'coming-soon' },
+    '1.0.5'
+  ],
+  [
+    'unknown tier is skipped, not guessed',
+    { id: 'f', minimumTier: 'mystery', status: 'coming-soon', targetVersion: 'v1.1.0' },
+    '1.0.5'
+  ]
 ]
 
 function selfTest(): string[] {
   const fails: string[] = []
   for (const [name, ext, cur] of MUST_CATCH) {
-    if (findBadTargets([ext], cur, TIERS_FIXTURE).length === 0) fails.push(`MUST CATCH but did not: ${name}`)
+    if (findBadTargets([ext], cur, TIERS_FIXTURE).length === 0)
+      fails.push(`MUST CATCH but did not: ${name}`)
   }
   for (const [name, ext, cur] of MUST_IGNORE) {
     const got = findBadTargets([ext], cur, TIERS_FIXTURE)
@@ -181,7 +226,9 @@ function main(): number {
     for (const f of fails) console.error(`    ${f}`)
     return 1
   }
-  console.log(`  ${GREEN}✓${OFF} self-test: ${MUST_CATCH.length} catch + ${MUST_IGNORE.length} ignore cases`)
+  console.log(
+    `  ${GREEN}✓${OFF} self-test: ${MUST_CATCH.length} catch + ${MUST_IGNORE.length} ignore cases`
+  )
   console.log(`  auditor-contract: catch=${MUST_CATCH.length} ignore=${MUST_IGNORE.length}`)
 
   const matrix = JSON.parse(readFileSync(join(PKG, 'tier-matrix.json'), 'utf-8'))
@@ -196,14 +243,17 @@ function main(): number {
     if (tier.startsWith('$')) continue
     const fv = (cfg as { firstVersion?: string }).firstVersion
     if (!fv) continue
-    if (!known.has(fv)) dangling.push(`tier '${tier}' firstVersion ${fv} is not a release in forge/DELIVERY.json`)
+    if (!known.has(fv))
+      dangling.push(`tier '${tier}' firstVersion ${fv} is not a release in forge/DELIVERY.json`)
     tierFirst[tier] = fv
   }
 
   const version = JSON.parse(readFileSync(join(PKG, 'package.json'), 'utf-8')).version as string
   const exts = parseExtensions(readFileSync(join(PKG, 'backend', 'src', 'plugins.ts'), 'utf-8'))
   if (exts.length === 0) {
-    console.log(`${RED}${BOLD}RESULT: FAIL${OFF} — parsed 0 extensions; the parser has broken, not the data.`)
+    console.log(
+      `${RED}${BOLD}RESULT: FAIL${OFF} — parsed 0 extensions; the parser has broken, not the data.`
+    )
     return 1
   }
 
