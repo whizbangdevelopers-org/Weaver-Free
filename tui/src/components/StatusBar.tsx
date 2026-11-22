@@ -12,12 +12,7 @@ interface StatusBarProps {
 
 export function StatusBar({ connected, tier, demo, vmCount }: StatusBarProps) {
   return (
-    <Box
-      borderStyle="single"
-      borderColor="gray"
-      paddingX={1}
-      justifyContent="space-between"
-    >
+    <Box borderStyle="single" borderColor="gray" paddingX={1} justifyContent="space-between">
       <Text bold>Weaver</Text>
       <Box gap={2}>
         <Text color={connected ? 'green' : 'red'}>

@@ -25,7 +25,15 @@
  * Check: `npm run audit:entitlement-vendor`
  */
 
-import { readFileSync, writeFileSync, mkdirSync, rmSync, readdirSync, statSync, existsSync } from 'node:fs'
+import {
+  readFileSync,
+  writeFileSync,
+  mkdirSync,
+  rmSync,
+  readdirSync,
+  statSync,
+  existsSync
+} from 'node:fs'
 import { join, relative, dirname } from 'node:path'
 import { execFileSync } from 'node:child_process'
 import { parseArgs } from 'node:util'
@@ -50,10 +58,11 @@ export const CODE_DIR = new URL('../', import.meta.url).pathname
  * read-only in this repo: edit upstream, re-run this script.
  */
 export const VENDORED_FILES: ReadonlyArray<readonly [string, string]> = [
-  ['code/scripts/verify-authority-binding.ts', 'scripts/verify-authority-binding.ts'],
+  ['code/scripts/verify-authority-binding.ts', 'scripts/verify-authority-binding.ts']
 ] as const
 
-const HEADER_RE = /^\/\/ Copyright \(c\) 2026 whizBANG Developers LLC\. All rights reserved\.\n(?:\/\/[^\n]*\n)+/
+const HEADER_RE =
+  /^\/\/ Copyright \(c\) 2026 whizBANG Developers LLC\. All rights reserved\.\n(?:\/\/[^\n]*\n)+/
 
 /** The header every vendored file carries in this repo. */
 export function weaverHeader(rev: string): string {
@@ -85,8 +94,8 @@ export function walkTs(dir: string): string[] {
 
 /** The upstream paths this repo vendors from, derived rather than restated. */
 const UPSTREAM_PATHS: readonly string[] = [
-  ...SUBTREES.map((s) => `code/src/${s}`),
-  ...VENDORED_FILES.map(([from]) => from),
+  ...SUBTREES.map(s => `code/src/${s}`),
+  ...VENDORED_FILES.map(([from]) => from)
 ]
 
 /**
@@ -118,13 +127,13 @@ export function contentRev(upstream: string): string {
   // never fires, so it reads as protection while every stamp is quietly wrong. `actions/checkout`
   // defaults to depth 1, so any CI job that checks the upstream out is in this state by default.
   const shallow = execFileSync('git', ['-C', upstream, 'rev-parse', '--is-shallow-repository'], {
-    encoding: 'utf-8',
+    encoding: 'utf-8'
   }).trim()
   if (shallow !== 'false') {
     throw new Error(
       `${upstream} is a shallow clone. The vendored-content rev cannot be determined from one — ` +
         'git reports the shallow boundary as the commit that introduced every path, so the stamp ' +
-        'would be plausible and wrong. Check the upstream out with full history (fetch-depth: 0).',
+        'would be plausible and wrong. Check the upstream out with full history (fetch-depth: 0).'
     )
   }
 
@@ -132,13 +141,13 @@ export function contentRev(upstream: string): string {
   const rev = execFileSync(
     'git',
     ['-C', upstream, 'log', '-1', '--format=%h', '--', ...UPSTREAM_PATHS],
-    { encoding: 'utf-8' },
+    { encoding: 'utf-8' }
   ).trim()
 
   if (!rev) {
     throw new Error(
       `no commit in ${upstream} touches any vendored path (${UPSTREAM_PATHS.join(', ')}) — ` +
-        'the paths have moved upstream. Refusing to stamp a header with a rev that would be wrong.',
+        'the paths have moved upstream. Refusing to stamp a header with a rev that would be wrong.'
     )
   }
   return rev
@@ -193,7 +202,9 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     mkdirSync(dirname(target), { recursive: true })
     writeFileSync(target, body)
   }
-  console.log(`vendored ${files.size} file(s) from wbd-entitlement@${rev} → backend/src/entitlement/`)
+  console.log(
+    `vendored ${files.size} file(s) from wbd-entitlement@${rev} → backend/src/entitlement/`
+  )
 
   // Standalone files, written in place rather than into a wiped subtree — each one lives beside
   // this repo's own code, so there is no directory here that may be deleted wholesale.

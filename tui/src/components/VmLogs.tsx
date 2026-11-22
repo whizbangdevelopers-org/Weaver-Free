@@ -107,9 +107,17 @@ export function VmLogs({ vmName, api, onBack }: VmLogsProps) {
     <Box flexDirection="column" paddingX={2} paddingY={1}>
       <Text bold>Provisioning Logs: {vmName}</Text>
 
-      <Box marginTop={1} flexDirection="column" borderStyle="single" borderColor="gray" paddingX={1}>
+      <Box
+        marginTop={1}
+        flexDirection="column"
+        borderStyle="single"
+        borderColor="gray"
+        paddingX={1}
+      >
         {hasMore && (
-          <Text dimColor>[{'\u2191'}] {allLines.length - MAX_VISIBLE_LINES} more lines above</Text>
+          <Text dimColor>
+            [{'\u2191'}] {allLines.length - MAX_VISIBLE_LINES} more lines above
+          </Text>
         )}
         {visibleLines.map((line, i) => (
           <Text key={i}>{line}</Text>
@@ -117,7 +125,9 @@ export function VmLogs({ vmName, api, onBack }: VmLogsProps) {
       </Box>
 
       <Box marginTop={1}>
-        <Text color="yellow">{'\u2501\u2501'} Want live log streaming? Upgrade to Weaver Solo {'\u2501\u2501'}</Text>
+        <Text color="yellow">
+          {'\u2501\u2501'} Want live log streaming? Upgrade to Weaver Solo {'\u2501\u2501'}
+        </Text>
       </Box>
 
       <Box marginTop={1}>

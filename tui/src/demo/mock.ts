@@ -22,7 +22,13 @@ let currentDemoVersion = '1.0'
  * 'weaver-team' is a display-only step — internally it sets tier='solo' + subTier='team'.
  * Team is a product SKU from day one, always in the cycle.
  */
-export const DEMO_TIER_CYCLE = [TIERS.FREE, TIERS.SOLO, 'weaver-team', TIERS.FABRICK, TIERS.DEMO] as const
+export const DEMO_TIER_CYCLE = [
+  TIERS.FREE,
+  TIERS.SOLO,
+  'weaver-team',
+  TIERS.FABRICK,
+  TIERS.DEMO
+] as const
 
 /** Resolve a cycle tier to its internal tier value. */
 export function resolveInternalTier(cycleTier: string): string {
@@ -32,12 +38,18 @@ export function resolveInternalTier(cycleTier: string): string {
 /** Get the display label for a cycle tier. */
 export function tierDisplayLabel(cycleTier: string): string {
   switch (cycleTier) {
-    case TIERS.FREE: return 'Weaver Free'
-    case TIERS.SOLO: return 'Weaver Solo'
-    case 'weaver-team': return 'Weaver Team'
-    case TIERS.FABRICK: return 'FabricK'
-    case TIERS.DEMO: return 'Demo'
-    default: return cycleTier
+    case TIERS.FREE:
+      return 'Weaver Free'
+    case TIERS.SOLO:
+      return 'Weaver Solo'
+    case 'weaver-team':
+      return 'Weaver Team'
+    case TIERS.FABRICK:
+      return 'FabricK'
+    case TIERS.DEMO:
+      return 'Demo'
+    default:
+      return cycleTier
   }
 }
 
@@ -66,7 +78,7 @@ export const DEMO_VERSIONS: DemoVersionEntry[] = [
   { version: '3.0', headline: 'FabricK — Multi-Host Fleet' },
   { version: '3.1', headline: 'Edge Fleet + Cloud Burst' },
   { version: '3.2', headline: 'Cloud Burst Self-Serve Billing' },
-  { version: '3.3', headline: 'FabricK Maturity — Workload Groups + Compliance' },
+  { version: '3.3', headline: 'FabricK Maturity — Workload Groups + Compliance' }
 ]
 
 export function setDemoTier(tier: string): void {
@@ -97,7 +109,7 @@ let demoVms: VmInfo[] = structuredClone(DEMO_VMS)
 let demoUsers: SafeUser[] = [
   { id: 'u1', username: ROLES.ADMIN, role: ROLES.ADMIN, createdAt: '2026-01-01T00:00:00Z' },
   { id: 'u2', username: 'ops-1', role: ROLES.OPERATOR, createdAt: '2026-01-15T00:00:00Z' },
-  { id: 'u3', username: 'viewer-1', role: ROLES.VIEWER, createdAt: '2026-02-01T00:00:00Z' },
+  { id: 'u3', username: 'viewer-1', role: ROLES.VIEWER, createdAt: '2026-02-01T00:00:00Z' }
 ]
 
 function findVm(name: string): VmInfo | undefined {
@@ -132,10 +144,16 @@ function forbidden(msg: string): ApiResponse<{ error: string }> {
  * The demo mock always allows agent since it's BYOK-capable.
  */
 const TIER_BLOCKED: Record<string, Set<string>> = {
-  [TIERS.DEMO]:    new Set(),
-  [TIERS.FREE]:    new Set(['network-mgmt', 'distros-mgmt', 'templates-mgmt', 'host-detail', 'plugins']),
-  [TIERS.SOLO]:  new Set(['users', 'audit', 'quotas', 'acl', 'bulk-ops', 'fleet-bridges']),
-  [TIERS.FABRICK]: new Set(),
+  [TIERS.DEMO]: new Set(),
+  [TIERS.FREE]: new Set([
+    'network-mgmt',
+    'distros-mgmt',
+    'templates-mgmt',
+    'host-detail',
+    'plugins'
+  ]),
+  [TIERS.SOLO]: new Set(['users', 'audit', 'quotas', 'acl', 'bulk-ops', 'fleet-bridges']),
+  [TIERS.FABRICK]: new Set()
 }
 
 function isTierBlocked(tier: string, feature: string): boolean {
@@ -152,12 +170,14 @@ export function createDemoApiClient(tier: string): TuiApiClient {
   demoUsers = [
     { id: 'u1', username: ROLES.ADMIN, role: ROLES.ADMIN, createdAt: '2026-01-01T00:00:00Z' },
     { id: 'u2', username: 'ops-1', role: ROLES.OPERATOR, createdAt: '2026-01-15T00:00:00Z' },
-    { id: 'u3', username: 'viewer-1', role: ROLES.VIEWER, createdAt: '2026-02-01T00:00:00Z' },
+    { id: 'u3', username: 'viewer-1', role: ROLES.VIEWER, createdAt: '2026-02-01T00:00:00Z' }
   ]
 
   // We cast an object implementing the same interface shape
   const mock = {
-    setRefreshToken() { /* no-op */ },
+    setRefreshToken() {
+      /* no-op */
+    },
 
     // Auth
     async checkSetupRequired() {
@@ -166,17 +186,27 @@ export function createDemoApiClient(tier: string): TuiApiClient {
 
     async login(_username: string, _password: string) {
       return ok({
-        user: { id: 'demo', username: ROLES.ADMIN, role: ROLES.ADMIN, createdAt: new Date().toISOString() },
+        user: {
+          id: 'demo',
+          username: ROLES.ADMIN,
+          role: ROLES.ADMIN,
+          createdAt: new Date().toISOString()
+        },
         token: 'demo-token',
-        refreshToken: 'demo-refresh',
+        refreshToken: 'demo-refresh'
       })
     },
 
     async register(username: string, _password: string) {
       return created({
-        user: { id: `demo-${Date.now()}`, username, role: ROLES.ADMIN, createdAt: new Date().toISOString() },
+        user: {
+          id: `demo-${Date.now()}`,
+          username,
+          role: ROLES.ADMIN,
+          createdAt: new Date().toISOString()
+        },
         token: 'demo-token',
-        refreshToken: 'demo-refresh',
+        refreshToken: 'demo-refresh'
       })
     },
 
@@ -189,10 +219,15 @@ export function createDemoApiClient(tier: string): TuiApiClient {
         bridgeGateway: null,
         hasServerKey: true,
         host: {
-          hostname: 'nixos-demo', arch: 'x86_64', cpuModel: 'Intel Core i7-12700',
-          cpuCount: 12, totalMemMb: 32768, kernelVersion: '6.6.0',
-          uptimeSeconds: 86400 * 3, kvmAvailable: true,
-        },
+          hostname: 'nixos-demo',
+          arch: 'x86_64',
+          cpuModel: 'Intel Core i7-12700',
+          cpuCount: 12,
+          totalMemMb: 32768,
+          kernelVersion: '6.6.0',
+          uptimeSeconds: 86400 * 3,
+          kvmAvailable: true
+        }
       })
     },
 
@@ -203,13 +238,14 @@ export function createDemoApiClient(tier: string): TuiApiClient {
 
     async getVm(name: string) {
       const vm = findVm(name)
-      return vm ? ok(vm) : notFound() as unknown as ApiResponse<VmInfo>
+      return vm ? ok(vm) : (notFound() as unknown as ApiResponse<VmInfo>)
     },
 
     async startVm(name: string) {
       const vm = findVm(name)
       if (!vm) return notFound()
-      if (vm.status === STATUSES.RUNNING) return ok({ name, action: 'start' as const, success: true, message: 'Already running' })
+      if (vm.status === STATUSES.RUNNING)
+        return ok({ name, action: 'start' as const, success: true, message: 'Already running' })
       vm.status = STATUSES.RUNNING
       vm.uptime = new Date().toISOString()
       return ok({ name, action: 'start' as const, success: true, message: 'Started' })
@@ -236,12 +272,18 @@ export function createDemoApiClient(tier: string): TuiApiClient {
         return { status: 409, data: { error: `VM "${input.name}" already exists` } }
       }
       const newVm: VmInfo = {
-        name: input.name, status: STATUSES.STOPPED,
-        ip: input.ip, mem: input.mem, vcpu: input.vcpu,
-        hypervisor: input.hypervisor, uptime: null,
-        distro: input.distro, autostart: input.autostart,
-        description: input.description, tags: input.tags,
-        bridge: 'br-microvm',
+        name: input.name,
+        status: STATUSES.STOPPED,
+        ip: input.ip,
+        mem: input.mem,
+        vcpu: input.vcpu,
+        hypervisor: input.hypervisor,
+        uptime: null,
+        distro: input.distro,
+        autostart: input.autostart,
+        description: input.description,
+        tags: input.tags,
+        bridge: 'br-microvm'
       }
       demoVms.push(newVm)
       return created({ success: true, message: `VM "${input.name}" registered` })
@@ -257,9 +299,14 @@ export function createDemoApiClient(tier: string): TuiApiClient {
     async scanVms() {
       const newName = `discovered-${Date.now() % 10000}`
       const newVm: VmInfo = {
-        name: newName, status: STATUSES.STOPPED, ip: '10.10.0.99',
-        mem: 256, vcpu: 1, hypervisor: 'qemu', uptime: null,
-        bridge: 'br-microvm',
+        name: newName,
+        status: STATUSES.STOPPED,
+        ip: '10.10.0.99',
+        mem: 256,
+        vcpu: 1,
+        hypervisor: 'qemu',
+        uptime: null,
+        bridge: 'br-microvm'
       }
       demoVms.push(newVm)
       return ok({ discovered: [newName], added: [newName], existing: [] })
@@ -271,7 +318,7 @@ export function createDemoApiClient(tier: string): TuiApiClient {
       if (!vm) return notFound()
       return ok({
         name,
-        log: generateMockProvisioningLog(name, vm),
+        log: generateMockProvisioningLog(name, vm)
       })
     },
 
@@ -291,20 +338,24 @@ export function createDemoApiClient(tier: string): TuiApiClient {
         const interval = setInterval(() => {
           if (sent >= words.length) {
             clearInterval(interval)
-            demoAgentHandlers.forEach(fn => fn({
-              type: 'agent-complete',
-              operationId,
-              fullText: text,
-            } as AgentWsMessage))
+            demoAgentHandlers.forEach(fn =>
+              fn({
+                type: 'agent-complete',
+                operationId,
+                fullText: text
+              } as AgentWsMessage)
+            )
             return
           }
           const chunk = words.slice(sent, sent + 3).join(' ') + ' '
           sent += 3
-          demoAgentHandlers.forEach(fn => fn({
-            type: 'agent-token',
-            operationId,
-            token: chunk,
-          } as AgentWsMessage))
+          demoAgentHandlers.forEach(fn =>
+            fn({
+              type: 'agent-token',
+              operationId,
+              token: chunk
+            } as AgentWsMessage)
+          )
         }, 100)
       }, 300)
 
@@ -321,31 +372,39 @@ export function createDemoApiClient(tier: string): TuiApiClient {
         return forbidden('Network management requires Weaver Solo')
       }
       const bridgesByTier: Record<string, { name: string; gateway: string; subnet: string }[]> = {
-        [TIERS.FREE]:    [{ name: 'br-microvm', gateway: '10.10.0.1', subnet: '10.10.0.0/24' }],
-        [TIERS.SOLO]:  [
+        [TIERS.FREE]: [{ name: 'br-microvm', gateway: '10.10.0.1', subnet: '10.10.0.0/24' }],
+        [TIERS.SOLO]: [
           { name: 'br-prod', gateway: '10.10.0.1', subnet: '10.10.0.0/24' },
-          { name: 'br-dev',  gateway: '10.10.1.1', subnet: '10.10.1.0/24' },
+          { name: 'br-dev', gateway: '10.10.1.1', subnet: '10.10.1.0/24' }
         ],
         [TIERS.FABRICK]: [
-          { name: 'br-edge',    gateway: '10.10.1.1',   subnet: '10.10.1.0/24' },
-          { name: 'br-app',     gateway: '10.10.2.1',   subnet: '10.10.2.0/24' },
-          { name: 'br-data',    gateway: '10.10.3.1',   subnet: '10.10.3.0/24' },
-          { name: 'br-mgmt',    gateway: '10.10.100.1', subnet: '10.10.100.0/24' },
-          { name: 'br-staging', gateway: '10.10.10.1',  subnet: '10.10.10.0/24' },
+          { name: 'br-edge', gateway: '10.10.1.1', subnet: '10.10.1.0/24' },
+          { name: 'br-app', gateway: '10.10.2.1', subnet: '10.10.2.0/24' },
+          { name: 'br-data', gateway: '10.10.3.1', subnet: '10.10.3.0/24' },
+          { name: 'br-mgmt', gateway: '10.10.100.1', subnet: '10.10.100.0/24' },
+          { name: 'br-staging', gateway: '10.10.10.1', subnet: '10.10.10.0/24' }
         ],
         [TIERS.DEMO]: [
           { name: 'br-prod', gateway: '10.10.0.1', subnet: '10.10.0.0/24' },
-          { name: 'br-dev',  gateway: '10.10.1.1', subnet: '10.10.1.0/24' },
-        ],
+          { name: 'br-dev', gateway: '10.10.1.1', subnet: '10.10.1.0/24' }
+        ]
       }
       return ok({
         bridges: bridgesByTier[currentDemoTier] ?? bridgesByTier[TIERS.FREE],
         nodes: demoVms.map(vm => ({
-          name: vm.name, ip: vm.ip, bridge: vm.bridge ?? 'br-microvm',
-          status: vm.status, hypervisor: vm.hypervisor, distro: vm.distro,
-          mem: vm.mem, vcpu: vm.vcpu, uptime: vm.uptime,
-          description: vm.description, tags: vm.tags, autostart: vm.autostart,
-        })),
+          name: vm.name,
+          ip: vm.ip,
+          bridge: vm.bridge ?? 'br-microvm',
+          status: vm.status,
+          hypervisor: vm.hypervisor,
+          distro: vm.distro,
+          mem: vm.mem,
+          vcpu: vm.vcpu,
+          uptime: vm.uptime,
+          description: vm.description,
+          tags: vm.tags,
+          autostart: vm.autostart
+        }))
       })
     },
 
@@ -357,33 +416,76 @@ export function createDemoApiClient(tier: string): TuiApiClient {
       return ok({
         nixosVersion: '25.11',
         cpuTopology: {
-          sockets: 1, coresPerSocket: 8, threadsPerCore: 2,
+          sockets: 1,
+          coresPerSocket: 8,
+          threadsPerCore: 2,
           virtualizationType: 'VT-x',
-          l1dCache: '48K', l1iCache: '32K', l2Cache: '1.25M', l3Cache: '25M',
+          l1dCache: '48K',
+          l1iCache: '32K',
+          l2Cache: '1.25M',
+          l3Cache: '25M'
         },
-        diskUsage: [{
-          filesystem: '/dev/nvme0n1p3', sizeHuman: '500G', usedHuman: '120G',
-          availHuman: '380G', usePercent: 24, mountPoint: '/',
-        }],
+        diskUsage: [
+          {
+            filesystem: '/dev/nvme0n1p3',
+            sizeHuman: '500G',
+            usedHuman: '120G',
+            availHuman: '380G',
+            usePercent: 24,
+            mountPoint: '/'
+          }
+        ],
         networkInterfaces: [
           { name: 'eth0', state: 'UP', macAddress: 'aa:bb:cc:dd:ee:ff' },
-          { name: 'br-microvm', state: 'UP', macAddress: null },
+          { name: 'br-microvm', state: 'UP', macAddress: null }
         ],
-        liveMetrics: { freeMemMb: 12288, loadAvg1: 0.5, loadAvg5: 0.3, loadAvg15: 0.2 },
+        liveMetrics: { freeMemMb: 12288, loadAvg1: 0.5, loadAvg5: 0.3, loadAvg15: 0.2 }
       })
     },
 
     // Distros (read-only list is free, mutations would be weaver-tier)
     async listDistros() {
       return ok([
-        { name: 'nixos', label: 'NixOS', url: 'https://hydra.nixos.org/build/latest/download/nixos-image.qcow2',
-          format: 'qcow2', cloudInit: false, guestOs: 'linux', builtin: true, category: 'builtin' },
-        { name: 'ubuntu-24.04', label: 'Ubuntu 24.04 LTS', url: 'https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img',
-          format: 'qcow2', cloudInit: true, guestOs: 'linux', builtin: true, category: 'builtin' },
-        { name: 'rocky-9', label: 'Rocky Linux 9', url: 'https://dl.rockylinux.org/pub/rocky/9/images/x86_64/Rocky-9-GenericCloud.latest.x86_64.qcow2',
-          format: 'qcow2', cloudInit: true, guestOs: 'linux', builtin: true, category: 'builtin' },
-        { name: 'custom-corp', label: 'Corp Build', url: 'file:///data/images/corp.qcow2',
-          format: 'qcow2', cloudInit: false, guestOs: 'linux', builtin: false, category: 'custom' },
+        {
+          name: 'nixos',
+          label: 'NixOS',
+          url: 'https://hydra.nixos.org/build/latest/download/nixos-image.qcow2',
+          format: 'qcow2',
+          cloudInit: false,
+          guestOs: 'linux',
+          builtin: true,
+          category: 'builtin'
+        },
+        {
+          name: 'ubuntu-24.04',
+          label: 'Ubuntu 24.04 LTS',
+          url: 'https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img',
+          format: 'qcow2',
+          cloudInit: true,
+          guestOs: 'linux',
+          builtin: true,
+          category: 'builtin'
+        },
+        {
+          name: 'rocky-9',
+          label: 'Rocky Linux 9',
+          url: 'https://dl.rockylinux.org/pub/rocky/9/images/x86_64/Rocky-9-GenericCloud.latest.x86_64.qcow2',
+          format: 'qcow2',
+          cloudInit: true,
+          guestOs: 'linux',
+          builtin: true,
+          category: 'builtin'
+        },
+        {
+          name: 'custom-corp',
+          label: 'Corp Build',
+          url: 'file:///data/images/corp.qcow2',
+          format: 'qcow2',
+          cloudInit: false,
+          guestOs: 'linux',
+          builtin: false,
+          category: 'custom'
+        }
       ])
     },
 
@@ -393,21 +495,66 @@ export function createDemoApiClient(tier: string): TuiApiClient {
         return forbidden('VM templates require Weaver Solo')
       }
       return ok([
-        { id: 't1', name: 'Web Server', description: 'Nginx reverse proxy with optimized settings',
-          distro: 'nixos', mem: 256, vcpu: 1, hypervisor: 'qemu', autostart: true,
-          tags: ['web', 'proxy'], category: 'builtin' },
-        { id: 't2', name: 'App Server', description: 'Node.js application runtime with 512MB RAM',
-          distro: 'nixos', mem: 512, vcpu: 2, hypervisor: 'qemu', autostart: true,
-          tags: ['app', 'node'], category: 'builtin' },
-        { id: 't3', name: 'Database', description: 'PostgreSQL database with 1GB RAM',
-          distro: 'nixos', mem: 1024, vcpu: 2, hypervisor: 'qemu', autostart: true,
-          tags: ['db', 'postgres'], category: 'builtin' },
-        { id: 't4', name: 'CI Runner', description: 'Lightweight CI/CD runner for build jobs',
-          distro: 'ubuntu-24.04', mem: 512, vcpu: 1, hypervisor: 'firecracker', autostart: false,
-          tags: ['ci', 'build'], category: 'builtin' },
-        { id: 't5', name: 'Dev Environment', description: 'Full development environment with tools',
-          distro: 'ubuntu-24.04', mem: 2048, vcpu: 4, hypervisor: 'cloud-hypervisor', autostart: false,
-          tags: ['dev'], category: 'custom' },
+        {
+          id: 't1',
+          name: 'Web Server',
+          description: 'Nginx reverse proxy with optimized settings',
+          distro: 'nixos',
+          mem: 256,
+          vcpu: 1,
+          hypervisor: 'qemu',
+          autostart: true,
+          tags: ['web', 'proxy'],
+          category: 'builtin'
+        },
+        {
+          id: 't2',
+          name: 'App Server',
+          description: 'Node.js application runtime with 512MB RAM',
+          distro: 'nixos',
+          mem: 512,
+          vcpu: 2,
+          hypervisor: 'qemu',
+          autostart: true,
+          tags: ['app', 'node'],
+          category: 'builtin'
+        },
+        {
+          id: 't3',
+          name: 'Database',
+          description: 'PostgreSQL database with 1GB RAM',
+          distro: 'nixos',
+          mem: 1024,
+          vcpu: 2,
+          hypervisor: 'qemu',
+          autostart: true,
+          tags: ['db', 'postgres'],
+          category: 'builtin'
+        },
+        {
+          id: 't4',
+          name: 'CI Runner',
+          description: 'Lightweight CI/CD runner for build jobs',
+          distro: 'ubuntu-24.04',
+          mem: 512,
+          vcpu: 1,
+          hypervisor: 'firecracker',
+          autostart: false,
+          tags: ['ci', 'build'],
+          category: 'builtin'
+        },
+        {
+          id: 't5',
+          name: 'Dev Environment',
+          description: 'Full development environment with tools',
+          distro: 'ubuntu-24.04',
+          mem: 2048,
+          vcpu: 4,
+          hypervisor: 'cloud-hypervisor',
+          autostart: false,
+          tags: ['dev'],
+          category: 'custom'
+        }
       ])
     },
 
@@ -416,14 +563,34 @@ export function createDemoApiClient(tier: string): TuiApiClient {
       if (isTierBlocked(currentDemoTier, 'notifications-config')) {
         return forbidden('Notification management requires Weaver Solo')
       }
-      return ok({ notifications: [
-        { id: 'n1', timestamp: new Date(Date.now() - 3_600_000).toISOString(), event: 'vm.started',
-          vmName: 'web-nginx', severity: 'success', message: 'VM started successfully' },
-        { id: 'n2', timestamp: new Date(Date.now() - 7_200_000).toISOString(), event: 'vm.stopped',
-          vmName: 'ci-runner', severity: 'info', message: 'VM stopped' },
-        { id: 'n3', timestamp: new Date(Date.now() - 86_400_000).toISOString(), event: 'vm.failed',
-          vmName: 'staging-env', severity: 'error', message: 'VM failed to start — resource limit exceeded' },
-      ]})
+      return ok({
+        notifications: [
+          {
+            id: 'n1',
+            timestamp: new Date(Date.now() - 3_600_000).toISOString(),
+            event: 'vm.started',
+            vmName: 'web-nginx',
+            severity: 'success',
+            message: 'VM started successfully'
+          },
+          {
+            id: 'n2',
+            timestamp: new Date(Date.now() - 7_200_000).toISOString(),
+            event: 'vm.stopped',
+            vmName: 'ci-runner',
+            severity: 'info',
+            message: 'VM stopped'
+          },
+          {
+            id: 'n3',
+            timestamp: new Date(Date.now() - 86_400_000).toISOString(),
+            event: 'vm.failed',
+            vmName: 'staging-env',
+            severity: 'error',
+            message: 'VM failed to start — resource limit exceeded'
+          }
+        ]
+      })
     },
 
     // Users (fabrick)
@@ -463,12 +630,20 @@ export function createDemoApiClient(tier: string): TuiApiClient {
         return forbidden('User quotas require FabricK tier')
       }
       return ok({
-        userId: id, maxVms: 10, maxMemoryMB: 8192, maxVcpus: 16,
-        currentVms: 3, currentMemoryMB: 1792, currentVcpus: 4,
+        userId: id,
+        maxVms: 10,
+        maxMemoryMB: 8192,
+        maxVcpus: 16,
+        currentVms: 3,
+        currentMemoryMB: 1792,
+        currentVcpus: 4
       })
     },
 
-    async setUserQuotas(id: string, quotas: { maxVms?: number | null; maxMemoryMB?: number | null; maxVcpus?: number | null }) {
+    async setUserQuotas(
+      id: string,
+      quotas: { maxVms?: number | null; maxMemoryMB?: number | null; maxVcpus?: number | null }
+    ) {
       if (isTierBlocked(currentDemoTier, 'quotas')) {
         return forbidden('User quotas require FabricK tier')
       }
@@ -500,26 +675,68 @@ export function createDemoApiClient(tier: string): TuiApiClient {
       }
       return ok({
         entries: [
-          { id: 'a1', timestamp: new Date(Date.now() - 1_800_000).toISOString(),
-            userId: 'u1', username: 'admin', action: 'vm.start', resource: 'web-nginx',
-            success: true, ip: '127.0.0.1' },
-          { id: 'a2', timestamp: new Date(Date.now() - 3_600_000).toISOString(),
-            userId: 'u2', username: 'ops-1', action: 'vm.stop', resource: 'ci-runner',
-            success: true, ip: '10.0.0.5' },
-          { id: 'a3', timestamp: new Date(Date.now() - 7_200_000).toISOString(),
-            userId: 'u1', username: 'admin', action: 'vm.create', resource: 'staging-env',
-            success: true, ip: '127.0.0.1' },
-          { id: 'a4', timestamp: new Date(Date.now() - 14_400_000).toISOString(),
-            userId: 'u3', username: 'viewer-1', action: 'user.login', resource: null,
-            success: true, ip: '192.168.1.50' },
-          { id: 'a5', timestamp: new Date(Date.now() - 28_800_000).toISOString(),
-            userId: null, username: 'unknown', action: 'user.login', resource: null,
-            success: false, ip: '10.0.0.99' },
-          { id: 'a6', timestamp: new Date(Date.now() - 86_400_000).toISOString(),
-            userId: 'u1', username: 'admin', action: 'agent.run', resource: 'db-postgres',
-            success: true, ip: '127.0.0.1' },
+          {
+            id: 'a1',
+            timestamp: new Date(Date.now() - 1_800_000).toISOString(),
+            userId: 'u1',
+            username: 'admin',
+            action: 'vm.start',
+            resource: 'web-nginx',
+            success: true,
+            ip: '127.0.0.1'
+          },
+          {
+            id: 'a2',
+            timestamp: new Date(Date.now() - 3_600_000).toISOString(),
+            userId: 'u2',
+            username: 'ops-1',
+            action: 'vm.stop',
+            resource: 'ci-runner',
+            success: true,
+            ip: '10.0.0.5'
+          },
+          {
+            id: 'a3',
+            timestamp: new Date(Date.now() - 7_200_000).toISOString(),
+            userId: 'u1',
+            username: 'admin',
+            action: 'vm.create',
+            resource: 'staging-env',
+            success: true,
+            ip: '127.0.0.1'
+          },
+          {
+            id: 'a4',
+            timestamp: new Date(Date.now() - 14_400_000).toISOString(),
+            userId: 'u3',
+            username: 'viewer-1',
+            action: 'user.login',
+            resource: null,
+            success: true,
+            ip: '192.168.1.50'
+          },
+          {
+            id: 'a5',
+            timestamp: new Date(Date.now() - 28_800_000).toISOString(),
+            userId: null,
+            username: 'unknown',
+            action: 'user.login',
+            resource: null,
+            success: false,
+            ip: '10.0.0.99'
+          },
+          {
+            id: 'a6',
+            timestamp: new Date(Date.now() - 86_400_000).toISOString(),
+            userId: 'u1',
+            username: 'admin',
+            action: 'agent.run',
+            resource: 'db-postgres',
+            success: true,
+            ip: '127.0.0.1'
+          }
         ],
-        total: 6,
+        total: 6
       })
     },
 
@@ -529,7 +746,7 @@ export function createDemoApiClient(tier: string): TuiApiClient {
         return forbidden('Fleet bridges require FabricK tier')
       }
       return ok(DEMO_FLEET_BRIDGES)
-    },
+    }
   } as unknown as TuiApiClient
 
   return mock
@@ -538,24 +755,30 @@ export function createDemoApiClient(tier: string): TuiApiClient {
 function generateMockAgentResponse(vmName: string, action: string, vm: VmInfo): string {
   switch (action) {
     case 'diagnose':
-      return `Diagnosis for ${vmName}: The VM is currently ${vm.status}. ` +
+      return (
+        `Diagnosis for ${vmName}: The VM is currently ${vm.status}. ` +
         `It has ${vm.mem}MB RAM and ${vm.vcpu} vCPU(s) allocated. ` +
         `Running on ${vm.hypervisor} with ${vm.distro ?? 'unknown'} distribution. ` +
         `No critical issues detected. Memory utilization appears normal. ` +
         `Network interface is ${vm.ip ? 'configured at ' + vm.ip : 'not configured'}.`
+      )
     case 'explain':
-      return `Configuration for ${vmName}: This VM is a ${vm.distro ?? 'generic'} instance ` +
+      return (
+        `Configuration for ${vmName}: This VM is a ${vm.distro ?? 'generic'} instance ` +
         `running on the ${vm.hypervisor} hypervisor. It is allocated ${vm.mem}MB of RAM ` +
         `and ${vm.vcpu} virtual CPU(s). ` +
         `${vm.bridge ? `Connected to bridge ${vm.bridge}. ` : ''}` +
         `${vm.ip ? `Network address: ${vm.ip}. ` : ''}` +
         `The VM ${vm.status === STATUSES.RUNNING ? 'is actively running' : 'is currently ' + vm.status}.`
+      )
     case 'suggest':
-      return `Suggestions for ${vmName}: ` +
+      return (
+        `Suggestions for ${vmName}: ` +
         `${vm.mem < 512 ? 'Consider increasing memory allocation to at least 512MB for better performance. ' : ''}` +
         `${vm.vcpu < 2 ? 'Adding a second vCPU could improve responsiveness for multi-threaded workloads. ' : ''}` +
         `Ensure regular snapshots are configured for backup. ` +
         `Monitor disk I/O patterns to identify potential bottlenecks.`
+      )
     default:
       return `Analysis complete for ${vmName}.`
   }
@@ -580,8 +803,10 @@ function generateMockProvisioningLog(name: string, vm: VmInfo): string {
     `[${ts}:05.200Z] Installing bootloader`,
     `[${ts}:05.500Z] Registering VM with microvm manager`,
     `[${ts}:05.600Z] Setting autostart: ${vm.autostart ? 'enabled' : 'disabled'}`,
-    `[${ts}:05.800Z] Provisioning complete for ${name}`,
-  ].filter(Boolean).join('\n')
+    `[${ts}:05.800Z] Provisioning complete for ${name}`
+  ]
+    .filter(Boolean)
+    .join('\n')
 }
 
 // Shared agent handlers for demo WS
@@ -654,7 +879,7 @@ export function createDemoWsClient(_tier: string): TuiWsClient {
 
     isConnected() {
       return statusInterval !== null
-    },
+    }
   } as unknown as TuiWsClient
 
   return mock

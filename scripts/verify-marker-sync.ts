@@ -24,9 +24,9 @@ const SYNC_SCRIPT = resolve(__dirname, 'sync-markers.ts')
 // sees the violations directly.
 const child = spawn('npx', ['tsx', SYNC_SCRIPT, '--check'], {
   stdio: 'inherit',
-  shell: false,
+  shell: false
 })
 
-child.on('exit', (code) => {
+child.on('exit', code => {
   process.exit(code ?? 1)
 })

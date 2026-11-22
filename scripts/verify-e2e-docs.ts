@@ -47,7 +47,7 @@ function gitBaseline(relPath: string): string {
       return execFileSync('git', ['show', ref], {
         cwd: PROJECT_ROOT,
         stdio: ['ignore', 'pipe', 'ignore'],
-        encoding: 'utf8',
+        encoding: 'utf8'
       })
     } catch {
       // not staged / not committed under this ref — try the next
@@ -96,7 +96,7 @@ const FEATURE_ALLOWLIST = new Set<string>([
   'smoke',
   'tiers',
   'users',
-  'workloads',
+  'workloads'
 ])
 
 const VERSION_RE = /^(pre-v1\.0|v\d+\.\d+(?:\.\d+)?)$/
@@ -125,7 +125,7 @@ function main(): void {
   for (const missing of result.missing) {
     violations.push({
       check: 'header-missing',
-      detail: `testing/e2e/${missing} — JSDoc header with @purpose, @feature, @since is required`,
+      detail: `testing/e2e/${missing} — JSDoc header with @purpose, @feature, @since is required`
     })
   }
 
@@ -134,7 +134,7 @@ function main(): void {
     if (entry.features.length === 0) {
       violations.push({
         check: 'feature-empty',
-        detail: `testing/e2e/${entry.filename} — @feature tag is empty`,
+        detail: `testing/e2e/${entry.filename} — @feature tag is empty`
       })
       continue
     }
@@ -142,7 +142,7 @@ function main(): void {
       if (!FEATURE_ALLOWLIST.has(f)) {
         violations.push({
           check: 'feature-unknown',
-          detail: `testing/e2e/${entry.filename} — @feature '${f}' not in allowlist (edit scripts/verify-e2e-docs.ts FEATURE_ALLOWLIST if this is a legit new category)`,
+          detail: `testing/e2e/${entry.filename} — @feature '${f}' not in allowlist (edit scripts/verify-e2e-docs.ts FEATURE_ALLOWLIST if this is a legit new category)`
         })
       }
     }
@@ -153,7 +153,7 @@ function main(): void {
     if (!VERSION_RE.test(entry.since)) {
       violations.push({
         check: 'since-format',
-        detail: `testing/e2e/${entry.filename} — @since '${entry.since}' does not match expected format (pre-v1.0, vX.Y, or vX.Y.Z)`,
+        detail: `testing/e2e/${entry.filename} — @since '${entry.since}' does not match expected format (pre-v1.0, vX.Y, or vX.Y.Z)`
       })
     }
   }
@@ -176,17 +176,19 @@ function main(): void {
   if (!actual) {
     violations.push({
       check: 'coverage-missing',
-      detail: `docs/E2E-COVERAGE.md is not committed or staged — run: npm run generate:e2e-coverage && git add code/docs/E2E-COVERAGE.md`,
+      detail: `docs/E2E-COVERAGE.md is not committed or staged — run: npm run generate:e2e-coverage && git add code/docs/E2E-COVERAGE.md`
     })
   }
   if (actual && actual !== expected) {
     violations.push({
       check: 'coverage-stale',
-      detail: `docs/E2E-COVERAGE.md is out of date — run: npm run generate:e2e-coverage`,
+      detail: `docs/E2E-COVERAGE.md is out of date — run: npm run generate:e2e-coverage`
     })
   }
 
-  console.log(`  ${GREEN}✓${RESET} Scanned ${result.entries.length} catalogued spec(s); ${result.missing.length} missing header(s)`)
+  console.log(
+    `  ${GREEN}✓${RESET} Scanned ${result.entries.length} catalogued spec(s); ${result.missing.length} missing header(s)`
+  )
 
   if (violations.length === 0) {
     console.log()

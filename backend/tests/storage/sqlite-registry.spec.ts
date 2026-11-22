@@ -15,7 +15,7 @@ function makeVm(overrides: Partial<WorkloadDefinition> = {}): WorkloadDefinition
     mem: 512,
     vcpu: 1,
     hypervisor: 'qemu',
-    ...overrides,
+    ...overrides
   }
 }
 
@@ -205,7 +205,7 @@ describe('SqliteWorkloadRegistry', () => {
     // column in the same change that added it to WorkloadDefinition rather than in a follow-up.
     const PROBES = [
       { port: 80, type: 'http' as const, url: 'http://10.0.0.1/', label: 'Nginx' },
-      { port: 5432, type: 'tcp' as const, label: 'PostgreSQL' },
+      { port: 5432, type: 'tcp' as const, label: 'PostgreSQL' }
     ]
 
     it('round-trips probes through add() and a REOPENED database', async () => {
@@ -246,8 +246,12 @@ describe('SqliteWorkloadRegistry', () => {
       await registry.add(makeVm({ serviceProbes: PROBES }))
       // Simulate corruption in the column, which a JSON.parse in the read path would throw on —
       // taking out every getAll() for every workload, not just this row.
-      const db = (registry as unknown as { db: { prepare: (s: string) => { run: (...a: unknown[]) => unknown } } }).db
-      db.prepare("UPDATE vms SET service_probes = ? WHERE name = ?").run('{not json', 'test-vm')
+      const db = (
+        registry as unknown as {
+          db: { prepare: (s: string) => { run: (...a: unknown[]) => unknown } }
+        }
+      ).db
+      db.prepare('UPDATE vms SET service_probes = ? WHERE name = ?').run('{not json', 'test-vm')
       expect((await registry.get('test-vm'))?.serviceProbes).toBeUndefined()
       await expect(registry.getAll()).resolves.toBeTruthy()
     })
@@ -273,5 +277,4 @@ describe('SqliteWorkloadRegistry', () => {
       expect(await registry.get('test-vm')).not.toHaveProperty('service_probes')
     })
   })
-
 })

@@ -25,13 +25,18 @@ const source = {
   description: 'front end',
   tags: ['web', 'prod'],
   macAddress: '52:54:00:aa:bb:cc',
-  tapInterface: 'vm-web-nginx',
+  tapInterface: 'vm-web-nginx'
 }
 
 describe('cloneRejectionReason — the guard, before anything is created', () => {
   it('accepts a well-formed clone of a stopped VM', () => {
     expect(
-      cloneRejectionReason({ source, targetName: 'web-nginx-clone', existingNames: ['web-nginx'], status: 'stopped' }),
+      cloneRejectionReason({
+        source,
+        targetName: 'web-nginx-clone',
+        existingNames: ['web-nginx'],
+        status: 'stopped'
+      })
     ).toBeNull()
   })
 
@@ -40,7 +45,7 @@ describe('cloneRejectionReason — the guard, before anything is created', () =>
       source,
       targetName: 'dev-node',
       existingNames: ['web-nginx', 'dev-node'],
-      status: 'stopped',
+      status: 'stopped'
     })
     expect(r).toBeTruthy()
     expect(String(r)).toMatch(/exists/i)
@@ -55,29 +60,44 @@ describe('cloneRejectionReason — the guard, before anything is created', () =>
     ['9lives', 'leading digit'],
     ['has space', 'space'],
     ['semi;colon', 'shell metacharacter'],
-    ['', 'empty'],
-  ])('rejects target name %s (%s)', (bad) => {
+    ['', 'empty']
+  ])('rejects target name %s (%s)', bad => {
     expect(
-      cloneRejectionReason({ source, targetName: bad, existingNames: [], status: 'stopped' }),
+      cloneRejectionReason({ source, targetName: bad, existingNames: [], status: 'stopped' })
     ).toBeTruthy()
   })
 
   it('rejects cloning onto the source name itself', () => {
     expect(
-      cloneRejectionReason({ source, targetName: 'web-nginx', existingNames: ['web-nginx'], status: 'stopped' }),
+      cloneRejectionReason({
+        source,
+        targetName: 'web-nginx',
+        existingNames: ['web-nginx'],
+        status: 'stopped'
+      })
     ).toBeTruthy()
   })
 
   // Cloning a running VM would copy a disk mid-write. Refuse; do not "best effort" it.
   it('rejects cloning a running VM', () => {
     expect(
-      cloneRejectionReason({ source, targetName: 'web-nginx-clone', existingNames: ['web-nginx'], status: 'running' }),
+      cloneRejectionReason({
+        source,
+        targetName: 'web-nginx-clone',
+        existingNames: ['web-nginx'],
+        status: 'running'
+      })
     ).toBeTruthy()
   })
 
   it('rejects when the source is absent', () => {
     expect(
-      cloneRejectionReason({ source: null, targetName: 'anything', existingNames: [], status: 'stopped' }),
+      cloneRejectionReason({
+        source: null,
+        targetName: 'anything',
+        existingNames: [],
+        status: 'stopped'
+      })
     ).toBeTruthy()
   })
 
@@ -88,8 +108,8 @@ describe('cloneRejectionReason — the guard, before anything is created', () =>
         source: { ...source, runtime: 'docker' },
         targetName: 'web-nginx-clone',
         existingNames: ['web-nginx'],
-        status: 'stopped',
-      }),
+        status: 'stopped'
+      })
     ).toBeTruthy()
   })
 })
@@ -145,7 +165,7 @@ describe('deriveClonedDefinition — what the copy inherits, and what it must no
       consolePort: 5901,
       cloudInit: true,
       provisioningState: 'provisioned',
-      provisioningError: 'disk image fetch failed',
+      provisioningError: 'disk image fetch failed'
     }
     const c = deriveClonedDefinition(full, 'web-nginx-clone', '10.10.0.99')
 
@@ -158,7 +178,7 @@ describe('deriveClonedDefinition — what the copy inherits, and what it must no
       'provisioningError',
       'containerId',
       'image',
-      'ports',
+      'ports'
     ]) {
       expect(`${forbidden}:${forbidden in c}`).toBe(`${forbidden}:false`)
     }

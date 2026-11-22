@@ -6,9 +6,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 vi.mock('node:child_process', () => ({
-  execFile: vi.fn((_cmd: string, _args: string[], cb: (err: null, stdout: string, stderr: string) => void) =>
-    cb(null, 'mock output', ''),
-  ),
+  execFile: vi.fn(
+    (_cmd: string, _args: string[], cb: (err: null, stdout: string, stderr: string) => void) =>
+      cb(null, 'mock output', '')
+  )
 }))
 
 vi.mock('node:fs/promises', () => ({
@@ -17,19 +18,19 @@ vi.mock('node:fs/promises', () => ({
   stat: vi.fn().mockResolvedValue({ isDirectory: () => true }),
   writeFile: vi.fn().mockResolvedValue(undefined),
   rename: vi.fn().mockResolvedValue(undefined),
-  unlink: vi.fn().mockResolvedValue(undefined),
+  unlink: vi.fn().mockResolvedValue(undefined)
 }))
 
 vi.mock('node:fs', () => ({
-  readdirSync: vi.fn().mockReturnValue([]),
+  readdirSync: vi.fn().mockReturnValue([])
 }))
 
-vi.mock('node:os', async (importOriginal) => {
+vi.mock('node:os', async importOriginal => {
   const orig = await importOriginal<typeof import('node:os')>()
   return {
     ...orig,
     arch: vi.fn().mockReturnValue('x64'),
-    totalmem: vi.fn().mockReturnValue(4 * 1024 * 1024 * 1024), // 4 GB
+    totalmem: vi.fn().mockReturnValue(4 * 1024 * 1024 * 1024) // 4 GB
   }
 })
 
@@ -58,13 +59,13 @@ function makeConfig(overrides: Partial<DashboardConfig> = {}): DashboardConfig {
     bcryptRounds: 13,
     nodeEnv: 'test',
     weasyprintBin: 'weasyprint',
-    ...overrides,
+    ...overrides
   } as unknown as DashboardConfig
 }
 
 function makeHostInfoService(): HostInfoService {
   return {
-    getHostInfo: vi.fn().mockResolvedValue({}),
+    getHostInfo: vi.fn().mockResolvedValue({})
   } as unknown as HostInfoService
 }
 
@@ -81,7 +82,7 @@ describe('DoctorService', () => {
       const svc = new DoctorService({
         dashboardConfig: makeConfig(),
         hostInfoService: makeHostInfoService(),
-        isDemo: true,
+        isDemo: true
       })
       const result = await svc.runDiagnostics()
       expect(result.summary.total).toBe(14)
@@ -92,7 +93,7 @@ describe('DoctorService', () => {
       const svc = new DoctorService({
         dashboardConfig: makeConfig(),
         hostInfoService: makeHostInfoService(),
-        isDemo: true,
+        isDemo: true
       })
       const result = await svc.runDiagnostics()
       expect(result.summary.failed).toBe(0)
@@ -104,7 +105,7 @@ describe('DoctorService', () => {
       const svc = new DoctorService({
         dashboardConfig: makeConfig(),
         hostInfoService: makeHostInfoService(),
-        isDemo: true,
+        isDemo: true
       })
       const result = await svc.runDiagnostics()
       const names = result.checks.map(c => c.check)
@@ -122,7 +123,7 @@ describe('DoctorService', () => {
         'IP forwarding',
         'Data directory',
         'Bridge interface',
-        'License',
+        'License'
       ]
       for (const name of expected) {
         expect(names).toContain(name)
@@ -133,7 +134,7 @@ describe('DoctorService', () => {
       const svc = new DoctorService({
         dashboardConfig: makeConfig(),
         hostInfoService: makeHostInfoService(),
-        isDemo: true,
+        isDemo: true
       })
       const r1 = await svc.runDiagnostics()
       await new Promise(r => setTimeout(r, 2))
@@ -152,7 +153,7 @@ describe('DoctorService', () => {
       const svc = new DoctorService({
         dashboardConfig: makeConfig(),
         hostInfoService: makeHostInfoService(),
-        isDemo: false,
+        isDemo: false
       })
       const result = await svc.runDiagnostics()
       const check = result.checks.find(c => c.check === 'Architecture')
@@ -165,7 +166,7 @@ describe('DoctorService', () => {
       const svc = new DoctorService({
         dashboardConfig: makeConfig(),
         hostInfoService: makeHostInfoService(),
-        isDemo: false,
+        isDemo: false
       })
       const result = await svc.runDiagnostics()
       const check = result.checks.find(c => c.check === 'Architecture')
@@ -177,7 +178,7 @@ describe('DoctorService', () => {
       const svc = new DoctorService({
         dashboardConfig: makeConfig(),
         hostInfoService: makeHostInfoService(),
-        isDemo: false,
+        isDemo: false
       })
       const result = await svc.runDiagnostics()
       const check = result.checks.find(c => c.check === 'Architecture')
@@ -193,7 +194,7 @@ describe('DoctorService', () => {
       const svc = new DoctorService({
         dashboardConfig: makeConfig(),
         hostInfoService: makeHostInfoService(),
-        isDemo: false,
+        isDemo: false
       })
       const result = await svc.runDiagnostics()
       const check = result.checks.find(c => c.check === 'RAM')
@@ -205,7 +206,7 @@ describe('DoctorService', () => {
       const svc = new DoctorService({
         dashboardConfig: makeConfig(),
         hostInfoService: makeHostInfoService(),
-        isDemo: false,
+        isDemo: false
       })
       const result = await svc.runDiagnostics()
       const check = result.checks.find(c => c.check === 'RAM')
@@ -217,7 +218,7 @@ describe('DoctorService', () => {
       const svc = new DoctorService({
         dashboardConfig: makeConfig(),
         hostInfoService: makeHostInfoService(),
-        isDemo: false,
+        isDemo: false
       })
       const result = await svc.runDiagnostics()
       const check = result.checks.find(c => c.check === 'RAM')
@@ -232,7 +233,7 @@ describe('DoctorService', () => {
       const svc = new DoctorService({
         dashboardConfig: makeConfig({ licenseExpiry: null, licenseGraceMode: false }),
         hostInfoService: makeHostInfoService(),
-        isDemo: false,
+        isDemo: false
       })
       const result = await svc.runDiagnostics()
       const check = result.checks.find(c => c.check === 'License')
@@ -243,7 +244,7 @@ describe('DoctorService', () => {
       const svc = new DoctorService({
         dashboardConfig: makeConfig({ licenseGraceMode: true }),
         hostInfoService: makeHostInfoService(),
-        isDemo: false,
+        isDemo: false
       })
       const result = await svc.runDiagnostics()
       const check = result.checks.find(c => c.check === 'License')
@@ -256,7 +257,7 @@ describe('DoctorService', () => {
       const svc = new DoctorService({
         dashboardConfig: makeConfig({ licenseExpiry: past, licenseGraceMode: false }),
         hostInfoService: makeHostInfoService(),
-        isDemo: false,
+        isDemo: false
       })
       const result = await svc.runDiagnostics()
       const check = result.checks.find(c => c.check === 'License')
@@ -269,7 +270,7 @@ describe('DoctorService', () => {
       const svc = new DoctorService({
         dashboardConfig: makeConfig({ licenseExpiry: future, licenseGraceMode: false }),
         hostInfoService: makeHostInfoService(),
-        isDemo: false,
+        isDemo: false
       })
       const result = await svc.runDiagnostics()
       const check = result.checks.find(c => c.check === 'License')
@@ -284,7 +285,7 @@ describe('DoctorService', () => {
       const svc = new DoctorService({
         dashboardConfig: makeConfig(),
         hostInfoService: makeHostInfoService(),
-        isDemo: false,
+        isDemo: false
       })
       const result = await svc.runDiagnostics()
       const actualPassed = result.checks.filter(c => c.status === 'pass').length
@@ -302,7 +303,7 @@ describe('DoctorService', () => {
       const svc = new DoctorService({
         dashboardConfig: makeConfig({ licenseExpiry: past, licenseGraceMode: false }),
         hostInfoService: makeHostInfoService(),
-        isDemo: false,
+        isDemo: false
       })
       const result = await svc.runDiagnostics()
       expect(result.summary.result).toBe('fail')
@@ -313,7 +314,7 @@ describe('DoctorService', () => {
       const svc = new DoctorService({
         dashboardConfig: makeConfig(),
         hostInfoService: makeHostInfoService(),
-        isDemo: true,
+        isDemo: true
       })
       const result = await svc.runDiagnostics()
       // Demo has no failures but has warnings → result must be 'warn'

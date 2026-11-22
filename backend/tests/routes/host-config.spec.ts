@@ -2,11 +2,7 @@
 // Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE.
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import Fastify from 'fastify'
-import {
-  serializerCompiler,
-  validatorCompiler,
-  ZodTypeProvider
-} from 'fastify-type-provider-zod'
+import { serializerCompiler, validatorCompiler, ZodTypeProvider } from 'fastify-type-provider-zod'
 import { hostConfigRoutes } from '../../src/routes/host-config.js'
 import { AuthService } from '../../src/services/auth.js'
 import { UserStore } from '../../src/storage/user-store.js'
@@ -49,7 +45,7 @@ function makeConfig(overrides: Partial<DashboardConfig> = {}): DashboardConfig {
     notify: { ntfyUrl: null, ntfyTopic: null, ntfyToken: null },
     aiApiKey: '',
     nixConfigPath: '/etc/nixos/configuration.nix',
-    ...overrides,
+    ...overrides
   })
 }
 
@@ -98,7 +94,7 @@ describe('Host Config Routes', () => {
     const res = await fastify.inject({
       method: 'GET',
       url: '/api/config',
-      headers: { authorization: `Bearer ${adminToken}` },
+      headers: { authorization: `Bearer ${adminToken}` }
     })
     expect(res.statusCode).toBe(200)
     const body = res.json()
@@ -113,7 +109,7 @@ describe('Host Config Routes', () => {
     const res = await fastify.inject({
       method: 'GET',
       url: '/api/config',
-      headers: { authorization: `Bearer ${viewerToken}` },
+      headers: { authorization: `Bearer ${viewerToken}` }
     })
     expect(res.statusCode).toBe(200)
   })
@@ -122,7 +118,7 @@ describe('Host Config Routes', () => {
     const res = await fastify.inject({
       method: 'GET',
       url: '/api/config',
-      headers: { authorization: `Bearer ${adminToken}` },
+      headers: { authorization: `Bearer ${adminToken}` }
     })
     const body = res.json()
     const microvmSections = body.sections.filter((s: { type: string }) => s.type === 'microvm')
@@ -133,7 +129,7 @@ describe('Host Config Routes', () => {
     const res = await fastify.inject({
       method: 'GET',
       url: '/api/config',
-      headers: { authorization: `Bearer ${adminToken}` },
+      headers: { authorization: `Bearer ${adminToken}` }
     })
     const body = res.json()
     const ociSections = body.sections.filter((s: { type: string }) => s.type === 'oci-container')
@@ -162,7 +158,7 @@ describe('Host Config Routes', () => {
     const res = await nonExistentFastify.inject({
       method: 'GET',
       url: '/api/config',
-      headers: { authorization: `Bearer ${token}` },
+      headers: { authorization: `Bearer ${token}` }
     })
 
     expect(res.statusCode).toBe(200)

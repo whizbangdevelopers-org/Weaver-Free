@@ -30,12 +30,18 @@ import { serializerCompiler, validatorCompiler, ZodTypeProvider } from 'fastify-
 
 // A real PDF header plus bytes that are NOT valid UTF-8 — if anything serializes or
 // re-encodes the payload, these are the bytes that change.
-const FAKE_PDF = Buffer.from([0x25, 0x50, 0x44, 0x46, 0x2d, 0x31, 0x2e, 0x37, 0x0a, 0xe2, 0xe3, 0xcf, 0xd3, 0x00, 0xff])
+const FAKE_PDF = Buffer.from([
+  0x25, 0x50, 0x44, 0x46, 0x2d, 0x31, 0x2e, 0x37, 0x0a, 0xe2, 0xe3, 0xcf, 0xd3, 0x00, 0xff
+])
 
 vi.mock('../../src/services/compliance-pdf.js', () => ({
   getComplianceSlugs: () => ['soc2-readiness', 'pci-dss-mapping'],
   isValidComplianceSlug: (slug: string) => ['soc2-readiness', 'pci-dss-mapping'].includes(slug),
-  generateCompliancePdf: vi.fn(async () => Buffer.from([0x25, 0x50, 0x44, 0x46, 0x2d, 0x31, 0x2e, 0x37, 0x0a, 0xe2, 0xe3, 0xcf, 0xd3, 0x00, 0xff])),
+  generateCompliancePdf: vi.fn(async () =>
+    Buffer.from([
+      0x25, 0x50, 0x44, 0x46, 0x2d, 0x31, 0x2e, 0x37, 0x0a, 0xe2, 0xe3, 0xcf, 0xd3, 0x00, 0xff
+    ])
+  )
 }))
 
 const { complianceRoutes } = await import('../../src/routes/compliance.js')
@@ -51,7 +57,7 @@ describe('Compliance Routes', () => {
       prefix: '/api/compliance',
       config: { dataDir: '/tmp/weaver-compliance-test', weasyprintBin: 'weasyprint' } as never,
       docsRoot: '/tmp/weaver-docs',
-      appVersion: '1.0.5',
+      appVersion: '1.0.5'
     })
     await fastify.ready()
   })
@@ -79,7 +85,7 @@ describe('Compliance Routes', () => {
   it('sets a versioned attachment filename', async () => {
     const res = await fastify.inject({ method: 'GET', url: '/api/compliance/pci-dss-mapping/pdf' })
     expect(res.headers['content-disposition']).toBe(
-      'attachment; filename="weaver-pci-dss-mapping-v1.0.5.pdf"',
+      'attachment; filename="weaver-pci-dss-mapping-v1.0.5.pdf"'
     )
   })
 

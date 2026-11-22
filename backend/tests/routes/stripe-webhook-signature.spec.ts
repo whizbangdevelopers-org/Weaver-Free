@@ -25,7 +25,7 @@ import Stripe from 'stripe'
 const { mockGenerateLicense } = vi.hoisted(() => ({ mockGenerateLicense: vi.fn() }))
 
 // PARTIAL mock — the point of this file is that `constructWebhookEvent` is NOT mocked.
-vi.mock('../../src/services/stripe.js', async (importOriginal) => {
+vi.mock('../../src/services/stripe.js', async importOriginal => {
   const actual = await importOriginal<typeof import('../../src/services/stripe.js')>()
   return { ...actual, generateLicenseFromSubscription: mockGenerateLicense }
 })
@@ -51,9 +51,9 @@ function checkoutEvent(subscriptionId = 'sub_sig_1') {
         subscription: subscriptionId,
         customer_email: 'buyer@example.com',
         customer_details: { email: 'buyer@example.com' },
-        metadata: { fm: 'false' },
-      },
-    },
+        metadata: { fm: 'false' }
+      }
+    }
   })
 }
 
@@ -73,7 +73,7 @@ function sign(payload: string, secret = WEBHOOK_SECRET, timestamp?: number): str
   const opts = {
     payload,
     secret,
-    ...(timestamp !== undefined ? { timestamp } : {}),
+    ...(timestamp !== undefined ? { timestamp } : {})
   } as TestHeaderOpts
   return stripe.webhooks.generateTestHeaderString(opts)
 }
@@ -85,7 +85,7 @@ async function buildApp() {
     webhookSecret: WEBHOOK_SECRET,
     signingKey: SIGNING_KEY,
     licenseStore,
-    siteUrl: 'https://whizbangdevelopers.com',
+    siteUrl: 'https://whizbangdevelopers.com'
   })
   return app
 }
@@ -95,7 +95,7 @@ function post(app: Awaited<ReturnType<typeof buildApp>>, payload: string, signat
     method: 'POST',
     url: '/webhook',
     headers: { 'content-type': 'application/json', 'stripe-signature': signature },
-    payload,
+    payload
   })
 }
 
@@ -110,14 +110,16 @@ afterAll(async () => {
 
 beforeEach(async () => {
   vi.resetAllMocks()
-  licenseStore = new LicenseStore(join(tmpDir, `licenses-${Math.random().toString(36).slice(2)}.json`))
+  licenseStore = new LicenseStore(
+    join(tmpDir, `licenses-${Math.random().toString(36).slice(2)}.json`)
+  )
   await licenseStore.init()
   mockGenerateLicense.mockResolvedValue({
     key: 'WVR-WVS-TESTKEY12345-' + 'A'.repeat(103),
     tier: 'solo',
     customerId: 'cus_sig',
     subscriptionId: 'sub_sig_1',
-    expiresAt: new Date('2027-06-15T00:00:00Z'),
+    expiresAt: new Date('2027-06-15T00:00:00Z')
   })
 })
 
@@ -203,7 +205,7 @@ describe('webhook delivery is at-least-once — issuance must be idempotent', ()
       tier: 'solo',
       customerId: 'cus_replay',
       subscriptionId: 'sub_replay',
-      expiresAt: new Date('2027-06-15T00:00:00Z'),
+      expiresAt: new Date('2027-06-15T00:00:00Z')
     })
 
     // Stripe documents at-least-once delivery, and a redelivery is signed just as validly as the
@@ -227,11 +229,15 @@ describe('webhook delivery is at-least-once — issuance must be idempotent', ()
 
     for (const sub of ['sub_one', 'sub_two']) {
       mockGenerateLicense.mockResolvedValueOnce({
-        key: `WVR-WVS-${sub.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 12).padEnd(12, 'X')}-${'A'.repeat(103)}`,
+        key: `WVR-WVS-${sub
+          .toUpperCase()
+          .replace(/[^A-Z0-9]/g, '')
+          .slice(0, 12)
+          .padEnd(12, 'X')}-${'A'.repeat(103)}`,
         tier: 'solo',
         customerId: `cus_${sub}`,
         subscriptionId: sub,
-        expiresAt: new Date('2027-06-15T00:00:00Z'),
+        expiresAt: new Date('2027-06-15T00:00:00Z')
       })
       const payload = checkoutEvent(sub)
       const res = await post(app, payload, sign(payload))

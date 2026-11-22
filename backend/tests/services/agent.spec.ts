@@ -8,27 +8,28 @@ import { vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
   getWorkloadDefinitions: vi.fn().mockResolvedValue({
-    'web-nginx': { ip: '10.10.0.10', mem: 256, vcpu: 1, hypervisor: 'qemu' },
+    'web-nginx': { ip: '10.10.0.10', mem: 256, vcpu: 1, hypervisor: 'qemu' }
   }),
   getVmStatus: vi.fn().mockResolvedValue('running'),
-  getConfig: vi.fn().mockReturnValue({ systemctlBin: 'systemctl' }),
+  getConfig: vi.fn().mockReturnValue({ systemctlBin: 'systemctl' })
 }))
 
 vi.mock('../../src/services/microvm.js', () => mocks)
 
 vi.mock('node:child_process', () => ({
-  execFile: vi.fn((_cmd: string, _args: string[], cb: (err: null, stdout: string, stderr: string) => void) =>
-    cb(null, 'mock output', ''),
-  ),
+  execFile: vi.fn(
+    (_cmd: string, _args: string[], cb: (err: null, stdout: string, stderr: string) => void) =>
+      cb(null, 'mock output', '')
+  )
 }))
 
 vi.mock('../../src/services/llm-provider.js', () => ({
   resolveProvider: vi.fn().mockReturnValue(null),
-  getDefaultModel: vi.fn().mockReturnValue('claude-test'),
+  getDefaultModel: vi.fn().mockReturnValue('claude-test')
 }))
 
 vi.mock('../../src/services/mock-agent.js', () => ({
-  runMockAgent: vi.fn().mockResolvedValue(undefined),
+  runMockAgent: vi.fn().mockResolvedValue(undefined)
 }))
 
 import { describe, it, expect, beforeEach } from 'vitest'
@@ -36,7 +37,7 @@ import {
   buildPrompt,
   getOperation,
   hasActiveOperation,
-  runAgent,
+  runAgent
 } from '../../src/services/agent.js'
 import { runMockAgent } from '../../src/services/mock-agent.js'
 import { resolveProvider } from '../../src/services/llm-provider.js'
@@ -47,7 +48,7 @@ const SAMPLE_CONTEXT = {
   vmDefinition: { ip: '10.10.0.10', mem: 256, vcpu: 1, hypervisor: 'qemu' },
   systemctlStatus: 'active (running) since 2026-01-01',
   journalLogs: 'Jan 01 started nginx.service',
-  currentStatus: STATUSES.RUNNING,
+  currentStatus: STATUSES.RUNNING
 }
 
 describe('buildPrompt()', () => {
@@ -119,7 +120,7 @@ describe('runAgent()', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mocks.getWorkloadDefinitions.mockResolvedValue({
-      'web-nginx': { ip: '10.10.0.10', mem: 256, vcpu: 1, hypervisor: 'qemu' },
+      'web-nginx': { ip: '10.10.0.10', mem: 256, vcpu: 1, hypervisor: 'qemu' }
     })
     mocks.getVmStatus.mockResolvedValue('running')
     vi.mocked(resolveProvider).mockReturnValue(null)
@@ -189,7 +190,7 @@ describe('runAgent()', () => {
   it('different VMs get independent operation IDs', async () => {
     mocks.getWorkloadDefinitions.mockResolvedValue({
       'web-nginx': { ip: '10.10.0.10', mem: 256, vcpu: 1, hypervisor: 'qemu' },
-      'web-app': { ip: '10.10.0.11', mem: 512, vcpu: 1, hypervisor: 'qemu' },
+      'web-app': { ip: '10.10.0.11', mem: 512, vcpu: 1, hypervisor: 'qemu' }
     })
     const id1 = await runAgent({ vmName: 'web-nginx', action: 'diagnose', broadcast })
     const id2 = await runAgent({ vmName: 'web-app', action: 'diagnose', broadcast })

@@ -2,11 +2,7 @@
 // Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE.
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import Fastify from 'fastify'
-import {
-  serializerCompiler,
-  validatorCompiler,
-  ZodTypeProvider
-} from 'fastify-type-provider-zod'
+import { serializerCompiler, validatorCompiler, ZodTypeProvider } from 'fastify-type-provider-zod'
 import { tagRoutes } from '../../src/routes/tags.js'
 import { PresetTagStore } from '../../src/storage/preset-tag-store.js'
 import { AuthService } from '../../src/services/auth.js'
@@ -60,7 +56,7 @@ describe('Tag Routes', () => {
       const res = await fastify.inject({
         method: 'GET',
         url: '/api/tags',
-        headers: { authorization: `Bearer ${adminToken}` },
+        headers: { authorization: `Bearer ${adminToken}` }
       })
       expect(res.statusCode).toBe(200)
       expect(res.json()).toEqual({ tags: [] })
@@ -70,7 +66,7 @@ describe('Tag Routes', () => {
       const res = await fastify.inject({
         method: 'GET',
         url: '/api/tags',
-        headers: { authorization: `Bearer ${viewerToken}` },
+        headers: { authorization: `Bearer ${viewerToken}` }
       })
       expect(res.statusCode).toBe(200)
     })
@@ -78,7 +74,7 @@ describe('Tag Routes', () => {
     it('should return 401 without auth', async () => {
       const res = await fastify.inject({
         method: 'GET',
-        url: '/api/tags',
+        url: '/api/tags'
       })
       expect(res.statusCode).toBe(401)
     })
@@ -90,7 +86,7 @@ describe('Tag Routes', () => {
         method: 'PUT',
         url: '/api/tags',
         headers: { authorization: `Bearer ${adminToken}` },
-        payload: { tags: ['production', 'staging', 'database'] },
+        payload: { tags: ['production', 'staging', 'database'] }
       })
       expect(res.statusCode).toBe(200)
       expect(res.json().tags).toEqual(['database', 'production', 'staging'])
@@ -101,7 +97,7 @@ describe('Tag Routes', () => {
         method: 'PUT',
         url: '/api/tags',
         headers: { authorization: `Bearer ${viewerToken}` },
-        payload: { tags: ['test'] },
+        payload: { tags: ['test'] }
       })
       expect(res.statusCode).toBe(403)
     })
@@ -111,7 +107,7 @@ describe('Tag Routes', () => {
         method: 'PUT',
         url: '/api/tags',
         headers: { authorization: `Bearer ${adminToken}` },
-        payload: { tags: ['INVALID'] },
+        payload: { tags: ['INVALID'] }
       })
       expect(res.statusCode).toBe(400)
     })
@@ -121,7 +117,7 @@ describe('Tag Routes', () => {
         method: 'PUT',
         url: '/api/tags',
         headers: { authorization: `Bearer ${adminToken}` },
-        payload: { tags: ['a'.repeat(31)] },
+        payload: { tags: ['a'.repeat(31)] }
       })
       expect(res.statusCode).toBe(400)
     })
@@ -132,7 +128,7 @@ describe('Tag Routes', () => {
         method: 'PUT',
         url: '/api/tags',
         headers: { authorization: `Bearer ${adminToken}` },
-        payload: { tags },
+        payload: { tags }
       })
       expect(res.statusCode).toBe(400)
     })
@@ -142,13 +138,13 @@ describe('Tag Routes', () => {
         method: 'PUT',
         url: '/api/tags',
         headers: { authorization: `Bearer ${adminToken}` },
-        payload: { tags: ['web-tier', 'db-tier'] },
+        payload: { tags: ['web-tier', 'db-tier'] }
       })
 
       const res = await fastify.inject({
         method: 'GET',
         url: '/api/tags',
-        headers: { authorization: `Bearer ${adminToken}` },
+        headers: { authorization: `Bearer ${adminToken}` }
       })
       expect(res.json().tags).toEqual(['db-tier', 'web-tier'])
     })

@@ -20,11 +20,11 @@ import type { DashboardConfig } from '../../src/config.js'
 import type { UserRole } from '../../src/models/user.js'
 import type { WorkloadDefinition } from '../../src/storage/workload-registry.js'
 
-vi.mock('../../src/services/microvm.js', async (importOriginal) => ({
+vi.mock('../../src/services/microvm.js', async importOriginal => ({
   ...(await importOriginal<typeof import('../../src/services/microvm.js')>()),
   getWorkloadDefinitions: vi.fn(),
   getVm: vi.fn(),
-  createVm: vi.fn(),
+  createVm: vi.fn()
 }))
 
 import Fastify from 'fastify'
@@ -50,7 +50,7 @@ const SOURCE: WorkloadDefinition = {
   // Per-instance identity the clone must NOT inherit — asserted below.
   macAddress: '02:00:00:00:00:10',
   tapInterface: 'vm-web-nginx',
-  autostart: true,
+  autostart: true
 } as WorkloadDefinition
 
 let mockUserRole: UserRole = 'admin'
@@ -71,7 +71,7 @@ function makeNetworkManager() {
     }),
     releaseIp: vi.fn(async (_bridge: string, ip: string) => {
       calls.released.push(ip)
-    }),
+    })
   }
 }
 
@@ -80,23 +80,25 @@ function makeConfig(tier: string): DashboardConfig {
     tier,
     bridgeGateway: '10.10.0.1',
     bridgeInterface: 'br-microvm',
-    provisioningEnabled: false,
+    provisioningEnabled: false
   } as unknown as DashboardConfig
 }
 
-async function buildApp(opts: {
-  tier?: string
-  networkManager?: ReturnType<typeof makeNetworkManager> | null
-  provisioner?: { provision: ReturnType<typeof vi.fn>; getLog: ReturnType<typeof vi.fn> } | null
-  auditService?: { log: ReturnType<typeof vi.fn> }
-} = {}) {
+async function buildApp(
+  opts: {
+    tier?: string
+    networkManager?: ReturnType<typeof makeNetworkManager> | null
+    provisioner?: { provision: ReturnType<typeof vi.fn>; getLog: ReturnType<typeof vi.fn> } | null
+    auditService?: { log: ReturnType<typeof vi.fn> }
+  } = {}
+) {
   const fastify = Fastify().withTypeProvider<ZodTypeProvider>()
   fastify.decorateRequest('userId', undefined)
   fastify.decorateRequest('userRole', undefined)
   fastify.decorateRequest('username', undefined)
   fastify.setValidatorCompiler(validatorCompiler)
   fastify.setSerializerCompiler(serializerCompiler)
-  fastify.addHook('onRequest', async (request) => {
+  fastify.addHook('onRequest', async request => {
     request.userRole = mockUserRole
     request.userId = 'test-user-id'
     request.username = 'test-user'
@@ -109,13 +111,17 @@ async function buildApp(opts: {
     // `provision` and `getLog`, and stubbing the rest with vi.fn()s that no test arranges or
     // asserts would add noise, not coverage. The cast says so rather than pretending completeness.
     provisioner: (opts.provisioner ?? null) as unknown as Provisioner | null,
-    auditService: opts.auditService as never,
+    auditService: opts.auditService as never
   })
   await fastify.ready()
   return fastify
 }
 
-const clone = async (app: Awaited<ReturnType<typeof buildApp>>, body: Record<string, unknown>, source = 'web-nginx') =>
+const clone = async (
+  app: Awaited<ReturnType<typeof buildApp>>,
+  body: Record<string, unknown>,
+  source = 'web-nginx'
+) =>
   // `await` matters for more than style: un-awaited, inject() types as its chainable union
   // (`void & Promise<Response> & Chain`) and every `res.statusCode` below fails to resolve.
   await app.inject({ method: 'POST', url: `/api/workload/${source}/clone`, payload: body })
@@ -131,7 +137,9 @@ describe('POST /api/workload/:name/clone', () => {
     mockGetVm.mockResolvedValue({ name: 'web-nginx', status: 'stopped', ip: '10.10.0.10' })
     mockCreateVm.mockResolvedValue({ success: true, message: "VM 'web-nginx-clone' registered" })
   })
-  afterEach(() => { vi.resetAllMocks() })
+  afterEach(() => {
+    vi.resetAllMocks()
+  })
 
   describe('tier gate', () => {
     it('403s below Solo — cloning creates a VM, which is Live Provisioning', async () => {
@@ -181,7 +189,7 @@ describe('POST /api/workload/:name/clone', () => {
 
     it('400s when the source is a container — reproduced from an image, not cloned', async () => {
       mockGetDefs.mockResolvedValue({
-        'web-nginx': { ...SOURCE, runtime: 'docker', containerId: 'abc', image: 'nginx' },
+        'web-nginx': { ...SOURCE, runtime: 'docker', containerId: 'abc', image: 'nginx' }
       })
       const app = await buildApp()
       const res = await clone(app, { name: 'web-nginx-clone' })
@@ -298,9 +306,23 @@ describe('POST /api/workload/:name/clone', () => {
       await clone(app, { name: 'web-nginx-clone', ip: '10.10.0.50' })
       const derived = mockCreateVm.mock.calls[0][0]
 
-      expect(derived).toMatchObject({ name: 'web-nginx-clone', ip: '10.10.0.50', mem: 512, vcpu: 2, hypervisor: 'qemu', distro: 'ubuntu' })
+      expect(derived).toMatchObject({
+        name: 'web-nginx-clone',
+        ip: '10.10.0.50',
+        mem: 512,
+        vcpu: 2,
+        hypervisor: 'qemu',
+        distro: 'ubuntu'
+      })
       // ABSENT, not undefined — `'x' in obj` must be false, or a downstream spread reintroduces it.
-      for (const key of ['macAddress', 'tapInterface', 'consolePort', 'provisioningState', 'provisioningError', 'autostart']) {
+      for (const key of [
+        'macAddress',
+        'tapInterface',
+        'consolePort',
+        'provisioningState',
+        'provisioningError',
+        'autostart'
+      ]) {
         expect(key in derived, `${key} must be absent from a clone`).toBe(false)
       }
     })
@@ -324,7 +346,12 @@ describe('POST /api/workload/:name/clone', () => {
 
     it('accepts tag and description overrides', async () => {
       const app = await buildApp()
-      await clone(app, { name: 'web-nginx-clone', ip: '10.10.0.50', tags: ['cloned'], description: 'Cloned from web-nginx' })
+      await clone(app, {
+        name: 'web-nginx-clone',
+        ip: '10.10.0.50',
+        tags: ['cloned'],
+        description: 'Cloned from web-nginx'
+      })
       const derived = mockCreateVm.mock.calls[0][0]
       expect(derived.tags).toEqual(['cloned'])
       expect(derived.description).toBe('Cloned from web-nginx')
@@ -341,7 +368,7 @@ describe('POST /api/workload/:name/clone', () => {
       fastify.decorateRequest('username', undefined)
       fastify.setValidatorCompiler(validatorCompiler)
       fastify.setSerializerCompiler(serializerCompiler)
-      fastify.addHook('onRequest', async (request) => {
+      fastify.addHook('onRequest', async request => {
         request.userRole = 'admin'
         request.userId = 'u'
         request.username = 'u'
@@ -350,10 +377,14 @@ describe('POST /api/workload/:name/clone', () => {
         prefix: '/api/workload',
         config: { ...makeConfig('solo'), provisioningEnabled: true } as DashboardConfig,
         networkManager: makeNetworkManager(),
-        provisioner: provisioner as never,
+        provisioner: provisioner as never
       })
       await fastify.ready()
-      const res = await fastify.inject({ method: 'POST', url: '/api/workload/web-nginx/clone', payload: { name: 'web-nginx-clone', ip: '10.10.0.50' } })
+      const res = await fastify.inject({
+        method: 'POST',
+        url: '/api/workload/web-nginx/clone',
+        payload: { name: 'web-nginx-clone', ip: '10.10.0.50' }
+      })
       expect(res.statusCode).toBe(202)
       expect(provisioner.provision).toHaveBeenCalledWith('web-nginx-clone')
       await fastify.close()
@@ -367,8 +398,8 @@ describe('POST /api/workload/:name/clone', () => {
         expect.objectContaining({
           action: 'vm.clone',
           resource: 'web-nginx-clone',
-          details: expect.objectContaining({ source: 'web-nginx' }),
-        }),
+          details: expect.objectContaining({ source: 'web-nginx' })
+        })
       )
       await app.close()
     })

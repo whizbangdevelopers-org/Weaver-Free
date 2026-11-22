@@ -9,7 +9,7 @@ import { STATUSES } from '../../src/constants/vocabularies.js'
 function makeStore(): NotificationStore {
   return {
     add: vi.fn().mockResolvedValue(undefined),
-    getRecent: vi.fn().mockReturnValue([]),
+    getRecent: vi.fn().mockReturnValue([])
   } as unknown as NotificationStore
 }
 
@@ -27,7 +27,7 @@ describe('NotificationService', () => {
   describe('detectChanges()', () => {
     it('returns no events on first call (sets baseline only)', async () => {
       const events = await svc.detectChanges([
-        { name: 'web-nginx', status: STATUSES.RUNNING } as never,
+        { name: 'web-nginx', status: STATUSES.RUNNING } as never
       ])
       expect(events).toHaveLength(0)
       expect(store.add).not.toHaveBeenCalled()
@@ -35,13 +35,17 @@ describe('NotificationService', () => {
 
     it('returns no events when status is unchanged', async () => {
       await svc.detectChanges([{ name: 'web-nginx', status: STATUSES.RUNNING } as never])
-      const events = await svc.detectChanges([{ name: 'web-nginx', status: STATUSES.RUNNING } as never])
+      const events = await svc.detectChanges([
+        { name: 'web-nginx', status: STATUSES.RUNNING } as never
+      ])
       expect(events).toHaveLength(0)
     })
 
     it('emits vm:failed when running → failed', async () => {
       await svc.detectChanges([{ name: 'web-nginx', status: STATUSES.RUNNING } as never])
-      const events = await svc.detectChanges([{ name: 'web-nginx', status: STATUSES.FAILED } as never])
+      const events = await svc.detectChanges([
+        { name: 'web-nginx', status: STATUSES.FAILED } as never
+      ])
       expect(events).toHaveLength(1)
       expect(events[0].event).toBe('vm:failed')
       expect(events[0].severity).toBe('error')
@@ -50,7 +54,9 @@ describe('NotificationService', () => {
 
     it('emits vm:recovered when failed → running', async () => {
       await svc.detectChanges([{ name: 'web-nginx', status: STATUSES.FAILED } as never])
-      const events = await svc.detectChanges([{ name: 'web-nginx', status: STATUSES.RUNNING } as never])
+      const events = await svc.detectChanges([
+        { name: 'web-nginx', status: STATUSES.RUNNING } as never
+      ])
       expect(events).toHaveLength(1)
       expect(events[0].event).toBe('vm:recovered')
       expect(events[0].severity).toBe('success')
@@ -58,14 +64,18 @@ describe('NotificationService', () => {
 
     it('emits vm:started when stopped → running', async () => {
       await svc.detectChanges([{ name: 'web-nginx', status: STATUSES.STOPPED } as never])
-      const events = await svc.detectChanges([{ name: 'web-nginx', status: STATUSES.RUNNING } as never])
+      const events = await svc.detectChanges([
+        { name: 'web-nginx', status: STATUSES.RUNNING } as never
+      ])
       expect(events).toHaveLength(1)
       expect(events[0].event).toBe('vm:started')
     })
 
     it('emits vm:stopped when running → stopped', async () => {
       await svc.detectChanges([{ name: 'web-nginx', status: STATUSES.RUNNING } as never])
-      const events = await svc.detectChanges([{ name: 'web-nginx', status: STATUSES.STOPPED } as never])
+      const events = await svc.detectChanges([
+        { name: 'web-nginx', status: STATUSES.STOPPED } as never
+      ])
       expect(events).toHaveLength(1)
       expect(events[0].event).toBe('vm:stopped')
     })
@@ -79,13 +89,13 @@ describe('NotificationService', () => {
     it('handles multiple VMs in a single call', async () => {
       const vms = [
         { name: 'web-nginx', status: STATUSES.RUNNING },
-        { name: 'web-app', status: STATUSES.STOPPED },
+        { name: 'web-app', status: STATUSES.STOPPED }
       ] as never[]
       await svc.detectChanges(vms)
 
       const vms2 = [
         { name: 'web-nginx', status: STATUSES.FAILED },
-        { name: 'web-app', status: STATUSES.RUNNING },
+        { name: 'web-app', status: STATUSES.RUNNING }
       ] as never[]
       const events = await svc.detectChanges(vms2)
       expect(events).toHaveLength(2)
@@ -167,7 +177,10 @@ describe('NotificationService', () => {
 
     it('reports sent channels for adapters that succeed', async () => {
       // Inject a mock adapter directly via the private map
-      const adapter = { send: vi.fn().mockResolvedValue(undefined), test: vi.fn().mockResolvedValue(true) }
+      const adapter = {
+        send: vi.fn().mockResolvedValue(undefined),
+        test: vi.fn().mockResolvedValue(true)
+      }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       ;(svc as any).adapters.set('ntfy', adapter)
       const result = await svc.sendTestNotification()

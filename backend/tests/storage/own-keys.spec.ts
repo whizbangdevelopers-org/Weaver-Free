@@ -6,7 +6,7 @@ import { ownRecord, ownValue } from '../../src/storage/lib/own-keys.js'
 const INHERITED = ['constructor', 'toString', 'valueOf', 'hasOwnProperty', '__proto__']
 
 describe('ownRecord', () => {
-  it.each(INHERITED)('an empty record has no %j', (key) => {
+  it.each(INHERITED)('an empty record has no %j', key => {
     const rec = ownRecord<number>()
     expect(key in rec).toBe(false)
     expect(rec[key]).toBeUndefined()
@@ -30,7 +30,7 @@ describe('ownRecord', () => {
 })
 
 describe('ownValue', () => {
-  it.each(INHERITED)('%j on an ORDINARY object is null, not an inherited member', (key) => {
+  it.each(INHERITED)('%j on an ORDINARY object is null, not an inherited member', key => {
     expect(ownValue({ a: 1 } as Record<string, number>, key)).toBeNull()
   })
 

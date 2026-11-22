@@ -23,19 +23,24 @@
 // An auditor with no test only ever tells you it found nothing; it never tells you it cannot find
 // anything. The same is true of a guard.
 import { describe, it, expect } from 'vitest'
-import { validateExternalUrl, expandIpv6, isBlockedIpv4, isBlockedIpv6 } from '../src/validate-url.js'
+import {
+  validateExternalUrl,
+  expandIpv6,
+  isBlockedIpv4,
+  isBlockedIpv6
+} from '../src/validate-url.js'
 
 describe('validateExternalUrl — scheme', () => {
   it.each([
     ['file:///etc/passwd', 'local file read'],
     ['gopher://x.test/', 'gopher, the classic SSRF pivot'],
     ['ftp://x.test/', 'ftp'],
-    ['data:text/plain,hi', 'data'],
-  ])('rejects %s (%s)', (url) => {
+    ['data:text/plain,hi', 'data']
+  ])('rejects %s (%s)', url => {
     expect(() => validateExternalUrl(url)).toThrow(/only http\/https/)
   })
 
-  it.each(['http://example.test/', 'https://example.test/'])('accepts %s', (url) => {
+  it.each(['http://example.test/', 'https://example.test/'])('accepts %s', url => {
     expect(() => validateExternalUrl(url)).not.toThrow()
   })
 })
@@ -52,8 +57,8 @@ describe('validateExternalUrl — MUST BLOCK', () => {
       ['http://192.168.1.1/', 'RFC1918 192.168/16'],
       ['http://100.64.0.1/', 'RFC6598 CGNAT'],
       ['http://169.254.169.254/', 'cloud metadata'],
-      ['http://224.0.0.1/', 'multicast'],
-    ])('blocks %s (%s)', (url) => {
+      ['http://224.0.0.1/', 'multicast']
+    ])('blocks %s (%s)', url => {
       expect(() => validateExternalUrl(url)).toThrow()
     })
 
@@ -65,8 +70,8 @@ describe('validateExternalUrl — MUST BLOCK', () => {
       ['http://2130706433/', 'decimal loopback'],
       ['http://0177.0.0.1/', 'octal loopback'],
       ['http://0xA9FEA9FE/', 'hex cloud metadata'],
-      ['http://2852039166/', 'decimal cloud metadata'],
-    ])('blocks %s (%s) — via parser canonicalisation', (url) => {
+      ['http://2852039166/', 'decimal cloud metadata']
+    ])('blocks %s (%s) — via parser canonicalisation', url => {
       expect(() => validateExternalUrl(url)).toThrow()
     })
   })
@@ -81,8 +86,8 @@ describe('validateExternalUrl — MUST BLOCK', () => {
       ['http://[FD00::1]/', 'unique-local, uppercase'],
       ['http://[fe80::1]/', 'link-local'],
       ['http://[fe80::1%25eth0]/', 'link-local carrying a zone id'],
-      ['http://[ff02::1]/', 'multicast all-nodes'],
-    ])('blocks %s (%s)', (url) => {
+      ['http://[ff02::1]/', 'multicast all-nodes']
+    ])('blocks %s (%s)', url => {
       expect(() => validateExternalUrl(url)).toThrow()
     })
 
@@ -92,8 +97,8 @@ describe('validateExternalUrl — MUST BLOCK', () => {
       ['http://[::ffff:192.168.1.1]/', 'IPv4-mapped home LAN'],
       ['http://[::ffff:169.254.169.254]/', 'IPv4-mapped CLOUD METADATA — the one that matters'],
       ['http://[::127.0.0.1]/', 'IPv4-compatible loopback'],
-      ['http://[64:ff9b::169.254.169.254]/', 'NAT64 well-known prefix with metadata behind it'],
-    ])('blocks %s (%s) — an IPv4 rule must not be optional', (url) => {
+      ['http://[64:ff9b::169.254.169.254]/', 'NAT64 well-known prefix with metadata behind it']
+    ])('blocks %s (%s) — an IPv4 rule must not be optional', url => {
       expect(() => validateExternalUrl(url)).toThrow()
     })
   })
@@ -102,8 +107,8 @@ describe('validateExternalUrl — MUST BLOCK', () => {
     it.each([
       ['http://localhost/', 'the name itself'],
       ['http://LOCALHOST/', 'uppercase'],
-      ['http://anything.localhost/', 'RFC6761 reserves the whole TLD to loopback'],
-    ])('blocks %s (%s)', (url) => {
+      ['http://anything.localhost/', 'RFC6761 reserves the whole TLD to loopback']
+    ])('blocks %s (%s)', url => {
       expect(() => validateExternalUrl(url)).toThrow()
     })
   })
@@ -127,8 +132,8 @@ describe('validateExternalUrl — MUST ALLOW', () => {
     ['http://192.169.0.1/', 'adjacent to 192.168/16'],
     ['http://169.253.0.1/', 'adjacent to link-local'],
     ['http://223.255.255.255/', 'last address below multicast'],
-    ['http://localhost.example.test/', 'a name that merely CONTAINS localhost'],
-  ])('allows %s (%s)', (url) => {
+    ['http://localhost.example.test/', 'a name that merely CONTAINS localhost']
+  ])('allows %s (%s)', url => {
     expect(() => validateExternalUrl(url)).not.toThrow()
   })
 
@@ -158,7 +163,14 @@ describe('expandIpv6 — the parser the classifier rests on', () => {
   it('returns null rather than a partial answer on garbage', () => {
     // A partial answer would be classified, and misclassified. null forces the caller to treat the
     // value as "not an IPv6 address" instead of guessing at it.
-    for (const bad of ['fd00::1::2', 'nonsense', 'fd00:::1', '1:2:3:4:5:6:7', '::ffff:999.1.1.1', 'gggg::1']) {
+    for (const bad of [
+      'fd00::1::2',
+      'nonsense',
+      'fd00:::1',
+      '1:2:3:4:5:6:7',
+      '::ffff:999.1.1.1',
+      'gggg::1'
+    ]) {
       expect(expandIpv6(bad), bad).toBeNull()
     }
   })

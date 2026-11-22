@@ -8,22 +8,18 @@ import { describe, it, expect, vi, beforeAll, afterAll, beforeEach } from 'vites
 // imports isContainerLogSource / containerLogArgs / apptainerLogPaths, none of which were listed
 // here; nothing broke only because no test reached that path yet. Pure helpers are better exercised
 // real anyway — only the I/O-touching calls below need stubbing.
-vi.mock('../../src/services/microvm.js', async (importOriginal) => ({
+vi.mock('../../src/services/microvm.js', async importOriginal => ({
   ...(await importOriginal<typeof import('../../src/services/microvm.js')>()),
   listVms: vi.fn(),
   getVm: vi.fn(),
   startVm: vi.fn(),
   stopVm: vi.fn(),
   restartVm: vi.fn(),
-  getWorkloadDefinitions: vi.fn(),
+  getWorkloadDefinitions: vi.fn()
 }))
 
 import Fastify from 'fastify'
-import {
-  serializerCompiler,
-  validatorCompiler,
-  ZodTypeProvider
-} from 'fastify-type-provider-zod'
+import { serializerCompiler, validatorCompiler, ZodTypeProvider } from 'fastify-type-provider-zod'
 import { workloadsRoutes } from '../../src/routes/workloads.js'
 import { listVms, getVm, startVm, stopVm, restartVm } from '../../src/services/microvm.js'
 import type { UserRole } from '../../src/models/user.js'
@@ -61,7 +57,7 @@ describe('VM Routes', () => {
     fastify.setSerializerCompiler(serializerCompiler)
 
     // Simulate auth middleware: set userRole on every request
-    fastify.addHook('onRequest', async (request) => {
+    fastify.addHook('onRequest', async request => {
       request.userRole = mockUserRole
       request.userId = 'test-user-id'
       request.username = 'test-user'
@@ -276,8 +272,14 @@ describe('VM Routes', () => {
 // indistinguishable from a route that is broken for everyone.
 describe('GET /:name/logs — Apptainer tier gate', () => {
   const apptainerWorkload = {
-    name: 'sif-hpc', status: 'running', ip: '', mem: 512, vcpu: 1,
-    hypervisor: 'apptainer', uptime: null, runtime: 'apptainer',
+    name: 'sif-hpc',
+    status: 'running',
+    ip: '',
+    mem: 512,
+    vcpu: 1,
+    hypervisor: 'apptainer',
+    uptime: null,
+    runtime: 'apptainer'
   }
 
   async function appWithTier(tier: string | undefined) {
@@ -289,7 +291,7 @@ describe('GET /:name/logs — Apptainer tier gate', () => {
     f.decorateRequest('authRejectionReason', undefined)
     f.setValidatorCompiler(validatorCompiler)
     f.setSerializerCompiler(serializerCompiler)
-    f.addHook('onRequest', async (request) => {
+    f.addHook('onRequest', async request => {
       request.userRole = 'admin'
       request.userId = 'test-user-id'
       request.username = 'test-user'
@@ -297,7 +299,7 @@ describe('GET /:name/logs — Apptainer tier gate', () => {
     await f.register(workloadsRoutes, {
       prefix: '/api/workload',
       // Only `tier` is read on this path; the rest of DashboardConfig is irrelevant here.
-      ...(tier === undefined ? {} : { config: { tier } as never }),
+      ...(tier === undefined ? {} : { config: { tier } as never })
     })
     await f.ready()
     return f
@@ -355,14 +357,15 @@ describe('GET /:name/logs — Apptainer tier gate', () => {
 // route gained its subprocess in the container-logs slice and kept the read-shaped default.
 describe('GET /:name/logs — rate limit (subprocess endpoint)', () => {
   it('declares its own limit, well below the global default', async () => {
-    const src = await import('node:fs/promises')
-      .then(fs => fs.readFile(new URL('../../src/routes/workloads.ts', import.meta.url), 'utf-8'))
+    const src = await import('node:fs/promises').then(fs =>
+      fs.readFile(new URL('../../src/routes/workloads.ts', import.meta.url), 'utf-8')
+    )
     // the /:name/logs registration block, up to its handler
     const block = src.slice(src.indexOf("'/:name/logs'"), src.indexOf("'/:name/logs'") + 2000)
     const m = block.match(/rateLimit:\s*createRateLimit\((\d+)\)/)
     expect(m, '/:name/logs must declare config.rateLimit').not.toBeNull()
     const max = Number(m![1])
-    expect(max).toBeLessThan(120)   // the global default it would otherwise inherit
+    expect(max).toBeLessThan(120) // the global default it would otherwise inherit
     expect(max).toBeLessThanOrEqual(30)
     expect(max).toBeGreaterThan(0)
   })

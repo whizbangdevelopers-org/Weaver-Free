@@ -17,8 +17,10 @@ const seen = ref(0)
 
 watch(
   () => laterValue.value,
-  (v) => { seen.value = v },
-  { immediate: true },
+  v => {
+    seen.value = v
+  },
+  { immediate: true }
 )
 
 const laterValue = computed(() => 42)

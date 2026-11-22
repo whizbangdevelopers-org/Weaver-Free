@@ -25,11 +25,7 @@ const vms = computed(() => ['a', 'b'])
 
 const unifiedItems = computed(() => [...vms.value, ...filteredItems.value])
 
-watch(
-  unifiedItems,
-  (items) => uiStore.setFocusableWorkloads(items),
-  { immediate: true, deep: false },
-)
+watch(unifiedItems, items => uiStore.setFocusableWorkloads(items), { immediate: true, deep: false })
 
 const filteredItems = computed(() => ['c'])
 </script>

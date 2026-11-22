@@ -81,7 +81,7 @@ function findDispatchSteps(content: string): Array<{ start: number; end: number;
         blocks.push({
           start: stepStart,
           end: i - 1,
-          block: lines.slice(stepStart, i).join('\n'),
+          block: lines.slice(stepStart, i).join('\n')
         })
       }
       stepStart = i
@@ -95,7 +95,7 @@ function findDispatchSteps(content: string): Array<{ start: number; end: number;
         blocks.push({
           start: stepStart,
           end: i - 1,
-          block: lines.slice(stepStart, i).join('\n'),
+          block: lines.slice(stepStart, i).join('\n')
         })
         stepStart = -1
         stepIndent = -1
@@ -106,12 +106,12 @@ function findDispatchSteps(content: string): Array<{ start: number; end: number;
     blocks.push({
       start: stepStart,
       end: lines.length - 1,
-      block: lines.slice(stepStart).join('\n'),
+      block: lines.slice(stepStart).join('\n')
     })
   }
 
   return blocks.filter(
-    (b) => b.block.includes(DISPATCH_USES_MARKER) && b.block.includes(NUR_REPO_MARKER),
+    b => b.block.includes(DISPATCH_USES_MARKER) && b.block.includes(NUR_REPO_MARKER)
   )
 }
 
@@ -142,7 +142,7 @@ function audit(): Violation[] {
     violations.push({
       file: RELEASE_WORKFLOW,
       step: '(file)',
-      reason: 'release.yml not found',
+      reason: 'release.yml not found'
     })
     return violations
   }
@@ -155,7 +155,7 @@ function audit(): Violation[] {
       file: '.github/workflows/release.yml',
       step: '(no dispatch step found)',
       reason:
-        'No repository-dispatch step targeting NUR_REPO found. If NUR dispatch was removed intentionally, also remove this auditor from test:compliance.',
+        'No repository-dispatch step targeting NUR_REPO found. If NUR dispatch was removed intentionally, also remove this auditor from test:compliance.'
     })
     return violations
   }
@@ -169,7 +169,7 @@ function audit(): Violation[] {
       violations.push({
         file: '.github/workflows/release.yml',
         step: stepName,
-        reason: 'client-payload JSON block could not be located or parsed',
+        reason: 'client-payload JSON block could not be located or parsed'
       })
       continue
     }
@@ -180,7 +180,7 @@ function audit(): Violation[] {
         violations.push({
           file: '.github/workflows/release.yml',
           step: stepName,
-          reason: `client-payload missing required key "${key}"`,
+          reason: `client-payload missing required key "${key}"`
         })
       }
     }
@@ -193,7 +193,7 @@ function audit(): Violation[] {
         violations.push({
           file: '.github/workflows/release.yml',
           step: stepName,
-          reason: `npmDepsHash is a hardcoded literal "${value}"; must reference a step output so CI computes it at release time (prevents stale-hash regression)`,
+          reason: `npmDepsHash is a hardcoded literal "${value}"; must reference a step output so CI computes it at release time (prevents stale-hash regression)`
         })
       }
     }
@@ -211,10 +211,10 @@ const RESET = '\x1b[0m'
 function main(): void {
   console.log(`${BOLD}NUR Dispatch Completeness Audit${RESET}`)
   console.log(
-    `${DIM}Ensures release.yml's NUR dispatch sends {version, hash, npmDepsHash}.${RESET}`,
+    `${DIM}Ensures release.yml's NUR dispatch sends {version, hash, npmDepsHash}.${RESET}`
   )
   console.log(
-    `${DIM}Without npmDepsHash the receiver silently keeps a stale value and the next NUR build fails.${RESET}`,
+    `${DIM}Without npmDepsHash the receiver silently keeps a stale value and the next NUR build fails.${RESET}`
   )
   console.log()
 
@@ -234,9 +234,7 @@ function main(): void {
   console.log(`${RED}${BOLD}RESULT: FAIL${RESET} — ${violations.length} violation(s)`)
   console.log()
   console.log('Remediation:')
-  console.log(
-    '  release.yml "Dispatch NUR weaver-free update" step must include npmDepsHash in',
-  )
+  console.log('  release.yml "Dispatch NUR weaver-free update" step must include npmDepsHash in')
   console.log('  client-payload, referencing a step output (not a literal). Example:')
   console.log()
   console.log('    client-payload: |')
@@ -248,9 +246,7 @@ function main(): void {
   console.log('      }')
   console.log()
   console.log('  The referenced step should extract from code/nixos/package.nix:')
-  console.log(
-    "    NPM_HASH=$(grep -oP 'npmDepsHash = \"\\Ksha256-[^\"]+' code/nixos/package.nix)",
-  )
+  console.log('    NPM_HASH=$(grep -oP \'npmDepsHash = "\\Ksha256-[^"]+\' code/nixos/package.nix)')
   process.exit(1)
 }
 

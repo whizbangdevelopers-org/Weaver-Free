@@ -3,11 +3,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 vi.mock('node:fs/promises', () => ({
-  readFile: vi.fn(async () => { throw new Error('ENOENT') }),
+  readFile: vi.fn(async () => {
+    throw new Error('ENOENT')
+  }),
   writeFile: vi.fn(async () => {}),
   rename: vi.fn(async () => {}),
   unlink: vi.fn(async () => {}),
-  mkdir: vi.fn(async () => {}),
+  mkdir: vi.fn(async () => {})
 }))
 
 import { DistroStore } from '../../src/storage/distro-store.js'
@@ -31,7 +33,13 @@ describe('DistroStore', () => {
 
   it('should load existing data from file', async () => {
     const existing = {
-      rocky: { name: 'rocky', label: 'Rocky Linux 9', url: 'https://example.com/rocky.qcow2', format: 'qcow2', cloudInit: true }
+      rocky: {
+        name: 'rocky',
+        label: 'Rocky Linux 9',
+        url: 'https://example.com/rocky.qcow2',
+        format: 'qcow2',
+        cloudInit: true
+      }
     }
     mockReadFile.mockResolvedValueOnce(JSON.stringify(existing))
 
@@ -47,7 +55,7 @@ describe('DistroStore', () => {
       label: 'Rocky Linux 9',
       url: 'https://example.com/rocky.qcow2',
       format: 'qcow2',
-      cloudInit: true,
+      cloudInit: true
     })
 
     expect(result).toBe(true)
@@ -58,15 +66,33 @@ describe('DistroStore', () => {
 
   it('should reject duplicate name', async () => {
     await store.init()
-    await store.add({ name: 'rocky', label: 'Rocky Linux 9', url: 'https://example.com/r.qcow2', format: 'qcow2', cloudInit: true })
+    await store.add({
+      name: 'rocky',
+      label: 'Rocky Linux 9',
+      url: 'https://example.com/r.qcow2',
+      format: 'qcow2',
+      cloudInit: true
+    })
 
-    const result = await store.add({ name: 'rocky', label: 'Duplicate', url: 'https://example.com/dup.qcow2', format: 'qcow2', cloudInit: true })
+    const result = await store.add({
+      name: 'rocky',
+      label: 'Duplicate',
+      url: 'https://example.com/dup.qcow2',
+      format: 'qcow2',
+      cloudInit: true
+    })
     expect(result).toBe(false)
   })
 
   it('should remove a custom distro', async () => {
     await store.init()
-    await store.add({ name: 'rocky', label: 'Rocky Linux 9', url: 'https://example.com/r.qcow2', format: 'qcow2', cloudInit: true })
+    await store.add({
+      name: 'rocky',
+      label: 'Rocky Linux 9',
+      url: 'https://example.com/r.qcow2',
+      format: 'qcow2',
+      cloudInit: true
+    })
 
     const result = await store.remove('rocky')
     expect(result).toBe(true)
@@ -81,7 +107,13 @@ describe('DistroStore', () => {
 
   it('should report has() correctly', async () => {
     await store.init()
-    await store.add({ name: 'rocky', label: 'Rocky', url: 'https://ex.com/r.qcow2', format: 'qcow2', cloudInit: true })
+    await store.add({
+      name: 'rocky',
+      label: 'Rocky',
+      url: 'https://ex.com/r.qcow2',
+      format: 'qcow2',
+      cloudInit: true
+    })
 
     expect(store.has('rocky')).toBe(true)
     expect(store.has('nonexistent')).toBe(false)
@@ -89,7 +121,13 @@ describe('DistroStore', () => {
 
   it('should update an existing custom distro', async () => {
     await store.init()
-    await store.add({ name: 'rocky', label: 'Rocky Linux 9', url: 'https://example.com/rocky.qcow2', format: 'qcow2', cloudInit: true })
+    await store.add({
+      name: 'rocky',
+      label: 'Rocky Linux 9',
+      url: 'https://example.com/rocky.qcow2',
+      format: 'qcow2',
+      cloudInit: true
+    })
 
     const result = await store.update('rocky', { url: 'https://example.com/rocky-updated.qcow2' })
     expect(result).toBe(true)
@@ -106,7 +144,13 @@ describe('DistroStore', () => {
 
   it('should convert to image sources', async () => {
     await store.init()
-    await store.add({ name: 'rocky', label: 'Rocky', url: 'https://ex.com/r.qcow2', format: 'qcow2', cloudInit: true })
+    await store.add({
+      name: 'rocky',
+      label: 'Rocky',
+      url: 'https://ex.com/r.qcow2',
+      format: 'qcow2',
+      cloudInit: true
+    })
 
     const sources = store.toImageSources()
     expect(sources.rocky).toBeDefined()
@@ -119,15 +163,23 @@ describe('DistroStore', () => {
   // distro name — as an existing entry, and a `__proto__` write replaced the store's prototype.
   it.each(['constructor', 'toString', 'valueOf', 'hasOwnProperty', '__proto__'])(
     'treats Object.prototype member %j as an ordinary, absent name',
-    async (name) => {
+    async name => {
       await store.init()
       expect(store.has(name)).toBe(false)
       expect(store.get(name)).toBeNull()
       expect(await store.update(name, { label: 'x' })).toBe(false)
       expect(await store.remove(name)).toBe(false)
-      expect(await store.add({ name, label: 'L', url: 'https://example.com/x.qcow2', format: 'qcow2', cloudInit: true })).toBe(true)
+      expect(
+        await store.add({
+          name,
+          label: 'L',
+          url: 'https://example.com/x.qcow2',
+          format: 'qcow2',
+          cloudInit: true
+        })
+      ).toBe(true)
       expect(store.get(name)?.name).toBe(name)
       expect(store.names()).toEqual([name])
-    },
+    }
   )
 })

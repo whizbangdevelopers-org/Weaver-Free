@@ -15,7 +15,9 @@ export function FeatureUnavailable({ feature, onBack }: FeatureUnavailableProps)
 
   return (
     <Box flexDirection="column" paddingX={2} paddingY={1}>
-      <Text bold color="yellow">Not Available</Text>
+      <Text bold color="yellow">
+        Not Available
+      </Text>
       <Box marginTop={1} flexDirection="column">
         <Text>{feature} is not available on this server.</Text>
         <Text dimColor>This feature may require a newer server version.</Text>

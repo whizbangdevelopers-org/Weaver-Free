@@ -21,9 +21,9 @@ const { values } = parseArgs({
     password: { type: 'string' },
     export: { type: 'boolean', default: false },
     output: { type: 'string' },
-    help: { type: 'boolean', short: 'h', default: false },
+    help: { type: 'boolean', short: 'h', default: false }
   },
-  strict: true,
+  strict: true
 })
 
 if (values.help) {
@@ -69,7 +69,7 @@ const config: TuiConfig = {
   tier: values.tier ?? TIERS.SOLO,
   version: values.version ?? '1.0',
   username: values.username,
-  password: values.password,
+  password: values.password
 }
 
 // Non-interactive export mode

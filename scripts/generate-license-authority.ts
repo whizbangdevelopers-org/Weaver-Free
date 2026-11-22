@@ -31,11 +31,36 @@ import { parseArgs } from 'node:util'
 import {
   parseManifest,
   resolveChannel,
-  RELEASE_CHANNELS,
+  RELEASE_CHANNELS
 } from '../backend/src/entitlement/format/authority.js'
 
 export const MANIFEST = new URL('../backend/src/license-authority.json', import.meta.url).pathname
-export const OUT = new URL('../backend/src/generated/license-authority.ts', import.meta.url).pathname
+export const OUT = new URL('../backend/src/generated/license-authority.ts', import.meta.url)
+  .pathname
+
+/**
+ * A single-quoted literal, which is how prettier writes it under `code/.prettierrc.json`. The
+ * artifact sits inside `format:check`, and the freshness auditor reruns this generator and compares
+ * bytes, so the generator has to write what prettier would. `JSON.stringify` wrote double quotes,
+ * so every regeneration undid a format. A channel name and a base64url key only ever hold these
+ * characters, and anything else would need escaping that prettier spells its own way, so it is
+ * refused rather than written.
+ */
+function literal(s: string): string {
+  if (!/^[A-Za-z0-9_-]+$/.test(s)) {
+    throw new Error(`generate-license-authority: '${s}' is not a channel name or a base64url key`)
+  }
+  return `'${s}'`
+}
+
+/**
+ * The key list as prettier lays it out: `[]` when empty, otherwise one key per line with no
+ * trailing comma. One raw Ed25519 key is 43 characters, which puts even a single-key list past the
+ * 100-column print width, so prettier never joins it onto the declaration's line.
+ */
+function keyList(keys: readonly string[]): string {
+  return keys.length === 0 ? '[]' : `[\n${keys.map(k => `  ${literal(k)}`).join(',\n')}\n]`
+}
 
 /** Build the module text. Exported so the freshness auditor compares against the same function. */
 export function renderAuthority(channel: string, keys: readonly string[]): string {
@@ -51,7 +76,7 @@ export function renderAuthority(channel: string, keys: readonly string[]): strin
 // audit:authority-binding, not merely asserted by this comment.
 
 /** The channel this artifact was built for. */
-export const CHANNEL = ${JSON.stringify(channel)} as const
+export const CHANNEL = ${literal(channel)} as const
 
 /** Whether this artifact is customer-facing. Release builds never trust a test authority. */
 export const IS_RELEASE = ${RELEASE_CHANNELS.includes(channel)}
@@ -63,7 +88,7 @@ export const IS_RELEASE = ${RELEASE_CHANNELS.includes(channel)}
  * direction, and the correct state until the production keypair ceremony has run. Do not
  * "temporarily" add a key to get past it.
  */
-export const ACCEPTED_PUBLIC_KEYS: readonly string[] = ${JSON.stringify(keys, null, 2)}
+export const ACCEPTED_PUBLIC_KEYS: readonly string[] = ${keyList(keys)}
 `
 }
 
@@ -94,7 +119,7 @@ export function resolveOrEmpty(channel: string, allowEmpty: boolean): string[] {
 
 if (import.meta.url === `file://${process.argv[1]}`) {
   const { values } = parseArgs({
-    options: { channel: { type: 'string' }, 'allow-empty': { type: 'boolean' } },
+    options: { channel: { type: 'string' }, 'allow-empty': { type: 'boolean' } }
   })
   const channel = values.channel ?? 'release'
   // Pre-ceremony the manifest legitimately has no keys, so allow-empty defaults on for `release`
@@ -108,7 +133,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     console.error(
       `generate-license-authority: channel '${channel}' has NO keys.\n` +
         '  This build verifies nothing and every licence resolves to Free. Correct before the\n' +
-        '  ceremony; a bug afterwards.',
+        '  ceremony; a bug afterwards.'
     )
   }
 

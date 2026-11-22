@@ -45,7 +45,12 @@ export class TuiApiClient {
     this.refreshTokenValue = token
   }
 
-  private async request<T>(method: string, path: string, body?: unknown, skipAuth = false): Promise<ApiResponse<T>> {
+  private async request<T>(
+    method: string,
+    path: string,
+    body?: unknown,
+    skipAuth = false
+  ): Promise<ApiResponse<T>> {
     const token = this.getToken()
     const headers: Record<string, string> = {}
     if (body !== undefined) headers['Content-Type'] = 'application/json'
@@ -54,7 +59,7 @@ export class TuiApiClient {
     const res = await fetch(`${this.baseUrl}${path}`, {
       method,
       headers,
-      ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+      ...(body !== undefined ? { body: JSON.stringify(body) } : {})
     })
 
     // Attempt token refresh on 401
@@ -65,7 +70,7 @@ export class TuiApiClient {
       }
     }
 
-    const data = await res.json().catch(() => ({}) as T) as T
+    const data = (await res.json().catch(() => ({}) as T)) as T
     return { status: res.status, data }
   }
 
@@ -75,7 +80,8 @@ export class TuiApiClient {
     this.refreshing = (async () => {
       try {
         const result = await this.request<AuthResponse>(
-          'POST', '/api/auth/refresh',
+          'POST',
+          '/api/auth/refresh',
           { refreshToken: this.refreshTokenValue },
           true
         )
@@ -104,7 +110,12 @@ export class TuiApiClient {
   }
 
   async login(username: string, password: string): Promise<ApiResponse<AuthResponse>> {
-    const result = await this.request<AuthResponse>('POST', '/api/auth/login', { username, password }, true)
+    const result = await this.request<AuthResponse>(
+      'POST',
+      '/api/auth/login',
+      { username, password },
+      true
+    )
     if (result.status === 200) {
       this.refreshTokenValue = result.data.refreshToken
     }
@@ -142,17 +153,20 @@ export class TuiApiClient {
     vmName: string,
     action: AgentAction,
     apiKey?: string,
-    vendor?: string,
+    vendor?: string
   ): Promise<ApiResponse<AgentOperationStarted>> {
     return this.request('POST', `/api/workload/${encodeURIComponent(vmName)}/agent`, {
       action,
       ...(apiKey ? { apiKey } : {}),
-      ...(vendor ? { vendor } : {}),
+      ...(vendor ? { vendor } : {})
     })
   }
 
   async getAgentStatus(vmName: string, operationId: string): Promise<ApiResponse<unknown>> {
-    return this.request('GET', `/api/workload/${encodeURIComponent(vmName)}/agent/${encodeURIComponent(operationId)}`)
+    return this.request(
+      'GET',
+      `/api/workload/${encodeURIComponent(vmName)}/agent/${encodeURIComponent(operationId)}`
+    )
   }
 
   // VM management
@@ -164,13 +178,20 @@ export class TuiApiClient {
     return this.request('DELETE', `/api/workload/${encodeURIComponent(name)}`)
   }
 
-  async scanVms(): Promise<ApiResponse<{ discovered: string[]; added: string[]; existing: string[] }>> {
+  async scanVms(): Promise<
+    ApiResponse<{ discovered: string[]; added: string[]; existing: string[] }>
+  > {
     return this.request('POST', '/api/workload/scan')
   }
 
   // Auth
   async register(username: string, password: string): Promise<ApiResponse<AuthResponse>> {
-    const result = await this.request<AuthResponse>('POST', '/api/auth/register', { username, password }, true)
+    const result = await this.request<AuthResponse>(
+      'POST',
+      '/api/auth/register',
+      { username, password },
+      true
+    )
     if (result.status === 201) {
       this.refreshTokenValue = result.data.refreshToken
     }
@@ -239,7 +260,9 @@ export class TuiApiClient {
   }
 
   // Audit (fabrick)
-  async getAuditLog(params?: AuditQueryParams): Promise<ApiResponse<{ entries: AuditEntry[]; total: number }>> {
+  async getAuditLog(
+    params?: AuditQueryParams
+  ): Promise<ApiResponse<{ entries: AuditEntry[]; total: number }>> {
     const qs = new URLSearchParams()
     if (params?.userId) qs.set('userId', params.userId)
     if (params?.action) qs.set('action', params.action)

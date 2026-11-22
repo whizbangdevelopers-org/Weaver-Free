@@ -14,9 +14,16 @@ function createMockRegistry(vms: Record<string, WorkloadDefinition> = {}): Workl
     getAll: async () => ({ ...store }),
     get: async (name: string) => store[name] ?? null,
     has: async (name: string) => name in store,
-    add: async (vm: WorkloadDefinition) => { store[vm.name] = vm; return true },
-    remove: async (name: string) => { if (!store[name]) return false; delete store[name]; return true },
-    update: async () => true,
+    add: async (vm: WorkloadDefinition) => {
+      store[vm.name] = vm
+      return true
+    },
+    remove: async (name: string) => {
+      if (!store[name]) return false
+      delete store[name]
+      return true
+    },
+    update: async () => true
   }
 }
 
@@ -34,7 +41,7 @@ function createMockProvisioner(): Provisioner {
     isFlakeDistro: vi.fn(() => false),
     isQemuVm: vi.fn(() => true),
     getConsolePort: vi.fn(async () => null),
-    getLog: vi.fn(async () => ''),
+    getLog: vi.fn(async () => '')
   }
 }
 
@@ -57,24 +64,37 @@ const baseConfig: DashboardConfig = makeTestConfig({
   distroCatalogUrl: null,
   jwtSecret: 'test-secret',
   sessionStoreType: 'memory',
-  notify: { ntfyUrl: null, ntfyTopic: null, ntfyToken: null },
+  notify: { ntfyUrl: null, ntfyTopic: null, ntfyToken: null }
 })
 
 const log = { info: vi.fn(), error: vi.fn() }
 
 describe('provisionExampleVm', () => {
-  beforeEach(() => { vi.clearAllMocks() })
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
 
   it('skips when provisioning is disabled', async () => {
     const registry = createMockRegistry()
     const provisioner = createMockProvisioner()
-    await provisionExampleVm(registry, provisioner, { ...baseConfig, provisioningEnabled: false }, log)
+    await provisionExampleVm(
+      registry,
+      provisioner,
+      { ...baseConfig, provisioningEnabled: false },
+      log
+    )
     expect(provisioner.provision).not.toHaveBeenCalled()
   })
 
   it('skips when example VM already exists in registry', async () => {
     const registry = createMockRegistry({
-      [EXAMPLE_VM_NAME]: { name: EXAMPLE_VM_NAME, ip: '10.10.0.100', mem: 128, vcpu: 1, hypervisor: 'qemu' },
+      [EXAMPLE_VM_NAME]: {
+        name: EXAMPLE_VM_NAME,
+        ip: '10.10.0.100',
+        mem: 128,
+        vcpu: 1,
+        hypervisor: 'qemu'
+      }
     })
     const provisioner = createMockProvisioner()
     await provisionExampleVm(registry, provisioner, baseConfig, log)
@@ -83,7 +103,7 @@ describe('provisionExampleVm', () => {
 
   it('skips when IP 10.10.0.100 is already allocated', async () => {
     const registry = createMockRegistry({
-      'other-vm': { name: 'other-vm', ip: '10.10.0.100', mem: 512, vcpu: 1, hypervisor: 'qemu' },
+      'other-vm': { name: 'other-vm', ip: '10.10.0.100', mem: 512, vcpu: 1, hypervisor: 'qemu' }
     })
     const provisioner = createMockProvisioner()
     await provisionExampleVm(registry, provisioner, baseConfig, log)
@@ -116,14 +136,16 @@ describe('provisionExampleVm', () => {
       distro: 'cirros',
       autostart: true,
       provisioningState: 'provisioning',
-      bridge: 'br-microvm',
+      bridge: 'br-microvm'
     })
   })
 
   it('handles provisioner.provision rejection gracefully', async () => {
     const registry = createMockRegistry()
     const provisioner = createMockProvisioner()
-    ;(provisioner.provision as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('QEMU not found'))
+    ;(provisioner.provision as ReturnType<typeof vi.fn>).mockRejectedValue(
+      new Error('QEMU not found')
+    )
     // Should not throw — fire-and-forget with catch
     await provisionExampleVm(registry, provisioner, baseConfig, log)
     expect(await registry.has(EXAMPLE_VM_NAME)).toBe(true)

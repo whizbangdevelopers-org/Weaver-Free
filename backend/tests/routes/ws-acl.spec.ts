@@ -24,7 +24,7 @@ import { join } from 'node:path'
 import { WebSocket } from 'ws'
 
 vi.mock('../../src/services/microvm.js', () => ({
-  listVms: vi.fn(async () => []),
+  listVms: vi.fn(async () => [])
 }))
 
 import { wsRoutes } from '../../src/routes/ws.js'
@@ -45,7 +45,7 @@ function makeAuthService(roleFor: Record<string, string>) {
       const role = roleFor[token]
       if (!role) throw new Error('invalid token')
       return { sub: token, role, username: token, jti: `${token}-jti` }
-    }),
+    })
   }
 }
 
@@ -53,9 +53,11 @@ function makeAuthService(roleFor: Record<string, string>) {
 function makeNotificationService() {
   let handler: ((e: NotificationEvent) => void) | null = null
   return {
-    onNotification: (fn: (e: NotificationEvent) => void) => { handler = fn },
+    onNotification: (fn: (e: NotificationEvent) => void) => {
+      handler = fn
+    },
     detectChanges: vi.fn(async () => {}),
-    emit: (e: NotificationEvent) => handler?.(e),
+    emit: (e: NotificationEvent) => handler?.(e)
   }
 }
 
@@ -63,13 +65,13 @@ function connect(port: number, token: string): Promise<{ socket: WebSocket; mess
   return new Promise((resolve, reject) => {
     const messages: string[] = []
     const socket = new WebSocket(`ws://127.0.0.1:${port}/ws/status?token=${token}`)
-    socket.on('message', (d) => messages.push(d.toString()))
+    socket.on('message', d => messages.push(d.toString()))
     socket.on('open', () => resolve({ socket, messages }))
     socket.on('error', reject)
   })
 }
 
-const settle = () => new Promise((r) => setTimeout(r, 120))
+const settle = () => new Promise(r => setTimeout(r, 120))
 
 describe('WebSocket fan-out respects the per-VM ACL', () => {
   let app: ReturnType<typeof Fastify>
@@ -94,12 +96,12 @@ describe('WebSocket fan-out respects the per-VM ACL', () => {
       authService: makeAuthService({
         alice: ROLES.OPERATOR,
         bob: ROLES.OPERATOR,
-        carol: ROLES.ADMIN,
+        carol: ROLES.ADMIN
       }) as never,
       notificationService: notifications as never,
       aclStore,
       // ACLs are a Fabrick feature — at any lower tier the filter is correctly a no-op.
-      config: { tier: TIERS.FABRICK, wsBroadcastIntervalMs: 60_000 } as DashboardConfig,
+      config: { tier: TIERS.FABRICK, wsBroadcastIntervalMs: 60_000 } as DashboardConfig
     })
     await app.listen({ port: 0, host: '127.0.0.1' })
     port = (app.server.address() as { port: number }).port
@@ -117,9 +119,9 @@ describe('WebSocket fan-out respects the per-VM ACL', () => {
       id: 'n1',
       timestamp: new Date().toISOString(),
       event: 'vm:failed',
-      vmName: 'svc-postgres',           // NOT in alice's ACL
+      vmName: 'svc-postgres', // NOT in alice's ACL
       severity: 'error',
-      message: 'svc-postgres entered a failed state',
+      message: 'svc-postgres entered a failed state'
     })
     await settle()
 
@@ -134,9 +136,9 @@ describe('WebSocket fan-out respects the per-VM ACL', () => {
       id: 'n2',
       timestamp: new Date().toISOString(),
       event: 'vm:started',
-      vmName: 'web-app',                // IS in alice's ACL
+      vmName: 'web-app', // IS in alice's ACL
       severity: 'info',
-      message: 'web-app started',
+      message: 'web-app started'
     })
     await settle()
 
@@ -149,7 +151,7 @@ describe('WebSocket fan-out respects the per-VM ACL', () => {
 
     agentEvents.emit('agent-message', {
       vmName: 'svc-postgres',
-      message: { type: 'agent-complete', operationId: 'op-1', fullText: 'JOURNAL ANALYSIS SECRET' },
+      message: { type: 'agent-complete', operationId: 'op-1', fullText: 'JOURNAL ANALYSIS SECRET' }
     })
     await settle()
 
@@ -165,7 +167,7 @@ describe('WebSocket fan-out respects the per-VM ACL', () => {
 
     agentEvents.emit('agent-message', {
       vmName: 'web-app',
-      message: { type: 'agent-complete', operationId: 'op-2', fullText: 'allowed analysis' },
+      message: { type: 'agent-complete', operationId: 'op-2', fullText: 'allowed analysis' }
     })
     await settle()
 
@@ -179,7 +181,7 @@ describe('WebSocket fan-out respects the per-VM ACL', () => {
     provisioningEvents.emit('state-change', {
       name: 'svc-postgres',
       state: 'failed',
-      error: 'disk image missing at /var/lib/microvms/svc-postgres',
+      error: 'disk image missing at /var/lib/microvms/svc-postgres'
     })
     await settle()
 
@@ -189,12 +191,12 @@ describe('WebSocket fan-out respects the per-VM ACL', () => {
 
   // The IGNORE half, and the half that keeps the guard from being switched off later.
   it('sends everything to an admin, and to a user with no ACL entries', async () => {
-    const carol = await connect(port, 'carol')   // admin
-    const bob = await connect(port, 'bob')       // no ACL entries — sees all, by design
+    const carol = await connect(port, 'carol') // admin
+    const bob = await connect(port, 'bob') // no ACL entries — sees all, by design
 
     agentEvents.emit('agent-message', {
       vmName: 'svc-postgres',
-      message: { type: 'agent-complete', operationId: 'op-3', fullText: 'broad analysis' },
+      message: { type: 'agent-complete', operationId: 'op-3', fullText: 'broad analysis' }
     })
     await settle()
 

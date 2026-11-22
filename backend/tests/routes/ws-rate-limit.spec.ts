@@ -28,7 +28,7 @@ afterEach(async () => {
 
 /** One real websocket handshake. Resolves the HTTP status: 101 on upgrade, 429 when limited. */
 function upgrade(port: number, path = '/ws/status'): Promise<number | 'ERR'> {
-  return new Promise((resolve) => {
+  return new Promise(resolve => {
     const req = http.request({
       host: '127.0.0.1',
       port,
@@ -37,8 +37,8 @@ function upgrade(port: number, path = '/ws/status'): Promise<number | 'ERR'> {
         Connection: 'Upgrade',
         Upgrade: 'websocket',
         'Sec-WebSocket-Version': '13',
-        'Sec-WebSocket-Key': 'dGhlIHNhbXBsZSBub25jZQ==',
-      },
+        'Sec-WebSocket-Key': 'dGhlIHNhbXBsZSBub25jZQ=='
+      }
     })
     // After an upgrade the socket belongs to the caller, not to `req`: `req.destroy()` leaves it
     // open, and an open upgraded socket holds `app.close()` in afterEach. Node 24.21 closed the
@@ -48,7 +48,7 @@ function upgrade(port: number, path = '/ws/status'): Promise<number | 'ERR'> {
       resolve(res.statusCode ?? 101)
       socket.destroy()
     })
-    req.on('response', (res) => {
+    req.on('response', res => {
       res.resume()
       resolve(res.statusCode ?? 0)
     })

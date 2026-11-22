@@ -10,17 +10,13 @@ vi.mock('../../src/services/agent.js', async () => {
     hasActiveOperation: vi.fn(),
     // Real emitter, not a stub: the route hands agent output to this instead of iterating
     // WebSocket clients itself, so a test that stubbed it away would stop exercising the path.
-    agentEvents: new EventEmitter(),
+    agentEvents: new EventEmitter()
   }
 })
 
 import Fastify from 'fastify'
 import websocket from '@fastify/websocket'
-import {
-  serializerCompiler,
-  validatorCompiler,
-  ZodTypeProvider,
-} from 'fastify-type-provider-zod'
+import { serializerCompiler, validatorCompiler, ZodTypeProvider } from 'fastify-type-provider-zod'
 import { agentRoutes } from '../../src/routes/agent.js'
 import { runAgent, getOperation, hasActiveOperation } from '../../src/services/agent.js'
 import type { UserRole } from '../../src/models/user.js'
@@ -46,7 +42,7 @@ describe('Agent Routes', () => {
     await fastify.register(websocket)
 
     // Simulate auth middleware
-    fastify.addHook('onRequest', async (request) => {
+    fastify.addHook('onRequest', async request => {
       request.userRole = mockUserRole
       request.userId = 'test-user-id'
       request.username = 'test-user'
@@ -73,7 +69,7 @@ describe('Agent Routes', () => {
       const response = await fastify.inject({
         method: 'POST',
         url: '/api/workload/web-nginx/agent',
-        payload: { action: 'diagnose' },
+        payload: { action: 'diagnose' }
       })
 
       expect(response.statusCode).toBe(202)
@@ -90,7 +86,7 @@ describe('Agent Routes', () => {
       const response = await fastify.inject({
         method: 'POST',
         url: '/api/workload/web-nginx/agent',
-        payload: { action: 'explain' },
+        payload: { action: 'explain' }
       })
 
       expect(response.statusCode).toBe(202)
@@ -103,7 +99,7 @@ describe('Agent Routes', () => {
       const response = await fastify.inject({
         method: 'POST',
         url: '/api/workload/dev-node/agent',
-        payload: { action: 'suggest' },
+        payload: { action: 'suggest' }
       })
 
       expect(response.statusCode).toBe(202)
@@ -116,7 +112,7 @@ describe('Agent Routes', () => {
       const response = await fastify.inject({
         method: 'POST',
         url: '/api/workload/web-nginx/agent',
-        payload: { action: 'diagnose', apiKey: 'sk-test-key', vendor: 'anthropic' },
+        payload: { action: 'diagnose', apiKey: 'sk-test-key', vendor: 'anthropic' }
       })
 
       expect(response.statusCode).toBe(202)
@@ -125,7 +121,7 @@ describe('Agent Routes', () => {
           vmName: 'web-nginx',
           action: 'diagnose',
           apiKey: 'sk-test-key',
-          vendor: 'anthropic',
+          vendor: 'anthropic'
         })
       )
     })
@@ -134,7 +130,7 @@ describe('Agent Routes', () => {
       const response = await fastify.inject({
         method: 'POST',
         url: '/api/workload/INVALID!/agent',
-        payload: { action: 'diagnose' },
+        payload: { action: 'diagnose' }
       })
 
       expect(response.statusCode).toBe(400)
@@ -144,7 +140,7 @@ describe('Agent Routes', () => {
       const response = await fastify.inject({
         method: 'POST',
         url: '/api/workload/web-nginx/agent',
-        payload: { action: 'destroy' },
+        payload: { action: 'destroy' }
       })
 
       expect(response.statusCode).toBe(400)
@@ -154,7 +150,7 @@ describe('Agent Routes', () => {
       const response = await fastify.inject({
         method: 'POST',
         url: '/api/workload/web-nginx/agent',
-        payload: {},
+        payload: {}
       })
 
       expect(response.statusCode).toBe(400)
@@ -166,7 +162,7 @@ describe('Agent Routes', () => {
       const response = await fastify.inject({
         method: 'POST',
         url: '/api/workload/web-nginx/agent',
-        payload: { action: 'diagnose' },
+        payload: { action: 'diagnose' }
       })
 
       expect(response.statusCode).toBe(429)
@@ -177,7 +173,7 @@ describe('Agent Routes', () => {
       const response = await fastify.inject({
         method: 'POST',
         url: '/api/workload/web-nginx/agent',
-        payload: { action: 'diagnose', vendor: 'openai' },
+        payload: { action: 'diagnose', vendor: 'openai' }
       })
 
       expect(response.statusCode).toBe(400)
@@ -196,7 +192,7 @@ describe('Agent Routes', () => {
       const response = await fastify.inject({
         method: 'POST',
         url: '/api/workload/web-nginx/agent',
-        payload: { action: 'diagnose' },
+        payload: { action: 'diagnose' }
       })
 
       expect(response.statusCode).toBe(403)
@@ -205,14 +201,14 @@ describe('Agent Routes', () => {
 
     // The IGNORE half: both roles that SHOULD pass must still pass, or the guard is too tight
     // and gets loosened by whoever it blocks next.
-    it.each(['admin', 'operator'] as const)('allows %s', async (role) => {
+    it.each(['admin', 'operator'] as const)('allows %s', async role => {
       mockUserRole = role
       mockRunAgent.mockResolvedValue('op-id')
 
       const response = await fastify.inject({
         method: 'POST',
         url: '/api/workload/web-nginx/agent',
-        payload: { action: 'diagnose' },
+        payload: { action: 'diagnose' }
       })
 
       expect(response.statusCode).toBe(202)
@@ -228,12 +224,12 @@ describe('Agent Routes', () => {
         action: 'diagnose',
         status: 'complete',
         tokens: 'text',
-        startedAt: '2026-01-01T00:00:00.000Z',
+        startedAt: '2026-01-01T00:00:00.000Z'
       })
 
       const response = await fastify.inject({
         method: 'GET',
-        url: '/api/workload/web-nginx/agent/550e8400-e29b-41d4-a716-446655440000',
+        url: '/api/workload/web-nginx/agent/550e8400-e29b-41d4-a716-446655440000'
       })
 
       expect(response.statusCode).toBe(200)
@@ -248,7 +244,7 @@ describe('Agent Routes', () => {
       status: 'complete',
       tokens: 'Diagnosis result text',
       startedAt: '2026-01-01T00:00:00.000Z',
-      completedAt: '2026-01-01T00:00:05.000Z',
+      completedAt: '2026-01-01T00:00:05.000Z'
     }
 
     it('should return an operation by ID', async () => {
@@ -256,7 +252,7 @@ describe('Agent Routes', () => {
 
       const response = await fastify.inject({
         method: 'GET',
-        url: `/api/workload/web-nginx/agent/${sampleOp.operationId}`,
+        url: `/api/workload/web-nginx/agent/${sampleOp.operationId}`
       })
 
       expect(response.statusCode).toBe(200)
@@ -271,7 +267,7 @@ describe('Agent Routes', () => {
 
       const response = await fastify.inject({
         method: 'GET',
-        url: '/api/workload/web-nginx/agent/550e8400-e29b-41d4-a716-446655440000',
+        url: '/api/workload/web-nginx/agent/550e8400-e29b-41d4-a716-446655440000'
       })
 
       expect(response.statusCode).toBe(404)
@@ -282,11 +278,11 @@ describe('Agent Routes', () => {
     // could read an operation belonging to `web-nginx` simply by naming their own workload in
     // the path. The store returns the operation; the route must refuse it.
     it('should return 404 when the operation belongs to a different workload', async () => {
-      mockGetOperation.mockReturnValue(sampleOp)   // sampleOp.vmName === 'web-nginx'
+      mockGetOperation.mockReturnValue(sampleOp) // sampleOp.vmName === 'web-nginx'
 
       const response = await fastify.inject({
         method: 'GET',
-        url: `/api/workload/web-app/agent/${sampleOp.operationId}`,
+        url: `/api/workload/web-app/agent/${sampleOp.operationId}`
       })
 
       expect(response.statusCode).toBe(404)
@@ -298,7 +294,7 @@ describe('Agent Routes', () => {
     it('should reject invalid operation ID format', async () => {
       const response = await fastify.inject({
         method: 'GET',
-        url: '/api/workload/web-nginx/agent/not-a-uuid',
+        url: '/api/workload/web-nginx/agent/not-a-uuid'
       })
 
       expect(response.statusCode).toBe(400)

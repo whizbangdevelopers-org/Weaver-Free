@@ -18,7 +18,7 @@ const BOOT_LINES = [
   '[    0.245000] systemd[1]: Detected virtualization kvm.',
   '[    0.289000] systemd[1]: Set hostname to <HOST>.',
   '[    0.512000] systemd[1]: Started OpenSSH Daemon.',
-  '[    0.567000] systemd[1]: Reached target Multi-User System.',
+  '[    0.567000] systemd[1]: Reached target Multi-User System.'
 ]
 
 const MOTD = [
@@ -26,7 +26,7 @@ const MOTD = [
   '━━ Simulated Console ━━',
   '  Upgrade to Weaver Solo for live serial access to your VMs.',
   '  Learn more: https://weaver-dev.github.io/pricing',
-  '',
+  ''
 ]
 
 const MAX_OUTPUT_LINES = 20
@@ -34,8 +34,16 @@ const MAX_OUTPUT_LINES = 20
 // --- Solo-only commands that need live serial access ---
 
 const PREMIUM_COMMANDS = new Set([
-  'ssh', 'scp', 'systemctl restart', 'systemctl start', 'systemctl stop',
-  'reboot', 'shutdown', 'poweroff', 'halt', 'init',
+  'ssh',
+  'scp',
+  'systemctl restart',
+  'systemctl start',
+  'systemctl stop',
+  'reboot',
+  'shutdown',
+  'poweroff',
+  'halt',
+  'init'
 ])
 
 function isGatedCommand(cmd: string): boolean {
@@ -58,7 +66,7 @@ function getCannedResponse(cmd: string, vmName: string): string | null {
   }
 
   const responses: Record<string, string> = {
-    'ls': 'bin  boot  dev  etc  home  lib  lib64  mnt  opt  proc  root  run  sbin  srv  sys  tmp  usr  var',
+    ls: 'bin  boot  dev  etc  home  lib  lib64  mnt  opt  proc  root  run  sbin  srv  sys  tmp  usr  var',
     'ls -la': `total 68
 drwxr-xr-x  18 root root 4096 Jan 15 00:00 .
 drwxr-xr-x  18 root root 4096 Jan 15 00:00 ..
@@ -67,11 +75,11 @@ drwxr-xr-x   3 root root 4096 Jan 15 00:00 boot
 drwxr-xr-x   5 root root  380 Jan 15 00:00 dev
 drwxr-xr-x  42 root root 4096 Jan 15 00:00 etc
 drwxr-xr-x   2 root root 4096 Jan 15 00:00 home`,
-    'pwd': '/root',
-    'whoami': 'root',
-    'id': 'uid=0(root) gid=0(root) groups=0(root)',
-    'hostname': vmName,
-    'uname': 'Linux',
+    pwd: '/root',
+    whoami: 'root',
+    id: 'uid=0(root) gid=0(root) groups=0(root)',
+    hostname: vmName,
+    uname: 'Linux',
     'uname -a': `Linux ${vmName} 6.6.30-microvm #1 SMP PREEMPT_DYNAMIC x86_64 GNU/Linux`,
     'uname -r': '6.6.30-microvm',
     'cat /etc/os-release': `NAME="NixOS"
@@ -80,11 +88,11 @@ ID=nixos
 VERSION_ID="24.05"
 PRETTY_NAME="NixOS 24.05 (Uakari)"
 HOME_URL="https://nixos.org/"`,
-    'uptime': ' 00:05:23 up 0 min,  1 user,  load average: 0.08, 0.03, 0.01',
+    uptime: ' 00:05:23 up 0 min,  1 user,  load average: 0.08, 0.03, 0.01',
     'free -m': `              total        used        free      shared  buff/cache   available
 Mem:            512          87         312           2         112         401
 Swap:             0           0           0`,
-    'free': `              total        used        free      shared  buff/cache   available
+    free: `              total        used        free      shared  buff/cache   available
 Mem:         524288       89088      319488        2048      115712      410624
 Swap:             0           0           0`,
     'df -h': `Filesystem      Size  Used Avail Use% Mounted on
@@ -104,7 +112,7 @@ root         1  0.1  1.2  16960  6144 ?        Ss   00:00   0:01 /sbin/init
 root        42  0.0  0.4   8384  2048 ?        Ss   00:00   0:00 /usr/sbin/sshd
 root        58  0.0  0.3   5760  1536 ttyS0    Ss   00:00   0:00 -bash
 root        71  0.0  0.2   7168  1024 ttyS0    R+   00:05   0:00 ps aux`,
-    'date': new Date().toUTCString(),
+    date: new Date().toUTCString(),
     'echo hello': 'hello',
     'cat /proc/cpuinfo': `processor       : 0
 vendor_id       : AuthenticAMD
@@ -124,11 +132,11 @@ Cached:            99328 kB`,
     'dmesg | tail': `[    0.450000] systemd[1]: Reached target Network.
 [    0.512000] systemd[1]: Started OpenSSH Daemon.
 [    0.567000] systemd[1]: Reached target Multi-User System.`,
-    'clear': '__CLEAR__',
-    'exit': '__EXIT__',
-    'help': `GNU bash, version 5.2.26
+    clear: '__CLEAR__',
+    exit: '__EXIT__',
+    help: `GNU bash, version 5.2.26
 Type 'help' for this help, 'man <command>' for command manuals.
-Common commands: ls, cd, cat, echo, ps, free, df, uname, ip, systemctl`,
+Common commands: ls, cd, cat, echo, ps, free, df, uname, ip, systemctl`
   }
 
   // Exact match
@@ -174,11 +182,7 @@ export function VmConsole({ vmName, onBack }: VmConsoleProps) {
       } else {
         clearInterval(interval)
         // Add login line then mark booted
-        setOutputLines(prev => [
-          ...prev,
-          `${vmName} login: root (automatic login)`,
-          '',
-        ])
+        setOutputLines(prev => [...prev, `${vmName} login: root (automatic login)`, ''])
         setBooted(true)
       }
     }, 80)
@@ -215,7 +219,13 @@ export function VmConsole({ vmName, onBack }: VmConsoleProps) {
 
     // Ctrl+D: exit console
     if (key.ctrl && input === 'd') {
-      setOutputLines(prev => [...prev, `[simulated] root@${vmName}:~# `, 'logout', '', 'Session closed.'])
+      setOutputLines(prev => [
+        ...prev,
+        `[simulated] root@${vmName}:~# `,
+        'logout',
+        '',
+        'Session closed.'
+      ])
       onBack()
       return
     }
@@ -262,13 +272,17 @@ export function VmConsole({ vmName, onBack }: VmConsoleProps) {
   return (
     <Box flexDirection="column" paddingX={1} paddingY={1}>
       <Box marginBottom={1}>
-        <Text bold color="cyan">Console: {vmName}</Text>
-        <Text dimColor>  (simulated mock console)</Text>
+        <Text bold color="cyan">
+          Console: {vmName}
+        </Text>
+        <Text dimColor> (simulated mock console)</Text>
       </Box>
 
       <Box flexDirection="column" borderStyle="single" borderColor="gray" paddingX={1}>
         {hasMore && (
-          <Text dimColor>[{'\u2191'}] {outputLines.length - MAX_OUTPUT_LINES} more lines above</Text>
+          <Text dimColor>
+            [{'\u2191'}] {outputLines.length - MAX_OUTPUT_LINES} more lines above
+          </Text>
         )}
         {visibleLines.map((line, i) => (
           <Text key={i}>{line}</Text>
@@ -282,15 +296,11 @@ export function VmConsole({ vmName, onBack }: VmConsoleProps) {
             <Text color="gray">{'\u2588'}</Text>
           </Text>
         )}
-        {!booted && outputLines.length > 0 && (
-          <Text color="yellow">Booting...</Text>
-        )}
+        {!booted && outputLines.length > 0 && <Text color="yellow">Booting...</Text>}
       </Box>
 
       <Box marginTop={1}>
-        <Text dimColor>
-          Type commands | Ctrl+C cancel | Ctrl+D/Esc exit console
-        </Text>
+        <Text dimColor>Type commands | Ctrl+C cancel | Ctrl+D/Esc exit console</Text>
       </Box>
     </Box>
   )

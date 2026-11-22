@@ -22,7 +22,7 @@ export const FREE_VMS: VmInfo[] = [
     bridge: 'br-microvm',
     autostart: true,
     description: 'Personal web server',
-    tags: ['web'],
+    tags: ['web']
   },
   {
     name: 'dev-playground',
@@ -35,7 +35,7 @@ export const FREE_VMS: VmInfo[] = [
     distro: 'nixos',
     bridge: 'br-microvm',
     description: 'Local development environment',
-    tags: ['dev'],
+    tags: ['dev']
   },
   {
     name: 'backup-test',
@@ -48,8 +48,8 @@ export const FREE_VMS: VmInfo[] = [
     distro: 'nixos',
     bridge: 'br-microvm',
     description: 'Backup and restore testing',
-    tags: ['backup'],
-  },
+    tags: ['backup']
+  }
 ]
 
 /** Weaver Solo tier: serious admin — 6 VMs across 2 bridges, mixed distros + hypervisors.
@@ -70,7 +70,7 @@ export const PREMIUM_VMS: VmInfo[] = [
     bridge: 'br-prod',
     autostart: true,
     description: 'Reverse proxy + TLS termination',
-    tags: ['production', 'web'],
+    tags: ['production', 'web']
   },
   {
     name: 'app-server',
@@ -84,7 +84,7 @@ export const PREMIUM_VMS: VmInfo[] = [
     bridge: 'br-prod',
     autostart: true,
     description: 'Node.js application backend',
-    tags: ['production', 'web'],
+    tags: ['production', 'web']
   },
   {
     name: 'db-postgres',
@@ -98,7 +98,7 @@ export const PREMIUM_VMS: VmInfo[] = [
     bridge: 'br-prod',
     autostart: true,
     description: 'PostgreSQL 16 primary',
-    tags: ['production', 'database'],
+    tags: ['production', 'database']
   },
   {
     name: 'dev-python',
@@ -111,7 +111,7 @@ export const PREMIUM_VMS: VmInfo[] = [
     distro: 'ubuntu-24.04',
     bridge: 'br-dev',
     description: 'ML experimentation sandbox',
-    tags: ['dev'],
+    tags: ['dev']
   },
   {
     name: 'ci-runner',
@@ -124,7 +124,7 @@ export const PREMIUM_VMS: VmInfo[] = [
     distro: 'nixos',
     bridge: 'br-dev',
     description: 'Ephemeral CI build agent',
-    tags: ['ci'],
+    tags: ['ci']
   },
   {
     name: 'staging-env',
@@ -137,8 +137,8 @@ export const PREMIUM_VMS: VmInfo[] = [
     distro: 'alma-9',
     bridge: 'br-dev',
     description: 'Pre-production mirror (disk full)',
-    tags: ['staging'],
-  },
+    tags: ['staging']
+  }
 ]
 
 /** Fabrick tier: multi-team org — 12 VMs across 5 segmented bridges.
@@ -162,7 +162,7 @@ export const ENTERPRISE_VMS: VmInfo[] = [
     bridge: 'br-edge',
     autostart: true,
     description: 'Primary load balancer (TLS termination)',
-    tags: ['platform', 'production', 'critical'],
+    tags: ['platform', 'production', 'critical']
   },
   {
     name: 'api-gateway',
@@ -176,7 +176,7 @@ export const ENTERPRISE_VMS: VmInfo[] = [
     bridge: 'br-edge',
     autostart: true,
     description: 'Kong API gateway + rate limiting',
-    tags: ['platform', 'production'],
+    tags: ['platform', 'production']
   },
   {
     name: 'web-frontend-01',
@@ -190,7 +190,7 @@ export const ENTERPRISE_VMS: VmInfo[] = [
     bridge: 'br-app',
     autostart: true,
     description: 'Next.js SSR frontend (blue)',
-    tags: ['frontend', 'production'],
+    tags: ['frontend', 'production']
   },
   {
     name: 'web-frontend-02',
@@ -204,7 +204,7 @@ export const ENTERPRISE_VMS: VmInfo[] = [
     bridge: 'br-app',
     autostart: true,
     description: 'Next.js SSR frontend (green)',
-    tags: ['frontend', 'production'],
+    tags: ['frontend', 'production']
   },
   {
     name: 'svc-orders',
@@ -218,7 +218,7 @@ export const ENTERPRISE_VMS: VmInfo[] = [
     bridge: 'br-app',
     autostart: true,
     description: 'Order processing microservice',
-    tags: ['backend', 'production'],
+    tags: ['backend', 'production']
   },
   {
     name: 'svc-payments',
@@ -232,7 +232,7 @@ export const ENTERPRISE_VMS: VmInfo[] = [
     bridge: 'br-app',
     autostart: true,
     description: 'Payment gateway integration',
-    tags: ['backend', 'production', 'critical'],
+    tags: ['backend', 'production', 'critical']
   },
   {
     name: 'db-primary',
@@ -246,7 +246,7 @@ export const ENTERPRISE_VMS: VmInfo[] = [
     bridge: 'br-data',
     autostart: true,
     description: 'PostgreSQL 16 primary',
-    tags: ['database', 'production', 'critical'],
+    tags: ['database', 'production', 'critical']
   },
   {
     name: 'db-replica',
@@ -260,7 +260,7 @@ export const ENTERPRISE_VMS: VmInfo[] = [
     bridge: 'br-data',
     autostart: true,
     description: 'PostgreSQL streaming replica',
-    tags: ['database', 'production'],
+    tags: ['database', 'production']
   },
   {
     name: 'mon-prometheus',
@@ -274,7 +274,7 @@ export const ENTERPRISE_VMS: VmInfo[] = [
     bridge: 'br-mgmt',
     autostart: true,
     description: 'Prometheus + Grafana monitoring stack',
-    tags: ['ops', 'monitoring', 'critical'],
+    tags: ['ops', 'monitoring', 'critical']
   },
   {
     name: 'bastion-01',
@@ -288,7 +288,7 @@ export const ENTERPRISE_VMS: VmInfo[] = [
     bridge: 'br-mgmt',
     autostart: true,
     description: 'SSH jump host (2FA enforced)',
-    tags: ['ops', 'security'],
+    tags: ['ops', 'security']
   },
   {
     name: 'qa-staging',
@@ -301,7 +301,7 @@ export const ENTERPRISE_VMS: VmInfo[] = [
     distro: 'ubuntu-24.04',
     bridge: 'br-staging',
     description: 'Full-stack staging mirror',
-    tags: ['qa', 'staging'],
+    tags: ['qa', 'staging']
   },
   {
     name: 'qa-load-test',
@@ -314,16 +314,19 @@ export const ENTERPRISE_VMS: VmInfo[] = [
     distro: 'ubuntu-24.04',
     bridge: 'br-staging',
     description: 'k6 load test runner (on-demand)',
-    tags: ['qa', 'staging'],
-  },
+    tags: ['qa', 'staging']
+  }
 ]
 
 /** Get the demo VMs for the given tier. */
 export function getDemoVmsForTier(tier: string): VmInfo[] {
   switch (tier) {
-    case TIERS.SOLO: return PREMIUM_VMS
-    case TIERS.FABRICK: return ENTERPRISE_VMS
-    default: return FREE_VMS
+    case TIERS.SOLO:
+      return PREMIUM_VMS
+    case TIERS.FABRICK:
+      return ENTERPRISE_VMS
+    default:
+      return FREE_VMS
   }
 }
 
@@ -338,59 +341,247 @@ import type { FleetBridge } from '../types/fleet-bridge.js'
 
 export const DEMO_FLEET_BRIDGES: FleetBridge[] = [
   {
-    name: 'fb-production', label: 'Production', workloadGroupId: 'prod',
-    overlay: 'vxlan', overlaySegment: 'VNI 1001', subnet: '10.100.1.0/24',
-    health: 'healthy', replaces: 'K8s Ingress Controller + MetalLB + Argo Rollouts',
-    policy: { balanceMode: 'latency', defaultWeightRule: 'capacity-weighted', healthCheckIntervalSec: 5, drainTimeoutSec: 30 },
+    name: 'fb-production',
+    label: 'Production',
+    workloadGroupId: 'prod',
+    overlay: 'vxlan',
+    overlaySegment: 'VNI 1001',
+    subnet: '10.100.1.0/24',
+    health: 'healthy',
+    replaces: 'K8s Ingress Controller + MetalLB + Argo Rollouts',
+    policy: {
+      balanceMode: 'latency',
+      defaultWeightRule: 'capacity-weighted',
+      healthCheckIntervalSec: 5,
+      drainTimeoutSec: 30
+    },
     endpoints: [
-      { id: 'king:web-app',             hostId: 'king',              workloadName: 'web-app',          weight: 40, localBridge: 'br-app',  health: 'healthy',  autoRegistered: true, gpuVendor: null },
-      { id: 'king:svc-orders',          hostId: 'king',              workloadName: 'svc-orders',       weight: 40, localBridge: 'br-app',  health: 'healthy',  autoRegistered: true, gpuVendor: null },
-      { id: 'hetzner:cloud-api-eu',     hostId: 'cloud-hetzner-fsn1', workloadName: 'cloud-api-eu',   weight: 35, localBridge: 'br-app',  health: 'healthy',  autoRegistered: true, gpuVendor: null },
-      { id: 'do:cloud-api-apac',        hostId: 'cloud-do-sgp1',     workloadName: 'cloud-api-apac',  weight: 15, localBridge: 'br-app',  health: 'healthy',  autoRegistered: true, gpuVendor: null },
-      { id: 'hetzner:cloud-api-eu-v22', hostId: 'cloud-hetzner-fsn1', workloadName: 'cloud-api-eu-v22', weight: 10, localBridge: 'br-app', health: 'healthy', autoRegistered: true, gpuVendor: null },
+      {
+        id: 'king:web-app',
+        hostId: 'king',
+        workloadName: 'web-app',
+        weight: 40,
+        localBridge: 'br-app',
+        health: 'healthy',
+        autoRegistered: true,
+        gpuVendor: null
+      },
+      {
+        id: 'king:svc-orders',
+        hostId: 'king',
+        workloadName: 'svc-orders',
+        weight: 40,
+        localBridge: 'br-app',
+        health: 'healthy',
+        autoRegistered: true,
+        gpuVendor: null
+      },
+      {
+        id: 'hetzner:cloud-api-eu',
+        hostId: 'cloud-hetzner-fsn1',
+        workloadName: 'cloud-api-eu',
+        weight: 35,
+        localBridge: 'br-app',
+        health: 'healthy',
+        autoRegistered: true,
+        gpuVendor: null
+      },
+      {
+        id: 'do:cloud-api-apac',
+        hostId: 'cloud-do-sgp1',
+        workloadName: 'cloud-api-apac',
+        weight: 15,
+        localBridge: 'br-app',
+        health: 'healthy',
+        autoRegistered: true,
+        gpuVendor: null
+      },
+      {
+        id: 'hetzner:cloud-api-eu-v22',
+        hostId: 'cloud-hetzner-fsn1',
+        workloadName: 'cloud-api-eu-v22',
+        weight: 10,
+        localBridge: 'br-app',
+        health: 'healthy',
+        autoRegistered: true,
+        gpuVendor: null
+      }
     ],
     blueGreen: {
-      phase: 'shifting', blueEndpointId: 'hetzner:cloud-api-eu', greenEndpointId: 'hetzner:cloud-api-eu-v22',
-      blueWeight: 35, greenWeight: 10, startedAt: new Date(Date.now() - 12 * 60_000).toISOString(),
-      initiatedBy: 'AI Agent — latency regression detected',
+      phase: 'shifting',
+      blueEndpointId: 'hetzner:cloud-api-eu',
+      greenEndpointId: 'hetzner:cloud-api-eu-v22',
+      blueWeight: 35,
+      greenWeight: 10,
+      startedAt: new Date(Date.now() - 12 * 60_000).toISOString(),
+      initiatedBy: 'AI Agent — latency regression detected'
+    }
+  },
+  {
+    name: 'fb-cicd',
+    label: 'CI/CD',
+    workloadGroupId: 'cicd',
+    overlay: 'vxlan',
+    overlaySegment: 'VNI 1002',
+    subnet: '10.100.2.0/24',
+    health: 'healthy',
+    replaces: 'K8s CNI + Jenkins Agent Networking',
+    policy: {
+      balanceMode: 'round-robin',
+      defaultWeightRule: 'equal',
+      healthCheckIntervalSec: 10,
+      drainTimeoutSec: 60
     },
+    endpoints: [
+      {
+        id: 'crucible:ci-runner-01',
+        hostId: 'crucible',
+        workloadName: 'ci-runner-01',
+        weight: 34,
+        localBridge: 'br-ci',
+        health: 'healthy',
+        autoRegistered: true,
+        gpuVendor: null
+      },
+      {
+        id: 'crucible:ci-runner-02',
+        hostId: 'crucible',
+        workloadName: 'ci-runner-02',
+        weight: 33,
+        localBridge: 'br-ci',
+        health: 'healthy',
+        autoRegistered: true,
+        gpuVendor: null
+      },
+      {
+        id: 'nexus:registry-cache',
+        hostId: 'nexus',
+        workloadName: 'registry-cache',
+        weight: 33,
+        localBridge: 'br-svc',
+        health: 'healthy',
+        autoRegistered: true,
+        gpuVendor: null
+      },
+      {
+        id: 'matrix:ci-runner-03',
+        hostId: 'matrix',
+        workloadName: 'ci-runner-03',
+        weight: 0,
+        localBridge: 'br-dev',
+        health: 'draining',
+        autoRegistered: true,
+        gpuVendor: null
+      }
+    ],
+    blueGreen: null
   },
   {
-    name: 'fb-cicd', label: 'CI/CD', workloadGroupId: 'cicd',
-    overlay: 'vxlan', overlaySegment: 'VNI 1002', subnet: '10.100.2.0/24',
-    health: 'healthy', replaces: 'K8s CNI + Jenkins Agent Networking',
-    policy: { balanceMode: 'round-robin', defaultWeightRule: 'equal', healthCheckIntervalSec: 10, drainTimeoutSec: 60 },
+    name: 'fb-data',
+    label: 'Data Platform',
+    workloadGroupId: 'data',
+    overlay: 'vxlan',
+    overlaySegment: 'VNI 1003',
+    subnet: '10.100.3.0/24',
+    health: 'healthy',
+    replaces: 'K8s NetworkPolicy + Dedicated Data Plane',
+    policy: {
+      balanceMode: 'manual',
+      defaultWeightRule: 'manual',
+      healthCheckIntervalSec: 3,
+      drainTimeoutSec: 120
+    },
     endpoints: [
-      { id: 'crucible:ci-runner-01', hostId: 'crucible', workloadName: 'ci-runner-01',   weight: 34, localBridge: 'br-ci',  health: 'healthy',  autoRegistered: true, gpuVendor: null },
-      { id: 'crucible:ci-runner-02', hostId: 'crucible', workloadName: 'ci-runner-02',   weight: 33, localBridge: 'br-ci',  health: 'healthy',  autoRegistered: true, gpuVendor: null },
-      { id: 'nexus:registry-cache',  hostId: 'nexus',    workloadName: 'registry-cache', weight: 33, localBridge: 'br-svc', health: 'healthy',  autoRegistered: true, gpuVendor: null },
-      { id: 'matrix:ci-runner-03',   hostId: 'matrix',   workloadName: 'ci-runner-03',   weight: 0,  localBridge: 'br-dev', health: 'draining', autoRegistered: true, gpuVendor: null },
+      {
+        id: 'king:db-primary',
+        hostId: 'king',
+        workloadName: 'db-primary',
+        weight: 80,
+        localBridge: 'br-data',
+        health: 'healthy',
+        autoRegistered: true,
+        gpuVendor: null
+      },
+      {
+        id: 'vault:db-replica',
+        hostId: 'vault',
+        workloadName: 'db-replica',
+        weight: 20,
+        localBridge: 'br-data',
+        health: 'healthy',
+        autoRegistered: true,
+        gpuVendor: null
+      },
+      {
+        id: 'hetzner:cloud-db-eu',
+        hostId: 'cloud-hetzner-fsn1',
+        workloadName: 'cloud-db-eu',
+        weight: 0,
+        localBridge: 'br-data',
+        health: 'healthy',
+        autoRegistered: true,
+        gpuVendor: null
+      }
     ],
-    blueGreen: null,
+    blueGreen: null
   },
   {
-    name: 'fb-data', label: 'Data Platform', workloadGroupId: 'data',
-    overlay: 'vxlan', overlaySegment: 'VNI 1003', subnet: '10.100.3.0/24',
-    health: 'healthy', replaces: 'K8s NetworkPolicy + Dedicated Data Plane',
-    policy: { balanceMode: 'manual', defaultWeightRule: 'manual', healthCheckIntervalSec: 3, drainTimeoutSec: 120 },
+    name: 'fb-edge',
+    label: 'Edge Fleet',
+    workloadGroupId: 'edge',
+    overlay: 'wireguard',
+    overlaySegment: 'wg-edge0',
+    subnet: '10.100.4.0/24',
+    health: 'degraded',
+    replaces: 'K8s KubeEdge + Custom VPN Tunneling',
+    policy: {
+      balanceMode: 'latency',
+      defaultWeightRule: 'capacity-weighted',
+      healthCheckIntervalSec: 15,
+      drainTimeoutSec: 30
+    },
     endpoints: [
-      { id: 'king:db-primary',       hostId: 'king',              workloadName: 'db-primary',  weight: 80, localBridge: 'br-data', health: 'healthy', autoRegistered: true, gpuVendor: null },
-      { id: 'vault:db-replica',      hostId: 'vault',             workloadName: 'db-replica',  weight: 20, localBridge: 'br-data', health: 'healthy', autoRegistered: true, gpuVendor: null },
-      { id: 'hetzner:cloud-db-eu',   hostId: 'cloud-hetzner-fsn1', workloadName: 'cloud-db-eu', weight: 0, localBridge: 'br-data', health: 'healthy', autoRegistered: true, gpuVendor: null },
+      {
+        id: 'factory-01:iot-ingest',
+        hostId: 'iot-factory-01',
+        workloadName: 'iot-ingest',
+        weight: 0,
+        localBridge: 'br-iot',
+        health: 'draining',
+        autoRegistered: true,
+        gpuVendor: null
+      },
+      {
+        id: 'factory-01:plc-proxy',
+        hostId: 'iot-factory-01',
+        workloadName: 'plc-proxy',
+        weight: 0,
+        localBridge: 'br-iot',
+        health: 'draining',
+        autoRegistered: true,
+        gpuVendor: null
+      },
+      {
+        id: 'edge-lab:edge-inference',
+        hostId: 'iot-edge-lab',
+        workloadName: 'edge-inference',
+        weight: 60,
+        localBridge: 'br-iot',
+        health: 'healthy',
+        autoRegistered: true,
+        gpuVendor: 'nvidia'
+      },
+      {
+        id: 'boston:branch-erp',
+        hostId: 'remote-branch-boston',
+        workloadName: 'branch-erp',
+        weight: 40,
+        localBridge: 'br-office',
+        health: 'healthy',
+        autoRegistered: true,
+        gpuVendor: null
+      }
     ],
-    blueGreen: null,
-  },
-  {
-    name: 'fb-edge', label: 'Edge Fleet', workloadGroupId: 'edge',
-    overlay: 'wireguard', overlaySegment: 'wg-edge0', subnet: '10.100.4.0/24',
-    health: 'degraded', replaces: 'K8s KubeEdge + Custom VPN Tunneling',
-    policy: { balanceMode: 'latency', defaultWeightRule: 'capacity-weighted', healthCheckIntervalSec: 15, drainTimeoutSec: 30 },
-    endpoints: [
-      { id: 'factory-01:iot-ingest',   hostId: 'iot-factory-01',       workloadName: 'iot-ingest',     weight: 0,  localBridge: 'br-iot',    health: 'draining', autoRegistered: true, gpuVendor: null },
-      { id: 'factory-01:plc-proxy',    hostId: 'iot-factory-01',       workloadName: 'plc-proxy',      weight: 0,  localBridge: 'br-iot',    health: 'draining', autoRegistered: true, gpuVendor: null },
-      { id: 'edge-lab:edge-inference', hostId: 'iot-edge-lab',         workloadName: 'edge-inference', weight: 60, localBridge: 'br-iot',    health: 'healthy',  autoRegistered: true, gpuVendor: 'nvidia' },
-      { id: 'boston:branch-erp',       hostId: 'remote-branch-boston', workloadName: 'branch-erp',     weight: 40, localBridge: 'br-office', health: 'healthy',  autoRegistered: true, gpuVendor: null },
-    ],
-    blueGreen: null,
-  },
+    blueGreen: null
+  }
 ]

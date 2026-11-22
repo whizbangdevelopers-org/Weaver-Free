@@ -1,22 +1,32 @@
 // Copyright (c) 2026 whizBANG Developers LLC. All rights reserved.
 // Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import type { WorkloadRegistry, WorkloadDefinition, ProvisioningState } from '../../src/storage/workload-registry.js'
+import type {
+  WorkloadRegistry,
+  WorkloadDefinition,
+  ProvisioningState
+} from '../../src/storage/workload-registry.js'
 import type { ImageManager } from '../../src/services/image-manager.js'
 import type { DashboardConfig } from '../../src/config.js'
 
 // Mock child_process before importing provisioner
 vi.mock('node:child_process', () => ({
-  execFile: vi.fn((_cmd: string, _args: string[], callback: (err: unknown, result: { stdout: string; stderr: string }) => void) => {
-    callback(null, { stdout: '', stderr: '' })
-  }),
+  execFile: vi.fn(
+    (
+      _cmd: string,
+      _args: string[],
+      callback: (err: unknown, result: { stdout: string; stderr: string }) => void
+    ) => {
+      callback(null, { stdout: '', stderr: '' })
+    }
+  ),
   spawn: vi.fn(() => ({
     stdout: { on: vi.fn() },
     stderr: { on: vi.fn() },
     on: vi.fn((_event: string, cb: (code: number) => void) => {
       if (_event === 'close') cb(0)
-    }),
-  })),
+    })
+  }))
 }))
 
 vi.mock('node:fs/promises', () => ({
@@ -26,7 +36,7 @@ vi.mock('node:fs/promises', () => ({
   unlink: vi.fn(async () => {}),
   rm: vi.fn(async () => {}),
   appendFile: vi.fn(async () => {}),
-  readFile: vi.fn(async () => 'mock log content'),
+  readFile: vi.fn(async () => 'mock log content')
 }))
 
 import { Provisioner, provisioningEvents } from '../../src/services/weaver/provisioner.js'
@@ -47,7 +57,7 @@ const DEFAULT_CONFIG: DashboardConfig = makeTestConfig({
   bridgeGateway: '10.10.0.1',
   bridgeInterface: 'br-microvm',
   qemuBin: '/run/current-system/sw/bin/qemu-system-x86_64',
-  qemuImgBin: '/run/current-system/sw/bin/qemu-img',
+  qemuImgBin: '/run/current-system/sw/bin/qemu-img'
 })
 
 function makeVm(overrides: Partial<WorkloadDefinition> = {}): WorkloadDefinition {
@@ -58,7 +68,7 @@ function makeVm(overrides: Partial<WorkloadDefinition> = {}): WorkloadDefinition
     vcpu: 2,
     hypervisor: 'qemu',
     distro: 'arch',
-    ...overrides,
+    ...overrides
   }
 }
 
@@ -81,15 +91,17 @@ function createMockRegistry(vms: Record<string, WorkloadDefinition> = {}): Workl
       if (!store[name]) return false
       delete store[name]
       return true
-    },
+    }
   }
 }
 
 function createMockImageManager(): ImageManager {
   return {
     ensureImage: vi.fn(async () => '/tmp/test-data/images/arch-base.qcow2'),
-    ensureImageFromUrl: vi.fn(async (_vmName: string, _url: string, format: string) =>
-      `/tmp/test-data/images/adhoc-test-vm-base.${format}`),
+    ensureImageFromUrl: vi.fn(
+      async (_vmName: string, _url: string, format: string) =>
+        `/tmp/test-data/images/adhoc-test-vm-base.${format}`
+    ),
     createOverlay: vi.fn(async () => '/var/lib/microvms/test-vm/disk.qcow2'),
     createBlankDisk: vi.fn(async () => '/var/lib/microvms/test-vm/disk.qcow2'),
     generateCloudInit: vi.fn(async () => '/var/lib/microvms/test-vm/cloud-init.iso'),
@@ -104,7 +116,7 @@ function createMockImageManager(): ImageManager {
       if (!distro || distro === 'nixos') return false
       return BUILTIN_CLOUD_DISTROS.includes(distro)
     }),
-    getDistroSource: vi.fn(() => null),
+    getDistroSource: vi.fn(() => null)
   } as unknown as ImageManager
 }
 
@@ -112,20 +124,25 @@ describe('Provisioner', () => {
   let registry: WorkloadRegistry
   let imgMgr: ImageManager
   let provisioner: Provisioner
-  let emittedEvents: Array<{ name: string; state: ProvisioningState; progress?: string; error?: string }>
+  let emittedEvents: Array<{
+    name: string
+    state: ProvisioningState
+    progress?: string
+    error?: string
+  }>
 
   beforeEach(() => {
     vi.clearAllMocks()
     emittedEvents = []
     provisioningEvents.removeAllListeners()
-    provisioningEvents.on('state-change', (event) => {
+    provisioningEvents.on('state-change', event => {
       emittedEvents.push(event)
     })
 
     registry = createMockRegistry({
       'arch-vm': makeVm({ name: 'arch-vm', distro: 'arch' }),
       'ubuntu-vm': makeVm({ name: 'ubuntu-vm', distro: 'ubuntu' }),
-      'no-distro-vm': makeVm({ name: 'no-distro-vm', distro: undefined }),
+      'no-distro-vm': makeVm({ name: 'no-distro-vm', distro: undefined })
     })
     imgMgr = createMockImageManager()
     provisioner = new Provisioner(registry, imgMgr, DEFAULT_CONFIG)
@@ -151,9 +168,7 @@ describe('Provisioner', () => {
 
     it('should emit provisioning events', async () => {
       await provisioner.provision('arch-vm')
-      const states = emittedEvents
-        .filter(e => e.name === 'arch-vm')
-        .map(e => e.state)
+      const states = emittedEvents.filter(e => e.name === 'arch-vm').map(e => e.state)
       expect(states).toContain('provisioning')
       expect(states).toContain('provisioned')
     })
@@ -175,18 +190,24 @@ describe('Provisioner', () => {
 
   describe('provision — error handling', () => {
     it('should throw for unknown VM', async () => {
-      await expect(provisioner.provision('nonexistent')).rejects.toThrow("VM 'nonexistent' not found")
+      await expect(provisioner.provision('nonexistent')).rejects.toThrow(
+        "VM 'nonexistent' not found"
+      )
     })
 
     it('should set state to provision-failed on image download error', async () => {
-      ;(imgMgr.ensureImage as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('download failed'))
+      ;(imgMgr.ensureImage as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
+        new Error('download failed')
+      )
       await provisioner.provision('arch-vm')
       const vm = await registry.get('arch-vm')
       expect(vm!.provisioningState).toBe('provision-failed')
     })
 
     it('should emit error event on failure', async () => {
-      ;(imgMgr.ensureImage as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('download error'))
+      ;(imgMgr.ensureImage as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
+        new Error('download error')
+      )
       await provisioner.provision('arch-vm')
       const failEvent = emittedEvents.find(e => e.state === 'provision-failed')
       expect(failEvent).toBeDefined()
@@ -207,7 +228,12 @@ describe('Provisioner', () => {
       // product reaches a provisioning failure. The generic message sent them to check a catalog
       // that was working perfectly.
       await registry.add({
-        name: 'nixos-vm', ip: '10.10.0.77', mem: 512, vcpu: 1, hypervisor: 'qemu', distro: 'nixos',
+        name: 'nixos-vm',
+        ip: '10.10.0.77',
+        mem: 512,
+        vcpu: 1,
+        hypervisor: 'qemu',
+        distro: 'nixos'
       })
       await provisioner.provision('nixos-vm')
       const vm = await registry.get('nixos-vm')
@@ -271,7 +297,7 @@ describe('Provisioner', () => {
 
     it('should set consoleType to vnc for desktop VMs', async () => {
       registry = createMockRegistry({
-        'desktop-vm': makeVm({ name: 'desktop-vm', distro: 'arch', vmType: 'desktop' }),
+        'desktop-vm': makeVm({ name: 'desktop-vm', distro: 'arch', vmType: 'desktop' })
       })
       provisioner = new Provisioner(registry, imgMgr, DEFAULT_CONFIG)
 
@@ -286,7 +312,7 @@ describe('Provisioner', () => {
 
     it('should not re-allocate console port if already set', async () => {
       registry = createMockRegistry({
-        'prealloc-vm': makeVm({ name: 'prealloc-vm', distro: 'arch', consolePort: 4999 }),
+        'prealloc-vm': makeVm({ name: 'prealloc-vm', distro: 'arch', consolePort: 4999 })
       })
       provisioner = new Provisioner(registry, imgMgr, DEFAULT_CONFIG)
 
@@ -343,22 +369,22 @@ describe('Provisioner', () => {
           distro: 'other',
           imageUrl: 'https://example.com/my-image.qcow2',
           imageFormat: 'qcow2',
-          cloudInit: true,
+          cloudInit: true
         }),
         'adhoc-iso': makeVm({
           name: 'adhoc-iso',
           distro: 'other',
           imageUrl: 'https://example.com/installer.iso',
           imageFormat: 'iso',
-          cloudInit: false,
+          cloudInit: false
         }),
         'adhoc-no-cloudinit': makeVm({
           name: 'adhoc-no-cloudinit',
           distro: 'other',
           imageUrl: 'https://example.com/custom.qcow2',
           imageFormat: 'qcow2',
-          cloudInit: false,
-        }),
+          cloudInit: false
+        })
       })
       provisioner = new Provisioner(registry, imgMgr, DEFAULT_CONFIG)
     })
@@ -414,7 +440,9 @@ describe('Provisioner', () => {
     })
 
     it('should set provision-failed on download error', async () => {
-      ;(imgMgr.ensureImageFromUrl as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('download failed'))
+      ;(imgMgr.ensureImageFromUrl as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
+        new Error('download failed')
+      )
       await provisioner.provision('adhoc-cloud')
       const vm = await registry.get('adhoc-cloud')
       expect(vm!.provisioningState).toBe('provision-failed')

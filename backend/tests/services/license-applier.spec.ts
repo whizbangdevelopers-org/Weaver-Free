@@ -16,7 +16,11 @@
 // check on this module's own side of the seam: it would pass just as happily against a `stop`
 // that returns without touching the zone, which is precisely the bug worth catching.
 import { describe, it, expect, vi } from 'vitest'
-import { createLicenseApplier, dnsPublishable, type LicenseConfigTarget } from '../../src/services/license-watcher.js'
+import {
+  createLicenseApplier,
+  dnsPublishable,
+  type LicenseConfigTarget
+} from '../../src/services/license-watcher.js'
 import { retireZone } from '../../src/services/dns-writer.js'
 import { TIERS } from '../../src/constants/vocabularies.js'
 
@@ -27,7 +31,7 @@ const PUBLISHED = [
   '# domain=vm.internal serial=7 ttl=60',
   '',
   '10.10.0.10\tweb.vm.internal\tweb',
-  '',
+  ''
 ].join('\n')
 
 /**
@@ -44,19 +48,23 @@ function harness(initialTier: string, zone: string | null = PUBLISHED) {
 
   const reload = vi.fn(async () => {})
   const dnsDeps = {
-    writeFile: vi.fn(async (path: string, content: string) => { files[path] = content }),
+    writeFile: vi.fn(async (path: string, content: string) => {
+      files[path] = content
+    }),
     reload,
-    readFile: vi.fn(async (path: string) => files[path] ?? null),
+    readFile: vi.fn(async (path: string) => files[path] ?? null)
   }
 
   const config: LicenseConfigTarget = {
     tier: initialTier as LicenseConfigTarget['tier'],
     licenseExpiry: new Date('2026-06-01T00:00:00Z'),
-    licenseGraceMode: false,
+    licenseGraceMode: false
   }
 
   const start = vi.fn()
-  const stop = vi.fn(async () => { await retireZone(dnsDeps, HOSTS) })
+  const stop = vi.fn(async () => {
+    await retireZone(dnsDeps, HOSTS)
+  })
   const warn = vi.fn()
   const audit = vi.fn()
   // Declares its argument so the assertions can read `calls[0][0]`; a zero-parameter
@@ -68,17 +76,20 @@ function harness(initialTier: string, zone: string | null = PUBLISHED) {
     log: { warn },
     audit,
     notify,
-    dns: { start, stop },
+    dns: { start, stop }
   })
 
   return { applyLicense, config, files, start, stop, warn, audit, notify, reload }
 }
 
-const snapshot = (tier: string, over: Partial<{ expiry: Date | null; graceMode: boolean }> = {}) => ({
+const snapshot = (
+  tier: string,
+  over: Partial<{ expiry: Date | null; graceMode: boolean }> = {}
+) => ({
   tier: tier as LicenseConfigTarget['tier'],
   expiry: new Date('2026-06-01T00:00:00Z'),
   graceMode: false,
-  ...over,
+  ...over
 })
 
 describe('dnsPublishable', () => {
@@ -125,7 +136,7 @@ describe('applying a licence across a lapse', () => {
     const config: LicenseConfigTarget = {
       tier: TIERS.SOLO,
       licenseExpiry: new Date('2026-06-01T00:00:00Z'),
-      licenseGraceMode: false,
+      licenseGraceMode: false
     }
     let tierAtWithdrawal: string | null = null
 
@@ -134,7 +145,12 @@ describe('applying a licence across a lapse', () => {
       log: { warn: vi.fn() },
       audit: vi.fn(),
       notify: vi.fn(async () => {}),
-      dns: { start: vi.fn(), stop: vi.fn(async () => { tierAtWithdrawal = config.tier }) },
+      dns: {
+        start: vi.fn(),
+        stop: vi.fn(async () => {
+          tierAtWithdrawal = config.tier
+        })
+      }
     })
 
     await applyLicense(snapshot(TIERS.FREE))
@@ -218,7 +234,11 @@ describe('what an operator is told', () => {
     await applyLicense(snapshot(TIERS.FREE))
 
     expect(notify).toHaveBeenCalledTimes(1)
-    const n = notify.mock.calls[0]![0] as unknown as { severity: string; message: string; details: unknown }
+    const n = notify.mock.calls[0]![0] as unknown as {
+      severity: string
+      message: string
+      details: unknown
+    }
     expect(n.severity).toBe('error')
     expect(n.message).toContain('downgraded')
     expect(n.details).toEqual({ from: TIERS.SOLO, to: TIERS.FREE, graceMode: false })
@@ -242,7 +262,7 @@ describe('what an operator is told', () => {
     expect(audit.mock.calls[0]![0]).toMatchObject({
       action: 'license.tier-changed',
       username: 'license-watcher',
-      details: { from: TIERS.SOLO, to: TIERS.SOLO, graceMode: true },
+      details: { from: TIERS.SOLO, to: TIERS.SOLO, graceMode: true }
     })
     // Entering grace is not a tier change, so it is audited but not announced as one.
     expect(notify).not.toHaveBeenCalled()

@@ -18,7 +18,7 @@ type Phase = 'select-action' | 'byok-prompt' | 'streaming' | 'complete' | 'error
 const ACTIONS: { key: string; action: AgentAction; label: string }[] = [
   { key: '1', action: 'diagnose', label: 'Diagnose — analyze VM health and issues' },
   { key: '2', action: 'explain', label: 'Explain — describe VM configuration and setup' },
-  { key: '3', action: 'suggest', label: 'Suggest — recommend improvements' },
+  { key: '3', action: 'suggest', label: 'Suggest — recommend improvements' }
 ]
 
 export function AgentDialog({ vmName, api, wsClient, onBack }: AgentDialogProps) {
@@ -51,22 +51,25 @@ export function AgentDialog({ vmName, api, wsClient, onBack }: AgentDialogProps)
     return unsub
   }, [operationId, wsClient])
 
-  const startAgent = useCallback(async (action: AgentAction) => {
-    setSelectedAction(action)
-    setPhase('streaming')
-    setTokens('')
-    setError(null)
+  const startAgent = useCallback(
+    async (action: AgentAction) => {
+      setSelectedAction(action)
+      setPhase('streaming')
+      setTokens('')
+      setError(null)
 
-    const result = await api.startAgent(vmName, action, apiKey || undefined)
-    if (result.status === 202 || result.status === 200) {
-      const data = result.data as { operationId: string }
-      setOperationId(data.operationId)
-    } else {
-      const data = result.data as { error?: string }
-      setError(data.error ?? 'Failed to start agent')
-      setPhase('error')
-    }
-  }, [api, vmName, apiKey])
+      const result = await api.startAgent(vmName, action, apiKey || undefined)
+      if (result.status === 202 || result.status === 200) {
+        const data = result.data as { operationId: string }
+        setOperationId(data.operationId)
+      } else {
+        const data = result.data as { error?: string }
+        setError(data.error ?? 'Failed to start agent')
+        setPhase('error')
+      }
+    },
+    [api, vmName, apiKey]
+  )
 
   useInput((input, key) => {
     if (key.escape || input === 'b') {
@@ -112,7 +115,10 @@ export function AgentDialog({ vmName, api, wsClient, onBack }: AgentDialogProps)
         <Box flexDirection="column" marginTop={1}>
           <Text>Select an action:</Text>
           {ACTIONS.map(a => (
-            <Text key={a.key}>  [{a.key}] {a.label}</Text>
+            <Text key={a.key}>
+              {' '}
+              [{a.key}] {a.label}
+            </Text>
           ))}
           <Box marginTop={1}>
             <Text dimColor>
@@ -131,9 +137,7 @@ export function AgentDialog({ vmName, api, wsClient, onBack }: AgentDialogProps)
 
       {phase === 'streaming' && (
         <Box flexDirection="column" marginTop={1}>
-          <Text color="yellow">
-            {selectedAction} in progress...
-          </Text>
+          <Text color="yellow">{selectedAction} in progress...</Text>
           <Box marginTop={1}>
             <Text>{tokens || 'Waiting for response...'}</Text>
           </Box>

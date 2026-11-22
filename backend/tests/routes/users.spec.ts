@@ -2,11 +2,7 @@
 // Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE.
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import Fastify from 'fastify'
-import {
-  serializerCompiler,
-  validatorCompiler,
-  ZodTypeProvider
-} from 'fastify-type-provider-zod'
+import { serializerCompiler, validatorCompiler, ZodTypeProvider } from 'fastify-type-provider-zod'
 import { usersRoutes } from '../../src/routes/users.js'
 import { AuthService } from '../../src/services/auth.js'
 import { AuditService } from '../../src/services/audit.js'
@@ -70,7 +66,7 @@ describe('Users Routes', () => {
       prefix: '/api/users',
       userStore,
       sessionStore,
-      auditService,
+      auditService
     })
     await fastify.ready()
 
@@ -102,7 +98,7 @@ describe('Users Routes', () => {
       const response = await fastify.inject({
         method: 'GET',
         url: '/api/users',
-        headers: { authorization: `Bearer ${token}` },
+        headers: { authorization: `Bearer ${token}` }
       })
 
       expect(response.statusCode).toBe(200)
@@ -125,7 +121,7 @@ describe('Users Routes', () => {
       const response = await fastify.inject({
         method: 'GET',
         url: '/api/users',
-        headers: { authorization: `Bearer ${token}` },
+        headers: { authorization: `Bearer ${token}` }
       })
 
       expect(response.statusCode).toBe(403)
@@ -136,7 +132,7 @@ describe('Users Routes', () => {
       const response = await fastify.inject({
         method: 'GET',
         url: '/api/users',
-        headers: { authorization: `Bearer ${viewerLogin.token}` },
+        headers: { authorization: `Bearer ${viewerLogin.token}` }
       })
 
       expect(response.statusCode).toBe(403)
@@ -145,7 +141,7 @@ describe('Users Routes', () => {
     it('should return 401 without auth', async () => {
       const response = await fastify.inject({
         method: 'GET',
-        url: '/api/users',
+        url: '/api/users'
       })
 
       expect(response.statusCode).toBe(401)
@@ -160,7 +156,7 @@ describe('Users Routes', () => {
       const response = await fastify.inject({
         method: 'GET',
         url: `/api/users/${operatorId}`,
-        headers: { authorization: `Bearer ${token}` },
+        headers: { authorization: `Bearer ${token}` }
       })
 
       expect(response.statusCode).toBe(200)
@@ -177,7 +173,7 @@ describe('Users Routes', () => {
       const response = await fastify.inject({
         method: 'GET',
         url: `/api/users/${fakeId}`,
-        headers: { authorization: `Bearer ${token}` },
+        headers: { authorization: `Bearer ${token}` }
       })
 
       expect(response.statusCode).toBe(404)
@@ -188,7 +184,7 @@ describe('Users Routes', () => {
       const response = await fastify.inject({
         method: 'GET',
         url: `/api/users/${operatorId}`,
-        headers: { authorization: `Bearer ${token}` },
+        headers: { authorization: `Bearer ${token}` }
       })
 
       expect(response.statusCode).toBe(403)
@@ -204,7 +200,7 @@ describe('Users Routes', () => {
         method: 'PUT',
         url: `/api/users/${viewerId}/role`,
         headers: { authorization: `Bearer ${token}` },
-        payload: { role: 'operator' },
+        payload: { role: 'operator' }
       })
 
       expect(response.statusCode).toBe(200)
@@ -228,7 +224,7 @@ describe('Users Routes', () => {
         method: 'PUT',
         url: `/api/users/${fakeId}/role`,
         headers: { authorization: `Bearer ${token}` },
-        payload: { role: 'viewer' },
+        payload: { role: 'viewer' }
       })
 
       expect(response.statusCode).toBe(404)
@@ -240,7 +236,7 @@ describe('Users Routes', () => {
         method: 'PUT',
         url: `/api/users/${adminId}/role`,
         headers: { authorization: `Bearer ${token}` },
-        payload: { role: 'viewer' },
+        payload: { role: 'viewer' }
       })
 
       expect(response.statusCode).toBe(409)
@@ -260,7 +256,7 @@ describe('Users Routes', () => {
         method: 'PUT',
         url: `/api/users/${adminId}/role`,
         headers: { authorization: `Bearer ${token}` },
-        payload: { role: 'operator' },
+        payload: { role: 'operator' }
       })
 
       expect(response.statusCode).toBe(200)
@@ -276,7 +272,7 @@ describe('Users Routes', () => {
         method: 'PUT',
         url: `/api/users/${viewerId}/role`,
         headers: { authorization: `Bearer ${token}` },
-        payload: { role: 'admin' },
+        payload: { role: 'admin' }
       })
 
       expect(response.statusCode).toBe(403)
@@ -288,7 +284,7 @@ describe('Users Routes', () => {
         method: 'PUT',
         url: `/api/users/${viewerId}/role`,
         headers: { authorization: `Bearer ${token}` },
-        payload: { role: 'superadmin' },
+        payload: { role: 'superadmin' }
       })
 
       // Zod validation should reject invalid role
@@ -304,7 +300,7 @@ describe('Users Routes', () => {
       const checkResponse = await fastify.inject({
         method: 'GET',
         url: '/api/users',
-        headers: { authorization: `Bearer ${opToken}` },
+        headers: { authorization: `Bearer ${opToken}` }
       })
       expect(checkResponse.statusCode).toBe(403)
 
@@ -314,14 +310,14 @@ describe('Users Routes', () => {
         method: 'PUT',
         url: `/api/users/${operatorId}/role`,
         headers: { authorization: `Bearer ${adminToken}` },
-        payload: { role: 'viewer' },
+        payload: { role: 'viewer' }
       })
 
       // Operator's old token should now be invalidated (session deleted)
       const afterResponse = await fastify.inject({
         method: 'GET',
         url: '/api/users',
-        headers: { authorization: `Bearer ${opToken}` },
+        headers: { authorization: `Bearer ${opToken}` }
       })
       expect(afterResponse.statusCode).toBe(401)
 
@@ -338,7 +334,7 @@ describe('Users Routes', () => {
       const response = await fastify.inject({
         method: 'DELETE',
         url: `/api/users/${adminId}`,
-        headers: { authorization: `Bearer ${token}` },
+        headers: { authorization: `Bearer ${token}` }
       })
 
       expect(response.statusCode).toBe(409)
@@ -354,7 +350,7 @@ describe('Users Routes', () => {
       const response = await fastify.inject({
         method: 'DELETE',
         url: `/api/users/${throwaway.user.id}`,
-        headers: { authorization: `Bearer ${token}` },
+        headers: { authorization: `Bearer ${token}` }
       })
 
       expect(response.statusCode).toBe(200)
@@ -373,7 +369,7 @@ describe('Users Routes', () => {
       const response = await fastify.inject({
         method: 'DELETE',
         url: `/api/users/${fakeId}`,
-        headers: { authorization: `Bearer ${token}` },
+        headers: { authorization: `Bearer ${token}` }
       })
 
       expect(response.statusCode).toBe(404)
@@ -393,7 +389,7 @@ describe('Users Routes', () => {
       const selfResponse = await fastify.inject({
         method: 'DELETE',
         url: `/api/users/${admin2.user.id}`,
-        headers: { authorization: `Bearer ${admin2Login.token}` },
+        headers: { authorization: `Bearer ${admin2Login.token}` }
       })
       expect(selfResponse.statusCode).toBe(409)
       expect(selfResponse.json().error).toContain('own account')
@@ -404,7 +400,7 @@ describe('Users Routes', () => {
       await fastify.inject({
         method: 'DELETE',
         url: `/api/users/${admin2.user.id}`,
-        headers: { authorization: `Bearer ${cleanupToken}` },
+        headers: { authorization: `Bearer ${cleanupToken}` }
       })
     })
 
@@ -418,7 +414,7 @@ describe('Users Routes', () => {
       const deleteResp = await fastify.inject({
         method: 'DELETE',
         url: `/api/users/${adminId}`,
-        headers: { authorization: `Bearer ${admin3Login.token}` },
+        headers: { authorization: `Bearer ${admin3Login.token}` }
       })
       expect(deleteResp.statusCode).toBe(200)
 
@@ -431,7 +427,7 @@ describe('Users Routes', () => {
       await fastify.inject({
         method: 'DELETE',
         url: `/api/users/${admin3.user.id}`,
-        headers: { authorization: `Bearer ${token}` },
+        headers: { authorization: `Bearer ${token}` }
       })
     })
 
@@ -440,7 +436,7 @@ describe('Users Routes', () => {
       const response = await fastify.inject({
         method: 'DELETE',
         url: `/api/users/${viewerId}`,
-        headers: { authorization: `Bearer ${token}` },
+        headers: { authorization: `Bearer ${token}` }
       })
 
       expect(response.statusCode).toBe(403)
@@ -455,7 +451,7 @@ describe('Users Routes', () => {
       const before = await fastify.inject({
         method: 'GET',
         url: '/api/users',
-        headers: { authorization: `Bearer ${tempToken}` },
+        headers: { authorization: `Bearer ${tempToken}` }
       })
       expect(before.statusCode).toBe(403) // token valid, role insufficient
 
@@ -464,14 +460,14 @@ describe('Users Routes', () => {
       await fastify.inject({
         method: 'DELETE',
         url: `/api/users/${temp.user.id}`,
-        headers: { authorization: `Bearer ${adminToken}` },
+        headers: { authorization: `Bearer ${adminToken}` }
       })
 
       // Temp user's token should now be invalidated (session deleted → 401)
       const after = await fastify.inject({
         method: 'GET',
         url: '/api/users',
-        headers: { authorization: `Bearer ${tempToken}` },
+        headers: { authorization: `Bearer ${tempToken}` }
       })
       expect(after.statusCode).toBe(401)
     })
@@ -487,7 +483,7 @@ describe('Users Routes', () => {
         method: 'PUT',
         url: `/api/users/${viewerId}/role`,
         headers: { authorization: `Bearer ${token}` },
-        payload: { role: 'operator' },
+        payload: { role: 'operator' }
       })
 
       const result = auditService.query({ action: 'user.role-change' })
@@ -508,7 +504,7 @@ describe('Users Routes', () => {
       await fastify.inject({
         method: 'DELETE',
         url: `/api/users/${temp.user.id}`,
-        headers: { authorization: `Bearer ${token}` },
+        headers: { authorization: `Bearer ${token}` }
       })
 
       const result = auditService.query({ action: 'user.delete' })
@@ -524,12 +520,15 @@ describe('Users Routes', () => {
         method: 'PUT',
         url: `/api/users/${adminId}/role`,
         headers: { authorization: `Bearer ${token}` },
-        payload: { role: 'viewer' },
+        payload: { role: 'viewer' }
       })
 
       const result = auditService.query({ action: 'user.role-change' })
       const failedEntry = result.entries.find(
-        e => !e.success && e.details && (e.details as Record<string, unknown>).reason === 'last-admin-blocked'
+        e =>
+          !e.success &&
+          e.details &&
+          (e.details as Record<string, unknown>).reason === 'last-admin-blocked'
       )
       expect(failedEntry).toBeDefined()
     })

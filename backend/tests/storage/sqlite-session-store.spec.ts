@@ -16,7 +16,7 @@ function makeSession(overrides: Partial<SessionData> = {}): SessionData {
     type: 'access',
     createdAt: Date.now(),
     lastActivity: Date.now(),
-    ...overrides,
+    ...overrides
   }
 }
 

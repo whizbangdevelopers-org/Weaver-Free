@@ -8,17 +8,13 @@ vi.mock('../../src/services/agent.js', async () => {
     runAgent: vi.fn(),
     getOperation: vi.fn(),
     hasActiveOperation: vi.fn(),
-    agentEvents: new EventEmitter(),
+    agentEvents: new EventEmitter()
   }
 })
 
 import Fastify, { type FastifyRequest } from 'fastify'
 import websocket from '@fastify/websocket'
-import {
-  serializerCompiler,
-  validatorCompiler,
-  ZodTypeProvider,
-} from 'fastify-type-provider-zod'
+import { serializerCompiler, validatorCompiler, ZodTypeProvider } from 'fastify-type-provider-zod'
 import { agentRoutes } from '../../src/routes/agent.js'
 import { runAgent, hasActiveOperation } from '../../src/services/agent.js'
 import type { DashboardConfig } from '../../src/config.js'
@@ -50,12 +46,11 @@ function makeConfig(overrides: Partial<DashboardConfig> = {}): DashboardConfig {
     sessionStoreType: 'memory',
     notify: { ntfyUrl: null, ntfyTopic: null, ntfyToken: null },
     aiApiKey: '',
-    ...overrides,
+    ...overrides
   })
 }
 
 describe('Agent Tier Enforcement', () => {
-
   describe('Server key gating — free tier blocked from server key', () => {
     let fastify: ReturnType<typeof Fastify>
 
@@ -97,7 +92,7 @@ describe('Agent Tier Enforcement', () => {
       const response = await fastify.inject({
         method: 'POST',
         url: '/api/workload/web-nginx/agent',
-        payload: { action: 'diagnose' },
+        payload: { action: 'diagnose' }
       })
 
       expect(response.statusCode).toBe(403)
@@ -112,7 +107,7 @@ describe('Agent Tier Enforcement', () => {
       const response = await fastify.inject({
         method: 'POST',
         url: '/api/workload/web-nginx/agent',
-        payload: { action: 'diagnose', apiKey: 'sk-ant-user-byok-key' },
+        payload: { action: 'diagnose', apiKey: 'sk-ant-user-byok-key' }
       })
 
       expect(response.statusCode).toBe(202)
@@ -162,7 +157,7 @@ describe('Agent Tier Enforcement', () => {
       const response = await fastify.inject({
         method: 'POST',
         url: '/api/workload/web-nginx/agent',
-        payload: { action: 'diagnose' },
+        payload: { action: 'diagnose' }
       })
 
       expect(response.statusCode).toBe(202)
@@ -212,7 +207,7 @@ describe('Agent Tier Enforcement', () => {
       const response = await fastify.inject({
         method: 'POST',
         url: '/api/workload/web-nginx/agent',
-        payload: { action: 'diagnose' },
+        payload: { action: 'diagnose' }
       })
 
       expect(response.statusCode).toBe(202)
@@ -263,7 +258,7 @@ describe('Agent Tier Enforcement', () => {
       const response = await fastify.inject({
         method: 'POST',
         url: '/api/workload/web-nginx/agent',
-        payload: { action: 'diagnose' },
+        payload: { action: 'diagnose' }
       })
 
       // No server key means no gating — falls through to mock agent
@@ -312,7 +307,7 @@ describe('Agent Tier Enforcement', () => {
       const response = await fastify.inject({
         method: 'POST',
         url: '/api/workload/web-nginx/agent',
-        payload: { action: 'diagnose' },
+        payload: { action: 'diagnose' }
       })
 
       expect(response.statusCode).toBe(403)
@@ -326,7 +321,7 @@ describe('Agent Tier Enforcement', () => {
       const response = await fastify.inject({
         method: 'POST',
         url: '/api/workload/web-nginx/agent',
-        payload: { action: 'diagnose', apiKey: 'sk-ant-user-key' },
+        payload: { action: 'diagnose', apiKey: 'sk-ant-user-key' }
       })
 
       expect(response.statusCode).toBe(202)

@@ -61,7 +61,9 @@ async function loadSaveReport(): Promise<SaveReportFn | null> {
     return mod.saveReport as SaveReportFn
   } catch (err) {
     if ((err as NodeJS.ErrnoException)?.code === 'ERR_MODULE_NOT_FOUND') {
-      console.log(`${C.dim}Report persistence unavailable (scripts/lib/ is not published) — skipping.${C.reset}`)
+      console.log(
+        `${C.dim}Report persistence unavailable (scripts/lib/ is not published) — skipping.${C.reset}`
+      )
       return null
     }
     throw err
@@ -86,13 +88,21 @@ const C = {
   cyan: '\x1b[36m',
   dim: '\x1b[2m',
   bold: '\x1b[1m',
-  reset: '\x1b[0m',
+  reset: '\x1b[0m'
 }
 
-function pass(msg: string): void { console.log(`  ${C.green}✓${C.reset} ${msg}`) }
-function fail(msg: string): void { console.log(`  ${C.red}✗${C.reset} ${msg}`) }
-function warn(msg: string): void { console.log(`  ${C.yellow}⚠${C.reset} ${msg}`) }
-function info(msg: string): void { console.log(`  ${C.dim}○${C.reset} ${C.dim}${msg}${C.reset}`) }
+function pass(msg: string): void {
+  console.log(`  ${C.green}✓${C.reset} ${msg}`)
+}
+function fail(msg: string): void {
+  console.log(`  ${C.red}✗${C.reset} ${msg}`)
+}
+function warn(msg: string): void {
+  console.log(`  ${C.yellow}⚠${C.reset} ${msg}`)
+}
+function info(msg: string): void {
+  console.log(`  ${C.dim}○${C.reset} ${C.dim}${msg}${C.reset}`)
+}
 
 function heading(title: string): void {
   console.log(`\n${C.bold}${C.cyan}${title}${C.reset}`)
@@ -167,20 +177,26 @@ function loadDismissed(): DismissEntry[] {
     const raw = readFileSync(DISMISS_CONFIG, 'utf-8')
     return (JSON.parse(raw) as DismissConfig).dismissed ?? []
   } catch {
-    console.warn(`  ${C.yellow}⚠${C.reset} Could not parse ${DISMISS_CONFIG} — no dismissals applied`)
+    console.warn(
+      `  ${C.yellow}⚠${C.reset} Could not parse ${DISMISS_CONFIG} — no dismissals applied`
+    )
     return []
   }
 }
 
-function isDismissed(alert: Alert, normalizedPath: string, dismissed: DismissEntry[]): DismissEntry | undefined {
+function isDismissed(
+  alert: Alert,
+  normalizedPath: string,
+  dismissed: DismissEntry[]
+): DismissEntry | undefined {
   return dismissed.find(d => d.rule === alert.rule.id && d.path === normalizedPath)
 }
 
 function ghFetchAlerts(): Alert[] {
-  const raw = execSync(
-    `gh api repos/${FREE_REPO}/code-scanning/alerts --paginate`,
-    { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }
-  )
+  const raw = execSync(`gh api repos/${FREE_REPO}/code-scanning/alerts --paginate`, {
+    encoding: 'utf-8',
+    stdio: ['pipe', 'pipe', 'pipe']
+  })
   return JSON.parse(raw) as Alert[]
 }
 
@@ -217,10 +233,19 @@ async function main(): Promise<void> {
   try {
     alerts = ghFetchAlerts()
   } catch (e: unknown) {
-    console.error(`\n${C.red}Failed to fetch alerts from GitHub:${C.reset}`, (e as Error).message ?? e)
-    console.error(`${C.dim}This is an ACCESS failure, not a security finding. A 403 "Resource not accessible`)
-    console.error(`${C.dim}by integration" means GITHUB_TOKEN was used for a cross-repo query — it cannot`)
-    console.error(`${C.dim}reach another repository. Use the wbd_github_weaver_free_scans_ro token instead.${C.reset}`)
+    console.error(
+      `\n${C.red}Failed to fetch alerts from GitHub:${C.reset}`,
+      (e as Error).message ?? e
+    )
+    console.error(
+      `${C.dim}This is an ACCESS failure, not a security finding. A 403 "Resource not accessible`
+    )
+    console.error(
+      `${C.dim}by integration" means GITHUB_TOKEN was used for a cross-repo query — it cannot`
+    )
+    console.error(
+      `${C.dim}reach another repository. Use the wbd_github_weaver_free_scans_ro token instead.${C.reset}`
+    )
     process.exit(EXIT_CANNOT_RUN)
   }
 
@@ -266,7 +291,8 @@ async function main(): Promise<void> {
     }
   }
 
-  const totalScorecard = alerts.filter(a => a.state === 'open' && isScorecardRule(a.rule.id)).length / 2 | 0 // deduped approx
+  const totalScorecard =
+    (alerts.filter(a => a.state === 'open' && isScorecardRule(a.rule.id)).length / 2) | 0 // deduped approx
   const totalOpen = alerts.filter(a => a.state === 'open').length
 
   // ---------------------------------------------------------------------------
@@ -280,7 +306,9 @@ async function main(): Promise<void> {
     for (const { alert, path } of failures) {
       const loc = `${path}:${alert.most_recent_instance.location.start_line}`
       fail(`[${alert.rule.severity}] ${alert.rule.id}  ${C.dim}${loc}${C.reset}`)
-      console.log(`         ${C.dim}${alert.most_recent_instance.message.text.slice(0, 120)}${C.reset}`)
+      console.log(
+        `         ${C.dim}${alert.most_recent_instance.message.text.slice(0, 120)}${C.reset}`
+      )
     }
   }
 
@@ -299,7 +327,9 @@ async function main(): Promise<void> {
       warn(`${ruleId} (${items.length})`)
       for (const { alert, path, loc } of items.slice(0, 3)) {
         const locLabel = loc === 'production' ? '' : ` ${C.dim}[${loc}]${C.reset}`
-        console.log(`         ${C.dim}${path}:${alert.most_recent_instance.location.start_line}${C.reset}${locLabel}`)
+        console.log(
+          `         ${C.dim}${path}:${alert.most_recent_instance.location.start_line}${C.reset}${locLabel}`
+        )
       }
       if (items.length > 3) {
         console.log(`         ${C.dim}… and ${items.length - 3} more${C.reset}`)
@@ -345,7 +375,7 @@ async function main(): Promise<void> {
       uniqueFindings: deduped.length,
       productionFailures: failures.length,
       warnings: warnings.length,
-      dismissed: skipped.length,
+      dismissed: skipped.length
     },
     data: {
       failures: failures.map(({ alert, path }) => ({
@@ -353,28 +383,34 @@ async function main(): Promise<void> {
         severity: alert.rule.severity,
         path,
         line: alert.most_recent_instance.location.start_line,
-        message: alert.most_recent_instance.message.text,
+        message: alert.most_recent_instance.message.text
       })),
       warnings: warnings.map(({ alert, path, loc }) => ({
         rule: alert.rule.id,
         severity: alert.rule.severity,
         path,
         loc,
-        line: alert.most_recent_instance.location.start_line,
-      })),
-    },
+        line: alert.most_recent_instance.location.start_line
+      }))
+    }
   })
 
   if (failures.length > 0) {
-    console.log(`${C.red}${C.bold}${failures.length} production security finding(s) must be resolved before release.${C.reset}`)
-    console.log(`${C.dim}Fix the findings, or add confirmed false positives to scripts/baselines/code-scanning-dismiss.json.${C.reset}`)
+    console.log(
+      `${C.red}${C.bold}${failures.length} production security finding(s) must be resolved before release.${C.reset}`
+    )
+    console.log(
+      `${C.dim}Fix the findings, or add confirmed false positives to scripts/baselines/code-scanning-dismiss.json.${C.reset}`
+    )
     console.log('')
     process.exit(1)
   }
 
   console.log(`${C.green}${C.bold}All production security checks passed.${C.reset}`)
   if (warnings.length > 0) {
-    console.log(`${C.dim}${warnings.length} warning(s) above — not blocking, but worth reviewing.${C.reset}`)
+    console.log(
+      `${C.dim}${warnings.length} warning(s) above — not blocking, but worth reviewing.${C.reset}`
+    )
   }
   console.log('')
 }

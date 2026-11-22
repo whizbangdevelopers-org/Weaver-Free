@@ -29,16 +29,12 @@ vi.mock('node:child_process', () => {
       proc.kill = vi.fn()
       proc.pid = 12345
       return proc
-    }),
+    })
   }
 })
 
 import Fastify from 'fastify'
-import {
-  serializerCompiler,
-  validatorCompiler,
-  ZodTypeProvider
-} from 'fastify-type-provider-zod'
+import { serializerCompiler, validatorCompiler, ZodTypeProvider } from 'fastify-type-provider-zod'
 import { workloadsRoutes } from '../../src/routes/workloads.js'
 import { healthRoutes } from '../../src/routes/health.js'
 import { setRegistry } from '../../src/services/microvm.js'
@@ -63,7 +59,7 @@ const config: DashboardConfig = makeTestConfig({
   bridgeGateway: '10.10.0.1',
   jwtSecret: 'test-secret',
   sessionStoreType: 'memory',
-  notify: { ntfyUrl: null, ntfyTopic: null, ntfyToken: null },
+  notify: { ntfyUrl: null, ntfyTopic: null, ntfyToken: null }
 })
 
 function buildApp() {
@@ -89,16 +85,46 @@ describe('E2E: API Integration', () => {
     await registry.init()
     // Seed test VMs (registry starts empty by default)
     for (const vm of [
-      { name: 'web-nginx', ip: '10.10.0.10', mem: 256, vcpu: 1, hypervisor: 'qemu', distro: 'nixos' },
+      {
+        name: 'web-nginx',
+        ip: '10.10.0.10',
+        mem: 256,
+        vcpu: 1,
+        hypervisor: 'qemu',
+        distro: 'nixos'
+      },
       { name: 'web-app', ip: '10.10.0.11', mem: 512, vcpu: 1, hypervisor: 'qemu', distro: 'nixos' },
-      { name: 'dev-node', ip: '10.10.0.20', mem: 512, vcpu: 1, hypervisor: 'qemu', distro: 'nixos' },
-      { name: 'dev-python', ip: '10.10.0.21', mem: 512, vcpu: 1, hypervisor: 'qemu', distro: 'nixos' },
-      { name: 'svc-postgres', ip: '10.10.0.30', mem: 512, vcpu: 1, hypervisor: 'qemu', distro: 'nixos' },
-    ]) { await registry.add(vm) }
+      {
+        name: 'dev-node',
+        ip: '10.10.0.20',
+        mem: 512,
+        vcpu: 1,
+        hypervisor: 'qemu',
+        distro: 'nixos'
+      },
+      {
+        name: 'dev-python',
+        ip: '10.10.0.21',
+        mem: 512,
+        vcpu: 1,
+        hypervisor: 'qemu',
+        distro: 'nixos'
+      },
+      {
+        name: 'svc-postgres',
+        ip: '10.10.0.30',
+        mem: 512,
+        vcpu: 1,
+        hypervisor: 'qemu',
+        distro: 'nixos'
+      }
+    ]) {
+      await registry.add(vm)
+    }
     setRegistry(registry)
 
     // Simulate auth middleware: all requests run as admin by default
-    fastify.addHook('onRequest', async (request) => {
+    fastify.addHook('onRequest', async request => {
       request.userRole = 'admin'
       request.userId = 'test-admin-id'
       request.username = 'test-admin'
@@ -208,7 +234,10 @@ describe('E2E: API Integration', () => {
     const invalidNames = ['UPPER', '1start', 'has space', 'has_underscore!', '../escape']
     for (const name of invalidNames) {
       it(`rejects invalid name "${name}" on GET`, async () => {
-        const res = await fastify.inject({ method: 'GET', url: `/api/workload/${encodeURIComponent(name)}` })
+        const res = await fastify.inject({
+          method: 'GET',
+          url: `/api/workload/${encodeURIComponent(name)}`
+        })
         expect(res.statusCode).toBe(400)
       })
     }
@@ -234,11 +263,11 @@ describe('E2E: Firecracker NixOS rejection', () => {
       isCloudDistro: (distro?: string) => ['ubuntu', 'fedora'].includes(distro ?? ''),
       isIsoDistro: (distro?: string) => ['nixos-server'].includes(distro ?? ''),
       getDistroSource: () => ({ format: 'flake', cloudInit: false }),
-      isQemuVm: () => false,
+      isQemuVm: () => false
     }
 
     app = buildApp()
-    app.addHook('onRequest', async (request) => {
+    app.addHook('onRequest', async request => {
       request.userRole = 'admin'
       request.userId = 'test-admin-id'
       request.username = 'test-admin'
@@ -246,7 +275,7 @@ describe('E2E: Firecracker NixOS rejection', () => {
     await app.register(workloadsRoutes, {
       prefix: '/api/workload',
       config: fakeConfig,
-      imageManager: mockImageManager as never,
+      imageManager: mockImageManager as never
     })
     await app.ready()
   })
@@ -266,8 +295,8 @@ describe('E2E: Firecracker NixOS rejection', () => {
         mem: 256,
         vcpu: 1,
         hypervisor: 'firecracker',
-        distro: 'nixos-microvm',
-      },
+        distro: 'nixos-microvm'
+      }
     })
     expect(res.statusCode).toBe(400)
     expect(res.json().error).toContain('Firecracker is incompatible')
@@ -283,8 +312,8 @@ describe('E2E: Firecracker NixOS rejection', () => {
         mem: 256,
         vcpu: 1,
         hypervisor: 'cloud-hypervisor',
-        distro: 'nixos-microvm',
-      },
+        distro: 'nixos-microvm'
+      }
     })
     // Should pass distro validation (may fail later on provisioning, but not 400 for hypervisor)
     expect(res.statusCode).not.toBe(400)

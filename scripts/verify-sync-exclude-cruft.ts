@@ -31,7 +31,7 @@ const PROJECT_ROOT = resolve(CODE_ROOT, '..')
 
 const WORKFLOWS_TO_CHECK = [
   resolve(PROJECT_ROOT, '.github', 'workflows', 'sync-to-free.yml'),
-  resolve(PROJECT_ROOT, '.github', 'workflows', 'release.yml'),
+  resolve(PROJECT_ROOT, '.github', 'workflows', 'release.yml')
 ]
 
 const GREEN = '\x1b[32m'
@@ -52,7 +52,9 @@ function fail(name: string, detail: string): void {
 }
 
 console.log(`${BOLD}Sync-Exclude Rsync Configuration${RESET}`)
-console.log(`${DIM}Ensures sync workflows use --delete-excluded so rsync cleans up files matching new exclusion patterns${RESET}`)
+console.log(
+  `${DIM}Ensures sync workflows use --delete-excluded so rsync cleans up files matching new exclusion patterns${RESET}`
+)
 console.log()
 
 for (const workflowPath of WORKFLOWS_TO_CHECK) {
@@ -96,14 +98,18 @@ for (const workflowPath of WORKFLOWS_TO_CHECK) {
   } else {
     fail(
       workflowName,
-      `${missing.length} rsync invocation(s) missing --delete-excluded — lines ${missing.join(', ')}.\n     Fix: add '--delete-excluded' alongside '--delete' in the rsync command block.\n     Why: without it, files matching new exclusion patterns stay on the Free mirror as cruft and break rebuild-from-source.`,
+      `${missing.length} rsync invocation(s) missing --delete-excluded — lines ${missing.join(', ')}.\n     Fix: add '--delete-excluded' alongside '--delete' in the rsync command block.\n     Why: without it, files matching new exclusion patterns stay on the Free mirror as cruft and break rebuild-from-source.`
     )
   }
 }
 
 console.log()
 if (failures > 0) {
-  console.log(`${RED}${BOLD}RESULT: FAIL${RESET} — ${failures} workflow(s) missing --delete-excluded`)
+  console.log(
+    `${RED}${BOLD}RESULT: FAIL${RESET} — ${failures} workflow(s) missing --delete-excluded`
+  )
   process.exit(1)
 }
-console.log(`${GREEN}${BOLD}RESULT: PASS${RESET} — sync workflows clean up excluded files on destination`)
+console.log(
+  `${GREEN}${BOLD}RESULT: PASS${RESET} — sync workflows clean up excluded files on destination`
+)

@@ -11,7 +11,9 @@ interface HelpViewProps {
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <Box flexDirection="column" marginTop={1}>
-      <Text bold underline>{title}</Text>
+      <Text bold underline>
+        {title}
+      </Text>
       {children}
     </Box>
   )
@@ -94,58 +96,138 @@ export function HelpView({ tier, onBack }: HelpViewProps) {
       <Section title="Tier Feature Matrix">
         <Box flexDirection="column">
           <Box>
-            <Box width={28}><Text bold dimColor>Feature</Text></Box>
-            <Box width={8}><Text bold dimColor>Free</Text></Box>
-            <Box width={10}><Text bold dimColor>Solo</Text></Box>
-            <Box width={12}><Text bold dimColor>FabricK</Text></Box>
+            <Box width={28}>
+              <Text bold dimColor>
+                Feature
+              </Text>
+            </Box>
+            <Box width={8}>
+              <Text bold dimColor>
+                Free
+              </Text>
+            </Box>
+            <Box width={10}>
+              <Text bold dimColor>
+                Solo
+              </Text>
+            </Box>
+            <Box width={12}>
+              <Text bold dimColor>
+                FabricK
+              </Text>
+            </Box>
           </Box>
           <Box>
-            <Box width={28}><Text>VM management</Text></Box>
-            <Box width={8}><Text color="green">yes</Text></Box>
-            <Box width={10}><Text color="green">yes</Text></Box>
-            <Box width={12}><Text color="green">yes</Text></Box>
+            <Box width={28}>
+              <Text>VM management</Text>
+            </Box>
+            <Box width={8}>
+              <Text color="green">yes</Text>
+            </Box>
+            <Box width={10}>
+              <Text color="green">yes</Text>
+            </Box>
+            <Box width={12}>
+              <Text color="green">yes</Text>
+            </Box>
           </Box>
           <Box>
-            <Box width={28}><Text>AI agent (BYOK)</Text></Box>
-            <Box width={8}><Text color="green">yes</Text></Box>
-            <Box width={10}><Text color="green">yes</Text></Box>
-            <Box width={12}><Text color="green">yes</Text></Box>
+            <Box width={28}>
+              <Text>AI agent (BYOK)</Text>
+            </Box>
+            <Box width={8}>
+              <Text color="green">yes</Text>
+            </Box>
+            <Box width={10}>
+              <Text color="green">yes</Text>
+            </Box>
+            <Box width={12}>
+              <Text color="green">yes</Text>
+            </Box>
           </Box>
           <Box>
-            <Box width={28}><Text>Network topology</Text></Box>
-            <Box width={8}><Text color="red">-</Text></Box>
-            <Box width={10}><Text color="green">yes</Text></Box>
-            <Box width={12}><Text color="green">yes</Text></Box>
+            <Box width={28}>
+              <Text>Network topology</Text>
+            </Box>
+            <Box width={8}>
+              <Text color="red">-</Text>
+            </Box>
+            <Box width={10}>
+              <Text color="green">yes</Text>
+            </Box>
+            <Box width={12}>
+              <Text color="green">yes</Text>
+            </Box>
           </Box>
           <Box>
-            <Box width={28}><Text>Distro catalog</Text></Box>
-            <Box width={8}><Text color="green">yes</Text></Box>
-            <Box width={10}><Text color="green">yes</Text></Box>
-            <Box width={12}><Text color="green">yes</Text></Box>
+            <Box width={28}>
+              <Text>Distro catalog</Text>
+            </Box>
+            <Box width={8}>
+              <Text color="green">yes</Text>
+            </Box>
+            <Box width={10}>
+              <Text color="green">yes</Text>
+            </Box>
+            <Box width={12}>
+              <Text color="green">yes</Text>
+            </Box>
           </Box>
           <Box>
-            <Box width={28}><Text>VM templates</Text></Box>
-            <Box width={8}><Text color="red">-</Text></Box>
-            <Box width={10}><Text color="green">yes</Text></Box>
-            <Box width={12}><Text color="green">yes</Text></Box>
+            <Box width={28}>
+              <Text>VM templates</Text>
+            </Box>
+            <Box width={8}>
+              <Text color="red">-</Text>
+            </Box>
+            <Box width={10}>
+              <Text color="green">yes</Text>
+            </Box>
+            <Box width={12}>
+              <Text color="green">yes</Text>
+            </Box>
           </Box>
           <Box>
-            <Box width={28}><Text>Host info</Text></Box>
-            <Box width={8}><Text color="red">-</Text></Box>
-            <Box width={10}><Text color="green">yes</Text></Box>
-            <Box width={12}><Text color="green">yes</Text></Box>
+            <Box width={28}>
+              <Text>Host info</Text>
+            </Box>
+            <Box width={8}>
+              <Text color="red">-</Text>
+            </Box>
+            <Box width={10}>
+              <Text color="green">yes</Text>
+            </Box>
+            <Box width={12}>
+              <Text color="green">yes</Text>
+            </Box>
           </Box>
           <Box>
-            <Box width={28}><Text>User management</Text></Box>
-            <Box width={8}><Text color="red">-</Text></Box>
-            <Box width={10}><Text color="red">-</Text></Box>
-            <Box width={12}><Text color="green">yes</Text></Box>
+            <Box width={28}>
+              <Text>User management</Text>
+            </Box>
+            <Box width={8}>
+              <Text color="red">-</Text>
+            </Box>
+            <Box width={10}>
+              <Text color="red">-</Text>
+            </Box>
+            <Box width={12}>
+              <Text color="green">yes</Text>
+            </Box>
           </Box>
           <Box>
-            <Box width={28}><Text>Audit log</Text></Box>
-            <Box width={8}><Text color="red">-</Text></Box>
-            <Box width={10}><Text color="red">-</Text></Box>
-            <Box width={12}><Text color="green">yes</Text></Box>
+            <Box width={28}>
+              <Text>Audit log</Text>
+            </Box>
+            <Box width={8}>
+              <Text color="red">-</Text>
+            </Box>
+            <Box width={10}>
+              <Text color="red">-</Text>
+            </Box>
+            <Box width={12}>
+              <Text color="green">yes</Text>
+            </Box>
           </Box>
         </Box>
       </Section>

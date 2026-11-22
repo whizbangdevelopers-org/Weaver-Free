@@ -13,10 +13,10 @@ import { describe, it, expect, vi, beforeAll, afterAll, beforeEach } from 'vites
 import type { ScanResult } from '../../src/services/microvm.js'
 import type { DashboardConfig } from '../../src/config.js'
 
-vi.mock('../../src/services/microvm.js', async (importOriginal) => ({
+vi.mock('../../src/services/microvm.js', async importOriginal => ({
   ...(await importOriginal<typeof import('../../src/services/microvm.js')>()),
   scanMicrovms: vi.fn(),
-  scanContainers: vi.fn(),
+  scanContainers: vi.fn()
 }))
 
 import Fastify from 'fastify'
@@ -46,7 +46,7 @@ function buildApp(config: DashboardConfig) {
   fastify.decorateRequest('username', undefined)
   fastify.setValidatorCompiler(validatorCompiler)
   fastify.setSerializerCompiler(serializerCompiler)
-  fastify.addHook('onRequest', async (request) => {
+  fastify.addHook('onRequest', async request => {
     request.userRole = mockUserRole
     request.userId = 'test-user-id'
     request.username = 'test-user'
@@ -62,7 +62,9 @@ describe('POST /api/workload/scan', () => {
     app = await buildApp(routeConfig)
     await app.ready()
   })
-  afterAll(async () => { await app.close() })
+  afterAll(async () => {
+    await app.close()
+  })
 
   beforeEach(() => {
     // resetAllMocks, NOT clearAllMocks. clearAllMocks clears recorded calls but LEAVES the

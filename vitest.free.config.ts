@@ -50,7 +50,7 @@ export default defineConfig({
         'src/components/weaver/**',
         'src/components/fabrick/**',
         'src/pages/weaver/**',
-        'src/pages/fabrick/**',
+        'src/pages/fabrick/**'
       ],
       thresholds: {
         // Free-tier thresholds will climb with the ratchet plan documented
@@ -60,12 +60,12 @@ export default defineConfig({
         lines: 10,
         functions: 8,
         branches: 8,
-        statements: 10,
-      },
+        statements: 10
+      }
     },
     deps: {
-      inline: ['quasar'],
-    },
+      inline: ['quasar']
+    }
   },
   resolve: {
     alias: {
@@ -75,7 +75,7 @@ export default defineConfig({
       layouts: resolve(import.meta.dirname, './src/layouts'),
       pages: resolve(import.meta.dirname, './src/pages'),
       stores: resolve(import.meta.dirname, './src/stores'),
-      services: resolve(import.meta.dirname, './src/services'),
-    },
-  },
+      services: resolve(import.meta.dirname, './src/services')
+    }
+  }
 })

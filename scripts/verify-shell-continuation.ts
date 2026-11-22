@@ -64,9 +64,15 @@ import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const PKG = join(dirname(fileURLToPath(import.meta.url)), '..')
-const REPO = execFileSync('git', ['-C', PKG, 'rev-parse', '--show-toplevel'], { encoding: 'utf-8' }).trim()
+const REPO = execFileSync('git', ['-C', PKG, 'rev-parse', '--show-toplevel'], {
+  encoding: 'utf-8'
+}).trim()
 
-const GREEN = '\x1b[32m', RED = '\x1b[31m', DIM = '\x1b[2m', BOLD = '\x1b[1m', OFF = '\x1b[0m'
+const GREEN = '\x1b[32m',
+  RED = '\x1b[31m',
+  DIM = '\x1b[2m',
+  BOLD = '\x1b[1m',
+  OFF = '\x1b[0m'
 
 const COMMENT = /^[ \t]*#/
 const BLANK = /^[ \t]*$/
@@ -122,7 +128,7 @@ export function findInterruptedContinuations(content: string, path = '', offset 
           file: path,
           line: pending.line + offset,
           command: pending.text.trim(),
-          comment: raw.trim(),
+          comment: raw.trim()
         })
       }
       // 1. A comment line never continues, whatever it ends with.
@@ -154,7 +160,10 @@ export function extractRunBlocks(yaml: string): { body: string; startLine: numbe
     let j = i + 1
     for (; j < lines.length; j++) {
       const l = lines[j]
-      if (BLANK.test(l)) { body.push(''); continue }
+      if (BLANK.test(l)) {
+        body.push('')
+        continue
+      }
       const indent = l.length - l.replace(/^[ \t]*/, '').length
       if (indent <= keyIndent) break
       body.push(l)
@@ -171,34 +180,34 @@ export function extractRunBlocks(yaml: string): { body: string; startLine: numbe
 // even backslashes) contradicted the first draft's assumptions and were corrected by running them.
 
 const MUST_CATCH: [string, string][] = [
-  ['the rsync defect this was written from',
-    'rsync -av --delete \\\n  --exclude=A \\\n  # why this one must stay\n  --exclude=B \\\n  src/ dst/\n'],
+  [
+    'the rsync defect this was written from',
+    'rsync -av --delete \\\n  --exclude=A \\\n  # why this one must stay\n  --exclude=B \\\n  src/ dst/\n'
+  ],
   ['minimal two-line', 'cmd -a \\\n# c\ncmd -b\n'],
   ['indented comment mid-chain', 'cmd \\\n  --a \\\n     # note\n  --b\n'],
   ['comment interrupts the FIRST continuation', 'cmd \\\n# note\n  --a\n'],
   ['three backslashes still continues', 'printf "a\\\\\\\n# note\necho b\n'],
-  ['second interruption in the same file',
-    'cmd --x \\\n  --y\ncmd2 \\\n  # here\n  --z\n'],
-  ['after a closed heredoc', "cat <<'EOF'\nbody\nEOF\ncmd \\\n# note\n  --a\n"],
+  ['second interruption in the same file', 'cmd --x \\\n  --y\ncmd2 \\\n  # here\n  --z\n'],
+  ['after a closed heredoc', "cat <<'EOF'\nbody\nEOF\ncmd \\\n# note\n  --a\n"]
 ]
 
 const MUST_IGNORE: [string, string][] = [
   // The false positive the first draft produced, against a real repo file.
-  ['usage block: comment continued by comment',
-    '# usage: cmd -a \\\n#   --flag x\ncmd\n'],
+  ['usage block: comment continued by comment', '# usage: cmd -a \\\n#   --flag x\ncmd\n'],
   ['clean continuation', 'cmd -a \\\n  --flag b \\\n  src dst\n'],
   ['comment above the command', '# explain\ncmd -a --b\n'],
   ['comment after a NON-continued command', 'cmd -a\n# unrelated note\ncmd -b\n'],
   ['blank line terminated it first', 'cmd -a \\\n\n# innocent\ncmd -b\n'],
   ['even backslashes are an escaped backslash', 'printf "x" ends\\\\\n# innocent\ncmd\n'],
-  ['heredoc body containing \\ then #',
-    "cat <<'EOF'\nline one \\\n# prose, not a comment\nEOF\n"],
-  ['unquoted heredoc body is still data',
-    'cat <<EOF\nvalue \\\n# still prose\nEOF\n'],
+  ['heredoc body containing \\ then #', "cat <<'EOF'\nline one \\\n# prose, not a comment\nEOF\n"],
+  ['unquoted heredoc body is still data', 'cat <<EOF\nvalue \\\n# still prose\nEOF\n'],
   ['hash inside a string on a continued line', 'cmd --title "a # b" \\\n  --flag\n'],
-  ['suppressed with a reason',
-    'cmd -a \\\n# shell-continuation-ok: verified inert, this block is quoted data\n  --b\n'],
-  ['no continuations at all', 'set -euo pipefail\nif true; then\n  # fine\n  echo ok\nfi\n'],
+  [
+    'suppressed with a reason',
+    'cmd -a \\\n# shell-continuation-ok: verified inert, this block is quoted data\n  --b\n'
+  ],
+  ['no continuations at all', 'set -euo pipefail\nif true; then\n  # fine\n  echo ok\nfi\n']
 ]
 
 const YAML_CATCH = `jobs:
@@ -229,7 +238,8 @@ const YAML_IGNORE = `jobs:
 function selfTest(): string[] {
   const fails: string[] = []
   for (const [name, src] of MUST_CATCH) {
-    if (findInterruptedContinuations(src, 'x.sh').length === 0) fails.push(`MUST CATCH but did not: ${name}`)
+    if (findInterruptedContinuations(src, 'x.sh').length === 0)
+      fails.push(`MUST CATCH but did not: ${name}`)
   }
   for (const [name, src] of MUST_IGNORE) {
     const got = findInterruptedContinuations(src, 'x.sh')
@@ -271,18 +281,26 @@ function main(): number {
   }
   const catchN = MUST_CATCH.length + 1
   const ignoreN = MUST_IGNORE.length + 1
-  console.log(`  ${GREEN}✓${OFF} self-test: ${catchN} catch + ${ignoreN} ignore cases ${DIM}(incl. the YAML run: pair)${OFF}`)
+  console.log(
+    `  ${GREEN}✓${OFF} self-test: ${catchN} catch + ${ignoreN} ignore cases ${DIM}(incl. the YAML run: pair)${OFF}`
+  )
   // audit:auditor-contracts reads this line to see BOTH halves rather than trust they exist.
   console.log(`  auditor-contract: catch=${catchN} ignore=${ignoreN}`)
 
-  const tracked = execFileSync('git', ['-C', REPO, 'ls-files'], { encoding: 'utf-8' }).split('\n').filter(Boolean)
+  const tracked = execFileSync('git', ['-C', REPO, 'ls-files'], { encoding: 'utf-8' })
+    .split('\n')
+    .filter(Boolean)
   const found: Finding[] = []
   let shellFiles = 0
   let runBlocks = 0
 
   for (const rel of tracked) {
     let body: string
-    try { body = readFileSync(join(REPO, rel), 'utf-8') } catch { continue }
+    try {
+      body = readFileSync(join(REPO, rel), 'utf-8')
+    } catch {
+      continue
+    }
 
     if (isWorkflow(rel)) {
       for (const blk of extractRunBlocks(body)) {
@@ -302,10 +320,14 @@ function main(): number {
       console.log(`      ${DIM}continued:${OFF} ${f.command.slice(0, 88)}`)
       console.log(`      ${DIM}truncated by:${OFF} ${f.comment.slice(0, 88)}`)
     }
-    console.log(`\n${RED}${BOLD}RESULT: FAIL${OFF} — ${found.length} command(s) silently truncated by a comment.`)
+    console.log(
+      `\n${RED}${BOLD}RESULT: FAIL${OFF} — ${found.length} command(s) silently truncated by a comment.`
+    )
     console.log('  The \\+newline is consumed before comment processing, so the comment ends the')
     console.log('  logical line: trailing arguments are lost and the rest runs as its own command.')
-    console.log(`  ${DIM}bash -n and shellcheck both report this as valid — they cannot be the check.${OFF}`)
+    console.log(
+      `  ${DIM}bash -n and shellcheck both report this as valid — they cannot be the check.${OFF}`
+    )
     console.log('  Move the note ABOVE the whole command. Genuinely belongs inline?')
     console.log('  add:  # shell-continuation-ok: <reason>')
     return 1

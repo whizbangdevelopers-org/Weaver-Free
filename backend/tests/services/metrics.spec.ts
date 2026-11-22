@@ -21,7 +21,7 @@ import {
   maxWindowMsForTier,
   MAX_WINDOW_MS_FREE,
   MAX_WINDOW_MS_PAID,
-  SAMPLE_INTERVAL_MS,
+  SAMPLE_INTERVAL_MS
 } from '../../src/services/metrics.js'
 
 describe('cpu.stat parsing', () => {
@@ -31,7 +31,7 @@ describe('cpu.stat parsing', () => {
     'system_usec 23456789',
     'nr_periods 0',
     'nr_throttled 0',
-    'throttled_usec 0',
+    'throttled_usec 0'
   ].join('\n')
 
   it('extracts usage_usec from a real cpu.stat', () => {
@@ -65,30 +65,50 @@ describe('cpu.stat parsing', () => {
 describe('computeCpuPercent', () => {
   it('computes a straightforward single-vCPU reading', () => {
     // 15s of CPU over 30s of wall clock on 1 vCPU = 50%.
-    expect(computeCpuPercent({
-      previousUsec: 0, currentUsec: 15_000_000, elapsedMs: 30_000, vcpus: 1,
-    })).toBe(50)
+    expect(
+      computeCpuPercent({
+        previousUsec: 0,
+        currentUsec: 15_000_000,
+        elapsedMs: 30_000,
+        vcpus: 1
+      })
+    ).toBe(50)
   })
 
   it('normalises by vCPU count', () => {
     // The same 15s of CPU across 2 vCPUs is half the allocation → 25%.
     // Without normalisation a 4-vCPU workload at full tilt reads 400%, and two workloads under
     // identical relative load report different numbers.
-    expect(computeCpuPercent({
-      previousUsec: 0, currentUsec: 15_000_000, elapsedMs: 30_000, vcpus: 2,
-    })).toBe(25)
+    expect(
+      computeCpuPercent({
+        previousUsec: 0,
+        currentUsec: 15_000_000,
+        elapsedMs: 30_000,
+        vcpus: 2
+      })
+    ).toBe(25)
   })
 
   it('reports 100% for a fully saturated allocation', () => {
-    expect(computeCpuPercent({
-      previousUsec: 0, currentUsec: 60_000_000, elapsedMs: 30_000, vcpus: 2,
-    })).toBe(100)
+    expect(
+      computeCpuPercent({
+        previousUsec: 0,
+        currentUsec: 60_000_000,
+        elapsedMs: 30_000,
+        vcpus: 2
+      })
+    ).toBe(100)
   })
 
   it('clamps marginally-over readings to 100 rather than showing 103%', () => {
-    expect(computeCpuPercent({
-      previousUsec: 0, currentUsec: 31_000_000, elapsedMs: 30_000, vcpus: 1,
-    })).toBe(100)
+    expect(
+      computeCpuPercent({
+        previousUsec: 0,
+        currentUsec: 31_000_000,
+        elapsedMs: 30_000,
+        vcpus: 1
+      })
+    ).toBe(100)
   })
 
   // --- the cases that would otherwise produce a believable wrong number ---
@@ -96,34 +116,55 @@ describe('computeCpuPercent', () => {
   it('returns null with no previous sample, not 0', () => {
     // The cold-start case. 0 here draws a flat idle line for the first interval of every
     // workload's life, which is exactly when someone is watching it boot.
-    expect(computeCpuPercent({
-      previousUsec: null, currentUsec: 15_000_000, elapsedMs: 30_000, vcpus: 1,
-    })).toBeNull()
+    expect(
+      computeCpuPercent({
+        previousUsec: null,
+        currentUsec: 15_000_000,
+        elapsedMs: 30_000,
+        vcpus: 1
+      })
+    ).toBeNull()
   })
 
   it('returns null when the counter goes backwards — the unit restarted', () => {
     // cgroup recreated: usage_usec restarts at 0. A raw delta is negative; an abs() or a clamp
     // would invent a spike at precisely the moment a user is looking to see what happened.
-    expect(computeCpuPercent({
-      previousUsec: 900_000_000, currentUsec: 1_000, elapsedMs: 30_000, vcpus: 1,
-    })).toBeNull()
+    expect(
+      computeCpuPercent({
+        previousUsec: 900_000_000,
+        currentUsec: 1_000,
+        elapsedMs: 30_000,
+        vcpus: 1
+      })
+    ).toBeNull()
   })
 
   it('returns null on non-positive elapsed time', () => {
     // Clock stepped backwards, or two reads inside one tick — a division by ~0 produces Infinity.
-    expect(computeCpuPercent({ previousUsec: 0, currentUsec: 5, elapsedMs: 0, vcpus: 1 })).toBeNull()
-    expect(computeCpuPercent({ previousUsec: 0, currentUsec: 5, elapsedMs: -1000, vcpus: 1 })).toBeNull()
+    expect(
+      computeCpuPercent({ previousUsec: 0, currentUsec: 5, elapsedMs: 0, vcpus: 1 })
+    ).toBeNull()
+    expect(
+      computeCpuPercent({ previousUsec: 0, currentUsec: 5, elapsedMs: -1000, vcpus: 1 })
+    ).toBeNull()
   })
 
   it('returns null on a nonsensical vCPU count', () => {
-    expect(computeCpuPercent({ previousUsec: 0, currentUsec: 5, elapsedMs: 30_000, vcpus: 0 })).toBeNull()
+    expect(
+      computeCpuPercent({ previousUsec: 0, currentUsec: 5, elapsedMs: 30_000, vcpus: 0 })
+    ).toBeNull()
   })
 
   it('reports a genuinely idle workload as 0, distinct from null', () => {
     // The counterpart to the cold-start case: a real zero must survive as a zero.
-    expect(computeCpuPercent({
-      previousUsec: 500, currentUsec: 500, elapsedMs: 30_000, vcpus: 1,
-    })).toBe(0)
+    expect(
+      computeCpuPercent({
+        previousUsec: 500,
+        currentUsec: 500,
+        elapsedMs: 30_000,
+        vcpus: 1
+      })
+    ).toBe(0)
   })
 })
 
@@ -165,32 +206,46 @@ describe('computeDiskBps', () => {
   const prev = { readBytes: 1000, writeBytes: 2000 }
 
   it('computes bytes per second across the interval', () => {
-    const r = computeDiskBps({ previous: prev, current: { readBytes: 3000, writeBytes: 2000 }, elapsedMs: 2000 })
+    const r = computeDiskBps({
+      previous: prev,
+      current: { readBytes: 3000, writeBytes: 2000 },
+      elapsedMs: 2000
+    })
     expect(r.readBps).toBe(1000) // 2000 bytes over 2s
-    expect(r.writeBps).toBe(0)   // genuinely idle, and that IS zero rather than null
+    expect(r.writeBps).toBe(0) // genuinely idle, and that IS zero rather than null
   })
 
   it('returns null on a cold start', () => {
-    expect(computeDiskBps({ previous: null, current: prev, elapsedMs: 30_000 }))
-      .toEqual({ readBps: null, writeBps: null })
+    expect(computeDiskBps({ previous: null, current: prev, elapsedMs: 30_000 })).toEqual({
+      readBps: null,
+      writeBps: null
+    })
   })
 
   it('returns null when the cgroup is unreadable this tick', () => {
-    expect(computeDiskBps({ previous: prev, current: null, elapsedMs: 30_000 }))
-      .toEqual({ readBps: null, writeBps: null })
+    expect(computeDiskBps({ previous: prev, current: null, elapsedMs: 30_000 })).toEqual({
+      readBps: null,
+      writeBps: null
+    })
   })
 
   it('returns null on a non-positive interval', () => {
     // Two reads inside one clock tick, or a clock adjustment. Dividing by it yields Infinity,
     // which formats as a readable-looking rate.
-    expect(computeDiskBps({ previous: prev, current: prev, elapsedMs: 0 }))
-      .toEqual({ readBps: null, writeBps: null })
+    expect(computeDiskBps({ previous: prev, current: prev, elapsedMs: 0 })).toEqual({
+      readBps: null,
+      writeBps: null
+    })
   })
 
   it('REFUSES across a counter reset rather than smoothing it', () => {
     // The cgroup was recreated — the unit restarted between samples. A delta here is not a rate,
     // and the restart is the thing the reader most needs to see.
-    const r = computeDiskBps({ previous: prev, current: { readBytes: 10, writeBytes: 20 }, elapsedMs: 30_000 })
+    const r = computeDiskBps({
+      previous: prev,
+      current: { readBytes: 10, writeBytes: 20 },
+      elapsedMs: 30_000
+    })
     expect(r).toEqual({ readBps: null, writeBps: null })
   })
 
@@ -200,7 +255,7 @@ describe('computeDiskBps', () => {
     const r = computeDiskBps({
       previous: prev,
       current: { readBytes: 5000, writeBytes: 5 }, // read advanced, write reset
-      elapsedMs: 1000,
+      elapsedMs: 1000
     })
     expect(r.readBps).toBe(4000)
     expect(r.writeBps).toBeNull()

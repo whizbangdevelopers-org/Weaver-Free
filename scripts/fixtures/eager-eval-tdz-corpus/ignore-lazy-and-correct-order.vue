@@ -28,14 +28,18 @@ const sink = ref<string[]>([])
 // (1) lazy — no immediate option at all
 watch(
   () => lazyLater.value,
-  (v) => { sink.value = [String(v)] },
+  v => {
+    sink.value = [String(v)]
+  }
 )
 
 // (2) explicitly lazy
 watch(
   () => lazyLater.value,
-  (v) => { sink.value = [String(v)] },
-  { immediate: false },
+  v => {
+    sink.value = [String(v)]
+  },
+  { immediate: false }
 )
 
 const lazyLater = computed(() => 1)
@@ -46,16 +50,20 @@ const orderedItems = computed(() => [...baseItems.value].sort())
 
 watch(
   orderedItems,
-  (items) => { sink.value = items },
-  { immediate: true, deep: false },
+  items => {
+    sink.value = items
+  },
+  { immediate: true, deep: false }
 )
 
 // (4) nested in a lifecycle hook — not setup-time
 onMounted(() => {
   watch(
     () => nestedLater.value,
-    (v) => { sink.value = [String(v)] },
-    { immediate: true },
+    v => {
+      sink.value = [String(v)]
+    },
+    { immediate: true }
   )
 })
 

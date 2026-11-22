@@ -47,7 +47,10 @@ import { join, relative, extname } from 'path'
 import { createRequire } from 'module'
 
 const _require = createRequire(import.meta.url)
-const safeRegex = _require('safe-regex') as (re: string | RegExp, opts?: { limit?: number }) => boolean
+const safeRegex = _require('safe-regex') as (
+  re: string | RegExp,
+  opts?: { limit?: number }
+) => boolean
 const regexpTree = _require('regexp-tree') as { parse: (re: string | RegExp) => RegexpNode }
 
 // ── Stage 2: AST-based catastrophic-backtracking confirmation ────────────────
@@ -324,8 +327,8 @@ function main() {
   // package.json, spec files) with no user-supplied input, so their regex
   // complexity cannot be exploited externally. Same precedent as audit-sast.ts.
   const scanDirs = ['src', 'backend/src', 'tui/src']
-    .map((d) => join(rootDir, d))
-    .filter((d) => {
+    .map(d => join(rootDir, d))
+    .filter(d => {
       try {
         statSync(d)
         return true
@@ -334,8 +337,8 @@ function main() {
       }
     })
 
-  const allFiles = scanDirs.flatMap((d) => walkDir(d))
-  const findings: Finding[] = allFiles.flatMap((f) => scanFile(f))
+  const allFiles = scanDirs.flatMap(d => walkDir(d))
+  const findings: Finding[] = allFiles.flatMap(f => scanFile(f))
 
   const fileCount = allFiles.length
   console.log(`\n  ReDoS Scan — ${fileCount} files\n`)

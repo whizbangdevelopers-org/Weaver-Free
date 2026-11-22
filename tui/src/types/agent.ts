@@ -31,10 +31,7 @@ export interface AgentErrorMessage {
   error: string
 }
 
-export type AgentWsMessage =
-  | AgentTokenMessage
-  | AgentCompleteMessage
-  | AgentErrorMessage
+export type AgentWsMessage = AgentTokenMessage | AgentCompleteMessage | AgentErrorMessage
 
 export interface AgentOperation {
   operationId: string

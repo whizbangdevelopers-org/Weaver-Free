@@ -8,8 +8,8 @@ const mockVerify = vi.fn().mockResolvedValue(true)
 vi.mock('nodemailer', () => ({
   createTransport: vi.fn(() => ({
     sendMail: mockSendMail,
-    verify: mockVerify,
-  })),
+    verify: mockVerify
+  }))
 }))
 
 import { EmailService } from '../../src/services/email.js'
@@ -22,7 +22,7 @@ const testSmtpConfig = {
   user: 'testuser',
   pass: 'testpass',
   from: 'Weaver <licenses@test.local>',
-  replyTo: 'Weaver Support <support@test.local>',
+  replyTo: 'Weaver Support <support@test.local>'
 }
 
 describe('EmailService', () => {
@@ -41,8 +41,8 @@ describe('EmailService', () => {
         secure: false,
         auth: {
           user: 'testuser',
-          pass: 'testpass',
-        },
+          pass: 'testpass'
+        }
       })
     })
   })
@@ -66,7 +66,7 @@ describe('EmailService', () => {
       tier: 'solo',
       expiresAt: '2027-04-08T00:00:00.000Z',
       foundingMember: false,
-      siteUrl: 'https://whizbangdevelopers.com',
+      siteUrl: 'https://whizbangdevelopers.com'
     }
 
     it('sends email with correct recipient and from address', async () => {
@@ -169,7 +169,7 @@ describe('EmailService', () => {
     it('escapes HTML in license key', async () => {
       await service.sendLicenseKey({
         ...baseLicenseOpts,
-        licenseKey: 'WVR-<script>alert(1)</script>',
+        licenseKey: 'WVR-<script>alert(1)</script>'
       })
 
       const call = mockSendMail.mock.calls[0][0]

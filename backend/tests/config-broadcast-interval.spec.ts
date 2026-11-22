@@ -12,7 +12,7 @@ import {
   parseBroadcastInterval,
   DEFAULT_WS_BROADCAST_INTERVAL_MS,
   MIN_WS_BROADCAST_INTERVAL_MS,
-  MAX_WS_BROADCAST_INTERVAL_MS,
+  MAX_WS_BROADCAST_INTERVAL_MS
 } from '../src/config.js'
 
 describe('parseBroadcastInterval', () => {

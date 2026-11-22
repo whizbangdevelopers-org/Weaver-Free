@@ -40,7 +40,9 @@ describe('requireNodeCapacity', () => {
 
   it('says how many are licensed and how many are enrolled', () => {
     // The operator has to be able to act on this without reading the source.
-    expect(() => requireNodeCapacity(cfg(2), 2)).toThrow(/covers 2 nodes and 2 are already enrolled/)
+    expect(() => requireNodeCapacity(cfg(2), 2)).toThrow(
+      /covers 2 nodes and 2 are already enrolled/
+    )
     expect(() => requireNodeCapacity(cfg(1), 1)).toThrow(/covers 1 node and 1 is already enrolled/)
   })
 

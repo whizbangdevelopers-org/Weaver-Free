@@ -16,7 +16,7 @@ import {
   reverseName,
   isIpv4,
   DEFAULT_DNS_DOMAIN,
-  DEFAULT_DNS_TTL,
+  DEFAULT_DNS_TTL
 } from '../../src/services/dns-zone.js'
 
 const A = (z: ReturnType<typeof buildZone>) => z.records.filter(r => r.type === 'A')
@@ -40,7 +40,10 @@ describe('the zone domain', () => {
   })
 
   it('honours an explicit domain', () => {
-    const zone = buildZone([{ name: 'web', ip: '10.10.0.10' }], { domain: 'lab.example', serial: 1 })
+    const zone = buildZone([{ name: 'web', ip: '10.10.0.10' }], {
+      domain: 'lab.example',
+      serial: 1
+    })
     expect(A(zone)[0]!.name).toBe('web.lab.example')
   })
 })
@@ -81,10 +84,15 @@ describe('buildZone', () => {
     const zone = buildZone([{ name: 'web-nginx', ip: '10.10.0.10' }], { serial: 7 })
     expect(zone.serial).toBe(7)
     expect(A(zone)).toEqual([
-      { name: 'web-nginx.vm.internal', type: 'A', value: '10.10.0.10', vmName: 'web-nginx' },
+      { name: 'web-nginx.vm.internal', type: 'A', value: '10.10.0.10', vmName: 'web-nginx' }
     ])
     expect(PTR(zone)).toEqual([
-      { name: '10.0.10.10.in-addr.arpa', type: 'PTR', value: 'web-nginx.vm.internal', vmName: 'web-nginx' },
+      {
+        name: '10.0.10.10.in-addr.arpa',
+        type: 'PTR',
+        value: 'web-nginx.vm.internal',
+        vmName: 'web-nginx'
+      }
     ])
     expect(zone.skipped).toEqual([])
   })
@@ -117,10 +125,13 @@ describe('buildZone', () => {
     })
 
     it('rejects a name that starts or ends with a hyphen', () => {
-      const zone = buildZone([
-        { name: '-lead', ip: '10.10.0.5' },
-        { name: 'trail-', ip: '10.10.0.6' },
-      ], { serial: 1 })
+      const zone = buildZone(
+        [
+          { name: '-lead', ip: '10.10.0.5' },
+          { name: 'trail-', ip: '10.10.0.6' }
+        ],
+        { serial: 1 }
+      )
       expect(zone.records).toEqual([])
       expect(zone.skipped).toHaveLength(2)
     })
@@ -132,10 +143,13 @@ describe('buildZone', () => {
     it('keeps the first and records the second as skipped', () => {
       // Two A records for one name is the failure where resolution WORKS and points at the wrong
       // machine — strictly worse than not resolving, because nothing surfaces as an error.
-      const zone = buildZone([
-        { name: 'web', ip: '10.10.0.10' },
-        { name: 'web', ip: '10.10.0.99' },
-      ], { serial: 1 })
+      const zone = buildZone(
+        [
+          { name: 'web', ip: '10.10.0.10' },
+          { name: 'web', ip: '10.10.0.99' }
+        ],
+        { serial: 1 }
+      )
 
       expect(A(zone)).toHaveLength(1)
       expect(A(zone)[0]!.value).toBe('10.10.0.10')
@@ -149,10 +163,13 @@ describe('buildZone', () => {
       // correct and both must work. Only the PTR is ambiguous, so only the PTR is withheld.
       // Dropping the second A record would break working forward resolution in order to resolve a
       // reverse-lookup ambiguity nobody asked about.
-      const zone = buildZone([
-        { name: 'web', ip: '10.10.0.10' },
-        { name: 'web-alias', ip: '10.10.0.10' },
-      ], { serial: 1 })
+      const zone = buildZone(
+        [
+          { name: 'web', ip: '10.10.0.10' },
+          { name: 'web-alias', ip: '10.10.0.10' }
+        ],
+        { serial: 1 }
+      )
 
       expect(A(zone).map(r => r.name)).toEqual(['web.vm.internal', 'web-alias.vm.internal'])
       expect(PTR(zone)).toHaveLength(1)
@@ -164,11 +181,14 @@ describe('buildZone', () => {
   it('keeps going after a skip', () => {
     // One bad entry must not truncate the zone — a resolver serving three of five workloads is
     // harder to notice than one serving none.
-    const zone = buildZone([
-      { name: 'good-one', ip: '10.10.0.1' },
-      { name: 'Bad_Name', ip: '10.10.0.2' },
-      { name: 'good-two', ip: '10.10.0.3' },
-    ], { serial: 1 })
+    const zone = buildZone(
+      [
+        { name: 'good-one', ip: '10.10.0.1' },
+        { name: 'Bad_Name', ip: '10.10.0.2' },
+        { name: 'good-two', ip: '10.10.0.3' }
+      ],
+      { serial: 1 }
+    )
     expect(A(zone).map(r => r.vmName)).toEqual(['good-one', 'good-two'])
     expect(zone.skipped).toHaveLength(1)
   })
@@ -194,13 +214,17 @@ describe('renderHostsFile', () => {
     // The hosts format cannot express a forward record whose reverse disagrees with it. A BIND
     // zone file can, and that inconsistency is invisible until someone runs a reverse lookup.
     const zone = buildZone([{ name: 'web', ip: '10.10.0.10' }], { serial: 1 })
-    const lines = renderHostsFile(zone).split('\n').filter(l => l && !l.startsWith('#'))
+    const lines = renderHostsFile(zone)
+      .split('\n')
+      .filter(l => l && !l.startsWith('#'))
     expect(lines).toHaveLength(1)
     expect(lines[0]).not.toContain('in-addr.arpa')
   })
 
   it('renders an empty zone as header-only', () => {
-    const lines = renderHostsFile(buildZone([], { serial: 1 })).split('\n').filter(l => l && !l.startsWith('#'))
+    const lines = renderHostsFile(buildZone([], { serial: 1 }))
+      .split('\n')
+      .filter(l => l && !l.startsWith('#'))
     expect(lines).toEqual([])
   })
 })
@@ -212,39 +236,67 @@ describe('zoneContentEquals', () => {
   it('ignores the serial', () => {
     // The serial is derived FROM the answer. Comparing it would report a change on every tick and
     // the resolver would reload continuously.
-    expect(zoneContentEquals(
-      zoneOf([{ name: 'web', ip: '10.10.0.10' }], 1),
-      zoneOf([{ name: 'web', ip: '10.10.0.10' }], 999),
-    )).toBe(true)
+    expect(
+      zoneContentEquals(
+        zoneOf([{ name: 'web', ip: '10.10.0.10' }], 1),
+        zoneOf([{ name: 'web', ip: '10.10.0.10' }], 999)
+      )
+    ).toBe(true)
   })
 
   it('detects a changed address', () => {
-    expect(zoneContentEquals(
-      zoneOf([{ name: 'web', ip: '10.10.0.10' }], 1),
-      zoneOf([{ name: 'web', ip: '10.10.0.11' }], 1),
-    )).toBe(false)
+    expect(
+      zoneContentEquals(
+        zoneOf([{ name: 'web', ip: '10.10.0.10' }], 1),
+        zoneOf([{ name: 'web', ip: '10.10.0.11' }], 1)
+      )
+    ).toBe(false)
   })
 
   it('detects an added workload', () => {
-    expect(zoneContentEquals(
-      zoneOf([{ name: 'web', ip: '10.10.0.10' }], 1),
-      zoneOf([{ name: 'web', ip: '10.10.0.10' }, { name: 'db', ip: '10.10.0.20' }], 1),
-    )).toBe(false)
+    expect(
+      zoneContentEquals(
+        zoneOf([{ name: 'web', ip: '10.10.0.10' }], 1),
+        zoneOf(
+          [
+            { name: 'web', ip: '10.10.0.10' },
+            { name: 'db', ip: '10.10.0.20' }
+          ],
+          1
+        )
+      )
+    ).toBe(false)
   })
 
   it('is order-independent', () => {
     // The registry does not guarantee ordering, and a reload triggered by a re-sort would be a
     // resolver restart for no reason.
-    expect(zoneContentEquals(
-      zoneOf([{ name: 'web', ip: '10.10.0.10' }, { name: 'db', ip: '10.10.0.20' }], 1),
-      zoneOf([{ name: 'db', ip: '10.10.0.20' }, { name: 'web', ip: '10.10.0.10' }], 1),
-    )).toBe(true)
+    expect(
+      zoneContentEquals(
+        zoneOf(
+          [
+            { name: 'web', ip: '10.10.0.10' },
+            { name: 'db', ip: '10.10.0.20' }
+          ],
+          1
+        ),
+        zoneOf(
+          [
+            { name: 'db', ip: '10.10.0.20' },
+            { name: 'web', ip: '10.10.0.10' }
+          ],
+          1
+        )
+      )
+    ).toBe(true)
   })
 
   it('detects a domain change', () => {
-    expect(zoneContentEquals(
-      buildZone([{ name: 'web', ip: '10.10.0.10' }], { serial: 1 }),
-      buildZone([{ name: 'web', ip: '10.10.0.10' }], { serial: 1, domain: 'other.internal' }),
-    )).toBe(false)
+    expect(
+      zoneContentEquals(
+        buildZone([{ name: 'web', ip: '10.10.0.10' }], { serial: 1 }),
+        buildZone([{ name: 'web', ip: '10.10.0.10' }], { serial: 1, domain: 'other.internal' })
+      )
+    ).toBe(false)
   })
 })

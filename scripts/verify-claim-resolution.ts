@@ -52,11 +52,14 @@ import { join, resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
-const PKG = resolve(HERE, '..')            // code/
-const REPO = resolve(PKG, '..')            // repo root
+const PKG = resolve(HERE, '..') // code/
+const REPO = resolve(PKG, '..') // repo root
 
-const RED = '\x1b[31m'; const GREEN = '\x1b[32m'; const DIM = '\x1b[2m'
-const BOLD = '\x1b[1m'; const RESET = '\x1b[0m'
+const RED = '\x1b[31m'
+const GREEN = '\x1b[32m'
+const DIM = '\x1b[2m'
+const BOLD = '\x1b[1m'
+const RESET = '\x1b[0m'
 
 const REGISTER = join(REPO, 'business/legal/SECURITY-AUDIT.md')
 const MAPPING_DIR = join(PKG, 'docs/security/compliance')
@@ -67,9 +70,7 @@ const MAPPING_DIR = join(PKG, 'docs/security/compliance')
  * about. Each entry is here because it is a package name, an HTTP artefact, or a config key —
  * categories that legitimately have no file and no symbol.
  */
-const NOT_CODE = new Set([
-  'true', 'false', 'null', 'undefined', 'N/A',
-])
+const NOT_CODE = new Set(['true', 'false', 'null', 'undefined', 'N/A'])
 
 /** Package specifiers (`@fastify/static`, `bcrypt`) resolve to node_modules, not to our tree. */
 function isPackageSpecifier(s: string): boolean {
@@ -95,10 +96,10 @@ export interface Citation {
  */
 export function looksLikePath(s: string): boolean {
   const raw = s.trim()
-  if (/\s/.test(raw)) return false                       // a shell command line, not a citation
+  if (/\s/.test(raw)) return false // a shell command line, not a citation
   const head = raw.split(':')[0]!.split('#')[0]!.trim()
   if (!head.includes('/')) return false
-  if (head.startsWith('/')) return false                  // an absolute path or an HTTP route
+  if (head.startsWith('/')) return false // an absolute path or an HTTP route
   if (isPackageSpecifier(head)) return false
   return /\.(ts|js|mjs|cjs|vue|md|nix|ya?ml|json|sh|html|css|scss)$/.test(head)
 }
@@ -118,7 +119,7 @@ export function extractCitations(doc: string, text: string): Citation[] {
     for (const m of line.matchAll(/`([^`\n]+)`/g)) {
       const raw = m[1]!.trim()
       if (!raw || NOT_CODE.has(raw)) continue
-      if (raw.includes('*')) continue                      // a glob is a set, not a citation
+      if (raw.includes('*')) continue // a glob is a set, not a citation
       if (looksLikePath(raw)) out.push({ doc, line: idx + 1, raw, kind: 'path' })
     }
   })
@@ -150,7 +151,7 @@ const EXTRACT_CATCH: [string, string][] = [
   ['a path with no line number', 'see `code/nixos/default.nix`'],
   ['a path with a line range', '- **Location:** `code/backend/src/index.ts:87-93`'],
   ['a bare relative path', 'fixed in `routes/agent.ts`'],
-  ['two paths on one line', '`code/src/boot/axios.ts:27`, `code/src/stores/auth-store.ts`'],
+  ['two paths on one line', '`code/src/boot/axios.ts:27`, `code/src/stores/auth-store.ts`']
 ]
 
 // The IGNORE half is the one that decides whether this auditor survives contact with the real
@@ -167,31 +168,35 @@ const EXTRACT_IGNORE: [string, string][] = [
   ['a third-party call', 'aborts via `core.setFailed()`'],
   ['a bare identifier', 'every command uses `execFile()`'],
   ['a glob', 'covers `code/docs/security/compliance/*.md`'],
-  ['a config value', 'defaults to `true`'],
+  ['a config value', 'defaults to `true`']
 ]
 
 const PATH_CATCH = [
-  'code/backend/src/services/premium/adapters/email-adapter.ts',   // the premium -> weaver rename
-  'code/nope/missing.ts',
+  'code/backend/src/services/premium/adapters/email-adapter.ts', // the premium -> weaver rename
+  'code/nope/missing.ts'
 ]
 const PATH_IGNORE = [
-  'code/backend/src/routes/ws.ts',        // repo-root base
-  'backend/src/routes/ws.ts',             // code/ base
-  'routes/ws.ts',                         // code/backend/src/ base
-  'code/package.json',
+  'code/backend/src/routes/ws.ts', // repo-root base
+  'backend/src/routes/ws.ts', // code/ base
+  'routes/ws.ts', // code/backend/src/ base
+  'code/package.json'
 ]
 
 function selfTest(): boolean {
   const failures: string[] = []
   for (const [name, text] of EXTRACT_CATCH) {
-    if (extractCitations('t.md', text).length === 0) failures.push(`CATCH missed (extract): ${name}`)
+    if (extractCitations('t.md', text).length === 0)
+      failures.push(`CATCH missed (extract): ${name}`)
   }
   for (const [name, text] of EXTRACT_IGNORE) {
     const hits = extractCitations('t.md', text)
-    if (hits.length > 0) failures.push(`IGNORE wrongly extracted: ${name} (${hits.map(h => h.raw).join(', ')})`)
+    if (hits.length > 0)
+      failures.push(`IGNORE wrongly extracted: ${name} (${hits.map(h => h.raw).join(', ')})`)
   }
-  for (const p of PATH_CATCH) if (resolvePath(p)) failures.push(`CATCH missed (path resolves but should not): ${p}`)
-  for (const p of PATH_IGNORE) if (!resolvePath(p)) failures.push(`IGNORE wrongly unresolved (path): ${p}`)
+  for (const p of PATH_CATCH)
+    if (resolvePath(p)) failures.push(`CATCH missed (path resolves but should not): ${p}`)
+  for (const p of PATH_IGNORE)
+    if (!resolvePath(p)) failures.push(`IGNORE wrongly unresolved (path): ${p}`)
 
   const c = EXTRACT_CATCH.length + PATH_CATCH.length
   const i = EXTRACT_IGNORE.length + PATH_IGNORE.length
@@ -210,7 +215,9 @@ function main(): void {
   const selfTestOnly = process.argv.includes('--self-test')
 
   console.log(`${BOLD}Claim Resolution${RESET}`)
-  console.log(`${DIM}a security or compliance document may not cite code that does not exist${RESET}\n`)
+  console.log(
+    `${DIM}a security or compliance document may not cite code that does not exist${RESET}\n`
+  )
 
   if (!selfTest()) {
     console.error(`\n${RED}${BOLD}RESULT: FAIL${RESET} — refusing to scan on a failed self-test`)
@@ -222,9 +229,12 @@ function main(): void {
   }
 
   const docs: [string, string][] = []
-  if (existsSync(REGISTER)) docs.push(['business/legal/SECURITY-AUDIT.md', readFileSync(REGISTER, 'utf-8')])
+  if (existsSync(REGISTER))
+    docs.push(['business/legal/SECURITY-AUDIT.md', readFileSync(REGISTER, 'utf-8')])
   if (existsSync(MAPPING_DIR)) {
-    for (const f of readdirSync(MAPPING_DIR).filter(f => f.endsWith('.md')).sort()) {
+    for (const f of readdirSync(MAPPING_DIR)
+      .filter(f => f.endsWith('.md'))
+      .sort()) {
       docs.push([`code/docs/security/compliance/${f}`, readFileSync(join(MAPPING_DIR, f), 'utf-8')])
     }
   }
@@ -237,7 +247,9 @@ function main(): void {
 
   const citations = docs.flatMap(([name, text]) => extractCitations(name, text))
   const unresolved = citations.filter(c => !resolvePath(c.raw))
-  console.log(`${DIM}  ${docs.length} document(s) · ${citations.length} path citation(s) checked against ${BASES.length} base(s)${RESET}`)
+  console.log(
+    `${DIM}  ${docs.length} document(s) · ${citations.length} path citation(s) checked against ${BASES.length} base(s)${RESET}`
+  )
 
   if (unresolved.length > 0) {
     console.error('')
@@ -246,7 +258,7 @@ function main(): void {
     }
     console.error(
       `\n${RED}${BOLD}RESULT: FAIL${RESET} — ${unresolved.length} citation(s) point at code that does not exist.\n` +
-      `${DIM}  A renamed directory or a deleted symbol leaves the claim behind, and prose does not fail on its own.${RESET}`,
+        `${DIM}  A renamed directory or a deleted symbol leaves the claim behind, and prose does not fail on its own.${RESET}`
     )
     process.exit(1)
   }

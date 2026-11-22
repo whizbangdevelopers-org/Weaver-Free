@@ -61,11 +61,12 @@ describe('isDivergentNetwork', () => {
       ['bridge', WEAVER_BRIDGE],
       [undefined, WEAVER_BRIDGE],
       ['', WEAVER_BRIDGE],
-      ['br-custom', 'br-custom'],
+      ['br-custom', 'br-custom']
     ]
     for (const [bridge, configured] of cases) {
-      expect(isDivergentNetwork(bridge, configured), `${bridge} vs ${configured}`)
-        .toBe(!isWeaverOwnedNetwork(bridge, configured))
+      expect(isDivergentNetwork(bridge, configured), `${bridge} vs ${configured}`).toBe(
+        !isWeaverOwnedNetwork(bridge, configured)
+      )
     }
   })
 

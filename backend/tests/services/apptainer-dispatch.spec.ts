@@ -34,7 +34,7 @@ import {
   parseProcStatStartTicks,
   parseProcBtime,
   setRegistry,
-  setConfig,
+  setConfig
 } from '../../src/services/microvm.js'
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────────────────────
@@ -66,7 +66,7 @@ const INSTANCE_DEF: WorkloadDefinition = {
   vcpu: 0,
   hypervisor: 'apptainer',
   runtime: 'apptainer',
-  image: APPTAINER_IMG,
+  image: APPTAINER_IMG
 }
 
 const MICROVM_DEF: WorkloadDefinition = {
@@ -75,7 +75,7 @@ const MICROVM_DEF: WorkloadDefinition = {
   mem: 256,
   vcpu: 1,
   hypervisor: 'qemu',
-  distro: 'nixos',
+  distro: 'nixos'
 }
 
 function makeRegistry(initial: Record<string, WorkloadDefinition>): WorkloadRegistry {
@@ -99,7 +99,7 @@ function makeRegistry(initial: Record<string, WorkloadDefinition>): WorkloadRegi
       if (!vms[name]) return false
       vms[name] = { ...vms[name], ...fields }
       return true
-    },
+    }
   }
 }
 
@@ -112,7 +112,7 @@ function makeConfig(overrides: Partial<DashboardConfig> = {}): DashboardConfig {
     systemctlBin: 'systemctl',
     sudoBin: 'sudo',
     containerRuntimes: ['docker', 'podman', 'apptainer'],
-    ...overrides,
+    ...overrides
   } as unknown as DashboardConfig
 }
 
@@ -174,7 +174,7 @@ const REAL_PROC_STAT = [
   'cpu0 45968 52 13673 4909010 1824 3379 33468 0 893 0',
   'btime 1785806483',
   'processes 322671',
-  'procs_running 1',
+  'procs_running 1'
 ].join('\n')
 
 describe('parseProcStatStartTicks', () => {
@@ -202,7 +202,13 @@ describe('parseProcStatStartTicks', () => {
   })
 
   it('returns null rather than throwing on unusable input', () => {
-    for (const bad of ['', '   ', 'no parens here', '1234 (x) S', '6554 (x) S ' + 'a '.repeat(30)]) {
+    for (const bad of [
+      '',
+      '   ',
+      'no parens here',
+      '1234 (x) S',
+      '6554 (x) S ' + 'a '.repeat(30)
+    ]) {
       expect(parseProcStatStartTicks(bad), bad).toBeNull()
     }
   })
@@ -275,7 +281,7 @@ describe('Apptainer uptime dispatch', () => {
   it('derives an ISO start time from btime + field 22', async () => {
     mockApptainerList(APPTAINER_LIST)
     readMock().mockImplementation((path: string) =>
-      Promise.resolve(path === '/proc/stat' ? REAL_PROC_STAT : REAL_STAT),
+      Promise.resolve(path === '/proc/stat' ? REAL_PROC_STAT : REAL_STAT)
     )
     // Same arithmetic `ps` agrees with above: 1785806483 + 1318/100 = 1785806496.18
     expect(await getVmUptime('logtest')).toBe('2026-08-04T01:21:36.180Z')
@@ -340,14 +346,12 @@ describe('Apptainer lifecycle dispatch', () => {
     expect(result.success).toBe(true)
     expect(calls.map(c => c.args.slice(0, 2))).toEqual([
       ['instance', 'stop'],
-      ['instance', 'start'],
+      ['instance', 'start']
     ])
   })
 
   it('reports the stop failure rather than starting over a name still in use', async () => {
-    mockExec((_cmd, args) =>
-      args[1] === 'stop' ? new Error('FATAL: no instance found') : '',
-    )
+    mockExec((_cmd, args) => (args[1] === 'stop' ? new Error('FATAL: no instance found') : ''))
     const result = await restartVm('logtest')
     expect(result.success).toBe(false)
     expect(calls.map(c => c.args[1])).toEqual(['stop'])
@@ -355,10 +359,13 @@ describe('Apptainer lifecycle dispatch', () => {
 
   // G-security-2026-06-02-01KYSBXCJAHNA6GV0CQ15N1CXP — no raw exec error crosses the boundary.
   it('sanitizes failures: no store path, binary path or FATAL text in the message', async () => {
-    mockExec(() => new Error(
-      'Command failed: /nix/store/abc-apptainer/bin/apptainer instance start ...\n' +
-      'FATAL:   container creation failed: mount /proc/self/fd/3->/var/lib/apptainer/mnt/session',
-    ))
+    mockExec(
+      () =>
+        new Error(
+          'Command failed: /nix/store/abc-apptainer/bin/apptainer instance start ...\n' +
+            'FATAL:   container creation failed: mount /proc/self/fd/3->/var/lib/apptainer/mnt/session'
+        )
+    )
     for (const result of [await startVm('logtest'), await stopVm('logtest')]) {
       expect(result.success).toBe(false)
       expect(result.message).not.toMatch(/nix\/store/)
@@ -401,7 +408,11 @@ describe('Apptainer scan', () => {
 
   it('returns an empty result when apptainer is not installed — never an error', async () => {
     mockExec(() => new Error('spawn apptainer ENOENT'))
-    await expect(scanApptainerInstances()).resolves.toEqual({ discovered: [], added: [], existing: [] })
+    await expect(scanApptainerInstances()).resolves.toEqual({
+      discovered: [],
+      added: [],
+      existing: []
+    })
   })
 
   // scanContainers is the one entry point the scan route maps over; apptainer must ride it.
@@ -470,10 +481,19 @@ describe('Free tier hides Apptainer entirely', () => {
   })
 
   it('does not hide docker or podman workloads — the gate is Apptainer-specific', async () => {
-    setRegistry(makeRegistry({
-      'my-nginx': { name: 'my-nginx', ip: '', mem: 0, vcpu: 0, hypervisor: 'docker', runtime: 'docker' },
-      logtest: INSTANCE_DEF,
-    }))
+    setRegistry(
+      makeRegistry({
+        'my-nginx': {
+          name: 'my-nginx',
+          ip: '',
+          mem: 0,
+          vcpu: 0,
+          hypervisor: 'docker',
+          runtime: 'docker'
+        },
+        logtest: INSTANCE_DEF
+      })
+    )
     mockExec(() => 'running\n')
     expect((await listVms()).map(w => w.name)).toEqual(['my-nginx'])
   })

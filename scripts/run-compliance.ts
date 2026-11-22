@@ -70,7 +70,7 @@ export const PHASES: Phase[] = [
   // Phase 1 — prerequisites. Must complete before downstream parity checks.
   {
     parallel: false,
-    entries: ['build:tui'],
+    entries: ['build:tui']
   },
   // Phase 2 — bulk of static auditors. Independent reads; run parallel.
   {
@@ -207,13 +207,13 @@ export const PHASES: Phase[] = [
       'audit:knowledge-universal-neutral',
       'audit:knowledge-index-fresh',
       'audit:knowledge-ids-unique',
-      'audit:engram-sync',
-    ],
+      'audit:engram-sync'
+    ]
   },
   // Phase 3 — generators that write to the working tree. Isolated.
   {
     parallel: false,
-    entries: ['audit:generated-artifact-freshness'],
+    entries: ['audit:generated-artifact-freshness']
   },
   // Phase 4 — auditors that used to be chained with `&&` in package.json's test:compliance,
   // AFTER this runner. Folded in 2026-08-20 so their outcomes are recorded like every other
@@ -255,19 +255,19 @@ export const PHASES: Phase[] = [
       'audit:nix-invariants',
       'audit:register-parity',
       'audit:diagram-currency',
-      'audit:unverified-claims',
-    ],
-  },
+      'audit:unverified-claims'
+    ]
+  }
 ]
 
 // Flat view for --list and older call sites.
-const AUDITORS: string[] = PHASES.flatMap((p) => p.entries)
+const AUDITORS: string[] = PHASES.flatMap(p => p.entries)
 
 // build:tui is a build step embedded in the chain (historical — TUI must
 // build before audit:tui-parity can inspect bundle output). Count only
 // audit:* entries for the "N auditors" claim.
 export function countAuditorsOnly(): number {
-  return AUDITORS.filter((s) => s.startsWith('audit:')).length
+  return AUDITORS.filter(s => s.startsWith('audit:')).length
 }
 
 interface Result {
@@ -301,7 +301,7 @@ function recordFailure(name: string, output: string): void {
     const paths = [...new Set([...plain.matchAll(PATH_IN_OUTPUT)].map(m => m[1]))].slice(0, 40)
     appendFileSync(
       FAILURE_LOG,
-      JSON.stringify({ auditor: name, timestamp: new Date().toISOString(), paths }) + '\n',
+      JSON.stringify({ auditor: name, timestamp: new Date().toISOString(), paths }) + '\n'
     )
   } catch {
     /* analytics must never break the build */
@@ -322,7 +322,7 @@ function parseArgs(argv: string[]): Opts {
     json: false,
     only: null,
     skip: new Set(),
-    list: false,
+    list: false
   }
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i]!
@@ -330,7 +330,11 @@ function parseArgs(argv: string[]): Opts {
     else if (a === '--json') opts.json = true
     else if (a === '--list') opts.list = true
     else if (a === '--only') opts.only = new Set((argv[++i] ?? '').split(',').filter(Boolean))
-    else if (a === '--skip') (argv[++i] ?? '').split(',').filter(Boolean).forEach((x) => opts.skip.add(x))
+    else if (a === '--skip')
+      (argv[++i] ?? '')
+        .split(',')
+        .filter(Boolean)
+        .forEach(x => opts.skip.add(x))
   }
   return opts
 }
@@ -345,7 +349,7 @@ function runOne(name: string): Result {
   const r = spawnSync('npm', ['run', name], {
     cwd: CODE_ROOT,
     stdio: ['ignore', 'pipe', 'pipe'],
-    encoding: 'utf-8',
+    encoding: 'utf-8'
   })
   const output = (r.stdout ?? '') + (r.stderr ?? '')
   process.stdout.write(output)
@@ -371,7 +375,7 @@ async function runParallel(names: string[]): Promise<Result[]> {
   const { spawn } = await import('child_process')
 
   const runOneAuditor = (name: string): Promise<Result> =>
-    new Promise<Result>((resolveTask) => {
+    new Promise<Result>(resolveTask => {
       const start = Date.now()
       // Serialize stdout/stderr per-auditor so parallel output doesn't
       // interleave unreadably. Each auditor's output prints as a block
@@ -379,7 +383,7 @@ async function runParallel(names: string[]): Promise<Result[]> {
       const chunks: Buffer[] = []
       const child = spawn('npm', ['run', name], {
         cwd: CODE_ROOT,
-        stdio: ['ignore', 'pipe', 'pipe'],
+        stdio: ['ignore', 'pipe', 'pipe']
       })
       child.stdout?.on('data', (d: Buffer) => chunks.push(d))
       child.stderr?.on('data', (d: Buffer) => chunks.push(d))
@@ -412,7 +416,9 @@ async function main(): Promise<void> {
   const opts = parseArgs(process.argv.slice(2))
 
   if (opts.list) {
-    console.log(`${AUDITORS.length} entries (${countAuditorsOnly()} auditors + ${AUDITORS.length - countAuditorsOnly()} build step(s)):`)
+    console.log(
+      `${AUDITORS.length} entries (${countAuditorsOnly()} auditors + ${AUDITORS.length - countAuditorsOnly()} build step(s)):`
+    )
     for (const phase of PHASES) {
       console.log(`\n  ${phase.parallel ? 'parallel' : 'sequential'}:`)
       for (const a of phase.entries) console.log(`    ${a}`)
@@ -428,7 +434,7 @@ async function main(): Promise<void> {
   // replaced a flat selected[] with this per-phase predicate — so the machine-readable mode threw
   // a ReferenceError, and did it AFTER running every auditor. Derived from the same phase entries
   // the loop below iterates, so the two cannot disagree.
-  const selectedCount = PHASES.flatMap((p) => p.entries).filter(isSelected).length
+  const selectedCount = PHASES.flatMap(p => p.entries).filter(isSelected).length
 
   const results: Result[] = []
   const startAll = Date.now()
@@ -440,7 +446,7 @@ async function main(): Promise<void> {
     if (phase.parallel && entries.length > 1) {
       const phaseResults = await runParallel(entries)
       results.push(...phaseResults)
-      if (phaseResults.some((r) => !r.ok) && !opts.continue) break outer
+      if (phaseResults.some(r => !r.ok) && !opts.continue) break outer
     } else {
       for (const name of entries) {
         const r = runOne(name)
@@ -451,7 +457,7 @@ async function main(): Promise<void> {
   }
 
   const totalMs = Date.now() - startAll
-  const failed = results.filter((r) => !r.ok)
+  const failed = results.filter(r => !r.ok)
 
   if (opts.json) {
     console.log(
@@ -462,16 +468,16 @@ async function main(): Promise<void> {
           passed: results.length - failed.length,
           failed: failed.length,
           totalMs,
-          results,
+          results
         },
         null,
-        2,
-      ),
+        2
+      )
     )
   } else {
     console.log()
     console.log(
-      `Compliance run: ${results.length - failed.length}/${results.length} passed in ${(totalMs / 1000).toFixed(1)}s`,
+      `Compliance run: ${results.length - failed.length}/${results.length} passed in ${(totalMs / 1000).toFixed(1)}s`
     )
     if (failed.length > 0) {
       console.log(`Failed:`)

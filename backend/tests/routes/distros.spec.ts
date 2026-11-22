@@ -2,16 +2,19 @@
 // Licensed under AGPL-3.0 (Free) or BSL-1.1 (Solo/Team/Fabrick) with AI Training Restriction. See LICENSE.
 import { describe, it, expect, vi, beforeAll, afterAll, beforeEach } from 'vitest'
 import Fastify from 'fastify'
-import {
-  serializerCompiler,
-  validatorCompiler,
-  ZodTypeProvider
-} from 'fastify-type-provider-zod'
+import { serializerCompiler, validatorCompiler, ZodTypeProvider } from 'fastify-type-provider-zod'
 import { distroRoutes } from '../../src/routes/distros.js'
 import { ImageManager } from '../../src/services/image-manager.js'
 import type { UserRole } from '../../src/models/user.js'
 
-type MockDistro = { name: string; label: string; url: string; format: string; cloudInit: boolean; guestOs?: string }
+type MockDistro = {
+  name: string
+  label: string
+  url: string
+  format: string
+  cloudInit: boolean
+  guestOs?: string
+}
 
 function createMockDistroStore() {
   const store: Record<string, MockDistro> = {}
@@ -23,11 +26,19 @@ function createMockDistroStore() {
     get: vi.fn((name: string): MockDistro | null => store[name] ?? null),
     has: vi.fn((name: string) => name in store),
     names: vi.fn(() => Object.keys(store)),
-    add: vi.fn(async (distro: { name: string; label: string; url: string; format: string; cloudInit: boolean }) => {
-      if (store[distro.name]) return false
-      store[distro.name] = distro
-      return true
-    }),
+    add: vi.fn(
+      async (distro: {
+        name: string
+        label: string
+        url: string
+        format: string
+        cloudInit: boolean
+      }) => {
+        if (store[distro.name]) return false
+        store[distro.name] = distro
+        return true
+      }
+    ),
     update: vi.fn(async (name: string, fields: Record<string, unknown>) => {
       if (!store[name]) return false
       store[name] = { ...store[name], ...fields, name }
@@ -39,11 +50,23 @@ function createMockDistroStore() {
       return true
     }),
     toImageSources: vi.fn(() => ({})),
-    init: vi.fn(async () => {}),
+    init: vi.fn(async () => {})
   }
 }
 
-function createMockCatalogStore(entries: Record<string, { name: string; label: string; description?: string; url?: string; format: string; cloudInit: boolean }> = {}) {
+function createMockCatalogStore(
+  entries: Record<
+    string,
+    {
+      name: string
+      label: string
+      description?: string
+      url?: string
+      format: string
+      cloudInit: boolean
+    }
+  > = {}
+) {
   return {
     getAll: vi.fn(() => ({ ...entries })),
     get: vi.fn((name: string) => entries[name] ?? null),
@@ -52,7 +75,7 @@ function createMockCatalogStore(entries: Record<string, { name: string; label: s
     hasRemoteUrl: vi.fn(() => false),
     refresh: vi.fn(async () => true),
     toImageSources: vi.fn(() => ({})),
-    init: vi.fn(async () => {}),
+    init: vi.fn(async () => {})
   }
 }
 
@@ -67,7 +90,7 @@ function createMockImageManager() {
         return { url: `https://example.com/${name}.qcow2`, format: 'qcow2', cloudInit: true }
       }
       return null
-    }),
+    })
   } as unknown as ImageManager
 }
 
@@ -75,19 +98,35 @@ function createMockUrlValidator() {
   return {
     getResults: vi.fn(() => ({
       results: {
-        arch: { distro: 'arch', url: 'https://example.com/arch.qcow2', status: 'valid', httpStatus: 200, checkedAt: '2026-02-18T00:00:00Z' },
+        arch: {
+          distro: 'arch',
+          url: 'https://example.com/arch.qcow2',
+          status: 'valid',
+          httpStatus: 200,
+          checkedAt: '2026-02-18T00:00:00Z'
+        }
       },
-      lastRunAt: '2026-02-18T00:00:00Z',
+      lastRunAt: '2026-02-18T00:00:00Z'
     })),
     validateAll: vi.fn(async () => ({
       results: {
-        arch: { distro: 'arch', url: 'https://example.com/arch.qcow2', status: 'valid', httpStatus: 200, checkedAt: '2026-02-18T00:00:00Z' },
+        arch: {
+          distro: 'arch',
+          url: 'https://example.com/arch.qcow2',
+          status: 'valid',
+          httpStatus: 200,
+          checkedAt: '2026-02-18T00:00:00Z'
+        }
       },
-      lastRunAt: '2026-02-18T00:00:00Z',
+      lastRunAt: '2026-02-18T00:00:00Z'
     })),
     validateOne: vi.fn(async () => ({
-      distro: 'arch', url: 'https://example.com/arch.qcow2', status: 'valid', httpStatus: 200, checkedAt: '2026-02-18T00:00:00Z',
-    })),
+      distro: 'arch',
+      url: 'https://example.com/arch.qcow2',
+      status: 'valid',
+      httpStatus: 200,
+      checkedAt: '2026-02-18T00:00:00Z'
+    }))
   }
 }
 
@@ -97,8 +136,21 @@ let mockUserRole: UserRole = 'admin'
 describe('Distro Routes', () => {
   const distroStore = createMockDistroStore()
   const catalogStore = createMockCatalogStore({
-    opensuse: { name: 'opensuse', label: 'openSUSE Leap 15.6', description: 'Enterprise-grade Linux', url: 'https://example.com/opensuse.qcow2', format: 'qcow2', cloudInit: true },
-    rocky: { name: 'rocky', label: 'Rocky Linux 9', url: 'https://example.com/rocky.qcow2', format: 'qcow2', cloudInit: true },
+    opensuse: {
+      name: 'opensuse',
+      label: 'openSUSE Leap 15.6',
+      description: 'Enterprise-grade Linux',
+      url: 'https://example.com/opensuse.qcow2',
+      format: 'qcow2',
+      cloudInit: true
+    },
+    rocky: {
+      name: 'rocky',
+      label: 'Rocky Linux 9',
+      url: 'https://example.com/rocky.qcow2',
+      format: 'qcow2',
+      cloudInit: true
+    }
   })
   const imageManager = createMockImageManager()
   const urlValidator = createMockUrlValidator()
@@ -114,7 +166,7 @@ describe('Distro Routes', () => {
     fastify.setSerializerCompiler(serializerCompiler)
 
     // Simulate auth middleware
-    fastify.addHook('onRequest', async (request) => {
+    fastify.addHook('onRequest', async request => {
       request.userRole = mockUserRole
       request.userId = 'test-user-id'
       request.username = 'test-user'
@@ -125,7 +177,7 @@ describe('Distro Routes', () => {
       distroStore: distroStore as never,
       catalogStore: catalogStore as never,
       imageManager,
-      urlValidator: urlValidator as never,
+      urlValidator: urlValidator as never
     })
     await fastify.ready()
   })
@@ -188,7 +240,13 @@ describe('Distro Routes', () => {
 
     it('should include custom distros', async () => {
       distroStore.getAll.mockReturnValue({
-        gentoo: { name: 'gentoo', label: 'Gentoo', url: 'https://example.com/gentoo.qcow2', format: 'qcow2', cloudInit: true }
+        gentoo: {
+          name: 'gentoo',
+          label: 'Gentoo',
+          url: 'https://example.com/gentoo.qcow2',
+          format: 'qcow2',
+          cloudInit: true
+        }
       })
 
       const response = await fastify.inject({
@@ -206,7 +264,13 @@ describe('Distro Routes', () => {
 
     it('should show catalog distro with hasOverride when custom override exists', async () => {
       distroStore.getAll.mockReturnValue({
-        rocky: { name: 'rocky', label: 'My Rocky', url: 'https://example.com/override.qcow2', format: 'qcow2', cloudInit: true }
+        rocky: {
+          name: 'rocky',
+          label: 'My Rocky',
+          url: 'https://example.com/override.qcow2',
+          format: 'qcow2',
+          cloudInit: true
+        }
       })
 
       const response = await fastify.inject({
@@ -331,7 +395,7 @@ describe('Distro Routes', () => {
           name: 'no-url-distro',
           label: 'No URL',
           format: 'qcow2',
-          cloudInit: true,
+          cloudInit: true
         }
       })
 
@@ -364,7 +428,7 @@ describe('Distro Routes', () => {
         payload: {
           name: 'INVALID',
           url: 'not-a-url',
-          format: 'xyz',
+          format: 'xyz'
         }
       })
 

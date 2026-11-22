@@ -16,12 +16,12 @@ describe('Rate Limiting', () => {
         addHeaders: {
           'x-ratelimit-limit': true,
           'x-ratelimit-remaining': true,
-          'x-ratelimit-reset': true,
+          'x-ratelimit-reset': true
         },
         errorResponseBuilder: () => ({
           statusCode: 429,
-          error: 'Too many requests. Please try again later.',
-        }),
+          error: 'Too many requests. Please try again later.'
+        })
       })
 
       fastify.get('/api/test', async () => ({ ok: true }))
@@ -37,7 +37,7 @@ describe('Rate Limiting', () => {
       const response = await fastify.inject({
         method: 'GET',
         url: '/api/test',
-        remoteAddress: '10.0.0.1',
+        remoteAddress: '10.0.0.1'
       })
 
       expect(response.statusCode).toBe(200)
@@ -54,7 +54,7 @@ describe('Rate Limiting', () => {
         const res = await fastify.inject({
           method: 'GET',
           url: '/api/test',
-          remoteAddress: ip,
+          remoteAddress: ip
         })
         expect(res.statusCode).toBe(200)
       }
@@ -63,7 +63,7 @@ describe('Rate Limiting', () => {
       const response = await fastify.inject({
         method: 'GET',
         url: '/api/test',
-        remoteAddress: ip,
+        remoteAddress: ip
       })
 
       expect(response.statusCode).toBe(429)
@@ -78,14 +78,14 @@ describe('Rate Limiting', () => {
         await fastify.inject({
           method: 'GET',
           url: '/api/test',
-          remoteAddress: ip,
+          remoteAddress: ip
         })
       }
 
       const response = await fastify.inject({
         method: 'GET',
         url: '/api/test',
-        remoteAddress: ip,
+        remoteAddress: ip
       })
 
       expect(response.statusCode).toBe(429)
@@ -104,7 +104,7 @@ describe('Rate Limiting', () => {
         await fastify.inject({
           method: 'GET',
           url: '/api/test',
-          remoteAddress: ipA,
+          remoteAddress: ipA
         })
       }
 
@@ -112,7 +112,7 @@ describe('Rate Limiting', () => {
       const resA = await fastify.inject({
         method: 'GET',
         url: '/api/test',
-        remoteAddress: ipA,
+        remoteAddress: ipA
       })
       expect(resA.statusCode).toBe(429)
 
@@ -120,7 +120,7 @@ describe('Rate Limiting', () => {
       const resB = await fastify.inject({
         method: 'GET',
         url: '/api/test',
-        remoteAddress: ipB,
+        remoteAddress: ipB
       })
       expect(resB.statusCode).toBe(200)
     })
@@ -137,28 +137,40 @@ describe('Rate Limiting', () => {
         addHeaders: {
           'x-ratelimit-limit': true,
           'x-ratelimit-remaining': true,
-          'x-ratelimit-reset': true,
+          'x-ratelimit-reset': true
         },
         errorResponseBuilder: () => ({
           statusCode: 429,
-          error: 'Too many requests. Please try again later.',
-        }),
+          error: 'Too many requests. Please try again later.'
+        })
       })
 
       // Auth-like route: 3 req/min
-      fastify.post('/api/auth/login', {
-        config: { rateLimit: { max: 3, timeWindow: '1 minute' } },
-      }, async () => ({ ok: true }))
+      fastify.post(
+        '/api/auth/login',
+        {
+          config: { rateLimit: { max: 3, timeWindow: '1 minute' } }
+        },
+        async () => ({ ok: true })
+      )
 
       // VM mutation-like route: 6 req/min
-      fastify.post('/api/workload/start', {
-        config: { rateLimit: { max: 6, timeWindow: '1 minute' } },
-      }, async () => ({ ok: true }))
+      fastify.post(
+        '/api/workload/start',
+        {
+          config: { rateLimit: { max: 6, timeWindow: '1 minute' } }
+        },
+        async () => ({ ok: true })
+      )
 
       // Agent-like route: 3 req/min
-      fastify.post('/api/agent', {
-        config: { rateLimit: { max: 3, timeWindow: '1 minute' } },
-      }, async () => ({ ok: true }))
+      fastify.post(
+        '/api/agent',
+        {
+          config: { rateLimit: { max: 3, timeWindow: '1 minute' } }
+        },
+        async () => ({ ok: true })
+      )
 
       // General GET route: uses global default (10 req/min)
       fastify.get('/api/workload', async () => ({ ok: true }))
@@ -177,7 +189,7 @@ describe('Rate Limiting', () => {
         const res = await fastify.inject({
           method: 'POST',
           url: '/api/auth/login',
-          remoteAddress: ip,
+          remoteAddress: ip
         })
         expect(res.statusCode).toBe(200)
       }
@@ -185,7 +197,7 @@ describe('Rate Limiting', () => {
       const res = await fastify.inject({
         method: 'POST',
         url: '/api/auth/login',
-        remoteAddress: ip,
+        remoteAddress: ip
       })
       expect(res.statusCode).toBe(429)
       expect(res.headers['x-ratelimit-limit']).toBe('3')
@@ -198,7 +210,7 @@ describe('Rate Limiting', () => {
         const res = await fastify.inject({
           method: 'POST',
           url: '/api/workload/start',
-          remoteAddress: ip,
+          remoteAddress: ip
         })
         expect(res.statusCode).toBe(200)
       }
@@ -206,7 +218,7 @@ describe('Rate Limiting', () => {
       const res = await fastify.inject({
         method: 'POST',
         url: '/api/workload/start',
-        remoteAddress: ip,
+        remoteAddress: ip
       })
       expect(res.statusCode).toBe(429)
     })
@@ -218,7 +230,7 @@ describe('Rate Limiting', () => {
         const res = await fastify.inject({
           method: 'POST',
           url: '/api/agent',
-          remoteAddress: ip,
+          remoteAddress: ip
         })
         expect(res.statusCode).toBe(200)
       }
@@ -226,7 +238,7 @@ describe('Rate Limiting', () => {
       const res = await fastify.inject({
         method: 'POST',
         url: '/api/agent',
-        remoteAddress: ip,
+        remoteAddress: ip
       })
       expect(res.statusCode).toBe(429)
     })
@@ -239,7 +251,7 @@ describe('Rate Limiting', () => {
         const res = await fastify.inject({
           method: 'GET',
           url: '/api/workload',
-          remoteAddress: ip,
+          remoteAddress: ip
         })
         expect(res.statusCode).toBe(200)
       }
@@ -247,7 +259,7 @@ describe('Rate Limiting', () => {
       const resGet = await fastify.inject({
         method: 'GET',
         url: '/api/workload',
-        remoteAddress: ip,
+        remoteAddress: ip
       })
       expect(resGet.statusCode).toBe(429)
 
@@ -256,7 +268,7 @@ describe('Rate Limiting', () => {
         const res = await fastify.inject({
           method: 'POST',
           url: '/api/auth/login',
-          remoteAddress: ip,
+          remoteAddress: ip
         })
         expect(res.statusCode).toBe(200)
       }
@@ -264,7 +276,7 @@ describe('Rate Limiting', () => {
       const resAuth = await fastify.inject({
         method: 'POST',
         url: '/api/auth/login',
-        remoteAddress: ip,
+        remoteAddress: ip
       })
       expect(resAuth.statusCode).toBe(429)
     })
@@ -278,20 +290,21 @@ describe('Rate Limiting', () => {
         global: true,
         max: 3,
         timeWindow: '1 minute',
-        keyGenerator: (request) => (request as unknown as Record<string, unknown>).userId as string ?? request.ip,
+        keyGenerator: request =>
+          ((request as unknown as Record<string, unknown>).userId as string) ?? request.ip,
         addHeaders: {
           'x-ratelimit-limit': true,
           'x-ratelimit-remaining': true,
-          'x-ratelimit-reset': true,
+          'x-ratelimit-reset': true
         },
         errorResponseBuilder: () => ({
           statusCode: 429,
-          error: 'Too many requests. Please try again later.',
-        }),
+          error: 'Too many requests. Please try again later.'
+        })
       })
 
       // Simulate auth middleware that sets userId from header
-      fastify.addHook('onRequest', async (request) => {
+      fastify.addHook('onRequest', async request => {
         const userId = request.headers['x-test-user-id']
         if (userId && typeof userId === 'string') {
           ;(request as unknown as Record<string, unknown>).userId = userId
@@ -316,7 +329,7 @@ describe('Rate Limiting', () => {
           method: 'GET',
           url: '/api/test',
           remoteAddress: '10.20.0.1',
-          headers: { 'x-test-user-id': userId },
+          headers: { 'x-test-user-id': userId }
         })
         expect(res.statusCode).toBe(200)
       }
@@ -326,7 +339,7 @@ describe('Rate Limiting', () => {
         method: 'GET',
         url: '/api/test',
         remoteAddress: '10.20.0.2',
-        headers: { 'x-test-user-id': userId },
+        headers: { 'x-test-user-id': userId }
       })
       expect(res.statusCode).toBe(200)
 
@@ -335,7 +348,7 @@ describe('Rate Limiting', () => {
         method: 'GET',
         url: '/api/test',
         remoteAddress: '10.20.0.3',
-        headers: { 'x-test-user-id': userId },
+        headers: { 'x-test-user-id': userId }
       })
       expect(limited.statusCode).toBe(429)
     })
@@ -347,7 +360,7 @@ describe('Rate Limiting', () => {
         const res = await fastify.inject({
           method: 'GET',
           url: '/api/test',
-          remoteAddress: ip,
+          remoteAddress: ip
         })
         expect(res.statusCode).toBe(200)
       }
@@ -355,7 +368,7 @@ describe('Rate Limiting', () => {
       const limited = await fastify.inject({
         method: 'GET',
         url: '/api/test',
-        remoteAddress: ip,
+        remoteAddress: ip
       })
       expect(limited.statusCode).toBe(429)
 
@@ -363,7 +376,7 @@ describe('Rate Limiting', () => {
       const other = await fastify.inject({
         method: 'GET',
         url: '/api/test',
-        remoteAddress: '10.21.0.2',
+        remoteAddress: '10.21.0.2'
       })
       expect(other.statusCode).toBe(200)
     })
@@ -379,8 +392,8 @@ describe('Rate Limiting', () => {
         timeWindow: '1 minute',
         errorResponseBuilder: () => ({
           statusCode: 429,
-          error: 'Too many requests. Please try again later.',
-        }),
+          error: 'Too many requests. Please try again later.'
+        })
       })
 
       fastify.get('/api/test', async () => ({ ok: true }))
@@ -393,7 +406,7 @@ describe('Rate Limiting', () => {
         const res = await fastify.inject({
           method: 'GET',
           url: '/api/test',
-          remoteAddress: ip,
+          remoteAddress: ip
         })
         expect(res.statusCode).toBe(200)
       }

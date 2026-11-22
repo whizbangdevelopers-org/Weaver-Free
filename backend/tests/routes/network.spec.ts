@@ -3,7 +3,7 @@
 import { describe, it, expect, vi, beforeAll, afterAll, beforeEach } from 'vitest'
 
 vi.mock('../../src/services/microvm.js', () => ({
-  listVms: vi.fn(),
+  listVms: vi.fn()
 }))
 
 import Fastify from 'fastify'
@@ -28,7 +28,7 @@ const testConfig = makeTestConfig({
   iptablesBin: 'iptables',
   jwtSecret: 'test-secret',
   sessionStoreType: 'memory' as const,
-  notify: { ntfyUrl: null, ntfyTopic: null, ntfyToken: null },
+  notify: { ntfyUrl: null, ntfyTopic: null, ntfyToken: null }
 })
 
 describe('Network Routes', () => {
@@ -41,7 +41,7 @@ describe('Network Routes', () => {
 
   beforeAll(async () => {
     // Simulate auth middleware: set userRole on every request
-    fastify.addHook('onRequest', async (request) => {
+    fastify.addHook('onRequest', async request => {
       request.userRole = 'admin'
       request.userId = 'test-user-id'
       request.username = 'test-user'
@@ -69,13 +69,13 @@ describe('Network Routes', () => {
         vcpu: 1,
         hypervisor: 'qemu',
         uptime: '2026-01-01T00:00:00Z',
-        distro: 'ubuntu',
-      },
+        distro: 'ubuntu'
+      }
     ])
 
     const response = await fastify.inject({
       method: 'GET',
-      url: '/api/network/topology',
+      url: '/api/network/topology'
     })
 
     expect(response.statusCode).toBe(200)
@@ -86,7 +86,7 @@ describe('Network Routes', () => {
     expect(body.bridges[0]).toEqual({
       name: 'br-microvm',
       gateway: '10.10.0.1',
-      subnet: '10.10.0.0/24',
+      subnet: '10.10.0.0/24'
     })
 
     expect(body.nodes).toHaveLength(1)
@@ -99,19 +99,37 @@ describe('Network Routes', () => {
       bridge: 'br-microvm',
       mem: 256,
       vcpu: 1,
-      uptime: '2026-01-01T00:00:00Z',
+      uptime: '2026-01-01T00:00:00Z'
     })
   })
 
   it('should group VMs by bridge', async () => {
     mockListVms.mockResolvedValue([
-      { name: 'vm-a', status: 'running', ip: '10.10.1.10', mem: 256, vcpu: 1, hypervisor: 'qemu', uptime: null, bridge: 'br-web' },
-      { name: 'vm-b', status: 'stopped', ip: '10.10.2.20', mem: 512, vcpu: 1, hypervisor: 'qemu', uptime: null, bridge: 'br-dev' },
+      {
+        name: 'vm-a',
+        status: 'running',
+        ip: '10.10.1.10',
+        mem: 256,
+        vcpu: 1,
+        hypervisor: 'qemu',
+        uptime: null,
+        bridge: 'br-web'
+      },
+      {
+        name: 'vm-b',
+        status: 'stopped',
+        ip: '10.10.2.20',
+        mem: 512,
+        vcpu: 1,
+        hypervisor: 'qemu',
+        uptime: null,
+        bridge: 'br-dev'
+      }
     ])
 
     const response = await fastify.inject({
       method: 'GET',
-      url: '/api/network/topology',
+      url: '/api/network/topology'
     })
 
     const body = response.json()
@@ -130,7 +148,7 @@ describe('Network Routes', () => {
 
     const response = await fastify.inject({
       method: 'GET',
-      url: '/api/network/topology',
+      url: '/api/network/topology'
     })
 
     expect(response.statusCode).toBe(200)
@@ -149,13 +167,13 @@ describe('Network Routes', () => {
         mem: 256,
         vcpu: 1,
         hypervisor: 'microvm',
-        uptime: null,
-      },
+        uptime: null
+      }
     ])
 
     const response = await fastify.inject({
       method: 'GET',
-      url: '/api/network/topology',
+      url: '/api/network/topology'
     })
 
     expect(response.statusCode).toBe(200)
@@ -169,12 +187,21 @@ describe('Network Routes', () => {
 
   it('should derive subnet correctly from VM IPs', async () => {
     mockListVms.mockResolvedValue([
-      { name: 'vm-1', status: 'running', ip: '192.168.5.100', mem: 256, vcpu: 1, hypervisor: 'qemu', uptime: null, bridge: 'br-custom' },
+      {
+        name: 'vm-1',
+        status: 'running',
+        ip: '192.168.5.100',
+        mem: 256,
+        vcpu: 1,
+        hypervisor: 'qemu',
+        uptime: null,
+        bridge: 'br-custom'
+      }
     ])
 
     const response = await fastify.inject({
       method: 'GET',
-      url: '/api/network/topology',
+      url: '/api/network/topology'
     })
 
     const body = response.json()

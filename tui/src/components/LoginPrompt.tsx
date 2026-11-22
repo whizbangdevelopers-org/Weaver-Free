@@ -14,10 +14,18 @@ interface LoginPromptProps {
 
 const MAX_LOGIN_ATTEMPTS = 3
 
-export function LoginPrompt({ onLogin, onQuit, initialUsername, initialPassword, tier }: LoginPromptProps) {
+export function LoginPrompt({
+  onLogin,
+  onQuit,
+  initialUsername,
+  initialPassword,
+  tier
+}: LoginPromptProps) {
   const [username, setUsername] = useState(initialUsername ?? '')
   const [password, setPassword] = useState(initialPassword ?? '')
-  const [field, setField] = useState<'username' | 'password'>(initialUsername ? 'password' : 'username')
+  const [field, setField] = useState<'username' | 'password'>(
+    initialUsername ? 'password' : 'username'
+  )
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [attempts, setAttempts] = useState(0)
@@ -46,7 +54,9 @@ export function LoginPrompt({ onLogin, onQuit, initialUsername, initialPassword,
         return
       }
       const remaining = MAX_LOGIN_ATTEMPTS - nextAttempts
-      setError(`${err instanceof Error ? err.message : 'Login failed'} (${remaining} ${remaining === 1 ? 'attempt' : 'attempts'} remaining)`)
+      setError(
+        `${err instanceof Error ? err.message : 'Login failed'} (${remaining} ${remaining === 1 ? 'attempt' : 'attempts'} remaining)`
+      )
       setPassword('')
       setField('password')
       setSubmitting(false)
@@ -74,7 +84,7 @@ export function LoginPrompt({ onLogin, onQuit, initialUsername, initialPassword,
     }
 
     if (key.tab) {
-      setField(f => f === 'username' ? 'password' : 'username')
+      setField(f => (f === 'username' ? 'password' : 'username'))
       return
     }
 
@@ -99,12 +109,14 @@ export function LoginPrompt({ onLogin, onQuit, initialUsername, initialPassword,
 
       <Box marginTop={1}>
         <Text color={field === 'username' ? 'cyan' : undefined}>
-          Username: {username}{field === 'username' ? '█' : ''}
+          Username: {username}
+          {field === 'username' ? '█' : ''}
         </Text>
       </Box>
       <Box>
         <Text color={field === 'password' ? 'cyan' : undefined}>
-          Password: {'*'.repeat(password.length)}{field === 'password' ? '█' : ''}
+          Password: {'*'.repeat(password.length)}
+          {field === 'password' ? '█' : ''}
         </Text>
       </Box>
 

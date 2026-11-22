@@ -38,8 +38,12 @@ const REPO_ROOT = resolve(HERE, '../..')
 const WORKFLOW_DIR = join(REPO_ROOT, '.github/workflows')
 const REGISTRY = join(HERE, 'baselines/ci-gate-exceptions.json')
 
-const RED = '\x1b[31m'; const GREEN = '\x1b[32m'; const DIM = '\x1b[2m'
-const BOLD = '\x1b[1m'; const YELLOW = '\x1b[33m'; const RESET = '\x1b[0m'
+const RED = '\x1b[31m'
+const GREEN = '\x1b[32m'
+const DIM = '\x1b[2m'
+const BOLD = '\x1b[1m'
+const YELLOW = '\x1b[33m'
+const RESET = '\x1b[0m'
 
 interface Exception {
   category: string
@@ -97,18 +101,23 @@ export function findSoftFails(workflowName: string, yamlText: string): SoftFail[
 /** A reviewBy that has passed. Compared as dates, not strings, so a malformed value is caught. */
 export function isExpired(reviewBy: string, today: Date): boolean {
   const d = new Date(`${reviewBy}T00:00:00Z`)
-  if (Number.isNaN(d.getTime())) return true      // unparseable is treated as expired, not ignored
+  if (Number.isNaN(d.getTime())) return true // unparseable is treated as expired, not ignored
   return d.getTime() < Date.parse(`${today.toISOString().slice(0, 10)}T00:00:00Z`)
 }
 
-export function validateEntry(entry: Partial<Exception> | undefined, categories: string[]): string[] {
+export function validateEntry(
+  entry: Partial<Exception> | undefined,
+  categories: string[]
+): string[] {
   if (!entry) return ['not registered']
   const problems: string[] = []
   for (const field of ['category', 'reason', 'addedAt', 'reviewBy'] as const) {
     if (!entry[field] || String(entry[field]).trim() === '') problems.push(`missing ${field}`)
   }
   if (entry.category && !categories.includes(entry.category)) {
-    problems.push(`unknown category '${entry.category}' (expected one of: ${categories.join(', ')})`)
+    problems.push(
+      `unknown category '${entry.category}' (expected one of: ${categories.join(', ')})`
+    )
   }
   // A reason that only restates the mechanism is not a reason. The bar is deliberately low —
   // this catches "n/a" and "todo", not a terse-but-real justification.
@@ -122,51 +131,103 @@ export function validateEntry(entry: Partial<Exception> | undefined, categories:
 // Self-test. CATCH — must be reported. IGNORE — must not be.
 // --------------------------------------------------------------------------------------------
 
-const WF = (steps: string) => `name: t\non: push\njobs:\n  j:\n    runs-on: ubuntu-latest\n    steps:\n${steps}`
+const WF = (steps: string) =>
+  `name: t\non: push\njobs:\n  j:\n    runs-on: ubuntu-latest\n    steps:\n${steps}`
 
 const CATCH_CASES: [string, string][] = [
-  ['a soft-failing step', WF(`      - name: Scan\n        continue-on-error: true\n        run: x`)],
-  ['soft-fail declared before the name', WF(`      - continue-on-error: true\n        name: Scan\n        run: x`)],
+  [
+    'a soft-failing step',
+    WF(`      - name: Scan\n        continue-on-error: true\n        run: x`)
+  ],
+  [
+    'soft-fail declared before the name',
+    WF(`      - continue-on-error: true\n        name: Scan\n        run: x`)
+  ],
   ['an unnamed soft-failing step', WF(`      - continue-on-error: true\n        run: x`)],
-  ['two soft-fails in one job', WF(`      - name: A\n        continue-on-error: true\n        run: x\n      - name: B\n        continue-on-error: true\n        run: y`)],
-  ['a soft-fail in a second job', `name: t\non: push\njobs:\n  a:\n    runs-on: u\n    steps:\n      - name: Ok\n        run: x\n  b:\n    runs-on: u\n    steps:\n      - name: Soft\n        continue-on-error: true\n        run: y`],
+  [
+    'two soft-fails in one job',
+    WF(
+      `      - name: A\n        continue-on-error: true\n        run: x\n      - name: B\n        continue-on-error: true\n        run: y`
+    )
+  ],
+  [
+    'a soft-fail in a second job',
+    `name: t\non: push\njobs:\n  a:\n    runs-on: u\n    steps:\n      - name: Ok\n        run: x\n  b:\n    runs-on: u\n    steps:\n      - name: Soft\n        continue-on-error: true\n        run: y`
+  ]
 ]
 
 const IGNORE_CASES: [string, string][] = [
   ['a plain step', WF(`      - name: Scan\n        run: x`)],
-  ['continue-on-error: false', WF(`      - name: Scan\n        continue-on-error: false\n        run: x`)],
+  [
+    'continue-on-error: false',
+    WF(`      - name: Scan\n        continue-on-error: false\n        run: x`)
+  ],
   // The one that matters: this repo's workflows explain in comments why a step is NOT soft-failing,
   // and a grep-based checker reports every one of those as a finding.
-  ['the phrase in a comment above a hard-failing step', WF(`      # BLOCKING — it used to carry continue-on-error: true and that was the bug\n      - name: Scan\n        run: x`)],
+  [
+    'the phrase in a comment above a hard-failing step',
+    WF(
+      `      # BLOCKING — it used to carry continue-on-error: true and that was the bug\n      - name: Scan\n        run: x`
+    )
+  ],
   // The YAML scalar is single-quoted because the value contains ": " — unquoted, YAML reads that
   // as a nested mapping and the fixture fails to parse. Worth keeping rather than simplifying:
   // it is the same escaping trap a real workflow hits when it echoes a key name.
-  ['the phrase inside a run block', WF(`      - name: Echo\n        run: 'echo "continue-on-error: true"'`)],
+  [
+    'the phrase inside a run block',
+    WF(`      - name: Echo\n        run: 'echo "continue-on-error: true"'`)
+  ],
   ['a workflow with no jobs', `name: t\non: push`],
-  ['a workflow with a job but no steps', `name: t\non: push\njobs:\n  j:\n    runs-on: u`],
+  ['a workflow with a job but no steps', `name: t\non: push\njobs:\n  j:\n    runs-on: u`]
 ]
 
 const EXPIRY_CATCH: [string, string, string][] = [
   ['a date in the past', '2020-01-01', '2026-08-19'],
   ['yesterday', '2026-08-18', '2026-08-19'],
   ['an unparseable date', 'soon', '2026-08-19'],
-  ['an empty date', '', '2026-08-19'],
+  ['an empty date', '', '2026-08-19']
 ]
 const EXPIRY_IGNORE: [string, string, string][] = [
   ['today', '2026-08-19', '2026-08-19'],
   ['tomorrow', '2026-08-20', '2026-08-19'],
-  ['a date well ahead', '2030-01-01', '2026-08-19'],
+  ['a date well ahead', '2030-01-01', '2026-08-19']
 ]
 
 const ENTRY_CATCH: [string, Partial<Exception> | undefined][] = [
   ['an absent entry', undefined],
   ['a missing reason', { category: 'cosmetic', addedAt: '2026-01-01', reviewBy: '2030-01-01' }],
-  ['a missing reviewBy', { category: 'cosmetic', reason: 'a perfectly adequate justification here', addedAt: '2026-01-01' }],
-  ['an unknown category', { category: 'because-i-said-so', reason: 'a perfectly adequate justification here', addedAt: '2026-01-01', reviewBy: '2030-01-01' }],
-  ['a placeholder reason', { category: 'cosmetic', reason: 'todo', addedAt: '2026-01-01', reviewBy: '2030-01-01' }],
+  [
+    'a missing reviewBy',
+    {
+      category: 'cosmetic',
+      reason: 'a perfectly adequate justification here',
+      addedAt: '2026-01-01'
+    }
+  ],
+  [
+    'an unknown category',
+    {
+      category: 'because-i-said-so',
+      reason: 'a perfectly adequate justification here',
+      addedAt: '2026-01-01',
+      reviewBy: '2030-01-01'
+    }
+  ],
+  [
+    'a placeholder reason',
+    { category: 'cosmetic', reason: 'todo', addedAt: '2026-01-01', reviewBy: '2030-01-01' }
+  ]
 ]
 const ENTRY_IGNORE: [string, Exception][] = [
-  ['a complete entry', { category: 'cosmetic', reason: 'Writes a badge gist; a 404 there must not fail a green test run.', addedAt: '2026-01-01', reviewBy: '2030-01-01' }],
+  [
+    'a complete entry',
+    {
+      category: 'cosmetic',
+      reason: 'Writes a badge gist; a 404 there must not fail a green test run.',
+      addedAt: '2026-01-01',
+      reviewBy: '2030-01-01'
+    }
+  ]
 ]
 
 function selfTest(): boolean {
@@ -178,7 +239,8 @@ function selfTest(): boolean {
   }
   for (const [name, text] of IGNORE_CASES) {
     const hits = findSoftFails('t.yml', text)
-    if (hits.length > 0) failures.push(`IGNORE wrongly flagged: ${name} (${hits.map(h => h.step).join(', ')})`)
+    if (hits.length > 0)
+      failures.push(`IGNORE wrongly flagged: ${name} (${hits.map(h => h.step).join(', ')})`)
   }
   for (const [name, date, today] of EXPIRY_CATCH) {
     if (!isExpired(date, new Date(today))) failures.push(`CATCH missed (expiry): ${name}`)
@@ -234,7 +296,9 @@ function main(): void {
   const today = new Date()
 
   const found: SoftFail[] = []
-  for (const file of readdirSync(WORKFLOW_DIR).filter(f => /\.ya?ml$/.test(f)).sort()) {
+  for (const file of readdirSync(WORKFLOW_DIR)
+    .filter(f => /\.ya?ml$/.test(f))
+    .sort()) {
     const text = readFileSync(join(WORKFLOW_DIR, file), 'utf-8')
     try {
       found.push(...findSoftFails(basename(file), text))
@@ -253,15 +317,15 @@ function main(): void {
     if (issues.length > 0) {
       problems.push(
         `${sf.workflow} — step "${sf.step}" soft-fails but ${issues.join(', ')}\n` +
-        `      ${DIM}Register it in scripts/baselines/ci-gate-exceptions.json — or, if it is a gate, make it blocking.${RESET}`,
+          `      ${DIM}Register it in scripts/baselines/ci-gate-exceptions.json — or, if it is a gate, make it blocking.${RESET}`
       )
       continue
     }
     if (isExpired(entry!.reviewBy, today)) {
       problems.push(
         `${sf.workflow} — step "${sf.step}" exception EXPIRED on ${entry!.reviewBy}\n` +
-        `      ${DIM}${entry!.reason}${RESET}\n` +
-        `      ${DIM}Re-justify with a new reviewBy, or make the step blocking.${RESET}`,
+          `      ${DIM}${entry!.reason}${RESET}\n` +
+          `      ${DIM}Re-justify with a new reviewBy, or make the step blocking.${RESET}`
       )
     }
   }
@@ -272,7 +336,7 @@ function main(): void {
     if (!foundKeys.has(key)) {
       problems.push(
         `stale registration: "${key}" no longer soft-fails\n` +
-        `      ${DIM}Delete the row — the list only shrinks.${RESET}`,
+          `      ${DIM}Delete the row — the list only shrinks.${RESET}`
       )
     }
   }
@@ -283,7 +347,9 @@ function main(): void {
     byCategory.set(c, (byCategory.get(c) ?? 0) + 1)
   }
   const summary = [...byCategory.entries()].map(([c, n]) => `${c}=${n}`).join('  ')
-  console.log(`${DIM}  ${found.length} soft-failing step(s) across ${readdirSync(WORKFLOW_DIR).filter(f => /\.ya?ml$/.test(f)).length} workflow(s)  ·  ${summary}${RESET}`)
+  console.log(
+    `${DIM}  ${found.length} soft-failing step(s) across ${readdirSync(WORKFLOW_DIR).filter(f => /\.ya?ml$/.test(f)).length} workflow(s)  ·  ${summary}${RESET}`
+  )
 
   // Advisory: surface exceptions coming up for review before they fail the build.
   const soon = found.filter(sf => {
@@ -294,17 +360,22 @@ function main(): void {
   })
   if (soon.length > 0 && problems.length === 0) {
     console.log(`${YELLOW}  ${soon.length} exception(s) due for review within 30 days:${RESET}`)
-    for (const sf of soon) console.log(`${YELLOW}    · ${sf.key} — ${registry.exceptions[sf.key]!.reviewBy}${RESET}`)
+    for (const sf of soon)
+      console.log(`${YELLOW}    · ${sf.key} — ${registry.exceptions[sf.key]!.reviewBy}${RESET}`)
   }
 
   if (problems.length > 0) {
     console.error('')
     for (const p of problems) console.error(`  ${RED}✗${RESET} ${p}`)
-    console.error(`\n${RED}${BOLD}RESULT: FAIL${RESET} — ${problems.length} unregistered, incomplete, expired or stale CI-gate exception(s)`)
+    console.error(
+      `\n${RED}${BOLD}RESULT: FAIL${RESET} — ${problems.length} unregistered, incomplete, expired or stale CI-gate exception(s)`
+    )
     process.exit(1)
   }
 
-  console.log(`\n${GREEN}${BOLD}RESULT: PASS${RESET} — every soft-failing step is registered, reasoned and in date`)
+  console.log(
+    `\n${GREEN}${BOLD}RESULT: PASS${RESET} — every soft-failing step is registered, reasoned and in date`
+  )
 }
 
 main()

@@ -65,8 +65,8 @@ function handleExecFile(cmd: string, args: string[]): { stdout: string; stderr: 
   throw new Error(`unmocked command: ${cmd} ${argsStr}`)
 }
 
-vi.mock('node:child_process', async (importOriginal) => {
-  const actual = await importOriginal() as Record<string, unknown>
+vi.mock('node:child_process', async importOriginal => {
+  const actual = (await importOriginal()) as Record<string, unknown>
 
   // Build a mock execFile with Node's custom promisify symbol so that
   // `promisify(execFile)` returns { stdout, stderr } like the real one.
@@ -101,16 +101,12 @@ vi.mock('node:child_process', async (importOriginal) => {
       proc.kill = vi.fn()
       proc.pid = 99999
       return proc
-    }),
+    })
   }
 })
 
 import Fastify from 'fastify'
-import {
-  serializerCompiler,
-  validatorCompiler,
-  ZodTypeProvider
-} from 'fastify-type-provider-zod'
+import { serializerCompiler, validatorCompiler, ZodTypeProvider } from 'fastify-type-provider-zod'
 import { workloadsRoutes } from '../../src/routes/workloads.js'
 import { healthRoutes } from '../../src/routes/health.js'
 import { setRegistry } from '../../src/services/microvm.js'
@@ -134,7 +130,7 @@ const config: DashboardConfig = makeTestConfig({
   bridgeGateway: '10.10.0.1',
   jwtSecret: 'test-secret',
   sessionStoreType: 'memory',
-  notify: { ntfyUrl: null, ntfyTopic: null, ntfyToken: null },
+  notify: { ntfyUrl: null, ntfyTopic: null, ntfyToken: null }
 })
 
 describe('E2E: VM Lifecycle', () => {
@@ -153,19 +149,49 @@ describe('E2E: VM Lifecycle', () => {
     await registry.init()
     // Seed test VMs (registry starts empty by default)
     for (const vm of [
-      { name: 'web-nginx', ip: '10.10.0.10', mem: 256, vcpu: 1, hypervisor: 'qemu', distro: 'nixos' },
+      {
+        name: 'web-nginx',
+        ip: '10.10.0.10',
+        mem: 256,
+        vcpu: 1,
+        hypervisor: 'qemu',
+        distro: 'nixos'
+      },
       { name: 'web-app', ip: '10.10.0.11', mem: 512, vcpu: 1, hypervisor: 'qemu', distro: 'nixos' },
-      { name: 'dev-node', ip: '10.10.0.20', mem: 512, vcpu: 1, hypervisor: 'qemu', distro: 'nixos' },
-      { name: 'dev-python', ip: '10.10.0.21', mem: 512, vcpu: 1, hypervisor: 'qemu', distro: 'nixos' },
-      { name: 'svc-postgres', ip: '10.10.0.30', mem: 512, vcpu: 1, hypervisor: 'qemu', distro: 'nixos' },
-    ]) { await registry.add(vm) }
+      {
+        name: 'dev-node',
+        ip: '10.10.0.20',
+        mem: 512,
+        vcpu: 1,
+        hypervisor: 'qemu',
+        distro: 'nixos'
+      },
+      {
+        name: 'dev-python',
+        ip: '10.10.0.21',
+        mem: 512,
+        vcpu: 1,
+        hypervisor: 'qemu',
+        distro: 'nixos'
+      },
+      {
+        name: 'svc-postgres',
+        ip: '10.10.0.30',
+        mem: 512,
+        vcpu: 1,
+        hypervisor: 'qemu',
+        distro: 'nixos'
+      }
+    ]) {
+      await registry.add(vm)
+    }
     setRegistry(registry)
 
     fastify.setValidatorCompiler(validatorCompiler)
     fastify.setSerializerCompiler(serializerCompiler)
 
     // Simulate auth middleware: all requests run as admin
-    fastify.addHook('onRequest', async (request) => {
+    fastify.addHook('onRequest', async request => {
       request.userRole = 'admin'
       request.userId = 'test-admin-id'
       request.username = 'test-admin'
@@ -215,7 +241,10 @@ describe('E2E: VM Lifecycle', () => {
     expect(getRes.json().uptime).toBeNull()
 
     // 6. Restart (start from stopped)
-    const restartRes = await fastify.inject({ method: 'POST', url: '/api/workload/web-nginx/restart' })
+    const restartRes = await fastify.inject({
+      method: 'POST',
+      url: '/api/workload/web-nginx/restart'
+    })
     expect(restartRes.statusCode).toBe(200)
     expect(restartRes.json().success).toBe(true)
 

@@ -13,7 +13,7 @@ import {
   getDefaultModel,
   createProvider,
   resolveProvider,
-  AnthropicProvider,
+  AnthropicProvider
 } from '../../src/services/llm-provider.js'
 import type { LlmVendor } from '../../src/services/llm-provider.js'
 
@@ -43,9 +43,9 @@ describe('createProvider', () => {
   })
 
   it('throws for an unsupported vendor', () => {
-    expect(() =>
-      createProvider('unknown' as LlmVendor, 'key')
-    ).toThrow('Unsupported LLM vendor: unknown')
+    expect(() => createProvider('unknown' as LlmVendor, 'key')).toThrow(
+      'Unsupported LLM vendor: unknown'
+    )
   })
 })
 
@@ -101,9 +101,11 @@ describe('AnthropicProvider request shape', () => {
       messages: {
         stream: (body: Record<string, unknown>) => {
           captured.body = body
-          return (async function* () { /* no events — we only care about the request */ })()
-        },
-      },
+          return (async function* () {
+            /* no events — we only care about the request */
+          })()
+        }
+      }
     }
     // Drain the generator so stream() actually runs.
     const it_ = provider.stream({ model: 'm', maxTokens: 16, prompt: 'p' })[Symbol.asyncIterator]()
@@ -126,7 +128,7 @@ describe('AnthropicProvider request shape', () => {
     expect(body).not.toHaveProperty('top_k')
   })
 
-  it('carries the caller\'s model and max_tokens through unchanged', () => {
+  it("carries the caller's model and max_tokens through unchanged", () => {
     const { body } = captureRequest()
     expect(body?.model).toBe('m')
     expect(body?.max_tokens).toBe(16)

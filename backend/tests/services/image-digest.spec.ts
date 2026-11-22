@@ -22,7 +22,7 @@ import {
   assertChecksumUrl,
   hashFile,
   normaliseExpected,
-  resolveRedirect,
+  resolveRedirect
 } from '../../src/services/image-digest.js'
 import { validateExternalUrl } from '../../src/validate-url.js'
 
@@ -49,11 +49,11 @@ describe('parseChecksumFile — the real published shapes', () => {
       '# Fedora-Cloud-Base-Generic-44-1.7.x86_64.qcow2: 583729152 bytes',
       `SHA256 (Fedora-Cloud-Base-Generic-44-1.7.x86_64.qcow2) = ${A}`,
       `SHA256 (Fedora-Cloud-Base-UEFI-UKI-44-1.7.x86_64.qcow2) = ${B}`,
-      '-----BEGIN PGP SIGNATURE-----',
+      '-----BEGIN PGP SIGNATURE-----'
     ].join('\n')
-    expect(
-      parseChecksumFile(text, 'sha256', 'Fedora-Cloud-Base-Generic-44-1.7.x86_64.qcow2'),
-    ).toBe(A)
+    expect(parseChecksumFile(text, 'sha256', 'Fedora-Cloud-Base-Generic-44-1.7.x86_64.qcow2')).toBe(
+      A
+    )
   })
 
   it('reads a bare single-digest file, the Alpine .sha512 shape', () => {
@@ -90,7 +90,7 @@ describe('parseChecksumFile — the refusals, which are the point', () => {
   it('returns null for an empty file and for HTML (a 404 page served with 200)', () => {
     expect(parseChecksumFile('', 'sha256', 'thing.qcow2')).toBeNull()
     expect(
-      parseChecksumFile('<!DOCTYPE HTML>\n<html><body>404</body></html>', 'sha256', 'thing.qcow2'),
+      parseChecksumFile('<!DOCTYPE HTML>\n<html><body>404</body></html>', 'sha256', 'thing.qcow2')
     ).toBeNull()
   })
 
@@ -149,7 +149,7 @@ describe('hashFile', () => {
 
       expect(await hashFile(a, 'sha512')).toBe(
         '54e3d2aaf3b98c918fe4831f08b91d1dcfee330841aa1b047b4954d5ab83289b' +
-          'ceb946f472adbf743ca8f97650bcc9aa9bf23ea871b674f899e4cac6e49b04e3',
+          'ceb946f472adbf743ca8f97650bcc9aa9bf23ea871b674f899e4cac6e49b04e3'
       )
     } finally {
       await rm(dir, { recursive: true, force: true })
@@ -164,10 +164,10 @@ describe('resolveRedirect — the two refusals image integrity closed', () => {
   it('follows an ordinary https -> https hop and resolves a relative Location', () => {
     const from = new URL('https://mirror.test/images/latest/thing.qcow2')
     expect(resolveRedirect('../v1/thing.qcow2', from, validate).href).toBe(
-      'https://mirror.test/images/v1/thing.qcow2',
+      'https://mirror.test/images/v1/thing.qcow2'
     )
     expect(resolveRedirect('https://other.test/thing.qcow2', from, validate).href).toBe(
-      'https://other.test/thing.qcow2',
+      'https://other.test/thing.qcow2'
     )
   })
 
@@ -176,7 +176,7 @@ describe('resolveRedirect — the two refusals image integrity closed', () => {
     // "the images come over TLS" was false even for entries whose catalog URL is https.
     const from = new URL('https://mirror.test/thing.qcow2')
     expect(() => resolveRedirect('http://mirror.test/thing.qcow2', from, validate)).toThrow(
-      /refusing redirect from https to http/,
+      /refusing redirect from https to http/
     )
   })
 
@@ -184,11 +184,13 @@ describe('resolveRedirect — the two refusals image integrity closed', () => {
     // ensureImageFromUrl validated the first URL and then trusted every Location header, so an
     // allowed external host could bounce the fetch onto the metadata service.
     const from = new URL('http://mirror.test/thing.qcow2')
-    expect(() => resolveRedirect('http://169.254.169.254/latest/meta-data/', from, validate)).toThrow(
-      /private\/internal/,
-    )
+    expect(() =>
+      resolveRedirect('http://169.254.169.254/latest/meta-data/', from, validate)
+    ).toThrow(/private\/internal/)
     expect(() => resolveRedirect('http://10.0.0.5/x', from, validate)).toThrow(/private\/internal/)
-    expect(() => resolveRedirect('http://192.168.1.1/x', from, validate)).toThrow(/private\/internal/)
+    expect(() => resolveRedirect('http://192.168.1.1/x', from, validate)).toThrow(
+      /private\/internal/
+    )
     expect(() => resolveRedirect('http://127.0.0.1/x', from, validate)).toThrow(/localhost/)
   })
 
@@ -200,6 +202,8 @@ describe('resolveRedirect — the two refusals image integrity closed', () => {
   it('applies the private-range check to a RELATIVE-looking absolute redirect too', () => {
     // //host/path inherits the scheme — easy to miss, and it is still a host change.
     const from = new URL('https://mirror.test/thing.qcow2')
-    expect(() => resolveRedirect('//169.254.169.254/x', from, validate)).toThrow(/private\/internal/)
+    expect(() => resolveRedirect('//169.254.169.254/x', from, validate)).toThrow(
+      /private\/internal/
+    )
   })
 })

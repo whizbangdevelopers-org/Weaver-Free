@@ -3,15 +3,11 @@
 import { describe, it, expect, vi, beforeAll, afterAll, beforeEach } from 'vitest'
 
 vi.mock('../../src/services/microvm.js', () => ({
-  getWorkloadDefinitions: vi.fn(),
+  getWorkloadDefinitions: vi.fn()
 }))
 
 import Fastify from 'fastify'
-import {
-  serializerCompiler,
-  validatorCompiler,
-  ZodTypeProvider
-} from 'fastify-type-provider-zod'
+import { serializerCompiler, validatorCompiler, ZodTypeProvider } from 'fastify-type-provider-zod'
 import { quotaRoutes } from '../../src/routes/quotas.js'
 import { QuotaStore } from '../../src/storage/quota-store.js'
 import { UserStore } from '../../src/storage/user-store.js'
@@ -50,13 +46,13 @@ function makeConfig(tier: 'demo' | 'free' | 'solo' | 'fabrick'): DashboardConfig
     jwtSecret: 'test-secret',
     sessionStoreType: 'memory',
     notify: { ntfyUrl: null, ntfyTopic: null, ntfyToken: null },
-    aiApiKey: '',
+    aiApiKey: ''
   })
 }
 
 const sampleVms = {
   'web-nginx': { name: 'web-nginx', ip: '10.10.0.10', mem: 256, vcpu: 1, hypervisor: 'qemu' },
-  'dev-node': { name: 'dev-node', ip: '10.10.0.20', mem: 512, vcpu: 2, hypervisor: 'qemu' },
+  'dev-node': { name: 'dev-node', ip: '10.10.0.20', mem: 512, vcpu: 2, hypervisor: 'qemu' }
 }
 
 let mockUserRole: UserRole = 'admin'
@@ -98,7 +94,7 @@ describe('Quota Routes', () => {
       prefix: '/api/users',
       config,
       quotaStore,
-      userStore,
+      userStore
     })
     await fastify.ready()
   })
@@ -123,7 +119,7 @@ describe('Quota Routes', () => {
     it('should return default unlimited quotas for user with no quotas set', async () => {
       const response = await fastify.inject({
         method: 'GET',
-        url: `/api/users/${testUserId}/quotas`,
+        url: `/api/users/${testUserId}/quotas`
       })
 
       expect(response.statusCode).toBe(200)
@@ -134,14 +130,14 @@ describe('Quota Routes', () => {
       expect(body.maxVcpus).toBeNull()
       expect(body.currentVms).toBe(2)
       expect(body.currentMemoryMB).toBe(768) // 256 + 512
-      expect(body.currentVcpus).toBe(3)      // 1 + 2
+      expect(body.currentVcpus).toBe(3) // 1 + 2
     })
 
     it('should return 403 for non-admin', async () => {
       mockUserRole = 'operator'
       const response = await fastify.inject({
         method: 'GET',
-        url: `/api/users/${testUserId}/quotas`,
+        url: `/api/users/${testUserId}/quotas`
       })
       expect(response.statusCode).toBe(403)
     })
@@ -150,7 +146,7 @@ describe('Quota Routes', () => {
       const fakeId = randomUUID()
       const response = await fastify.inject({
         method: 'GET',
-        url: `/api/users/${fakeId}/quotas`,
+        url: `/api/users/${fakeId}/quotas`
       })
       expect(response.statusCode).toBe(404)
     })
@@ -164,8 +160,8 @@ describe('Quota Routes', () => {
         payload: {
           maxVms: 5,
           maxMemoryMB: 2048,
-          maxVcpus: 8,
-        },
+          maxVcpus: 8
+        }
       })
 
       expect(response.statusCode).toBe(200)
@@ -183,8 +179,8 @@ describe('Quota Routes', () => {
         payload: {
           maxVms: null,
           maxMemoryMB: 1024,
-          maxVcpus: null,
-        },
+          maxVcpus: null
+        }
       })
 
       expect(response.statusCode).toBe(200)
@@ -199,7 +195,7 @@ describe('Quota Routes', () => {
       const response = await fastify.inject({
         method: 'PUT',
         url: `/api/users/${testUserId}/quotas`,
-        payload: { maxVms: 5, maxMemoryMB: 2048, maxVcpus: 8 },
+        payload: { maxVms: 5, maxMemoryMB: 2048, maxVcpus: 8 }
       })
       expect(response.statusCode).toBe(403)
     })
@@ -209,7 +205,7 @@ describe('Quota Routes', () => {
       const response = await fastify.inject({
         method: 'PUT',
         url: `/api/users/${fakeId}/quotas`,
-        payload: { maxVms: 5, maxMemoryMB: 2048, maxVcpus: 8 },
+        payload: { maxVms: 5, maxMemoryMB: 2048, maxVcpus: 8 }
       })
       expect(response.statusCode).toBe(404)
     })
@@ -218,7 +214,7 @@ describe('Quota Routes', () => {
       const response = await fastify.inject({
         method: 'PUT',
         url: `/api/users/${testUserId}/quotas`,
-        payload: { maxVms: -1, maxMemoryMB: 1024, maxVcpus: 4 },
+        payload: { maxVms: -1, maxMemoryMB: 1024, maxVcpus: 4 }
       })
       expect(response.statusCode).toBe(400)
     })
@@ -230,13 +226,13 @@ describe('Quota Routes', () => {
       await fastify.inject({
         method: 'PUT',
         url: `/api/users/${testUserId}/quotas`,
-        payload: { maxVms: 10, maxMemoryMB: 4096, maxVcpus: 16 },
+        payload: { maxVms: 10, maxMemoryMB: 4096, maxVcpus: 16 }
       })
 
       // Get quotas with usage
       const response = await fastify.inject({
         method: 'GET',
-        url: `/api/users/${testUserId}/quotas`,
+        url: `/api/users/${testUserId}/quotas`
       })
 
       expect(response.statusCode).toBe(200)
@@ -288,7 +284,7 @@ describe('Quota Routes — Tier Gating', () => {
       prefix: '/api/users',
       config,
       quotaStore,
-      userStore,
+      userStore
     })
     await fastify.ready()
   })
@@ -306,7 +302,7 @@ describe('Quota Routes — Tier Gating', () => {
     mockGetVmDefinitions.mockResolvedValue({})
     const response = await fastify.inject({
       method: 'GET',
-      url: `/api/users/${testUserId}/quotas`,
+      url: `/api/users/${testUserId}/quotas`
     })
     expect(response.statusCode).toBe(403)
     expect(response.json().error).toContain('fabrick')
@@ -316,7 +312,7 @@ describe('Quota Routes — Tier Gating', () => {
     const response = await fastify.inject({
       method: 'PUT',
       url: `/api/users/${testUserId}/quotas`,
-      payload: { maxVms: 5, maxMemoryMB: 2048, maxVcpus: 8 },
+      payload: { maxVms: 5, maxMemoryMB: 2048, maxVcpus: 8 }
     })
     expect(response.statusCode).toBe(403)
     expect(response.json().error).toContain('fabrick')
@@ -344,7 +340,7 @@ describe('QuotaStore.checkQuota', () => {
     const result = quotaStore.checkQuota('user-1', 512, 2, {
       totalVms: 10,
       totalMemoryMB: 10000,
-      totalVcpus: 50,
+      totalVcpus: 50
     })
     expect(result.allowed).toBe(true)
   })
@@ -355,7 +351,7 @@ describe('QuotaStore.checkQuota', () => {
     const result = quotaStore.checkQuota('user-2', 256, 1, {
       totalVms: 5,
       totalMemoryMB: 1024,
-      totalVcpus: 5,
+      totalVcpus: 5
     })
     expect(result.allowed).toBe(false)
     expect(result.reason).toContain('VM quota exceeded')
@@ -368,7 +364,7 @@ describe('QuotaStore.checkQuota', () => {
     const result = quotaStore.checkQuota('user-3', 256, 1, {
       totalVms: 5,
       totalMemoryMB: 1024,
-      totalVcpus: 5,
+      totalVcpus: 5
     })
     expect(result.allowed).toBe(true)
   })
@@ -379,7 +375,7 @@ describe('QuotaStore.checkQuota', () => {
     const result = quotaStore.checkQuota('user-4', 1024, 1, {
       totalVms: 2,
       totalMemoryMB: 1536,
-      totalVcpus: 2,
+      totalVcpus: 2
     })
     expect(result.allowed).toBe(false)
     expect(result.reason).toContain('Memory quota exceeded')
@@ -394,7 +390,7 @@ describe('QuotaStore.checkQuota', () => {
     const result = quotaStore.checkQuota('user-5', 256, 4, {
       totalVms: 2,
       totalMemoryMB: 512,
-      totalVcpus: 6,
+      totalVcpus: 6
     })
     expect(result.allowed).toBe(false)
     expect(result.reason).toContain('vCPU quota exceeded')
@@ -410,7 +406,7 @@ describe('QuotaStore.checkQuota', () => {
     const result = quotaStore.checkQuota('user-6', 256, 1, {
       totalVms: 3,
       totalMemoryMB: 768,
-      totalVcpus: 3,
+      totalVcpus: 3
     })
     expect(result.allowed).toBe(false)
     expect(result.reason).toContain('VM quota exceeded')

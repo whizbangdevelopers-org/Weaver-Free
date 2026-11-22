@@ -101,17 +101,18 @@ function main(): void {
 
   console.log(`${BOLD}Skill Parity Audit${RESET}`)
   console.log(`${DIM}Enforces scope contract between user and project skills.${RESET}`)
-  if (inCI) console.log(`${DIM}CI mode: user-directory checks skipped (no ~/.claude/skills/ on runner).${RESET}`)
+  if (inCI)
+    console.log(
+      `${DIM}CI mode: user-directory checks skipped (no ~/.claude/skills/ on runner).${RESET}`
+    )
   console.log()
 
   const userSkills = listSkills(USER_SKILLS)
   const projectSkills = listSkills(PROJECT_SKILLS)
 
+  console.log(`  ${GREEN}✓${RESET} User skills (${USER_SKILLS}): ${userSkills.length}`)
   console.log(
-    `  ${GREEN}✓${RESET} User skills (${USER_SKILLS}): ${userSkills.length}`,
-  )
-  console.log(
-    `  ${GREEN}✓${RESET} Project skills (${PROJECT_SKILLS.replace(PROJECT_ROOT + '/', '')}): ${projectSkills.length}`,
+    `  ${GREEN}✓${RESET} Project skills (${PROJECT_SKILLS.replace(PROJECT_ROOT + '/', '')}): ${projectSkills.length}`
   )
 
   const violations: Violation[] = []
@@ -127,7 +128,7 @@ function main(): void {
     if (s.scope === null) {
       violations.push({
         name: s.name,
-        detail: `missing scope declaration in frontmatter metadata. Add 'metadata:\\n  scope: user|project|both' to ${s.path.replace(homedir(), '~')}`,
+        detail: `missing scope declaration in frontmatter metadata. Add 'metadata:\\n  scope: user|project|both' to ${s.path.replace(homedir(), '~')}`
       })
     }
   }
@@ -148,7 +149,7 @@ function main(): void {
     if (u && p && u.scope !== p.scope) {
       violations.push({
         name,
-        detail: `scope declarations disagree — user copy says '${u.scope}', project copy says '${p.scope}'`,
+        detail: `scope declarations disagree — user copy says '${u.scope}', project copy says '${p.scope}'`
       })
       continue
     }
@@ -157,14 +158,14 @@ function main(): void {
       if (p) {
         violations.push({
           name,
-          detail: `scope: user but project copy exists at ${p.path.replace(PROJECT_ROOT + '/', '')}. Either change scope to 'both' (and ensure byte-equal copies) or delete the project copy.`,
+          detail: `scope: user but project copy exists at ${p.path.replace(PROJECT_ROOT + '/', '')}. Either change scope to 'both' (and ensure byte-equal copies) or delete the project copy.`
         })
       }
     } else if (declared === 'project') {
       if (u) {
         violations.push({
           name,
-          detail: `scope: project but user copy exists at ${u.path.replace(homedir(), '~')}. Either change scope to 'both' (and ensure byte-equal copies) or delete the user copy.`,
+          detail: `scope: project but user copy exists at ${u.path.replace(homedir(), '~')}. Either change scope to 'both' (and ensure byte-equal copies) or delete the user copy.`
         })
       }
     } else if (declared === 'both') {
@@ -175,16 +176,18 @@ function main(): void {
         if (missingUser && inCI) {
           // acceptable in CI
         } else {
-          const missing = missingUser ? 'user copy (~/.claude/skills/)' : 'project copy (.claude/skills/)'
+          const missing = missingUser
+            ? 'user copy (~/.claude/skills/)'
+            : 'project copy (.claude/skills/)'
           violations.push({
             name,
-            detail: `scope: both but ${missing} is missing. Run 'npm run skills:sync' to mirror.`,
+            detail: `scope: both but ${missing} is missing. Run 'npm run skills:sync' to mirror.`
           })
         }
       } else if (u.sha !== p.sha) {
         violations.push({
           name,
-          detail: `scope: both but copies have drifted (user SHA ${u.sha}, project SHA ${p.sha}). Run 'npm run skills:sync' after deciding which copy is canonical.`,
+          detail: `scope: both but copies have drifted (user SHA ${u.sha}, project SHA ${p.sha}). Run 'npm run skills:sync' after deciding which copy is canonical.`
         })
       }
     }
@@ -205,7 +208,7 @@ function main(): void {
   }
   console.log()
   console.log(`${RED}${BOLD}RESULT: FAIL${RESET} — ${violations.length} violation(s)`)
-  if (violations.some((v) => /scope: both but copies have drifted/.test(v.detail))) {
+  if (violations.some(v => /scope: both but copies have drifted/.test(v.detail))) {
     console.log()
     console.log(`${YELLOW}Helper:${RESET} decide which copy is canonical, then:`)
     console.log(`  cp <canonical>/SKILL.md <stale>/SKILL.md`)

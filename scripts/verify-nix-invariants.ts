@@ -36,25 +36,33 @@ import { fileURLToPath } from 'node:url'
 const HERE = dirname(fileURLToPath(import.meta.url))
 const PKG = resolve(HERE, '..')
 
-const RED = '\x1b[31m'; const GREEN = '\x1b[32m'; const DIM = '\x1b[2m'
-const BOLD = '\x1b[1m'; const RESET = '\x1b[0m'
+const RED = '\x1b[31m'
+const GREEN = '\x1b[32m'
+const DIM = '\x1b[2m'
+const BOLD = '\x1b[1m'
+const RESET = '\x1b[0m'
 
-interface Rule { id: string; pattern: RegExp; why: string; fix: string }
+interface Rule {
+  id: string
+  pattern: RegExp
+  why: string
+  fix: string
+}
 
 const RULES: Rule[] = [
   {
     id: 'env-shebang',
     pattern: /#!\s*\/usr\/bin\/env\b/,
     why: 'a Nix build has no ambient PATH, so an env-resolved interpreter is whatever the caller happens to have',
-    fix: 'use a full store path: #!${pkgs.bash}/bin/bash',
+    fix: 'use a full store path: #!${pkgs.bash}/bin/bash'
   },
   {
     id: 'flake-input-path',
     // `url = "path:./x"` or `url = path:./x`. Matches the scheme in an input position only.
     pattern: /\burl\s*=\s*"?path:/,
     why: 'path: is not git-aware — it copies untracked build output too, so a stray result symlink changes the narHash and desyncs consumers',
-    fix: 'use git+file: to hash tracked content only (G-nixos-2026-07-11-01KYSBXCJ9D8AMA0FFCR1FPZMZ)',
-  },
+    fix: 'use git+file: to hash tracked content only (G-nixos-2026-07-11-01KYSBXCJ9D8AMA0FFCR1FPZMZ)'
+  }
 ]
 
 /**
@@ -85,8 +93,12 @@ export function stripNixCommentsChecked(src: string): { text: string; unterminat
     let l = line
     if (inBlock) {
       const close = l.indexOf('*/')
-      if (close === -1) { out.push(''); continue }
-      l = l.slice(close + 2); inBlock = false
+      if (close === -1) {
+        out.push('')
+        continue
+      }
+      l = l.slice(close + 2)
+      inBlock = false
     }
     for (;;) {
       // A Nix block comment opens with `/*` at a COMMENT position — start of line or after
@@ -100,7 +112,12 @@ export function stripNixCommentsChecked(src: string): { text: string; unterminat
       if (open === -1) break
       const at = l.indexOf('/*', open)
       const close = l.indexOf('*/', at + 2)
-      if (close === -1) { l = l.slice(0, at); inBlock = true; openedAt = lineNo; break }
+      if (close === -1) {
+        l = l.slice(0, at)
+        inBlock = true
+        openedAt = lineNo
+        break
+      }
       l = l.slice(0, at) + ' ' + l.slice(close + 2)
     }
     // A `#` comment — but `#!` is a shebang, which is the thing under test, and `${...#...}` is
@@ -113,7 +130,14 @@ export function stripNixCommentsChecked(src: string): { text: string; unterminat
   return { text: out.join('\n'), unterminated: inBlock ? openedAt : 0 }
 }
 
-export interface Finding { file: string; line: number; rule: string; why: string; fix: string; text: string }
+export interface Finding {
+  file: string
+  line: number
+  rule: string
+  why: string
+  fix: string
+  text: string
+}
 
 export function scanNix(relPath: string, source: string): Finding[] {
   const stripped = stripNixCommentsChecked(source)
@@ -127,13 +151,20 @@ export function scanNix(relPath: string, source: string): Finding[] {
       rule: 'unterminated-block-comment',
       why: 'a `/*` that never closes blanks every line below it, so the rules below this point scanned an empty file and could not have fired',
       fix: 'close the block comment (an unterminated one is also a Nix parse error, so this file cannot build either)',
-      text: (raw[stripped.unterminated - 1] ?? '').trim(),
+      text: (raw[stripped.unterminated - 1] ?? '').trim()
     })
   }
   for (const rule of RULES) {
     code.forEach((line, i) => {
       if (rule.pattern.test(line)) {
-        out.push({ file: relPath, line: i + 1, rule: rule.id, why: rule.why, fix: rule.fix, text: (raw[i] ?? '').trim() })
+        out.push({
+          file: relPath,
+          line: i + 1,
+          rule: rule.id,
+          why: rule.why,
+          fix: rule.fix,
+          text: (raw[i] ?? '').trim()
+        })
       }
     })
   }
@@ -145,7 +176,10 @@ function walkNix(dir: string, acc: string[] = []): string[] {
   for (const e of readdirSync(dir)) {
     if (e === 'node_modules' || e === 'result') continue
     const p = join(dir, e)
-    if (statSync(p).isDirectory()) { walkNix(p, acc); continue }
+    if (statSync(p).isDirectory()) {
+      walkNix(p, acc)
+      continue
+    }
     if (p.endsWith('.nix')) acc.push(p)
   }
   return acc
@@ -156,13 +190,22 @@ function walkNix(dir: string, acc: string[] = []): string[] {
 // --------------------------------------------------------------------------------------------
 
 const CATCH_CASES: [string, string][] = [
-  ['an env shebang in a launcher', `installPhase = ''\n  cat > $out/bin/x <<EOF\n  #!/usr/bin/env bash\n  EOF\n'';`],
+  [
+    'an env shebang in a launcher',
+    `installPhase = ''\n  cat > $out/bin/x <<EOF\n  #!/usr/bin/env bash\n  EOF\n'';`
+  ],
   ['an env shebang with a space', `  #! /usr/bin/env bash`],
   ['an env shebang for another interpreter', `#!/usr/bin/env python3`],
   ['a quoted path: input', `weaver.url = "path:./nixos";`],
-  ['a shebang AFTER a shell glob', `installPhase = ''\n  cp -r dist/* $out/lib/\n  cat > $out/bin/x <<EOF\n  #!/usr/bin/env bash\n  EOF\n'';`],
+  [
+    'a shebang AFTER a shell glob',
+    `installPhase = ''\n  cp -r dist/* $out/lib/\n  cat > $out/bin/x <<EOF\n  #!/usr/bin/env bash\n  EOF\n'';`
+  ],
   ['an unquoted path: input', `inputs.weaver.url = path:./nixos;`],
-  ['an unterminated block comment, which blanks every rule below it', `/* note: this never closes\n  cat > $out/bin/x <<EOF\n  #!/usr/bin/env bash\n  EOF`],
+  [
+    'an unterminated block comment, which blanks every rule below it',
+    `/* note: this never closes\n  cat > $out/bin/x <<EOF\n  #!/usr/bin/env bash\n  EOF`
+  ]
 ]
 
 const IGNORE_CASES: [string, string][] = [
@@ -172,13 +215,19 @@ const IGNORE_CASES: [string, string][] = [
   ['a github input', `nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.11";`],
   // Prose describing the rules — the class that switches an auditor off.
   ['a comment banning the env shebang', `# NEVER use #!/usr/bin/env bash here — use \${pkgs.bash}`],
-  ['a comment explaining path: vs git+file:', `# path: copies untracked output; use git+file: instead`],
+  [
+    'a comment explaining path: vs git+file:',
+    `# path: copies untracked output; use git+file: instead`
+  ],
   ['a block comment mentioning both', `/* url = "path:./x" is wrong and #!/usr/bin/env is too */`],
   ['a hash inside string interpolation', 'name = "\${lib.removePrefix "#" tag}";'],
   ['an unrelated url attribute', `src.url = "https://example.com/x.tar.gz";`],
   ['a shell glob, which is not a block comment', `cp -r backend/dist/* $out/lib/weaver/backend/`],
   ['a glob in a docs copy', `cp docs/security/compliance/*.md $out/lib/weaver/docs/`],
-  ['a block comment that spans lines and closes', `/*\n  #!/usr/bin/env bash is banned here\n  and url = "path:./x" is too\n*/\nbuildInputs = [ ];`],
+  [
+    'a block comment that spans lines and closes',
+    `/*\n  #!/usr/bin/env bash is banned here\n  and url = "path:./x" is too\n*/\nbuildInputs = [ ];`
+  ]
 ]
 
 function selfTest(): boolean {
@@ -188,9 +237,12 @@ function selfTest(): boolean {
   }
   for (const [name, src] of IGNORE_CASES) {
     const hits = scanNix('t.nix', src)
-    if (hits.length > 0) failures.push(`IGNORE wrongly flagged: ${name} (${hits.map(h => h.rule).join(', ')})`)
+    if (hits.length > 0)
+      failures.push(`IGNORE wrongly flagged: ${name} (${hits.map(h => h.rule).join(', ')})`)
   }
-  console.log(`${DIM}  auditor-contract: catch=${CATCH_CASES.length} ignore=${IGNORE_CASES.length}${RESET}`)
+  console.log(
+    `${DIM}  auditor-contract: catch=${CATCH_CASES.length} ignore=${IGNORE_CASES.length}${RESET}`
+  )
   if (failures.length > 0) {
     console.error(`${RED}${BOLD}SELF-TEST FAILED${RESET}`)
     for (const f of failures) console.error(`  ${RED}✗${RESET} ${f}`)
@@ -236,11 +288,15 @@ function main(): void {
       console.error(`      ${DIM}${f.text}${RESET}`)
       console.error(`      ${DIM}fix: ${f.fix}${RESET}`)
     }
-    console.error(`\n${RED}${BOLD}RESULT: FAIL${RESET} — ${findings.length} Nix invariant violation(s)`)
+    console.error(
+      `\n${RED}${BOLD}RESULT: FAIL${RESET} — ${findings.length} Nix invariant violation(s)`
+    )
     process.exit(1)
   }
 
-  console.log(`\n${GREEN}${BOLD}RESULT: PASS${RESET} — interpreters are store paths and flake inputs are git-aware`)
+  console.log(
+    `\n${GREEN}${BOLD}RESULT: PASS${RESET} — interpreters are store paths and flake inputs are git-aware`
+  )
 }
 
 main()

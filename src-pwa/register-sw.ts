@@ -28,7 +28,7 @@ register(import.meta.env.QUASAR_SERVICE_WORKER_FILE, {
     Notify.create({
       message: 'App ready for offline use',
       icon: 'mdi-cloud-check',
-      color: 'positive',
+      color: 'positive'
     })
   },
 
@@ -49,13 +49,13 @@ register(import.meta.env.QUASAR_SERVICE_WORKER_FILE, {
           color: 'white',
           handler: () => {
             window.location.reload()
-          },
+          }
         },
         {
           label: 'Dismiss',
-          color: 'white',
-        },
-      ],
+          color: 'white'
+        }
+      ]
     })
   },
 
@@ -64,7 +64,7 @@ register(import.meta.env.QUASAR_SERVICE_WORKER_FILE, {
     Notify.create({
       message: 'Running offline',
       icon: 'mdi-cloud-off-outline',
-      color: 'warning',
+      color: 'warning'
     })
   },
 

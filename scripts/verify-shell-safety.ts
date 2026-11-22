@@ -68,7 +68,9 @@ import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const PKG = join(dirname(fileURLToPath(import.meta.url)), '..')
-const REPO = execFileSync('git', ['-C', PKG, 'rev-parse', '--show-toplevel'], { encoding: 'utf-8' }).trim()
+const REPO = execFileSync('git', ['-C', PKG, 'rev-parse', '--show-toplevel'], {
+  encoding: 'utf-8'
+}).trim()
 
 const OPENER = /<<-?[ \t]*("[^"]+"|'[^']+'|[A-Za-z_][A-Za-z0-9_]*)/g
 const SUBST = /`|\$\(/
@@ -96,7 +98,7 @@ const SUPPRESS = /shell-safety-ok:\s*\S+/
 function commentStart(line: string, spans: [number, number][]): number {
   for (let i = 0; i < line.length; i++) {
     if (line[i] !== '#') continue
-    if (i > 0 && line[i - 1] === '$') continue          // ${#var}
+    if (i > 0 && line[i - 1] === '$') continue // ${#var}
     if (spans.some(([s, e]) => i > s && i < e)) continue // inside a string
     return i
   }
@@ -111,7 +113,11 @@ function quotedSpans(line: string): [number, number][] {
   return spans
 }
 
-export interface Finding { file: string; line: number; text: string }
+export interface Finding {
+  file: string
+  line: number
+  text: string
+}
 
 /** Pure: which lines sit inside an UNQUOTED heredoc body and contain command substitution? */
 export function findHeredocSubstitutions(content: string, path = ''): Finding[] {
@@ -177,7 +183,8 @@ export function findHeredocSubstitutions(content: string, path = ''): Finding[] 
  * `rm -f`, `pkill`, an existence test. It is never legitimate on something whose whole purpose is
  * to fail. So the rule keys on the COMMAND being swallowed, not on the discard idiom itself.
  */
-const GATE = /(?:npm(?:[ \t]+--prefix[ \t]+\S+)?[ \t]+run[ \t]+(?:audit|test|check|verify|lint|typecheck)[:a-z0-9-]*|(?:\.\/|bash[ \t]+|npx[ \t]+tsx[ \t]+|python3[ \t]+)?[\w./-]*(?:audit|verify|check)[\w./-]*\.(?:sh|ts|py|mjs))[^\n|&]*\|\|[ \t]*(?:true|:)(?=[ \t;&|#]|$)/
+const GATE =
+  /(?:npm(?:[ \t]+--prefix[ \t]+\S+)?[ \t]+run[ \t]+(?:audit|test|check|verify|lint|typecheck)[:a-z0-9-]*|(?:\.\/|bash[ \t]+|npx[ \t]+tsx[ \t]+|python3[ \t]+)?[\w./-]*(?:audit|verify|check)[\w./-]*\.(?:sh|ts|py|mjs))[^\n|&]*\|\|[ \t]*(?:true|:)(?=[ \t;&|#]|$)/
 /** A deliberate, reasoned exemption. Checked over the WHOLE line — the comment trails the guard. */
 const GATE_OK = /#[^\n]*gate-ok:\s*\S/
 
@@ -194,32 +201,48 @@ export function findSwallowedGates(content: string, path = ''): Finding[] {
 }
 
 const MUST_CATCH: [string, string][] = [
-  ['the 2026-08-07 entry mangle', 'cat >> f.md <<ENTRY\nbucketing by `created_at` was in place\nENTRY\n'],
+  [
+    'the 2026-08-07 entry mangle',
+    'cat >> f.md <<ENTRY\nbucketing by `created_at` was in place\nENTRY\n'
+  ],
   ['dollar-paren in an unquoted body', 'cat <<EOF\nbuilt at $(date)\nEOF\n'],
   ['interpolating id AND a backtick', 'cat <<ENTRY\nid: L-x-$U\nsee `col_name`\nENTRY\n'],
   // The skip below must not become a bypass: a REAL opener on a line that also carries a
   // quoted argument still opens, because the `<<` sits outside that argument.
-  ['real opener on a line that also quotes an argument', 'cat > "$f" <<EOF\nbuilt at $(date)\nEOF\n'],  // A trailing comment must not hide a real opener that precedes it.
+  [
+    'real opener on a line that also quotes an argument',
+    'cat > "$f" <<EOF\nbuilt at $(date)\nEOF\n'
+  ], // A trailing comment must not hide a real opener that precedes it.
   ['real opener followed by a comment', 'cat <<EOF # writes the file\nbuilt at $(date)\nEOF\n'],
   // The EOF discard must not become a bypass: a heredoc that DOES close is still judged, including
   // when more code follows it, and including when a phantom opener preceded it.
   ['closed heredoc, code after it', 'cat <<EOF\nbuilt $(date)\nEOF\necho done\n'],
-  ['second heredoc closes, first is phantom', "echo '<<NOPE'\ncat <<EOF\n`whoami`\nEOF\n"],
+  ['second heredoc closes, first is phantom', "echo '<<NOPE'\ncat <<EOF\n`whoami`\nEOF\n"]
 ]
 const MUST_IGNORE: [string, string][] = [
-  ["single-quoted delimiter", "cat <<'EOF'\nbucketing by `created_at`\nEOF\n"],
+  ['single-quoted delimiter', "cat <<'EOF'\nbucketing by `created_at`\nEOF\n"],
   ['double-quoted delimiter', 'cat <<"EOF"\n`whoami`\nEOF\n'],
   // The usual reason a delimiter is left unquoted — and not the hazard.
   ['unquoted, only $VAR', 'cat <<ENTRY\nid: L-analysis-$U\nENTRY\n'],
   ['plain prose body', 'git commit -F - <<EOF\nfix: a normal message\nEOF\n'],
   ['substitution outside any heredoc', 'D=$(date)\necho "$D"\n'],
   ['backtick after the terminator', "cat <<'EOF'\nbody\nEOF\necho `date`\n"],
-  ['suppressed with a reason', 'cat <<EOF # shell-safety-ok: generator, the body is meant to expand\nbuilt $(date)\nEOF\n'],  // A heredoc opener inside a string literal is a FIXTURE, not an opener. Without this the
+  [
+    'suppressed with a reason',
+    'cat <<EOF # shell-safety-ok: generator, the body is meant to expand\nbuilt $(date)\nEOF\n'
+  ], // A heredoc opener inside a string literal is a FIXTURE, not an opener. Without this the
   // unterminated delimiter swallowed the rest of the file.
-  ['opener inside a quoted string is text', "check 0 $'cat > f.sh <<SH\\nbody\\nSH'\necho `date`\n"],  ['opener named in a comment is text', 'echo hi # the shape is cat <<EOF\necho `date`\n'],
+  [
+    'opener inside a quoted string is text',
+    "check 0 $'cat > f.sh <<SH\\nbody\\nSH'\necho `date`\n"
+  ],
+  ['opener named in a comment is text', 'echo hi # the shape is cat <<EOF\necho `date`\n'],
   // A file that TALKS about heredocs — a hook that parses them, a test that asserts on them.
-  ['a fixture string that merely contains an opener', "check 0 $'cat > e.sh <<SH\\nbody\\nSH'\nD=$(date)\n"],
-  ['prose naming a delimiter, then real code', '# see the <<ENTRY form below\nX=`date`\n'],
+  [
+    'a fixture string that merely contains an opener',
+    "check 0 $'cat > e.sh <<SH\\nbody\\nSH'\nD=$(date)\n"
+  ],
+  ['prose naming a delimiter, then real code', '# see the <<ENTRY form below\nX=`date`\n']
 ]
 
 const GATE_CATCH: [string, string][] = [
@@ -227,7 +250,7 @@ const GATE_CATCH: [string, string][] = [
   ['bare npm run test swallowed', 'npm run test:compliance || true\n'],
   ['a verify script swallowed', './scripts/verify-shell-safety.ts || true\n'],
   ['swallowed with : instead of true', 'npm run audit:sast || :\n'],
-  ['tsx-invoked auditor swallowed', 'npx tsx scripts/audit-code-scanning.ts || true\n'],
+  ['tsx-invoked auditor swallowed', 'npx tsx scripts/audit-code-scanning.ts || true\n']
 ]
 const GATE_IGNORE: [string, string][] = [
   // The reason the discard idiom exists at all — a non-zero exit here carries no verdict.
@@ -238,21 +261,26 @@ const GATE_IGNORE: [string, string][] = [
   ['gate run normally', 'npm --prefix /a/b run audit:vocabulary\n'],
   ['gate whose status IS checked', 'npm run audit:sast || exit 1\n'],
   ['a comment about the pattern', '# never write: npm run audit:x || true\n'],
-  ['deliberate, with a stated reason', 'npm run audit:optional || true  # gate-ok: advisory, no verdict\n'],
-  ['shell-safety-ok suppression honoured', 'npm run audit:x || true  # shell-safety-ok: fixture\n'],
+  [
+    'deliberate, with a stated reason',
+    'npm run audit:optional || true  # gate-ok: advisory, no verdict\n'
+  ],
+  ['shell-safety-ok suppression honoured', 'npm run audit:x || true  # shell-safety-ok: fixture\n']
 ]
 
 function selfTest(): string[] {
   const fails: string[] = []
   for (const [name, src] of MUST_CATCH) {
-    if (findHeredocSubstitutions(src, 'x.sh').length === 0) fails.push(`MUST CATCH but did not: ${name}`)
+    if (findHeredocSubstitutions(src, 'x.sh').length === 0)
+      fails.push(`MUST CATCH but did not: ${name}`)
   }
   for (const [name, src] of MUST_IGNORE) {
     const got = findHeredocSubstitutions(src, 'x.sh')
     if (got.length) fails.push(`MUST IGNORE but flagged: ${name} -> ${JSON.stringify(got)}`)
   }
   for (const [name, src] of GATE_CATCH) {
-    if (findSwallowedGates(src, 'x.sh').length === 0) fails.push(`GATE MUST CATCH but did not: ${name}`)
+    if (findSwallowedGates(src, 'x.sh').length === 0)
+      fails.push(`GATE MUST CATCH but did not: ${name}`)
   }
   for (const [name, src] of GATE_IGNORE) {
     const g = findSwallowedGates(src, 'x.sh')
@@ -268,7 +296,9 @@ function isShell(path: string, body: string): boolean {
 
 function main(): number {
   console.log('\x1b[1mShell Safety Audit\x1b[0m')
-  console.log('\x1b[2mA committed heredoc must not execute its own body; a gate must not discard its exit status\x1b[0m\n')
+  console.log(
+    '\x1b[2mA committed heredoc must not execute its own body; a gate must not discard its exit status\x1b[0m\n'
+  )
 
   const fails = selfTest()
   if (fails.length) {
@@ -276,21 +306,30 @@ function main(): number {
     for (const f of fails) console.error(`    ${f}`)
     return 1
   }
-  console.log(`  \x1b[32m✓\x1b[0m self-test: ${MUST_CATCH.length + GATE_CATCH.length} catch + ` +
-    `${MUST_IGNORE.length + GATE_IGNORE.length} ignore cases (heredoc + swallowed-gate)\n`)
+  console.log(
+    `  \x1b[32m✓\x1b[0m self-test: ${MUST_CATCH.length + GATE_CATCH.length} catch + ` +
+      `${MUST_IGNORE.length + GATE_IGNORE.length} ignore cases (heredoc + swallowed-gate)\n`
+  )
 
   // audit:auditor-contracts reads this line to see BOTH halves rather than trust they exist.
-  console.log(`  auditor-contract: catch=${MUST_CATCH.length + GATE_CATCH.length} ` +
-    `ignore=${MUST_IGNORE.length + GATE_IGNORE.length}\n`)
+  console.log(
+    `  auditor-contract: catch=${MUST_CATCH.length + GATE_CATCH.length} ` +
+      `ignore=${MUST_IGNORE.length + GATE_IGNORE.length}\n`
+  )
 
   const tracked = execFileSync('git', ['-C', REPO, 'ls-files'], { encoding: 'utf-8' })
-    .split('\n').filter(Boolean)
+    .split('\n')
+    .filter(Boolean)
   const found: Finding[] = []
   const gates: Finding[] = []
   let scanned = 0
   for (const rel of tracked) {
     let body: string
-    try { body = readFileSync(join(REPO, rel), 'utf-8') } catch { continue }
+    try {
+      body = readFileSync(join(REPO, rel), 'utf-8')
+    } catch {
+      continue
+    }
     if (!isShell(rel, body)) continue
     scanned++
     found.push(...findHeredocSubstitutions(body, rel))
@@ -298,8 +337,11 @@ function main(): number {
   }
 
   if (gates.length) {
-    for (const g of gates) console.log(`\x1b[31m  ✗ ${g.file}:${g.line}\x1b[0m  ${g.text.slice(0, 96)}`)
-    console.log(`\n\x1b[31m\x1b[1mRESULT: FAIL\x1b[0m — ${gates.length} gate(s) with a discarded exit status.`)
+    for (const g of gates)
+      console.log(`\x1b[31m  ✗ ${g.file}:${g.line}\x1b[0m  ${g.text.slice(0, 96)}`)
+    console.log(
+      `\n\x1b[31m\x1b[1mRESULT: FAIL\x1b[0m — ${gates.length} gate(s) with a discarded exit status.`
+    )
     console.log('  Discarding the status of something whose purpose is to FAIL converts a refusal')
     console.log('  into an invisible success — the same act as --no-verify, one layer in.')
     console.log('  Fine on cleanup and probes. If genuinely advisory, say so:  # gate-ok: <reason>')
@@ -307,14 +349,19 @@ function main(): number {
   }
 
   if (found.length) {
-    for (const f of found) console.log(`\x1b[31m  ✗ ${f.file}:${f.line}\x1b[0m  ${f.text.slice(0, 96)}`)
-    console.log(`\n\x1b[31m\x1b[1mRESULT: FAIL\x1b[0m — ${found.length} heredoc line(s) will be EXECUTED, not written.`)
+    for (const f of found)
+      console.log(`\x1b[31m  ✗ ${f.file}:${f.line}\x1b[0m  ${f.text.slice(0, 96)}`)
+    console.log(
+      `\n\x1b[31m\x1b[1mRESULT: FAIL\x1b[0m — ${found.length} heredoc line(s) will be EXECUTED, not written.`
+    )
     console.log("  Use a quoted delimiter:  <<'EOF'   (both ' and \" disable expansion)")
     console.log('  $VAR interpolation is fine unquoted — it is ` and $( ) that run.')
     console.log('  Genuinely a generator? add:  # shell-safety-ok: <reason>')
     return 1
   }
-  console.log(`\x1b[32m\x1b[1mRESULT: PASS\x1b[0m — ${scanned} shell file(s), no self-executing heredocs, no swallowed gates`)
+  console.log(
+    `\x1b[32m\x1b[1mRESULT: PASS\x1b[0m — ${scanned} shell file(s), no self-executing heredocs, no swallowed gates`
+  )
   return 0
 }
 

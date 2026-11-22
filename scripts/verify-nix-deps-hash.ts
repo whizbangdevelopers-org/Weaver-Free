@@ -50,14 +50,18 @@ function fail(message: string): never {
   console.log(`${RED}\u2717${RESET} nix-deps-hash`)
   console.log(`  ${DIM}${message.split('\n').join('\n  ')}${RESET}`)
   console.log()
-  console.log(`${RED}${BOLD}RESULT: FAIL${RESET} — nixos/package.nix npmDepsHash is out of sync with package-lock.json`)
+  console.log(
+    `${RED}${BOLD}RESULT: FAIL${RESET} — nixos/package.nix npmDepsHash is out of sync with package-lock.json`
+  )
   process.exit(1)
 }
 
 function pass(detail: string): void {
   console.log(`${GREEN}\u2713${RESET} nix-deps-hash ${DIM}— ${detail}${RESET}`)
   console.log()
-  console.log(`${GREEN}${BOLD}RESULT: PASS${RESET} — nixos/package.nix marker matches package-lock.json`)
+  console.log(
+    `${GREEN}${BOLD}RESULT: PASS${RESET} — nixos/package.nix marker matches package-lock.json`
+  )
 }
 
 // ---------------------------------------------------------------------------
@@ -80,8 +84,8 @@ if (!markerMatch) {
       `  # lockfile-marker: ${lockfileMarker}`,
       '',
       'This auditor pairs the comment with npmDepsHash so CI can detect',
-      'lockfile drift without needing `nix-prefetch-npm-deps` installed.',
-    ].join('\n'),
+      'lockfile drift without needing `nix-prefetch-npm-deps` installed.'
+    ].join('\n')
   )
 }
 
@@ -106,8 +110,8 @@ if (markerMatch[1] !== lockfileMarker) {
       '  4. Commit both changes in one commit.',
       '',
       'Or run the helper (installs prefetch-npm-deps on demand):',
-      '  npm run nix:refresh-deps-hash',
-    ].join('\n'),
+      '  npm run nix:refresh-deps-hash'
+    ].join('\n')
   )
 }
 

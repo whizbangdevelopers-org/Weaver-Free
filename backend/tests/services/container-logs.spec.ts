@@ -25,7 +25,7 @@ import {
   containerLogArgs,
   apptainerLogPaths,
   isContainerLogSource,
-  isApptainerInstanceLogPath,
+  isApptainerInstanceLogPath
 } from '../../src/services/microvm.js'
 
 describe('container log dispatch', () => {
@@ -53,7 +53,12 @@ describe('container log dispatch', () => {
     })
 
     it('podman takes the same argv — they are CLI-compatible here', () => {
-      expect(containerLogArgs('podman', 'api-worker', 50)).toEqual(['logs', '--tail', '50', 'api-worker'])
+      expect(containerLogArgs('podman', 'api-worker', 50)).toEqual([
+        'logs',
+        '--tail',
+        '50',
+        'api-worker'
+      ])
     })
 
     it('clamps a missing or absurd line count instead of trusting the caller', () => {
@@ -96,7 +101,7 @@ describe('container log dispatch', () => {
     it('resolves both log paths for a listed instance', () => {
       expect(apptainerLogPaths(LIST, 'testinst')).toEqual({
         out: '/root/.apptainer/instances/logs/lab1/root/testinst.out',
-        err: '/root/.apptainer/instances/logs/lab1/root/testinst.err',
+        err: '/root/.apptainer/instances/logs/lab1/root/testinst.err'
       })
     })
 
@@ -133,18 +138,23 @@ describe('isApptainerInstanceLogPath', () => {
   })
 
   it('accepts it under a service-user home too, not just root', () => {
-    expect(isApptainerInstanceLogPath(
-      '/var/lib/weaver/.apptainer/instances/logs/lab1/weaver/sif-hpc.out', 'sif-hpc', 'out')).toBe(true)
+    expect(
+      isApptainerInstanceLogPath(
+        '/var/lib/weaver/.apptainer/instances/logs/lab1/weaver/sif-hpc.out',
+        'sif-hpc',
+        'out'
+      )
+    ).toBe(true)
   })
 
   it('REJECTS traversal, a foreign directory, and a mismatched instance name', () => {
     const cases: [string, string, 'out' | 'err'][] = [
       ['/root/.apptainer/instances/logs/../../../../etc/shadow', 'testinst', 'out'],
       ['/etc/shadow', 'testinst', 'out'],
-      ['/root/.apptainer/instances/logs/lab1/root/other.out', 'testinst', 'out'],   // another instance
-      ['/root/instances/logs/lab1/root/testinst.out', 'testinst', 'out'],           // not under .apptainer
+      ['/root/.apptainer/instances/logs/lab1/root/other.out', 'testinst', 'out'], // another instance
+      ['/root/instances/logs/lab1/root/testinst.out', 'testinst', 'out'], // not under .apptainer
       ['root/.apptainer/instances/logs/lab1/root/testinst.out', 'testinst', 'out'], // relative
-      ['/root/.apptainer/instances/logs/lab1/root/testinst.err', 'testinst', 'out'],// wrong stream
+      ['/root/.apptainer/instances/logs/lab1/root/testinst.err', 'testinst', 'out'] // wrong stream
     ]
     for (const [p, name, ext] of cases) {
       expect(isApptainerInstanceLogPath(p, name, ext), p).toBe(false)
@@ -154,7 +164,7 @@ describe('isApptainerInstanceLogPath', () => {
   // apptainerLogPaths must ENFORCE the guard, not merely define it beside itself.
   it('is enforced by apptainerLogPaths — a hostile path yields null, not a read', () => {
     const hostile = JSON.stringify({
-      instances: [{ instance: 'testinst', logOutPath: '/etc/shadow', logErrPath: '/etc/shadow' }],
+      instances: [{ instance: 'testinst', logOutPath: '/etc/shadow', logErrPath: '/etc/shadow' }]
     })
     expect(apptainerLogPaths(hostile, 'testinst')).toBeNull()
   })
